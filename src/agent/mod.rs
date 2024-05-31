@@ -5,12 +5,14 @@ use itertools::Itertools;
 use num::pow::Pow;
 use num::{BigInt, BigUint, ToPrimitive, Zero};
 use std::cell::{Cell, RefCell};
+use std::convert::identity;
 use std::convert::TryFrom;
 use std::convert::TryInto;
-
-use std::error::{self, Error};
+use std::error;
 use std::fmt;
+use std::ops::Not;
 use std::rc::Rc;
+use thiserror::Error;
 
 // The tail-call optimization tests "work" if they can go 100,000 deep. (Because TCO means that we don't
 // actually consume context stack space.) So we put in an artificial limit for less than that so that TCO
@@ -640,77 +642,78 @@ pub fn prepare_for_execution(index: usize, chunk: Rc<Chunk>) {
     });
 }
 
-#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Error)]
 pub enum InternalRuntimeError {
+    #[error("no active execution context")]
     NoContext,
+    #[error("runtime stack is empty")]
     EmptyStack,
+    #[error("non-error completion expected")]
     NonErrorExpected,
+    #[error("string value expected")]
     StringExpected,
+    #[error("number value expected")]
+    NumberExpected,
+    #[error("code terminated early")]
     CodeEndedEarly,
+    #[error("string index out of bounds")]
     StringIndexOOB,
+    #[error("string set index out of bounds")]
     StringSetIndexOOB,
+    #[error("float index out of bounds")]
     FloatIndexOOB,
+    #[error("bigint index out of bounds")]
     BigintIndexOOB,
+    #[error("stashed function data index out of bounds")]
     SFDIndexOOB,
+    #[error("no current lexical environment")]
     NoLexicalEnvironment,
+    #[error("no current variable environment")]
     NoVarEnvironment,
+    #[error("binding already exists")]
     BindingAlreadyExists,
+    #[error("an environment's HasBinding method failed")]
     HasBindingFailure,
+    #[error("an environment's CreateMutableBinding method failed")]
     CreateMutableBindingFailure,
+    #[error("an environment's InitializeBinding method failed")]
     InitializeBindingFailure,
+    #[error("an environment's GetBindingValue method failed")]
     GetBindingValueFailure,
+    #[error("an environment's SetMutableBinding method failed")]
     SetMutableBindingFailure,
+    #[error("an object's CreateDataProperty method failed")]
     ObjectCDPFailure,
+    #[error("an object's SetPrototypeOf method failed")]
     SetPrototypeOfFailure,
+    #[error("throw completion expected")]
     ThrowExpected,
+    #[error("function object expected")]
     FunctionExpected,
+    #[error("value or reference expected")]
     ValueOrReferenceExpected,
+    #[error("reference must be resolvable")]
     UnresolvableReference,
+    #[error("arguments object expected")]
+    ArgumentsObjectExpected,
+    #[error("mapped arguments object expected")]
+    MappedArgumentsObjectExpected,
+    #[error("no active private environment")]
+    NoPrivateEnv,
+    #[error("private name missing from private environment")]
+    MissingPrivateName,
+    #[error("method definition expected")]
+    ExpectedMethod,
+    #[error("getter method production expected")]
+    GetterMethodExpected,
+    #[error("setter method production expected")]
+    SetterMethodExpected,
 }
-
-impl fmt::Display for InternalRuntimeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            InternalRuntimeError::NoContext => write!(f, "no active execution context"),
-            InternalRuntimeError::EmptyStack => write!(f, "runtime stack is empty"),
-            InternalRuntimeError::NonErrorExpected => write!(f, "non-error completion expected"),
-            InternalRuntimeError::StringExpected => write!(f, "string value expected"),
-            InternalRuntimeError::CodeEndedEarly => write!(f, "code terminated early"),
-            InternalRuntimeError::StringIndexOOB => write!(f, "string index out of bounds"),
-            InternalRuntimeError::StringSetIndexOOB => write!(f, "string set index out of bounds"),
-            InternalRuntimeError::FloatIndexOOB => write!(f, "float index out of bounds"),
-            InternalRuntimeError::BigintIndexOOB => write!(f, "bigint index out of bounds"),
-            InternalRuntimeError::SFDIndexOOB => write!(f, "stashed function data index out of bounds"),
-            InternalRuntimeError::NoLexicalEnvironment => write!(f, "no current lexical environment"),
-            InternalRuntimeError::NoVarEnvironment => write!(f, "no current variable environment"),
-            InternalRuntimeError::BindingAlreadyExists => write!(f, "binding already exists"),
-            InternalRuntimeError::HasBindingFailure => write!(f, "an environment's HasBinding method failed"),
-            InternalRuntimeError::CreateMutableBindingFailure => {
-                write!(f, "an environment's CreateMutableBinding method failed")
-            }
-            InternalRuntimeError::InitializeBindingFailure => {
-                write!(f, "an environment's InitializeBinding method failed")
-            }
-            InternalRuntimeError::GetBindingValueFailure => write!(f, "an environment's GetBindingValue method failed"),
-            InternalRuntimeError::SetMutableBindingFailure => {
-                write!(f, "an environment's SetMutableBinding method failed")
-            }
-            InternalRuntimeError::ObjectCDPFailure => write!(f, "an object's CreateDataProperty method failed"),
-            InternalRuntimeError::SetPrototypeOfFailure => write!(f, "an object's SetPrototypeOf method failed"),
-            InternalRuntimeError::ThrowExpected => write!(f, "throw completion expected"),
-            InternalRuntimeError::FunctionExpected => write!(f, "function object expected"),
-            InternalRuntimeError::ValueOrReferenceExpected => write!(f, "value or reference expected"),
-            InternalRuntimeError::UnresolvableReference => write!(f, "reference must be resolvable"),
-        }
-    }
-}
-
-impl Error for InternalRuntimeError {}
-
 mod insn_impl {
     use super::*;
 
     const PUSHABLE: &str = "If we could pop a value, we should be able to push a value";
+    const POPPABLE: &str = "Previously pushed values should be present";
 
     fn push_completion(cmpl: FullCompletion) -> anyhow::Result<()> {
         // Input: nothing
@@ -743,11 +746,32 @@ mod insn_impl {
     fn peek_value(from_end: usize) -> anyhow::Result<ECMAScriptValue> {
         ECMAScriptValue::try_from(peek_completion(from_end)?.or(Err(InternalRuntimeError::NonErrorExpected))?)
     }
+    fn peek_obj(from_end: usize) -> anyhow::Result<Object> {
+        Object::try_from(peek_value(from_end)?)
+    }
+    fn peek_function_name(from_end: usize) -> anyhow::Result<FunctionName> {
+        FunctionName::try_from(peek_completion(from_end)?.or(Err(InternalRuntimeError::NonErrorExpected))?)
+    }
     fn peek_usize(from_end: usize) -> anyhow::Result<usize> {
         let value = peek_value(from_end)?;
         let number = f64::try_from(value)?;
         let integer = to_usize(number)?;
         Ok(integer)
+    }
+    fn peek_list(from_end: usize, length: usize) -> anyhow::Result<Vec<FullCompletion>> {
+        AGENT.with(|agent| {
+            let ec_stack_ref = agent.execution_context_stack.borrow();
+            let ec = ec_stack_ref.last().ok_or(InternalRuntimeError::NoContext)?;
+
+            let stack_len = ec.stack.len();
+            if stack_len >= from_end + length {
+                let starting_index = stack_len - from_end - length;
+                let ending_index = starting_index + length;
+                Ok(ec.stack[starting_index..ending_index].to_vec())
+            } else {
+                Err(InternalRuntimeError::EmptyStack.into())
+            }
+        })
     }
     fn pop_completion() -> anyhow::Result<FullCompletion> {
         AGENT.with(|agent| {
@@ -779,6 +803,15 @@ mod insn_impl {
     }
     fn pop_numeric() -> anyhow::Result<Numeric> {
         Numeric::try_from(pop_value()?)
+    }
+    fn pop_ir() -> anyhow::Result<Rc<IteratorRecord>> {
+        Rc::<IteratorRecord>::try_from(pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?)
+    }
+    fn pop_classname() -> anyhow::Result<ClassName> {
+        ClassName::try_from(pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?)
+    }
+    fn pop_functionname() -> anyhow::Result<FunctionName> {
+        FunctionName::try_from(pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?)
     }
     fn pop_key() -> anyhow::Result<PropertyKey> {
         PropertyKey::try_from(pop_value()?)
@@ -1867,7 +1900,7 @@ mod insn_impl {
             Rc::new(compiled),
         );
 
-        set_function_name(&closure, name.into(), None);
+        super::set_function_name(&closure, name.into(), None);
         make_constructor(&closure, None);
 
         push_value(closure.into()).expect(PUSHABLE);
@@ -1936,7 +1969,7 @@ mod insn_impl {
             Rc::new(compiled),
         );
 
-        set_function_name(&closure, name.clone().into(), None);
+        super::set_function_name(&closure, name.clone().into(), None);
         make_constructor(&closure, None);
         func_env.initialize_binding(&name, closure.clone().into()).expect("binding has been created");
 
@@ -1979,7 +2012,7 @@ mod insn_impl {
             info.strict,
             Rc::new(compiled),
         );
-        set_function_name(&closure, name.into(), None);
+        super::set_function_name(&closure, name, None);
 
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
@@ -2018,7 +2051,7 @@ mod insn_impl {
             info.strict,
             Rc::new(compiled),
         );
-        set_function_name(&closure, name.clone().into(), None);
+        super::set_function_name(&closure, name.clone().into(), None);
         make_constructor(&closure, None);
 
         push_value(closure.into()).expect(PUSHABLE);
@@ -2063,6 +2096,799 @@ mod insn_impl {
             _ => Err(create_type_error("Right-hand side of 'in' must be an object")),
         };
         push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn equal(invert: bool) -> anyhow::Result<()> {
+        let compute = if invert { bool::not } else { identity };
+        let right = pop_value()?;
+        let left = pop_value()?;
+        let result = is_loosely_equal(&left, &right).map(compute).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn strict_equal(invert: bool) -> anyhow::Result<()> {
+        let compute = if invert { bool::not } else { identity };
+        let right = pop_value()?;
+        let left = pop_value()?;
+        let result = Ok(NormalCompletion::from(compute(left.is_strictly_equal(&right))));
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn create_unmapped_arguments_object() -> anyhow::Result<()> {
+        // Stack should have n arg[n-1] arg[n-2] ... arg[0] ...
+        // Those values are NOT consumed; this function assumes they'll be used again.
+
+        let length = peek_usize(0)?;
+        let obj = ArgumentsObject::object(None);
+        define_property_or_throw(
+            &obj,
+            "length",
+            PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("Normal Object");
+
+        let arguments = peek_list(1, length)?;
+
+        for (arg_number, item) in arguments.into_iter().enumerate() {
+            let value = ECMAScriptValue::try_from(item.map_err(|_| InternalRuntimeError::NonErrorExpected)?)?;
+            obj.create_data_property_or_throw(arg_number, value).expect("Normal Object");
+        }
+
+        let iterator = wks(WksId::Iterator);
+        let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
+        let throw_type_error = intrinsic(IntrinsicId::ThrowTypeError);
+        define_property_or_throw(
+            &obj,
+            iterator,
+            PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("Normal Object");
+        define_property_or_throw(
+            &obj,
+            "callee",
+            PotentialPropertyDescriptor::new()
+                .get(throw_type_error.clone())
+                .set(throw_type_error)
+                .enumerable(false)
+                .configurable(false),
+        )
+        .expect("Normal Object");
+
+        push_value(obj.into()).expect(PUSHABLE);
+        Ok(())
+        // Stack at exit: AObj N arg[N-1] ... arg[0] ...
+    }
+    pub fn create_mapped_arguments_object() -> anyhow::Result<()> {
+        // Stack should have n arg[n-1] arg[n-2] ... arg[0] func ...
+        let length = peek_usize(0)?;
+        let arguments = peek_list(1, length)?;
+
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoContext)?;
+        let map = ParameterMap::new(env);
+        let ao = ArgumentsObject::object(Some(map));
+
+        for (idx, item) in arguments.into_iter().enumerate() {
+            let val =
+                ECMAScriptValue::try_from(item.expect("arguments must be values")).expect("arguments must be values");
+            ao.create_data_property_or_throw(idx, val).expect("ArgumentObject won't throw");
+        }
+
+        define_property_or_throw(
+            &ao,
+            "length",
+            PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("ArgumentObject won't throw");
+        let iterator = wks(WksId::Iterator);
+        let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
+        define_property_or_throw(
+            &ao,
+            iterator,
+            PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("ArgumentObject won't throw");
+        let func = peek_value(length + 1)?;
+        define_property_or_throw(
+            &ao,
+            "callee",
+            PotentialPropertyDescriptor::new().value(func).writable(true).enumerable(false).configurable(true),
+        )
+        .expect("ArgumentObject won't throw");
+
+        push_value(ao.into()).expect(PUSHABLE);
+        Ok(())
+        // Stack at exit: AObj N arg[N-1] ... arg[0] func ...
+    }
+    pub fn add_mapped_argument(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let name = string_operand(chunk)?;
+        let argument_index = usize_operand(chunk)?;
+        // Stack: AObj ...
+        let obj = peek_obj(0)?;
+        let ao = obj.o.to_arguments_object().ok_or(InternalRuntimeError::ArgumentsObjectExpected)?;
+        let pmap = ao.parameter_map.as_ref().ok_or(InternalRuntimeError::MappedArgumentsObjectExpected)?;
+        let mut pmap = pmap.borrow_mut();
+        pmap.add_mapped_name(name.clone(), argument_index);
+        // Stack: AObj ...
+        Ok(())
+    }
+    pub fn handle_empty_break() -> anyhow::Result<()> {
+        let prior_result = pop_completion()?;
+        let new_result = if let Err(AbruptCompletion::Break { value, target: None }) = prior_result {
+            match value {
+                NormalCompletion::Empty => Ok(NormalCompletion::from(ECMAScriptValue::Undefined)),
+                value => Ok(value),
+            }
+        } else {
+            prior_result
+        };
+        push_completion(new_result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn handle_targeted_break(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let label = string_operand(chunk)?;
+        let prior_result = pop_completion()?;
+        let new_result = match prior_result {
+            Err(AbruptCompletion::Break { value, target: Some(target) }) if &target == label => Ok(value),
+            _ => prior_result,
+        };
+        push_completion(new_result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn coalesce_value() -> anyhow::Result<()> {
+        // Stack: stmtResult V ...
+        // If stmtResult.[[Value]] is not empty, set V to stmtResult.[[Value]].
+        let stmt_result = pop_completion()?;
+        let v = pop_value()?;
+        push_completion(Ok(match stmt_result {
+            Ok(NormalCompletion::Value(value))
+            | Err(
+                AbruptCompletion::Throw { value }
+                | AbruptCompletion::Return { value }
+                | AbruptCompletion::Continue { value: NormalCompletion::Value(value), .. }
+                | AbruptCompletion::Break { value: NormalCompletion::Value(value), .. },
+            ) => NormalCompletion::from(value),
+            _ => NormalCompletion::from(v),
+        }))
+        .expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn loop_continues(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // 1-argument opcode; takes nothing on stack (but does look at the top item); output is
+        // true or false on the stack.
+        let label_set = string_set_operand(chunk)?;
+        // 1. If completion.[[Type]] is normal, return true.
+        // 2. If completion.[[Type]] is not continue, return false.
+        // 3. If completion.[[Target]] is empty, return true.
+        // 4. If completion.[[Target]] is an element of labelSet, return true.
+        // 5. Return false.
+        let completion = peek_completion(0)?;
+        let result = match &completion {
+            Ok(_) | Err(AbruptCompletion::Continue { value: _, target: None }) => true,
+            Err(AbruptCompletion::Continue { value: _, target: Some(label) }) => label_set.contains(label),
+            _ => false,
+        };
+        push_value(result.into()).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn continue_insn() -> anyhow::Result<()> {
+        push_completion(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: None }))
+    }
+    pub fn targeted_continue(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let label = string_operand(chunk)?.clone();
+        push_completion(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: Some(label) }))
+    }
+    pub fn break_insn() -> anyhow::Result<()> {
+        push_completion(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: None }))
+    }
+    pub fn targeted_break(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let label = string_operand(chunk)?.clone();
+        push_completion(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: Some(label) }))
+    }
+    pub fn iterator_accumulate() -> anyhow::Result<()> {
+        let iterable = pop_value()?;
+        let starting_index = pop_value()?;
+        let array = pop_obj()?;
+        let mut next_index = to_index(starting_index).map_err(|_| InternalRuntimeError::NumberExpected)?;
+        match get_iterator(&iterable, IteratorKind::Sync).and_then(|ir| loop {
+            match ir.step() {
+                Ok(next_opt_obj) => match next_opt_obj {
+                    None => break Ok((next_index, array)),
+                    Some(next_obj) => {
+                        let next_value = iterator_value(&next_obj);
+                        match next_value {
+                            Err(e) => break Err(e),
+                            Ok(next_value) => {
+                                array
+                                    .create_data_property_or_throw(JSString::from(next_index), next_value)
+                                    .expect("props should store ok");
+                                next_index += 1;
+                            }
+                        }
+                    }
+                },
+                Err(e) => break Err(e),
+            }
+        }) {
+            Ok((next_index, array)) => {
+                push_value(array.into()).expect(PUSHABLE);
+                push_value(next_index.into()).expect(PUSHABLE);
+            }
+            Err(e) => {
+                push_completion(Err(e)).expect(PUSHABLE);
+            }
+        }
+        Ok(())
+    }
+    pub fn iterate_arguments() -> anyhow::Result<()> {
+        // Starts with one item on the stack (an ecmascript value), returns either an error or a stack-based
+        // representation of an argument list (N arg(n-1) ... arg(0)). See
+        // [ArgumentListEvaluation](https://tc39.es/ecma262/#sec-runtime-semantics-argumentlistevaluation)
+        // (Especially the _ArgumentList : ... AssignmentExpression_ production.)
+        //
+        //  4. Let iteratorRecord be ? GetIterator(spreadObj, sync).
+        //  5. Repeat,
+        //      a. Let next be ? IteratorStep(iteratorRecord).
+        //      b. If next is false, return list.
+        //      c. Let nextArg be ? IteratorValue(next).
+        //      d. Append nextArg to list.
+        let spread_obj = pop_value()?;
+
+        let iterator_result = get_iterator(&spread_obj, IteratorKind::Sync);
+        let steps_result = if let Ok(iterator_record) = iterator_result {
+            let mut count = 0;
+            let res = loop {
+                match iterator_step(&iterator_record) {
+                    Ok(next_opt_obj) => match next_opt_obj {
+                        None => {
+                            push_value(count.into()).expect(PUSHABLE);
+                            break Ok(());
+                        }
+                        Some(obj) => match iterator_value(&obj) {
+                            Ok(next_arg) => {
+                                count += 1;
+                                push_value(next_arg).expect(PUSHABLE);
+                            }
+                            Err(e) => {
+                                break Err(e);
+                            }
+                        },
+                    },
+                    Err(e) => {
+                        break Err(e);
+                    }
+                }
+            };
+            if res.is_err() {
+                // unwind
+                for _ in 0..count {
+                    let _ = pop_completion().expect(POPPABLE);
+                }
+            }
+            res
+        } else {
+            Err(iterator_result.unwrap_err())
+        };
+        if let Err(e) = steps_result {
+            push_completion(Err(e)).expect(PUSHABLE);
+        }
+        Ok(())
+    }
+    pub fn elision_idae() -> anyhow::Result<()> {
+        // The Elision form of IteratorDestructuringAssignmentEvaluation
+        // Input on stack: <elision count as a float value> <iterator record>
+        // Ouptut on stack: <iterator record>/err
+        let mut count = pop_usize()?;
+        let ir = pop_ir()?;
+        // Elision : ,
+        //  1. If iteratorRecord.[[Done]] is false, then
+        //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+        //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      c. ReturnIfAbrupt(next).
+        //      d. If next is false, set iteratorRecord.[[Done]] to true.
+        //  2. Return unused.
+        // Elision : Elision ,
+        //  1. Perform ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
+        //  2. If iteratorRecord.[[Done]] is false, then
+        //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+        //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      c. ReturnIfAbrupt(next).
+        //      d. If next is false, set iteratorRecord.[[Done]] to true.
+        //  3. Return unused.
+        let retval = loop {
+            if count == 0 || ir.done.get() {
+                break Ok(());
+            }
+            let next_result = ir.step();
+            match next_result {
+                Ok(None) => {
+                    ir.done.set(true);
+                }
+                Ok(Some(_)) => (),
+                Err(e) => {
+                    ir.done.set(true);
+                    break Err(e);
+                }
+            }
+            count -= 1;
+        }
+        .map(|()| NormalCompletion::from(ir));
+        push_completion(retval).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn embellished_iterator_step() -> anyhow::Result<()> {
+        // Input: on stack: an iterator record (ir)
+        // Output: on stack: an output value (v), and the input ir, -or- one error
+        //  1. Let v be undefined.
+        //  2. If iteratorRecord.[[Done]] is false, then
+        //      a. Let next be Completion(IteratorStep(iteratorRecord)).
+        //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      c. ReturnIfAbrupt(next).
+        //      d. If next is false, set iteratorRecord.[[Done]] to true.
+        //      e. Else,
+        //          i. Set v to Completion(IteratorValue(next)).
+        //          ii. If v is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //          iii. ReturnIfAbrupt(v).
+        let ir = pop_ir()?;
+        if ir.done.get() {
+            push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+            push_value(ECMAScriptValue::Undefined).expect(PUSHABLE);
+        } else {
+            let next_result = ir.step();
+            match next_result {
+                Err(e) => {
+                    ir.done.set(true);
+                    push_completion(Err(e)).expect(PUSHABLE);
+                }
+                Ok(None) => {
+                    ir.done.set(true);
+                    push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+                    push_value(ECMAScriptValue::Undefined).expect(PUSHABLE);
+                }
+                Ok(Some(next_obj)) => {
+                    let v = iterator_value(&next_obj);
+                    match v {
+                        Err(e) => {
+                            ir.done.set(true);
+                            push_completion(Err(e)).expect(PUSHABLE);
+                        }
+                        Ok(v) => {
+                            push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+                            push_value(v).expect(PUSHABLE);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    pub fn iterator_rest() -> anyhow::Result<()> {
+        // Input: one stack argument, an iterator record
+        // Output: two stack elements: an array object, followed by the iterator record
+        //     or: one stack element: an error
+
+        //  2. Let A be ! ArrayCreate(0).
+        //  3. Let n be 0.
+        //  4. Repeat,
+        //      a. If iteratorRecord.[[Done]] is false, then
+        //          i. Let next be Completion(IteratorStep(iteratorRecord)).
+        //          ii. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //          iii. ReturnIfAbrupt(next).
+        //          iv. If next is false, set iteratorRecord.[[Done]] to true.
+        //      b. If iteratorRecord.[[Done]] is true, then
+        //          i. Return (A, iteratorRecord).
+        //      c. Let nextValue be Completion(IteratorValue(next)).
+        //      d. If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
+        //      e. ReturnIfAbrupt(nextValue).
+        //      f. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
+        //      g. Set n to n + 1.
+        let ir = pop_ir()?;
+        let a = array_create(0, None).expect("0 should fit in ram");
+        let mut n = 0;
+        loop {
+            if ir.done.get() {
+                push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+                push_value(ECMAScriptValue::Object(a)).expect(PUSHABLE);
+                break;
+            }
+            match ir.step() {
+                Ok(None) => {
+                    ir.done.set(true);
+                    push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+                    push_value(ECMAScriptValue::Object(a)).expect(PUSHABLE);
+                    break;
+                }
+                Ok(Some(next_obj)) => {
+                    match iterator_value(&next_obj) {
+                        Ok(next_value) => {
+                            a.create_data_property_or_throw(format!("{n}"), next_value)
+                                .expect("array property set should work");
+                            n += 1;
+                        }
+                        Err(e) => {
+                            ir.done.set(true);
+                            push_completion(Err(e)).expect(PUSHABLE);
+                            break;
+                        }
+                    };
+                }
+                Err(e) => {
+                    ir.done.set(true);
+                    push_completion(Err(e)).expect(PUSHABLE);
+                    break;
+                }
+            };
+        }
+        Ok(())
+    }
+    pub fn require_coercible() -> anyhow::Result<()> {
+        // Input: one stack argument, an ECMAScriptValue
+        // Output: one stack completion: either the same input value, or an error.
+        let val = pop_value()?;
+        let result = require_object_coercible(&val);
+        push_completion(match result {
+            Ok(()) => Ok(val.into()),
+            Err(e) => Err(e),
+        })
+        .expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn get_sync_iterator() -> anyhow::Result<()> {
+        // This instruction handles the step that looks like:
+        //  1. Let iteratorRecord be ? GetIterator(value, sync).
+        //
+        // Input on stack: that value.
+        // Output on stack: the iterator record/abrupt completion.
+
+        let value = pop_value()?;
+        let result = get_iterator(&value, IteratorKind::Sync).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn iterator_close() -> anyhow::Result<()> {
+        // This instruction handles the steps that look like:
+        //  1. Return ? IteratorClose(iteratorRecord, status).
+
+        // Input on the stack: status iteratorRecord
+        // Ouptut on stack: the operation's result (which might be the input status)
+        let status = pop_completion()?;
+        let ir = pop_ir()?;
+        let result = super::iterator_close(&ir, status);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn iterator_close_if_not_done() -> anyhow::Result<()> {
+        // This instruction handles the step that looks like:
+        //  3. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, result).
+        //  4. Return ? result.
+        //
+        // Input on stack: result iteratorRecord
+        // Output result/err
+        let result = pop_completion()?;
+        let ir = pop_ir()?;
+        let done = ir.done.get();
+        let right = if done { result } else { super::iterator_close(&ir, result) };
+        push_completion(right).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn iterator_next() -> anyhow::Result<()> {
+        // This instruction handles the steps that look like:
+        //  1. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
+        //  2. If nextResult is not an Object, throw a TypeError exception.
+        //
+        // Input on stack: iteratorRecord
+        // Output:         nextResult/err iteratorRecord
+        let ir = pop_ir()?;
+        let next_method = ECMAScriptValue::from(ir.next_method.clone());
+        let iterator = ECMAScriptValue::from(ir.iterator.clone());
+        let next_result = super::call(&next_method, &iterator, &[]);
+
+        let result = match next_result {
+            Ok(val) => match val {
+                ECMAScriptValue::Object(_) => Ok(val),
+                _ => Err(create_type_error("Iterator Result must be an object")),
+            },
+            Err(_) => next_result,
+        };
+        push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+        push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn iterator_result_complete() -> anyhow::Result<()> {
+        // This instruction handles the steps that look like:
+        //  1. Let done be ? IteratorComplete(nextResult).
+        //
+        // Input on stack: nextResult (an iterator result object)
+        // Output: done/err nextResult (the result is not consumed)
+
+        let next_result = pop_obj()?;
+        let done = iterator_complete(&next_result);
+        push_value(next_result.into()).expect(PUSHABLE);
+        push_completion(done.map(NormalCompletion::from)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn iterator_result_to_value() -> anyhow::Result<()> {
+        // This instruction handles the steps that look like:
+        //  1. Let nextValue be ? IteratorValue(nextResult).
+        //
+        // Input on stack: nextResult (an iterator result object)
+        // Output: value/err (the nextResult is consumed)
+        let next_result = pop_obj()?;
+        let value = iterator_value(&next_result);
+        push_completion(value.map(NormalCompletion::from)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn getv() -> anyhow::Result<()> {
+        // input: key, base
+        let prop_name = pop_key()?;
+        let base_val = pop_value()?;
+        let result = base_val.get(&prop_name).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn enumerate_object_properties() -> anyhow::Result<()> {
+        // input: an object
+        // output: an iterator record set up to iterate over the properties of that object
+        let obj = pop_obj()?;
+        let iterator = create_for_in_iterator(obj);
+        let next_obj = Object::try_from(iterator.get(&"next".into()).expect("next method should exist"))
+            .expect("next method should be an object");
+        let ir = IteratorRecord { iterator, next_method: next_obj, done: Cell::new(false) };
+        push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn private_id_lookup(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Expect string id in the opcode; it refers to "privateIdentifier" in the following steps:
+        // Input on the stack: nothing
+        // Output on the stack: the sought-after PrivateId
+
+        // (These are from the evalution steps for the production: ClassElementName : PrivateIdentifier)
+        // 2. Let privateEnvRec be the running execution context's PrivateEnvironment.
+        // 3. Let names be privateEnvRec.[[Names]].
+        // 4. Assert: Exactly one element of names is a Private Name whose [[Description]] is privateIdentifier.
+        // 5. Let privateName be the Private Name in names whose [[Description]] is privateIdentifier.
+        // 6. Return privateName.
+        let private_identifier = string_operand(chunk)?;
+        let priv_env = current_private_environment().ok_or(InternalRuntimeError::NoPrivateEnv)?;
+        let names = &priv_env.borrow().names;
+        let private_name = names
+            .iter()
+            .find(|&item| item.description == *private_identifier)
+            .ok_or(InternalRuntimeError::MissingPrivateName)?
+            .clone();
+        push_completion(Ok(NormalCompletion::from(private_name)))
+    }
+    pub fn evaluate_initialized_class_field_def(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        let info = sfd_operand(chunk)?;
+        let name = pop_classname()?;
+        let home_object = pop_obj()?;
+        let initializer = evaluate_initialized_class_field_definition(info, home_object.clone(), name.clone(), text)?;
+
+        push_value(ECMAScriptValue::Object(home_object)).expect(PUSHABLE);
+        push_completion(Ok(NormalCompletion::from(name))).expect(PUSHABLE);
+        push_value(ECMAScriptValue::Object(initializer)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn evaluate_class_static_block_def(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        let info = sfd_operand(chunk)?;
+        let home_object = pop_obj()?;
+        let block_body = evaluate_class_static_block_definition(info, home_object.clone(), text)?;
+
+        push_value(ECMAScriptValue::Object(home_object)).expect(PUSHABLE);
+        push_value(ECMAScriptValue::Object(block_body)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn define_method(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // on the stack: propkey object prototype
+        let info = sfd_operand(chunk)?;
+        let propkey = pop_key()?;
+        let obj = pop_obj()?;
+        let prototype = pop_obj()?;
+
+        let to_compile: Rc<MethodDefinition> = info.to_compile.clone().try_into()?;
+        if let MethodDefinition::NamedFunction(_, _, body, _) = to_compile.as_ref() {
+            let name = nameify(&info.source_text, 50);
+            let mut compiled = Chunk::new(name);
+            let compilation_status = body.compile_body(&mut compiled, text, info);
+            if let Err(err) = compilation_status {
+                let typeerror = create_type_error(err.to_string());
+                push_completion(Err(typeerror)).expect(PUSHABLE);
+                return Ok(());
+            }
+            for line in compiled.disassemble() {
+                println!("{line}");
+            }
+
+            let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+            let private_env = current_private_environment();
+            let source_text = &info.source_text;
+            let strict = info.strict;
+            let closure = ordinary_function_create(
+                prototype,
+                source_text,
+                info.params.clone(),
+                info.body.clone(),
+                ThisLexicality::NonLexicalThis,
+                env,
+                private_env,
+                strict,
+                Rc::new(compiled),
+            );
+
+            make_method(
+                closure.o.to_function_obj().expect("a closure we just created should be a function object"),
+                obj,
+            );
+
+            push_value(ECMAScriptValue::Object(closure)).expect(PUSHABLE);
+            push_completion(Ok(propkey.into())).expect(PUSHABLE);
+            Ok(())
+        } else {
+            Err(InternalRuntimeError::ExpectedMethod)?
+        }
+    }
+    pub fn set_function_name() -> anyhow::Result<()> {
+        // on stack: propertykey closure
+        // but at the exit, we want them to stay there, so we just peek them from the end of the stack.
+        let property_key = peek_function_name(0)?;
+        let closure = peek_obj(1)?;
+        super::set_function_name(&closure, property_key, None);
+        Ok(())
+    }
+    pub fn define_method_property(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Takes one arg. 0 => enumerable:false; 1 => enumerable:true
+        // Stack: propertykey closure object
+        let enumerable = usize_operand(chunk)? != 0;
+        let name = pop_functionname()?;
+        let closure = pop_obj()?;
+        let home_object = pop_obj()?;
+        let result = super::define_method_property(&home_object, name, closure, enumerable);
+        push_completion(Ok(result.into())).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn define_getter(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // Takes two args: idx into function stash and enumerable flag
+        // stack input: propkey object
+        // output: err/empty/PrivateElement
+        let info = sfd_operand(chunk)?;
+        let enumerable = usize_operand(chunk)? != 0;
+        let prop_key = pop_functionname()?;
+        let base_object = pop_obj()?;
+
+        //  2. Let env be the running execution context's LexicalEnvironment.
+        //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+        //  6. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameterList,
+        //     FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
+        //  7. Perform MakeMethod(closure, object).
+        //  8. Perform SetFunctionName(closure, propKey, "get").
+        //  9. If propKey is a Private Name, then
+        //      a. Return PrivateElement { [[Key]]: propKey, [[Kind]]: ACCESSOR, [[Get]]: closure, [[Set]]:
+        //         undefined }.
+        //  10. Else,
+        //      a. Let desc be the PropertyDescriptor { [[Get]]: closure, [[Enumerable]]: enumerable,
+        //         [[Configurable]]: true }.
+        //      b. Perform ? DefinePropertyOrThrow(object, propKey, desc).
+        //      c. Return UNUSED.
+        let to_compile: Rc<MethodDefinition> = info.to_compile.clone().try_into()?;
+        let MethodDefinition::Getter(_, fb, _) = to_compile.as_ref() else {
+            Err(InternalRuntimeError::GetterMethodExpected)?
+        };
+        let prod_text_loc = to_compile.location().span;
+        let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+        let chunk_name = nameify(prod_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = fb.compile_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let private_env = current_private_environment();
+        let prototype = intrinsic(IntrinsicId::FunctionPrototype);
+        let closure = ordinary_function_create(
+            prototype,
+            &info.source_text,
+            info.params.clone(),
+            info.body.clone(),
+            info.this_mode,
+            env,
+            private_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        make_method(closure.o.to_function_obj().unwrap(), base_object.clone());
+        super::set_function_name(&closure, prop_key.clone(), Some("get".into()));
+
+        let result = match prop_key {
+            FunctionName::String(_) | FunctionName::Symbol(_) => {
+                let desc = PotentialPropertyDescriptor::new().get(closure).enumerable(enumerable).configurable(true);
+                let result = define_property_or_throw(&base_object, PropertyKey::try_from(prop_key).unwrap(), desc);
+                result.map(|()| None)
+            }
+            FunctionName::PrivateName(pn) => Ok(Some(PrivateElement {
+                key: pn,
+                kind: PrivateElementKind::Accessor { get: Some(closure), set: None },
+            })),
+        };
+        push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn define_setter(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // Takes two args: idx into function stash and enumerable flag
+        // stack input: propkey object
+        // output: err/empty/PrivateElement
+        let info = sfd_operand(chunk)?;
+        let enumerable = usize_operand(chunk)? != 0;
+        let prop_key = pop_functionname()?;
+        let base_object = pop_obj()?;
+
+        //  2. Let env be the running execution context's LexicalEnvironment.
+        //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+        //  5. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText,
+        //     PropertySetParameterList, FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
+        //  6. Perform MakeMethod(closure, object).
+        //  7. Perform SetFunctionName(closure, propKey, "set").
+        //  8. If propKey is a Private Name, then
+        //      a. Return PrivateElement { [[Key]]: propKey, [[Kind]]: ACCESSOR, [[Get]]: undefined, [[Set]]:
+        //         closure }.
+        //  9. Else,
+        //      a. Let desc be the PropertyDescriptor { [[Set]]: closure, [[Enumerable]]: enumerable,
+        //         [[Configurable]]: true }.
+        //      b. Perform ? DefinePropertyOrThrow(object, propKey, desc).
+        //      c. Return UNUSED.
+        let to_compile: Rc<MethodDefinition> = info.to_compile.clone().try_into()?;
+        let MethodDefinition::Setter(_, _, fb, _) = to_compile.as_ref() else {
+            Err(InternalRuntimeError::SetterMethodExpected)?
+        };
+        let prod_text_loc = to_compile.location().span;
+        let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+        let chunk_name = nameify(prod_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = fb.compile_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let private_env = current_private_environment();
+        let prototype = intrinsic(IntrinsicId::FunctionPrototype);
+        let closure = ordinary_function_create(
+            prototype,
+            &info.source_text,
+            info.params.clone(),
+            info.body.clone(),
+            info.this_mode,
+            env,
+            private_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        make_method(closure.o.to_function_obj().unwrap(), base_object.clone());
+        super::set_function_name(&closure, prop_key.clone(), Some("set".into()));
+
+        let result = match prop_key {
+            FunctionName::String(_) | FunctionName::Symbol(_) => {
+                let desc = PotentialPropertyDescriptor::new().set(closure).enumerable(enumerable).configurable(true);
+                let result = define_property_or_throw(&base_object, PropertyKey::try_from(prop_key).unwrap(), desc);
+                result.map(|()| None)
+            }
+            FunctionName::PrivateName(pn) => Ok(Some(PrivateElement {
+                key: pn,
+                kind: PrivateElementKind::Accessor { set: Some(closure), get: None },
+            })),
+        };
+        push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
 }
@@ -2163,17 +2989,31 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 Insn::PushNewVarEnvFromLex => insn_impl::push_new_var_env_from_lex(),
                 Insn::PushNewLexEnvFromVar => insn_impl::push_new_lex_env_from_var(),
                 Insn::SetLexEnvToVarEnv => insn_impl::set_lex_env_to_var_env(),
-                Insn::CreateStrictImmutableLexBinding => insn_impl::create_immutable_lex_binding(true, &chunk).expect(GOODCODE),
-                Insn::CreateNonStrictImmutableLexBinding => insn_impl::create_immutable_lex_binding(false, &chunk).expect(GOODCODE),
-                Insn::CreatePermanentMutableLexBinding => insn_impl::create_mutable_lexical_binding(false, &chunk).expect(GOODCODE),
-                Insn::CreatePermanentMutableVarBinding => insn_impl::create_mutable_var_binding(false, &chunk).expect(GOODCODE),
-                Insn::CreatePermanentMutableLexIfMissing => insn_impl::create_mutable_lexical_binding_if_missing(&chunk).expect(GOODCODE),
-                Insn::CreateInitializedPermanentMutableLexIfMissing => insn_impl::create_initialized_permanent_mutable_lexical_binding_if_missing(&chunk).expect(GOODCODE),
+                Insn::CreateStrictImmutableLexBinding => {
+                    insn_impl::create_immutable_lex_binding(true, &chunk).expect(GOODCODE);
+                }
+                Insn::CreateNonStrictImmutableLexBinding => {
+                    insn_impl::create_immutable_lex_binding(false, &chunk).expect(GOODCODE);
+                }
+                Insn::CreatePermanentMutableLexBinding => {
+                    insn_impl::create_mutable_lexical_binding(false, &chunk).expect(GOODCODE);
+                }
+                Insn::CreatePermanentMutableVarBinding => {
+                    insn_impl::create_mutable_var_binding(false, &chunk).expect(GOODCODE);
+                }
+                Insn::CreatePermanentMutableLexIfMissing => {
+                    insn_impl::create_mutable_lexical_binding_if_missing(&chunk).expect(GOODCODE);
+                }
+                Insn::CreateInitializedPermanentMutableLexIfMissing => {
+                    insn_impl::create_initialized_permanent_mutable_lexical_binding_if_missing(&chunk).expect(GOODCODE);
+                }
                 Insn::InitializeLexBinding => insn_impl::initialize_lex_binding(&chunk).expect(GOODCODE),
                 Insn::InitializeVarBinding => insn_impl::initialize_var_binding(&chunk).expect(GOODCODE),
                 Insn::GetLexBinding => insn_impl::get_lex_binding(&chunk).expect(GOODCODE),
                 Insn::SetMutableVarBinding => insn_impl::set_mutable_var_binding(&chunk).expect(GOODCODE),
-                Insn::CreatePerIterationEnvironment => insn_impl::create_per_iteration_environment(&chunk).expect(GOODCODE),
+                Insn::CreatePerIterationEnvironment => {
+                    insn_impl::create_per_iteration_environment(&chunk).expect(GOODCODE);
+                }
                 Insn::ExtractThrownValue => insn_impl::extract_thrown_value().expect(GOODCODE),
                 Insn::ExtractArg => insn_impl::extract_arg().expect(GOODCODE),
                 Insn::FinishArgs => insn_impl::finish_args().expect(GOODCODE),
@@ -2216,10 +3056,18 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 Insn::Modulo => insn_impl::binary_operation(BinOp::Remainder).expect(GOODCODE),
                 Insn::Add => insn_impl::binary_operation(BinOp::Add).expect(GOODCODE),
                 Insn::Subtract => insn_impl::binary_operation(BinOp::Subtract).expect(GOODCODE),
-                Insn::InstantiateIdFreeFunctionExpression => insn_impl::instantiate_id_free_function_expression(&chunk, text).expect(GOODCODE),
-                Insn::InstantiateOrdinaryFunctionExpression => insn_impl::instantiate_ordinary_function_expression(&chunk, text).expect(GOODCODE),
-                Insn::InstantiateArrowFunctionExpression => insn_impl::instantiate_arrow_function_expression(&chunk, text).expect(GOODCODE),
-                Insn::InstantiateOrdinaryFunctionObject => insn_impl::instantiate_ordinary_function_object(&chunk, text).expect(GOODCODE),
+                Insn::InstantiateIdFreeFunctionExpression => {
+                    insn_impl::instantiate_id_free_function_expression(&chunk, text).expect(GOODCODE);
+                }
+                Insn::InstantiateOrdinaryFunctionExpression => {
+                    insn_impl::instantiate_ordinary_function_expression(&chunk, text).expect(GOODCODE);
+                }
+                Insn::InstantiateArrowFunctionExpression => {
+                    insn_impl::instantiate_arrow_function_expression(&chunk, text).expect(GOODCODE);
+                }
+                Insn::InstantiateOrdinaryFunctionObject => {
+                    insn_impl::instantiate_ordinary_function_object(&chunk, text).expect(GOODCODE);
+                }
                 Insn::LeftShift => insn_impl::binary_operation(BinOp::LeftShift).expect(GOODCODE),
                 Insn::SignedRightShift => insn_impl::binary_operation(BinOp::SignedRightShift).expect(GOODCODE),
                 Insn::UnsignedRightShift => insn_impl::binary_operation(BinOp::UnsignedRightShift).expect(GOODCODE),
@@ -2230,937 +3078,63 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 Insn::GreaterEqual => insn_impl::compare(false, true).expect(GOODCODE),
                 Insn::InstanceOf => insn_impl::instance_of().expect(GOODCODE),
                 Insn::In => insn_impl::in_op().expect(GOODCODE),
-                Insn::Equal => {
-                    let (left, right) = agent.two_values(index);
-                    let result = is_loosely_equal(&left, &right).map(NormalCompletion::from);
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::NotEqual => {
-                    let (left, right) = agent.two_values(index);
-                    let result = is_loosely_equal(&left, &right).map(|val| NormalCompletion::from(!val));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::StrictEqual => {
-                    let (left, right) = agent.two_values(index);
-                    let result = Ok(NormalCompletion::from(left.is_strictly_equal(&right)));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
-                Insn::StrictNotEqual => {
-                    let (left, right) = agent.two_values(index);
-                    let result = Ok(NormalCompletion::from(!left.is_strictly_equal(&right)));
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(result);
-                }
+                Insn::Equal => insn_impl::equal(false).expect(GOODCODE),
+                Insn::NotEqual => insn_impl::equal(true).expect(GOODCODE),
+                Insn::StrictEqual => insn_impl::strict_equal(false).expect(GOODCODE),
+                Insn::StrictNotEqual => insn_impl::strict_equal(true).expect(GOODCODE),
                 Insn::BitwiseAnd => insn_impl::binary_operation(BinOp::BitwiseAnd).expect(GOODCODE),
                 Insn::BitwiseOr => insn_impl::binary_operation(BinOp::BitwiseOr).expect(GOODCODE),
                 Insn::BitwiseXor => insn_impl::binary_operation(BinOp::BitwiseXor).expect(GOODCODE),
-                Insn::CreateUnmappedArguments => create_unmapped_arguments_object(index),
-                Insn::CreateMappedArguments => create_mapped_arguments_object(index),
-                Insn::AddMappedArgument => {
-                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let string = &chunk.strings[string_index as usize];
-                    let argument_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    attach_mapped_arg(index, string, argument_index);
-                }
-                Insn::HandleEmptyBreak => {
-                    let prior_result = agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .pop()
-                        .expect("HandleEmptyBreak requires an argument");
-                    let new_result = if let Err(AbruptCompletion::Break { value, target: None }) = prior_result {
-                        match value {
-                            NormalCompletion::Empty => Ok(NormalCompletion::from(ECMAScriptValue::Undefined)),
-                            value => Ok(value),
-                        }
-                    } else {
-                        prior_result
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(new_result);
-                }
-                Insn::HandleTargetedBreak => {
-                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let label = &chunk.strings[str_idx];
-                    let prior_result = agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .pop()
-                        .expect("HandleTargetedBreak requires an argument");
-                    let new_result = match prior_result {
-                        Err(AbruptCompletion::Break { value, target: Some(target) }) if &target == label => Ok(value),
-                        _ => prior_result,
-                    };
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(new_result);
-                }
-                Insn::CoalesceValue => {
-                    // Stack: stmtResult V ...
-                    // If stmtResult.[[Value]] is not empty, set V to stmtResult.[[Value]].
-                    let stmt_result = agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .pop()
-                        .expect("CoalesceValue requires two arguments");
-                    let v = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .pop()
-                            .expect("CoalesceValue requires two arguments")
-                            .expect("argument V must be  normal completion"),
-                    )
-                    .expect("argument V must be a value");
-                    agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(match stmt_result {
-                        Ok(NormalCompletion::Value(value))
-                        | Err(
-                            AbruptCompletion::Throw { value }
-                            | AbruptCompletion::Return { value }
-                            | AbruptCompletion::Continue { value: NormalCompletion::Value(value), .. }
-                            | AbruptCompletion::Break { value: NormalCompletion::Value(value), .. })
-                        => {
-                            NormalCompletion::from(value)
-                        }
-                        _ => NormalCompletion::from(v),
-                    }));
-                }
-                Insn::LoopContinues => {
-                    // 1-argument opcode; takes nothing on stack (but does look at the top item); output is
-                    // true or false on the stack.
-                    let ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    let set_idx = chunk.opcodes[ec.pc] as usize;
-                    ec.pc += 1;
-                    let label_set = &chunk.string_sets[set_idx];
-                    // 1. If completion.[[Type]] is normal, return true.
-                    // 2. If completion.[[Type]] is not continue, return false.
-                    // 3. If completion.[[Target]] is empty, return true.
-                    // 4. If completion.[[Target]] is an element of labelSet, return true.
-                    // 5. Return false.
-                    let completion = ec.stack.last().expect("stack must have at least one item");
-                    let result = match completion {
-                        Ok(_)
-                        | Err(AbruptCompletion::Continue { value: _, target: None }) => true,
-                        Err(AbruptCompletion::Continue { value: _, target: Some(label) }) => label_set.contains(label),
-                        _ => false,
-                    };
-                    ec.stack.push(Ok(NormalCompletion::from(result)));
-                }
-                Insn::Continue => {
-                    agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .push(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: None }));
-                }
-                Insn::TargetedContinue => {
-                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let label = chunk.strings[str_idx].clone();
-                    agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .push(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: Some(label) }));
-                }
-                Insn::Break => {
-                    agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .push(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: None }));
-                }
-                Insn::TargetedBreak => {
-                    let str_idx = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] as usize;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let label = chunk.strings[str_idx].clone();
-                    agent.execution_context_stack.borrow_mut()[index]
-                        .stack
-                        .push(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: Some(label) }));
-                }
-                Insn::IteratorAccumulate => {
-                    let iterable = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .pop()
-                            .expect("insn has 3 stack args")
-                            .expect("should not be errors"),
-                    )
-                    .expect("arg should be a value");
-                    let starting_index = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .pop()
-                            .expect("insn has 3 stack args")
-                            .expect("should not be errors"),
-                    )
-                    .expect("arg should be a value");
-                    let array = Object::try_from(
-                        ECMAScriptValue::try_from(
-                            agent.execution_context_stack.borrow_mut()[index]
-                                .stack
-                                .pop()
-                                .expect("insn has 3 stack args")
-                                .expect("should not be errs"),
-                        )
-                        .expect("arg should be value"),
-                    )
-                    .expect("arg should be obj");
-                    let mut next_index = to_index(starting_index).expect("should be in range");
-                    match get_iterator(&iterable, IteratorKind::Sync).and_then(|ir| loop {
-                        match ir.step() {
-                            Ok(next_opt_obj) => match next_opt_obj {
-                                None => break Ok((next_index, array)),
-                                Some(next_obj) => {
-                                    let next_value = iterator_value(&next_obj);
-                                    match next_value {
-                                        Err(e) => break Err(e),
-                                        Ok(next_value) => {
-                                            array
-                                                .create_data_property_or_throw(
-                                                    JSString::from(next_index),
-                                                    next_value,
-                                                )
-                                                .expect("props should store ok");
-                                            next_index += 1;
-                                        }
-                                    }
-                                }
-                            },
-                            Err(e) => break Err(e),
-                        }
-                    }) {
-                        Ok((next_index, array)) => {
-                            agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(array.into()));
-                            agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(next_index.into()));
-                        }
-                        Err(e) => {
-                            agent.execution_context_stack.borrow_mut()[index].stack.push(Err(e));
-                        }
-                    }
-                }
-                Insn::IterateArguments => {
-                    // Starts with one item on the stack (an ecmascript value), returns either an error or a stack-based
-                    // representation of an argument list (N arg(n-1) ... arg(0)). See
-                    // [ArgumentListEvaluation](https://tc39.es/ecma262/#sec-runtime-semantics-argumentlistevaluation)
-                    // (Especially the _ArgumentList : ... AssignmentExpression_ production.)
-                    //
-                    //  4. Let iteratorRecord be ? GetIterator(spreadObj, sync).
-                    //  5. Repeat,
-                    //      a. Let next be ? IteratorStep(iteratorRecord).
-                    //      b. If next is false, return list.
-                    //      c. Let nextArg be ? IteratorValue(next).
-                    //      d. Append nextArg to list.
-                    let spread_obj = ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow_mut()[index]
-                            .stack
-                            .pop()
-                            .expect("insn has a stack arg")
-                            .expect("should not be an error"),
-                    )
-                    .expect("arg should be a value");
-
-                    let iterator_result = get_iterator(&spread_obj, IteratorKind::Sync);
-                    let steps_result = if let Ok(iterator_record) = iterator_result {
-                        let mut count = 0;
-                        let res = loop {
-                            match iterator_step(&iterator_record) {
-                                Ok(next_opt_obj) => match next_opt_obj {
-                                    None => {
-                                        ec_push(Ok(count.into()));
-                                        break Ok(());
-                                    }
-                                    Some(obj) => match iterator_value(&obj) {
-                                        Ok(next_arg) => {
-                                            count += 1;
-                                            ec_push(Ok(next_arg.into()));
-                                        }
-                                        Err(e) => {
-                                            break Err(e);
-                                        }
-                                    },
-                                },
-                                Err(e) => {
-                                    break Err(e);
-                                }
-                            }
-                        };
-                        if res.is_err() {
-                            // unwind
-                            for _ in 0..count {
-                                ec_pop();
-                            }
-                        }
-                        res
-                    } else {
-                        Err(iterator_result.unwrap_err())
-                    };
-                    if let Err(e) = steps_result
-                    {
-                        ec_push(Err(e));
-                    }
-                }
-                Insn::IteratorDAEElision => {
-                    // The Elision form of IteratorDestructuringAssignmentEvaluation
-                    // Input on stack: <elision count as a float value> <iterator record>
-                    // Ouptut on stack: <iterator record>/err
-                    let mut count = to_usize(f64::try_from(
-                        ECMAScriptValue::try_from(
-                            ec_pop()
-                                .expect("IteratorDAEElision stack should include two items")
-                                .expect("elision count should not be an error"),
-                        )
-                        .expect("elision count shoud be a value"),
-                    )
-                    .expect("elision count should be a number value"))
-                    .expect("elision count should be a valid integer");
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("IteratorDAEElision stack should include two items")
-                        .expect("iterator record should not be an error")
-                        .try_into()
-                        .expect("completion should be an iterator record");
-                    // Elision : ,
-                    //  1. If iteratorRecord.[[Done]] is false, then
-                    //      a. Let next be Completion(IteratorStep(iteratorRecord)).
-                    //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //      c. ReturnIfAbrupt(next).
-                    //      d. If next is false, set iteratorRecord.[[Done]] to true.
-                    //  2. Return unused.
-                    // Elision : Elision ,
-                    //  1. Perform ? IteratorDestructuringAssignmentEvaluation of Elision with argument iteratorRecord.
-                    //  2. If iteratorRecord.[[Done]] is false, then
-                    //      a. Let next be Completion(IteratorStep(iteratorRecord)).
-                    //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //      c. ReturnIfAbrupt(next).
-                    //      d. If next is false, set iteratorRecord.[[Done]] to true.
-                    //  3. Return unused.
-                    let retval = loop {
-                        if count == 0 || ir.done.get() {
-                            break Ok(());
-                        }
-                        let next_result = ir.step();
-                        match next_result {
-                            Ok(None) => {
-                                ir.done.set(true);
-                            }
-                            Ok(Some(_)) => (),
-                            Err(e) => {
-                                ir.done.set(true);
-                                break Err(e);
-                            }
-                        }
-                        count -= 1;
-                    }
-                    .map(|()| NormalCompletion::from(ir));
-                    ec_push(retval);
-                }
-                Insn::EmbellishedIteratorStep => {
-                    // Input: on stack: an iterator record (ir)
-                    // Output: on stack: an output value (v), and the input ir, -or- one error
-                    //  1. Let v be undefined.
-                    //  2. If iteratorRecord.[[Done]] is false, then
-                    //      a. Let next be Completion(IteratorStep(iteratorRecord)).
-                    //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //      c. ReturnIfAbrupt(next).
-                    //      d. If next is false, set iteratorRecord.[[Done]] to true.
-                    //      e. Else,
-                    //          i. Set v to Completion(IteratorValue(next)).
-                    //          ii. If v is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //          iii. ReturnIfAbrupt(v).
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("EmbellishedIteratorStep stack should include an item")
-                        .expect("iterator record should not be an error")
-                        .try_into()
-                        .expect("completion should be an iterator record");
-                    if ir.done.get() {
-                        ec_push(Ok(NormalCompletion::from(ir)));
-                        ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
-                    } else  {
-                        let next_result = ir.step();
-                        match next_result {
-                            Err(e) => {
-                                ir.done.set(true);
-                                ec_push(Err(e));
-                            }
-                            Ok(None) => {
-                                ir.done.set(true);
-                                ec_push(Ok(NormalCompletion::from(ir)));
-                                ec_push(Ok(NormalCompletion::from(ECMAScriptValue::Undefined)));
-                            }
-                            Ok(Some(next_obj)) => {
-                                let v = iterator_value(&next_obj);
-                                match v {
-                                    Err(e) => {
-                                        ir.done.set(true);
-                                        ec_push(Err(e));
-                                    }
-                                    Ok(v) => {
-                                        ec_push(Ok(NormalCompletion::from(ir)));
-                                        ec_push(Ok(NormalCompletion::from(v)));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                Insn::IteratorRest => {
-                    // Input: one stack argument, an iterator record
-                    // Output: two stack elements: an array object, followed by the iterator record
-                    //     or: one stack element: an error
-
-                    //  2. Let A be ! ArrayCreate(0).
-                    //  3. Let n be 0.
-                    //  4. Repeat,
-                    //      a. If iteratorRecord.[[Done]] is false, then
-                    //          i. Let next be Completion(IteratorStep(iteratorRecord)).
-                    //          ii. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //          iii. ReturnIfAbrupt(next).
-                    //          iv. If next is false, set iteratorRecord.[[Done]] to true.
-                    //      b. If iteratorRecord.[[Done]] is true, then
-                    //          i. Return (A, iteratorRecord).
-                    //      c. Let nextValue be Completion(IteratorValue(next)).
-                    //      d. If nextValue is an abrupt completion, set iteratorRecord.[[Done]] to true.
-                    //      e. ReturnIfAbrupt(nextValue).
-                    //      f. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
-                    //      g. Set n to n + 1.
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("IteratorRest stack should include an item")
-                        .expect("iterator record should not be an error")
-                        .try_into()
-                        .expect("completion should be an iterator record");
-                    let a = array_create(0, None).expect("0 should fit in ram");
-                    let mut n = 0;
-                    loop {
-                        if ir.done.get() {
-                            ec_push(Ok(NormalCompletion::from(ir)));
-                            ec_push(Ok(NormalCompletion::from(a)));
-                            break;
-                        }
-                        match ir.step() {
-                            Ok(None) => {
-                                ir.done.set(true);
-                                ec_push(Ok(NormalCompletion::from(ir)));
-                                ec_push(Ok(NormalCompletion::from(a)));
-                                break;
-                            }
-                            Ok(Some(next_obj)) => {
-                                match iterator_value(&next_obj) {
-                                    Ok(next_value) => {
-                                        a.create_data_property_or_throw(format!("{n}"), next_value)
-                                            .expect("array property set should work");
-                                        n += 1;
-                                    }
-                                    Err(e) => {
-                                        ir.done.set(true);
-                                        ec_push(Err(e));
-                                        break;
-                                    }
-                                };
-                            }
-                            Err(e) => {
-                                ir.done.set(true);
-                                ec_push(Err(e));
-                                break;
-                            }
-                        };
-                    }
-                }
-                Insn::RequireCoercible => {
-                    // Input: one stack argument, an ECMAScriptValue
-                    // Output: one stack completion: either the same input value, or an error.
-                    let val = ECMAScriptValue::try_from(
-                        ec_pop().expect("should be a stack argument").expect("argument should not be an error"),
-                    )
-                    .expect("argument should be a value");
-                    let result = require_object_coercible(&val);
-                    ec_push(match result {
-                        Ok(()) => Ok(val.into()),
-                        Err(e) => Err(e),
-                    });
-                }
-                Insn::GetSyncIterator => {
-                    // This instruction handles the step that looks like:
-                    //  1. Let iteratorRecord be ? GetIterator(value, sync).
-                    //
-                    // Input on stack: that value.
-                    // Output on stack: the iterator record/abrupt completion.
-
-                    let value = ECMAScriptValue::try_from(
-                        ec_pop().expect("should be an argument").expect("should not be an error"),
-                    )
-                    .expect("argument should be a value");
-                    let result = get_iterator(&value, IteratorKind::Sync).map(NormalCompletion::from);
-                    ec_push(result);
-                }
-                Insn::IteratorClose => {
-                    // This instruction handles the steps that look like:
-                    //  1. Return ? IteratorClose(iteratorRecord, status).
-
-                    // Input on the stack: status iteratorRecord
-                    // Ouptut on stack: the operation's result (which might be the input status)
-                    let status = ec_pop().expect("There should be 2 arguments");
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("there should be 2 arguments")
-                        .expect("iterator arg should not be an error")
-                        .try_into()
-                        .expect("arg should be an iterator record");
-                    let result = iterator_close(&ir, status);
-                    ec_push(result);
-                }
-                Insn::IteratorCloseIfNotDone => {
-                    // This instruction handles the step that looks like:
-                    //  3. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, result).
-                    //  4. Return ? result.
-                    //
-                    // Input on stack: result iteratorRecord
-                    // Output result/err
-                    let result = ec_pop().expect("There should be 2 arguments");
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("there should be 2 arguments")
-                        .expect("iterator arg should not be an error")
-                        .try_into()
-                        .expect("arg should be an iterator record");
-                    let done = ir.done.get();
-                    let right = if done { result } else { iterator_close(&ir, result) };
-                    ec_push(right.map(NormalCompletion::from));
-                }
-                Insn::IteratorNext => {
-                    // This instruction handles the steps that look like:
-                    //  1. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
-                    //  2. If nextResult is not an Object, throw a TypeError exception.
-                    //
-                    // Input on stack: iteratorRecord
-                    // Output:         nextResult/err iteratorRecord
-                    let ir: Rc<IteratorRecord> = ec_pop()
-                        .expect("there should be an argument")
-                        .expect("iterator arg should not be an error")
-                        .try_into()
-                        .expect("arg should be an iterator record");
-                    let next_method = ECMAScriptValue::from(ir.next_method.clone());
-                    let iterator = ECMAScriptValue::from(ir.iterator.clone());
-                    let next_result = call(&next_method, &iterator, &[]);
-
-                    let result = match next_result {
-                        Ok(val) => match val {
-                            ECMAScriptValue::Object(_) => Ok(val),
-                            _ => Err(create_type_error("Iterator Result must be an object")),
-                        },
-                        Err(_) => next_result,
-                    };
-                    ec_push(Ok(NormalCompletion::from(ir)));
-                    ec_push(result.map(NormalCompletion::from));
-                }
-                Insn::IteratorResultComplete => {
-                    // This instruction handles the steps that look like:
-                    //  1. Let done be ? IteratorComplete(nextResult).
-                    //
-                    // Input on stack: nextResult (an iterator result object)
-                    // Output: done/err nextResult (the result is not consumed)
-
-                    let next_result = Object::try_from(
-                        ec_pop().expect("there should be an argument").expect("which should not be an error"),
-                    )
-                    .expect("and should be an object");
-                    let done = iterator_complete(&next_result);
-                    ec_push(Ok(next_result.into()));
-                    ec_push(done.map(NormalCompletion::from));
-                }
-                Insn::IteratorResultToValue => {
-                    // This instruction handles the steps that look like:
-                    //  1. Let nextValue be ? IteratorValue(nextResult).
-                    //
-                    // Input on stack: nextResult (an iterator result object)
-                    // Output: value/err (the nextResult is consumed)
-                    let next_result = Object::try_from(
-                        ec_pop().expect("there should be an argument").expect("which should not be an error"),
-                    )
-                    .expect("and should be an object");
-                    let value = iterator_value(&next_result);
-                    ec_push(value.map(NormalCompletion::from));
-                }
-                Insn::GetV => {
-                    // input: key, base
-                    let prop_name = PropertyKey::try_from(
-                        ECMAScriptValue::try_from(
-                            ec_pop().expect("should be 2 arguments").expect("args should not be errors"),
-                        )
-                        .expect("arg should be value"),
-                    )
-                    .expect("arg should be key");
-                    let base_val = ECMAScriptValue::try_from(
-                        ec_pop().expect("should be 2 arguments").expect("should not be errors"),
-                    )
-                    .expect("arg should be value");
-                    let result = base_val.get(&prop_name).map(NormalCompletion::from);
-                    ec_push(result);
-                }
-                Insn::EnumerateObjectProperties => {
-                    // input: an object
-                    // output: an iterator record set up to iterate over the properties of that object
-                    let obj = Object::try_from(
-                        ECMAScriptValue::try_from(
-                            ec_pop()
-                                .expect("EnumerateObjectProperties should have an argument")
-                                .expect("That argument should not be an error"),
-                        )
-                        .expect("That argument should be a language value"),
-                    )
-                    .expect("That value should be an object");
-                    let iterator = create_for_in_iterator(obj);
-                    let next_obj = Object::try_from(iterator.get(&"next".into()).expect("next method should exist"))
-                        .expect("next method should be an object");
-                    let ir = IteratorRecord { iterator, next_method: next_obj, done: Cell::new(false) };
-                    ec_push(Ok(NormalCompletion::from(ir)));
-                }
-                Insn::PrivateIdLookup => {
-                    // Expect string id in the opcode; it refers to "privateIdentifier" in the following steps:
-                    // Input on the stack: nothing
-                    // Output on the stack: the sought-after PrivateId
-
-                    // (These are from the evalution steps for the production: ClassElementName : PrivateIdentifier)
-                    // 2. Let privateEnvRec be the running execution context's PrivateEnvironment.
-                    // 3. Let names be privateEnvRec.[[Names]].
-                    // 4. Assert: Exactly one element of names is a Private Name whose [[Description]] is privateIdentifier.
-                    // 5. Let privateName be the Private Name in names whose [[Description]] is privateIdentifier.
-                    // 6. Return privateName.
-                    let string_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let private_identifier = &chunk.strings[string_index as usize];
-                    let priv_env = current_private_environment().expect("Private environment exists");
-                    let names = &priv_env.borrow().names;
-                    let private_name = names
-                        .iter()
-                        .find(|&item| item.description == *private_identifier)
-                        .expect("Identifer must be present")
-                        .clone();
-                    ec_push(Ok(NormalCompletion::from(private_name)));
-                }
+                Insn::CreateUnmappedArguments => insn_impl::create_unmapped_arguments_object().expect(GOODCODE),
+                Insn::CreateMappedArguments => insn_impl::create_mapped_arguments_object().expect(GOODCODE),
+                Insn::AddMappedArgument => insn_impl::add_mapped_argument(&chunk).expect(GOODCODE),
+                Insn::HandleEmptyBreak => insn_impl::handle_empty_break().expect(GOODCODE),
+                Insn::HandleTargetedBreak => insn_impl::handle_targeted_break(&chunk).expect(GOODCODE),
+                Insn::CoalesceValue => insn_impl::coalesce_value().expect(GOODCODE),
+                Insn::LoopContinues => insn_impl::loop_continues(&chunk).expect(GOODCODE),
+                Insn::Continue => insn_impl::continue_insn().expect(GOODCODE),
+                Insn::TargetedContinue => insn_impl::targeted_continue(&chunk).expect(GOODCODE),
+                Insn::Break => insn_impl::break_insn().expect(GOODCODE),
+                Insn::TargetedBreak => insn_impl::targeted_break(&chunk).expect(GOODCODE),
+                Insn::IteratorAccumulate => insn_impl::iterator_accumulate().expect(GOODCODE),
+                Insn::IterateArguments => insn_impl::iterate_arguments().expect(GOODCODE),
+                Insn::IteratorDAEElision => insn_impl::elision_idae().expect(GOODCODE),
+                Insn::EmbellishedIteratorStep => insn_impl::embellished_iterator_step().expect(GOODCODE),
+                Insn::IteratorRest => insn_impl::iterator_rest().expect(GOODCODE),
+                Insn::RequireCoercible => insn_impl::require_coercible().expect(GOODCODE),
+                Insn::GetSyncIterator => insn_impl::get_sync_iterator().expect(GOODCODE),
+                Insn::IteratorClose => insn_impl::iterator_close().expect(GOODCODE),
+                Insn::IteratorCloseIfNotDone => insn_impl::iterator_close_if_not_done().expect(GOODCODE),
+                Insn::IteratorNext => insn_impl::iterator_next().expect(GOODCODE),
+                Insn::IteratorResultComplete => insn_impl::iterator_result_complete().expect(GOODCODE),
+                Insn::IteratorResultToValue => insn_impl::iterator_result_to_value().expect(GOODCODE),
+                Insn::GetV => insn_impl::getv().expect(GOODCODE),
+                Insn::EnumerateObjectProperties => insn_impl::enumerate_object_properties().expect(GOODCODE),
+                Insn::PrivateIdLookup => insn_impl::private_id_lookup(&chunk).expect(GOODCODE),
                 Insn::EvaluateInitializedClassFieldDefinition => {
-                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[stash_index as usize];
-                    let name = ClassName::try_from(
-                        ec_pop().expect("two items must be on stack").expect("first item must not be error"),
-                    )
-                    .expect("first item must be a ClassName");
-                    let home_object = Object::try_from(
-                        ec_pop().expect("two items must be on stack").expect("second item must not be error"),
-                    )
-                    .expect("second item must be object");
-                    let initializer =
-                        evaluate_initialized_class_field_definition(info, home_object.clone(), name.clone(), text)
-                            .expect("initializer must compile");
-
-                    ec_push(Ok(NormalCompletion::from(home_object)));
-                    ec_push(Ok(NormalCompletion::from(name)));
-                    ec_push(Ok(NormalCompletion::from(initializer)));
+                    insn_impl::evaluate_initialized_class_field_def(&chunk, text).expect(GOODCODE);
                 }
                 Insn::EvaluateClassStaticBlockDefinition => {
-                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[stash_index as usize];
-                    let home_object =
-                        Object::try_from(ec_pop().expect("item must be on stack").expect("item must not be error"))
-                            .expect("item must be object");
-
-                    let block_body = evaluate_class_static_block_definition(info, home_object.clone(), text)
-                        .expect("initializer must compile");
-
-                    ec_push(Ok(NormalCompletion::from(home_object)));
-                    ec_push(Ok(NormalCompletion::from(block_body)));
+                    insn_impl::evaluate_class_static_block_def(&chunk, text).expect(GOODCODE);
                 }
-                Insn::DefineMethod => {
-                    // on the stack: propkey object prototype
-                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[stash_index as usize];
-                    let propkey = PropertyKey::try_from(
-                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
-                    )
-                    .expect("item should be a property key");
-                    let obj = Object::try_from(
-                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
-                    )
-                    .expect("item should be an object");
-                    let prototype = Object::try_from(
-                        ec_pop().expect("three items should be on the stack").expect("item should not be an error"),
-                    )
-                    .expect("item should be an object");
-
-                    let to_compile: Rc<MethodDefinition> =
-                        info.to_compile.clone().try_into().expect("This routine only used with MethodDefinitions");
-                    if let MethodDefinition::NamedFunction(_, _, body, _) = to_compile.as_ref() {
-                        let name = nameify(&info.source_text, 50);
-                        let mut compiled = Chunk::new(name);
-                        let compilation_status = body.compile_body(&mut compiled, text, info);
-                        if let Err(err) = compilation_status {
-                            AGENT.with(|agent| {
-                                let typeerror = create_type_error(err.to_string());
-                                let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
-                                stack.push(Err(typeerror));
-                            });
-                            break;
-                        }
-                        for line in compiled.disassemble() {
-                            println!("{line}");
-                        }
-
-                        let env =
-                            current_lexical_environment().expect("a lexical environment should have been established");
-                        let private_env = current_private_environment();
-                        let source_text = &info.source_text;
-                        let strict = info.strict;
-                        let closure = ordinary_function_create(
-                            prototype,
-                            source_text,
-                            info.params.clone(),
-                            info.body.clone(),
-                            ThisLexicality::NonLexicalThis,
-                            env,
-                            private_env,
-                            strict,
-                            Rc::new(compiled),
-                        );
-
-                        make_method(closure.o.to_function_obj().unwrap(), obj);
-
-                        ec_push(Ok(closure.into()));
-                        ec_push(Ok(propkey.into()));
-
-                    } else {
-                        panic!("This routine is only for the production MethodDefinition : ClassElementName ( UniqueFormalParameters) {{ FunctionBody }}");
-                    }
-                }
-                Insn::SetFunctionName => {
-                    // on stack: propertykey closure
-                    // but at the exit, we want them to stay there, so we just peek them from the end of the stack.
-                    let property_key = FunctionName::from(
-                        PropertyKey::try_from(
-                            ec_peek(0)
-                            .expect("items should be on stack")
-                            .expect("item should not be an error")
-                        )
-                        .expect("item should be a property key"));
-                    let closure =
-                        Object::try_from(
-                                ec_peek(1)
-                                .expect("items should be on stack")
-                                .expect("item should not be an error")
-                        )
-                        .expect("item should be an object");
-                    set_function_name(&closure, property_key, None);
-                }
-                Insn::DefineMethodProperty => {
-                    // Takes one arg. 0 => enumerable:false; 1 => enumerable:true
-                    // Stack: propertykey closure object
-                    let enumerable = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] == 1;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let name = FunctionName::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be error"))
-                        .expect("item should be a function name");
-                    let closure = Object::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be error"))
-                        .expect("item should be an object");
-                    let home_object = Object::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be error"))
-                        .expect("item should be an object");
-                    let result = define_method_property(&home_object, name, closure, enumerable);
-                    ec_push(Ok(result.into()));
-                }
-                Insn::DefineGetter => {
-                    // Takes two args: idx into function stash and enumerable flag
-                    // stack input: propkey object
-                    // output: err/empty/PrivateElement
-                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let enumerable = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] != 0;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[stash_index as usize];
-                    let prop_key = FunctionName::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be an error"))
-                        .expect("item should be a function name");
-                    let base_object = Object::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be an error"))
-                        .expect("item should be an object");
-
-                    //  2. Let env be the running execution context's LexicalEnvironment.
-                    //  3. Let privateEnv be the running execution context's PrivateEnvironment.
-                    //  6. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameterList,
-                    //     FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
-                    //  7. Perform MakeMethod(closure, object).
-                    //  8. Perform SetFunctionName(closure, propKey, "get").
-                    //  9. If propKey is a Private Name, then
-                    //      a. Return PrivateElement { [[Key]]: propKey, [[Kind]]: ACCESSOR, [[Get]]: closure, [[Set]]:
-                    //         undefined }.
-                    //  10. Else,
-                    //      a. Let desc be the PropertyDescriptor { [[Get]]: closure, [[Enumerable]]: enumerable,
-                    //         [[Configurable]]: true }.
-                    //      b. Perform ? DefinePropertyOrThrow(object, propKey, desc).
-                    //      c. Return UNUSED.
-                    let to_compile: Rc<MethodDefinition> =
-                        info.to_compile.clone().try_into().expect("This routine only used with method definitions");
-                    let MethodDefinition::Getter(_, fb, _) = to_compile.as_ref() else { unreachable!() };
-                    let prod_text_loc = to_compile.location().span;
-                    let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
-                    let chunk_name = nameify(prod_text, 50);
-                    let mut compiled = Chunk::new(chunk_name);
-                    let compilation_status = fb.compile_body(&mut compiled, text, info);
-                    if let Err(err) = compilation_status {
-                        AGENT.with(|agent| {
-                            let typeerror = create_type_error(err.to_string());
-                            let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
-                            stack.push(Err(typeerror));
-                        });
-                        break;
-                    }
-
-                    for line in compiled.disassemble() {
-                        println!("{line}");
-                    }
-
-                    let env = current_lexical_environment().unwrap();
-                    let private_env = current_private_environment();
-                    let prototype = intrinsic(IntrinsicId::FunctionPrototype);
-                    let closure = ordinary_function_create(
-                        prototype,
-                        &info.source_text,
-                        info.params.clone(),
-                        info.body.clone(),
-                        info.this_mode,
-                        env,
-                        private_env,
-                        info.strict,
-                        Rc::new(compiled),
-                    );
-                    make_method(closure.o.to_function_obj().unwrap(), base_object.clone());
-                    set_function_name(&closure, prop_key.clone(), Some("get".into()));
-
-                    let result = match prop_key {
-                        FunctionName::String(_) |
-                        FunctionName::Symbol(_) => {
-                            let desc =
-                                PotentialPropertyDescriptor::new()
-                                    .get(closure)
-                                    .enumerable(enumerable)
-                                    .configurable(true);
-                            let result =
-                                define_property_or_throw(
-                                    &base_object,
-                                    PropertyKey::try_from(prop_key).unwrap(),
-                                    desc
-                                );
-                            result.map(|()| None)
-                        },
-                        FunctionName::PrivateName(pn) => Ok(Some(PrivateElement {
-                            key: pn,
-                            kind: PrivateElementKind::Accessor{ get: Some(closure), set: None },
-                        })),
-                    };
-                    ec_push(result.map(NormalCompletion::from));
-                }
-                Insn::DefineSetter => {
-                    // Takes two args: idx into function stash and enumerable flag
-                    // stack input: propkey object
-                    // output: err/empty/PrivateElement
-                    let stash_index = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc];
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let enumerable = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc] != 0;
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[stash_index as usize];
-                    let prop_key = FunctionName::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be an error"))
-                        .expect("item should be a function name");
-                    let base_object = Object::try_from(ec_pop()
-                        .expect("items should be on stack")
-                        .expect("item should not be an error"))
-                        .expect("item should be an object");
-
-                    //  2. Let env be the running execution context's LexicalEnvironment.
-                    //  3. Let privateEnv be the running execution context's PrivateEnvironment.
-                    //  5. Let closure be OrdinaryFunctionCreate(%Function.prototype%, sourceText,
-                    //     PropertySetParameterList, FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
-                    //  6. Perform MakeMethod(closure, object).
-                    //  7. Perform SetFunctionName(closure, propKey, "set").
-                    //  8. If propKey is a Private Name, then
-                    //      a. Return PrivateElement { [[Key]]: propKey, [[Kind]]: ACCESSOR, [[Get]]: undefined, [[Set]]:
-                    //         closure }.
-                    //  9. Else,
-                    //      a. Let desc be the PropertyDescriptor { [[Set]]: closure, [[Enumerable]]: enumerable,
-                    //         [[Configurable]]: true }.
-                    //      b. Perform ? DefinePropertyOrThrow(object, propKey, desc).
-                    //      c. Return UNUSED.
-                    let to_compile: Rc<MethodDefinition> =
-                        info.to_compile.clone().try_into().expect("This routine only used with method definitions");
-                    let MethodDefinition::Setter(_, _, fb, _) = to_compile.as_ref() else { unreachable!() };
-                    let prod_text_loc = to_compile.location().span;
-                    let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
-                    let chunk_name = nameify(prod_text, 50);
-                    let mut compiled = Chunk::new(chunk_name);
-                    let compilation_status = fb.compile_body(&mut compiled, text, info);
-                    if let Err(err) = compilation_status {
-                        AGENT.with(|agent| {
-                            let typeerror = create_type_error(err.to_string());
-                            let stack = &mut agent.execution_context_stack.borrow_mut()[index].stack;
-                            stack.push(Err(typeerror));
-                        });
-                        break;
-                    }
-
-                    for line in compiled.disassemble() {
-                        println!("{line}");
-                    }
-
-                    let env = current_lexical_environment().unwrap();
-                    let private_env = current_private_environment();
-                    let prototype = intrinsic(IntrinsicId::FunctionPrototype);
-                    let closure = ordinary_function_create(
-                        prototype,
-                        &info.source_text,
-                        info.params.clone(),
-                        info.body.clone(),
-                        info.this_mode,
-                        env,
-                        private_env,
-                        info.strict,
-                        Rc::new(compiled),
-                    );
-                    make_method(closure.o.to_function_obj().unwrap(), base_object.clone());
-                    set_function_name(&closure, prop_key.clone(), Some("set".into()));
-
-                    let result = match prop_key {
-                        FunctionName::String(_) |
-                        FunctionName::Symbol(_) => {
-                            let desc =
-                                PotentialPropertyDescriptor::new()
-                                    .set(closure)
-                                    .enumerable(enumerable)
-                                    .configurable(true);
-                            let result =
-                                define_property_or_throw(
-                                    &base_object,
-                                    PropertyKey::try_from(prop_key).unwrap(),
-                                    desc
-                                );
-                            result.map(|()| None)
-                        },
-                        FunctionName::PrivateName(pn) => Ok(Some(PrivateElement {
-                            key: pn,
-                            kind: PrivateElementKind::Accessor{ set: Some(closure), get: None },
-                        })),
-                    };
-                    ec_push(result.map(NormalCompletion::from));
-                }
-
+                Insn::DefineMethod => insn_impl::define_method(&chunk, text).expect(GOODCODE),
+                Insn::SetFunctionName => insn_impl::set_function_name().expect(GOODCODE),
+                Insn::DefineMethodProperty => insn_impl::define_method_property(&chunk).expect(GOODCODE),
+                Insn::DefineGetter => insn_impl::define_getter(&chunk, text).expect(GOODCODE),
+                Insn::DefineSetter => insn_impl::define_setter(&chunk, text).expect(GOODCODE),
             }
         }
         let index = agent.execution_context_stack.borrow().len() - 1;
-        agent.execution_context_stack.borrow_mut()[index]
-            .stack
-            .pop()
-            .map_or(Ok(ECMAScriptValue::Undefined), |svr| {
-                svr.map(|sv| match sv {
-                    NormalCompletion::Reference(_) | NormalCompletion::Empty => ECMAScriptValue::Undefined,
-                    NormalCompletion::Value(v) => v,
-                    NormalCompletion::IteratorRecord(_)
-                    | NormalCompletion::Environment(..)
-                    | NormalCompletion::PrivateName(_) | NormalCompletion::PrivateElement(_) => unreachable!(),
-                })
+        agent.execution_context_stack.borrow_mut()[index].stack.pop().map_or(Ok(ECMAScriptValue::Undefined), |svr| {
+            svr.map(|sv| match sv {
+                NormalCompletion::Reference(_) | NormalCompletion::Empty => ECMAScriptValue::Undefined,
+                NormalCompletion::Value(v) => v,
+                NormalCompletion::IteratorRecord(_)
+                | NormalCompletion::Environment(..)
+                | NormalCompletion::PrivateName(_)
+                | NormalCompletion::PrivateElement(_) => unreachable!(),
             })
+        })
     })
 }
 
@@ -3481,8 +3455,7 @@ fn evaluate_class_static_block_definition(
     //  3. Let bodyFunction be OrdinaryFunctionCreate(%Function.prototype%, sourceText, formalParameters, ClassStaticBlockBody, NON-LEXICAL-THIS, lex, privateEnv).
     //  4. Perform MakeMethod(bodyFunction, homeObject).
     //  5. Return the ClassStaticBlockDefinition Record { [[BodyFunction]]: bodyFunction }.
-    let to_compile: Rc<ClassStaticBlock> =
-        info.to_compile.clone().try_into().expect("This routine only used with class field definitions");
+    let to_compile: Rc<ClassStaticBlock> = info.to_compile.clone().try_into()?;
     let prod_text_loc = to_compile.location().span;
     let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
     let chunk_name = nameify(prod_text, 50);
@@ -3704,153 +3677,6 @@ fn instanceof_operator(v: ECMAScriptValue, target: &ECMAScriptValue) -> FullComp
         }
         _ => Err(create_type_error("Right-hand side of 'instanceof' is not an object")),
     }
-}
-
-pub fn create_unmapped_arguments_object(index: usize) {
-    // Stack should have n arg[n-1] arg[n-2] ... arg[0] ...
-    // Those values are NOT consumed; this function assumes they'll be used again.
-
-    let stack_len = AGENT.with(|agent| agent.execution_context_stack.borrow()[index].stack.len());
-    assert!(stack_len > 0, "Stack must not be empty");
-    let length = to_usize(
-        f64::try_from(
-            ECMAScriptValue::try_from(AGENT.with(|agent| {
-                agent.execution_context_stack.borrow()[index].stack[stack_len - 1]
-                    .clone()
-                    .expect("Non-error arguments needed")
-            }))
-            .expect("Value arguments needed"),
-        )
-        .expect("Numeric arguments needed"),
-    )
-    .expect("length should be a valid integer");
-    assert!(stack_len > length as usize, "Stack too short to fit all the arguments");
-
-    let obj = ArgumentsObject::object(None);
-    define_property_or_throw(
-        &obj,
-        "length",
-        PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
-    )
-    .expect("Normal Object");
-
-    let first_arg_index = stack_len - length - 1;
-    let arguments = AGENT.with(|agent| {
-        agent.execution_context_stack.borrow()[index].stack[first_arg_index..first_arg_index + length].to_vec()
-    });
-
-    for (arg_number, item) in arguments.into_iter().enumerate() {
-        let value =
-            ECMAScriptValue::try_from(item.expect("Non-error arguments needed")).expect("Value arguments needed");
-        obj.create_data_property_or_throw(arg_number, value).expect("Normal Object");
-    }
-
-    let iterator = wks(WksId::Iterator);
-    let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
-    let throw_type_error = intrinsic(IntrinsicId::ThrowTypeError);
-    define_property_or_throw(
-        &obj,
-        iterator,
-        PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
-    )
-    .expect("Normal Object");
-    define_property_or_throw(
-        &obj,
-        "callee",
-        PotentialPropertyDescriptor::new()
-            .get(throw_type_error.clone())
-            .set(throw_type_error)
-            .enumerable(false)
-            .configurable(false),
-    )
-    .expect("Normal Object");
-
-    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(obj))));
-    // Stack at exit: AObj N arg[N-1] ... arg[0] ...
-}
-
-pub fn create_mapped_arguments_object(index: usize) {
-    // Stack should have n arg[n-1] arg[n-2] ... arg[0] func ...
-
-    let stack_len = AGENT.with(|agent| agent.execution_context_stack.borrow()[index].stack.len());
-    assert!(stack_len > 0, "Stack must not be empty");
-    let length = to_usize(
-        f64::try_from(
-            ECMAScriptValue::try_from(
-                AGENT
-                    .with(|agent| agent.execution_context_stack.borrow()[index].stack[stack_len - 1].clone())
-                    .expect("Non-error arguments needed"),
-            )
-            .expect("Value arguments needed"),
-        )
-        .expect("Numeric arguments needed"),
-    )
-    .expect("length should be a valid integer");
-    assert!(stack_len > length + 1, "Stack too short to fit all the arguments plus the function obj");
-
-    let first_arg_index = stack_len - length - 1;
-    let arguments = AGENT.with(|agent| {
-        agent.execution_context_stack.borrow()[index].stack[first_arg_index..first_arg_index + length].to_vec()
-    });
-
-    let env = current_lexical_environment().expect("A lex env must exist");
-    let map = ParameterMap::new(env);
-    let ao = ArgumentsObject::object(Some(map));
-
-    for (idx, item) in arguments.into_iter().enumerate() {
-        let val = ECMAScriptValue::try_from(item.expect("arguments must be values")).expect("arguments must be values");
-        ao.create_data_property_or_throw(idx, val).expect("ArgumentObject won't throw");
-    }
-
-    define_property_or_throw(
-        &ao,
-        "length",
-        PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
-    )
-    .expect("ArgumentObject won't throw");
-    let iterator = wks(WksId::Iterator);
-    let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
-    define_property_or_throw(
-        &ao,
-        iterator,
-        PotentialPropertyDescriptor::new().value(array_values).writable(true).enumerable(false).configurable(true),
-    )
-    .expect("ArgumentObject won't throw");
-    let func = ECMAScriptValue::try_from(
-        AGENT
-            .with(|agent| agent.execution_context_stack.borrow()[index].stack[first_arg_index - 1].clone())
-            .expect("Function object type error"),
-    )
-    .expect("Function object type error");
-    define_property_or_throw(
-        &ao,
-        "callee",
-        PotentialPropertyDescriptor::new().value(func).writable(true).enumerable(false).configurable(true),
-    )
-    .expect("ArgumentObject won't throw");
-
-    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(NormalCompletion::from(ao))));
-    // Stack at exit: AObj N arg[N-1] ... arg[0] func ...
-}
-
-pub fn attach_mapped_arg(index: usize, name: &JSString, idx: usize) {
-    // Stack: AObj ...
-    let top = AGENT.with(|agent| agent.execution_context_stack.borrow()[index].stack.len());
-    assert!(top > 0, "stack must not be empty");
-    let obj = Object::try_from(
-        ECMAScriptValue::try_from(
-            AGENT
-                .with(|agent| agent.execution_context_stack.borrow()[index].stack[top - 1].clone())
-                .expect("arguments must be values"),
-        )
-        .expect("arguments must be values"),
-    )
-    .expect("argument must be an object");
-    let ao = obj.o.to_arguments_object().expect("argument must be an ArgumentsObject");
-    let pmap = ao.parameter_map.as_ref().expect("argument must be a mapped arguments object");
-    let mut pmap = pmap.borrow_mut();
-    pmap.add_mapped_name(name.clone(), idx);
-    // Stack: AObj ...
 }
 
 #[derive(PartialEq, Eq)]

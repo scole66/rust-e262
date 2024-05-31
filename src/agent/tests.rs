@@ -6,7 +6,6 @@ use lazy_static::lazy_static;
 use num::BigInt;
 use regex::Regex;
 use std::cell::RefCell;
-use std::iter::zip;
 use std::rc::Rc;
 use std::str::FromStr;
 use test_case::test_case;
@@ -554,7 +553,7 @@ mod agent {
         fn normal(values: &[ECMAScriptValue]) {
             setup_test_agent();
             let num_values = values.len();
-            let index = AGENT.with(|agent| {
+            AGENT.with(|agent| {
                 let index = agent.execution_context_stack.borrow().len() - 1;
                 {
                     let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
@@ -564,13 +563,13 @@ mod agent {
                     }
                     stack.push(Ok(num_values.into()));
                 }
-                index
             });
 
-            super::create_unmapped_arguments_object(index);
+            super::insn_impl::create_unmapped_arguments_object().unwrap();
 
             let ao = AGENT.with(|agent| {
-                let stack = &agent.execution_context_stack.borrow()[index].stack;
+                let ec_ref = agent.execution_context_stack.borrow();
+                let stack = &ec_ref.last().unwrap().stack;
                 let stack_size = stack.len();
 
                 // Assert arg vector is still in the right spot
@@ -609,27 +608,27 @@ mod agent {
         }
 
         #[test]
-        #[should_panic(expected = "Stack must not be empty")]
         fn panics_empty() {
             setup_test_agent();
-            let index = AGENT.with(|agent| agent.execution_context_stack.borrow().len()) - 1;
-            super::create_unmapped_arguments_object(index);
+            assert_eq!(
+                super::insn_impl::create_unmapped_arguments_object().unwrap_err().to_string(),
+                "runtime stack is empty"
+            );
         }
 
         #[test]
-        #[should_panic(expected = "Stack too short to fit all the arguments")]
         fn panics_short() {
             setup_test_agent();
-            let index = AGENT.with(|agent| {
+            AGENT.with(|agent| {
                 let index = agent.execution_context_stack.borrow().len() - 1;
                 {
                     let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let stack = &mut top_ec.stack;
                     stack.push(Ok(NormalCompletion::from(800)));
                 }
-                index
             });
-            super::create_unmapped_arguments_object(index);
+            let err = super::insn_impl::create_unmapped_arguments_object().unwrap_err().to_string();
+            assert_eq!(err, "runtime stack is empty");
         }
     }
 
@@ -660,7 +659,7 @@ mod agent {
                 index
             });
 
-            super::create_mapped_arguments_object(index);
+            super::insn_impl::create_mapped_arguments_object().unwrap();
 
             let ao = AGENT.with(|agent| {
                 let stack = &agent.execution_context_stack.borrow()[index].stack;
@@ -695,91 +694,25 @@ mod agent {
         }
 
         #[test]
-        #[should_panic(expected = "Stack must not be empty")]
         fn panics_empty() {
             setup_test_agent();
-            let index = AGENT.with(|agent| agent.execution_context_stack.borrow().len()) - 1;
-            super::create_mapped_arguments_object(index);
+            let err = super::insn_impl::create_mapped_arguments_object().unwrap_err().to_string();
+            assert_eq!(err, "runtime stack is empty");
         }
 
         #[test]
-        #[should_panic(expected = "Stack too short to fit all the arguments plus the function obj")]
         fn panics_short() {
             setup_test_agent();
-            let index = AGENT.with(|agent| {
+            AGENT.with(|agent| {
                 let index = agent.execution_context_stack.borrow().len() - 1;
                 {
                     let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
                     let stack = &mut top_ec.stack;
                     stack.push(Ok(NormalCompletion::from(800)));
                 }
-                index
             });
-            super::create_mapped_arguments_object(index);
-        }
-    }
-
-    mod attach_mapped_arg {
-        use super::*;
-        use test_case::test_case;
-
-        #[test_case(&[10.into(), "blue".into(), true.into()], &["number".into(), "string".into(), "boolean".into()]; "typical")]
-        fn normal(values: &[ECMAScriptValue], names: &[JSString]) {
-            setup_test_agent();
-            let realm = current_realm_record().unwrap();
-            let ge = realm.borrow().global_env.as_ref().unwrap().clone();
-            let lex = Rc::new(DeclarativeEnvironmentRecord::new(Some(ge), "test lex"));
-            let num_values = values.len();
-            let index = AGENT.with(|agent| {
-                let index = agent.execution_context_stack.borrow().len() - 1;
-                {
-                    let top_ec = &mut agent.execution_context_stack.borrow_mut()[index];
-                    top_ec.lexical_environment = Some(lex.clone());
-                    let stack = &mut top_ec.stack;
-                    stack.push(Ok(ECMAScriptValue::Null.into())); // faux function
-                    for value in values {
-                        stack.push(Ok(value.clone().into()));
-                    }
-                    stack.push(Ok(num_values.into()));
-                }
-                index
-            });
-            super::create_mapped_arguments_object(index);
-
-            let ao = AGENT.with(|agent| {
-                Object::try_from(
-                    ECMAScriptValue::try_from(
-                        agent.execution_context_stack.borrow()[index].stack
-                            [agent.execution_context_stack.borrow()[index].stack.len() - 1]
-                            .clone()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                )
-                .unwrap()
-            });
-
-            for (idx, (name, value)) in zip(names, values).enumerate().rev() {
-                lex.create_mutable_binding(name.clone(), false).unwrap();
-                lex.initialize_binding(name, value.clone()).unwrap();
-                super::attach_mapped_arg(index, name, idx);
-            }
-
-            for (idx, (name, value)) in zip(names, values).enumerate() {
-                let val = ao.get(&idx.into()).unwrap();
-                assert_eq!(&val, value);
-                ao.set(idx, idx, true).unwrap();
-                let val = lex.get_binding_value(name, true).unwrap();
-                assert_eq!(val, ECMAScriptValue::from(idx));
-            }
-        }
-
-        #[test]
-        #[should_panic(expected = "stack must not be empty")]
-        fn empty_stack() {
-            setup_test_agent();
-            let index = AGENT.with(|agent| agent.execution_context_stack.borrow().len()) - 1;
-            super::attach_mapped_arg(index, &"bbo".into(), 12);
+            let err = super::insn_impl::create_mapped_arguments_object().unwrap_err().to_string();
+            assert_eq!(err, "runtime stack is empty");
         }
     }
 }
