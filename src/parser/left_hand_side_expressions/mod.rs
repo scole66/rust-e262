@@ -24,10 +24,24 @@ use std::io::Write;
 // If they're there, build up one of the interior productions and loop.
 
 #[derive(Debug)]
-pub enum CallableExpression {
-    CallExpression(Rc<CallExpression>),
-    MemberExpression(Rc<MemberExpression>),
-    OptionalChain(Rc<OptionalChain>),
+pub enum CallableExpression<'a> {
+    CallExpression(&'a Rc<CallExpression>),
+    MemberExpression(&'a Rc<MemberExpression>),
+    OptionalChain(&'a Rc<OptionalChain>),
+}
+
+pub enum PotentialTail<'a> {
+    FunctionBody(&'a Rc<FunctionBody>),
+    ConciseBody(&'a Rc<ConciseBody>),
+}
+
+impl<'a> PotentialTail<'a> {
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        match self {
+            PotentialTail::FunctionBody(node) => node.has_call_in_tail_position(call),
+            PotentialTail::ConciseBody(node) => node.has_call_in_tail_position(call),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1642,16 +1656,15 @@ pub enum CallExpression {
 impl fmt::Display for CallExpression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CallExpression::CallMemberExpression(boxed) => write!(f, "{boxed}"),
-            CallExpression::SuperCall(boxed) => write!(f, "{boxed}"),
-            CallExpression::ImportCall(boxed) => write!(f, "{boxed}"),
-            CallExpression::CallExpressionArguments(ce, args) => write!(f, "{ce} {args}"),
-            CallExpression::CallExpressionExpression(ce, exp, _) => write!(f, "{ce} [ {exp} ]"),
-            CallExpression::CallExpressionIdentifierName(ce, id, _)
-            | CallExpression::CallExpressionPrivateId(ce, id, _) => {
+            Self::CallMemberExpression(boxed) => write!(f, "{boxed}"),
+            Self::SuperCall(boxed) => write!(f, "{boxed}"),
+            Self::ImportCall(boxed) => write!(f, "{boxed}"),
+            Self::CallExpressionArguments(ce, args) => write!(f, "{ce} {args}"),
+            Self::CallExpressionExpression(ce, exp, _) => write!(f, "{ce} [ {exp} ]"),
+            Self::CallExpressionIdentifierName(ce, id, _) | Self::CallExpressionPrivateId(ce, id, _) => {
                 write!(f, "{ce} . {id}")
             }
-            CallExpression::CallExpressionTemplateLiteral(ce, tl) => write!(f, "{ce} {tl}"),
+            Self::CallExpressionTemplateLiteral(ce, tl) => write!(f, "{ce} {tl}"),
         }
     }
 }
@@ -1664,22 +1677,21 @@ impl PrettyPrint for CallExpression {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}CallExpression: {self}")?;
         match self {
-            CallExpression::CallMemberExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CallExpression::SuperCall(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CallExpression::ImportCall(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
-            CallExpression::CallExpressionArguments(ce, args) => {
+            Self::CallMemberExpression(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            Self::SuperCall(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            Self::ImportCall(boxed) => boxed.pprint_with_leftpad(writer, &successive, Spot::Final),
+            Self::CallExpressionArguments(ce, args) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 args.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionExpression(ce, exp, _) => {
+            Self::CallExpressionExpression(ce, exp, _) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 exp.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionIdentifierName(ce, _, _)
-            | CallExpression::CallExpressionPrivateId(ce, _, _) => {
+            Self::CallExpressionIdentifierName(ce, _, _) | Self::CallExpressionPrivateId(ce, _, _) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionTemplateLiteral(ce, tl) => {
+            Self::CallExpressionTemplateLiteral(ce, tl) => {
                 ce.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 tl.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -1696,29 +1708,29 @@ impl PrettyPrint for CallExpression {
             node.concise_with_leftpad(writer, &successive, Spot::NotFinal).and(Ok(successive))
         };
         match self {
-            CallExpression::CallMemberExpression(node) => node.concise_with_leftpad(writer, pad, state),
-            CallExpression::SuperCall(node) => node.concise_with_leftpad(writer, pad, state),
-            CallExpression::ImportCall(node) => node.concise_with_leftpad(writer, pad, state),
-            CallExpression::CallExpressionArguments(ce, right) => {
+            Self::CallMemberExpression(node) => node.concise_with_leftpad(writer, pad, state),
+            Self::SuperCall(node) => node.concise_with_leftpad(writer, pad, state),
+            Self::ImportCall(node) => node.concise_with_leftpad(writer, pad, state),
+            Self::CallExpressionArguments(ce, right) => {
                 let successive = head(writer, ce)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionExpression(ce, right, _) => {
+            Self::CallExpressionExpression(ce, right, _) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, "[", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 right.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, "]", TokenType::Punctuator, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionIdentifierName(ce, right, _) => {
+            Self::CallExpressionIdentifierName(ce, right, _) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, right, TokenType::IdentifierName, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionTemplateLiteral(ce, right) => {
+            Self::CallExpressionTemplateLiteral(ce, right) => {
                 let successive = head(writer, ce)?;
                 right.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            CallExpression::CallExpressionPrivateId(ce, id, _) => {
+            Self::CallExpressionPrivateId(ce, id, _) => {
                 let successive = head(writer, ce)?;
                 pprint_token(writer, ".", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 pprint_token(writer, id, TokenType::PrivateIdentifier, &successive, Spot::Final)
@@ -1828,30 +1840,28 @@ impl CallExpression {
 
     pub fn location(&self) -> Location {
         match self {
-            CallExpression::CallExpressionExpression(_, _, location)
-            | CallExpression::CallExpressionIdentifierName(_, _, location)
-            | CallExpression::CallExpressionPrivateId(_, _, location) => *location,
-            CallExpression::CallMemberExpression(node) => node.location(),
-            CallExpression::SuperCall(node) => node.location(),
-            CallExpression::ImportCall(node) => node.location(),
-            CallExpression::CallExpressionArguments(chain, node) => chain.location().merge(&node.location()),
-            CallExpression::CallExpressionTemplateLiteral(chain, node) => chain.location().merge(&node.location()),
+            Self::CallExpressionExpression(_, _, location)
+            | Self::CallExpressionIdentifierName(_, _, location)
+            | Self::CallExpressionPrivateId(_, _, location) => *location,
+            Self::CallMemberExpression(node) => node.location(),
+            Self::SuperCall(node) => node.location(),
+            Self::ImportCall(node) => node.location(),
+            Self::CallExpressionArguments(chain, node) => chain.location().merge(&node.location()),
+            Self::CallExpressionTemplateLiteral(chain, node) => chain.location().merge(&node.location()),
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            CallExpression::CallMemberExpression(boxed) => boxed.contains(kind),
-            CallExpression::SuperCall(boxed) => kind == ParseNodeKind::SuperCall || boxed.contains(kind),
-            CallExpression::ImportCall(boxed) => boxed.contains(kind),
-            CallExpression::CallExpressionArguments(ce, args) => ce.contains(kind) || args.contains(kind),
-            CallExpression::CallExpressionExpression(ce, exp, _) => ce.contains(kind) || exp.contains(kind),
-            CallExpression::CallExpressionIdentifierName(ce, _, _)
-            | CallExpression::CallExpressionPrivateId(ce, _, _) => ce.contains(kind),
-            CallExpression::CallExpressionTemplateLiteral(ce, tl) => ce.contains(kind) || tl.contains(kind),
+            Self::CallMemberExpression(boxed) => boxed.contains(kind),
+            Self::SuperCall(boxed) => kind == ParseNodeKind::SuperCall || boxed.contains(kind),
+            Self::ImportCall(boxed) => boxed.contains(kind),
+            Self::CallExpressionArguments(ce, args) => ce.contains(kind) || args.contains(kind),
+            Self::CallExpressionExpression(ce, exp, _) => ce.contains(kind) || exp.contains(kind),
+            Self::CallExpressionIdentifierName(ce, _, _) | Self::CallExpressionPrivateId(ce, _, _) => ce.contains(kind),
+            Self::CallExpressionTemplateLiteral(ce, tl) => ce.contains(kind) || tl.contains(kind),
         }
     }
-
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
@@ -1860,17 +1870,17 @@ impl CallExpression {
             //      a. If child is an instance of a nonterminal, then
             //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
             //  2. Return true.
-            CallExpression::CallMemberExpression(boxed) => boxed.all_private_identifiers_valid(names),
-            CallExpression::SuperCall(boxed) => boxed.all_private_identifiers_valid(names),
-            CallExpression::ImportCall(boxed) => boxed.all_private_identifiers_valid(names),
-            CallExpression::CallExpressionArguments(ce, args) => {
+            Self::CallMemberExpression(boxed) => boxed.all_private_identifiers_valid(names),
+            Self::SuperCall(boxed) => boxed.all_private_identifiers_valid(names),
+            Self::ImportCall(boxed) => boxed.all_private_identifiers_valid(names),
+            Self::CallExpressionArguments(ce, args) => {
                 ce.all_private_identifiers_valid(names) && args.all_private_identifiers_valid(names)
             }
-            CallExpression::CallExpressionExpression(ce, exp, _) => {
+            Self::CallExpressionExpression(ce, exp, _) => {
                 ce.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
             }
-            CallExpression::CallExpressionIdentifierName(ce, _, _) => ce.all_private_identifiers_valid(names),
-            CallExpression::CallExpressionTemplateLiteral(ce, tl) => {
+            Self::CallExpressionIdentifierName(ce, _, _) => ce.all_private_identifiers_valid(names),
+            Self::CallExpressionTemplateLiteral(ce, tl) => {
                 ce.all_private_identifiers_valid(names) && tl.all_private_identifiers_valid(names)
             }
 
@@ -1878,7 +1888,7 @@ impl CallExpression {
             //  1. If names contains the StringValue of PrivateIdentifier, then
             //      a. Return AllPrivateIdentifiersValid of CallExpression with argument names.
             //  2. Return false.
-            CallExpression::CallExpressionPrivateId(ce, id, _) => {
+            Self::CallExpressionPrivateId(ce, id, _) => {
                 names.contains(&id.string_value) && ce.all_private_identifiers_valid(names)
             }
         }
@@ -1896,33 +1906,35 @@ impl CallExpression {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            CallExpression::CallMemberExpression(cme) => cme.contains_arguments(),
-            CallExpression::SuperCall(sc) => sc.contains_arguments(),
-            CallExpression::ImportCall(ic) => ic.contains_arguments(),
-            CallExpression::CallExpressionArguments(ce, a) => ce.contains_arguments() || a.contains_arguments(),
-            CallExpression::CallExpressionExpression(ce, e, _) => ce.contains_arguments() || e.contains_arguments(),
-            CallExpression::CallExpressionIdentifierName(ce, _, _)
-            | CallExpression::CallExpressionPrivateId(ce, _, _) => ce.contains_arguments(),
-            CallExpression::CallExpressionTemplateLiteral(ce, tl) => ce.contains_arguments() | tl.contains_arguments(),
+            Self::CallMemberExpression(cme) => cme.contains_arguments(),
+            Self::SuperCall(sc) => sc.contains_arguments(),
+            Self::ImportCall(ic) => ic.contains_arguments(),
+            Self::CallExpressionArguments(ce, a) => ce.contains_arguments() || a.contains_arguments(),
+            Self::CallExpressionExpression(ce, e, _) => ce.contains_arguments() || e.contains_arguments(),
+            Self::CallExpressionIdentifierName(ce, _, _) | Self::CallExpressionPrivateId(ce, _, _) => {
+                ce.contains_arguments()
+            }
+            Self::CallExpressionTemplateLiteral(ce, tl) => ce.contains_arguments() | tl.contains_arguments(),
         }
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
-            CallExpression::CallMemberExpression(node) => node.early_errors(errs, strict),
-            CallExpression::SuperCall(node) => node.early_errors(errs, strict),
-            CallExpression::ImportCall(node) => node.early_errors(errs, strict),
-            CallExpression::CallExpressionArguments(node, args) => {
+            Self::CallMemberExpression(node) => node.early_errors(errs, strict),
+            Self::SuperCall(node) => node.early_errors(errs, strict),
+            Self::ImportCall(node) => node.early_errors(errs, strict),
+            Self::CallExpressionArguments(node, args) => {
                 node.early_errors(errs, strict);
                 args.early_errors(errs, strict);
             }
-            CallExpression::CallExpressionExpression(node, exp, _) => {
+            Self::CallExpressionExpression(node, exp, _) => {
                 node.early_errors(errs, strict);
                 exp.early_errors(errs, strict);
             }
-            CallExpression::CallExpressionIdentifierName(node, _, _)
-            | CallExpression::CallExpressionPrivateId(node, _, _) => node.early_errors(errs, strict),
-            CallExpression::CallExpressionTemplateLiteral(node, tl) => {
+            Self::CallExpressionIdentifierName(node, _, _) | Self::CallExpressionPrivateId(node, _, _) => {
+                node.early_errors(errs, strict);
+            }
+            Self::CallExpressionTemplateLiteral(node, tl) => {
                 node.early_errors(errs, strict);
                 tl.early_errors(errs, strict, 0xffff_ffff);
             }
@@ -1930,7 +1942,7 @@ impl CallExpression {
     }
 
     pub fn is_strictly_deletable(&self) -> bool {
-        !matches!(self, CallExpression::CallExpressionPrivateId(..))
+        !matches!(self, Self::CallExpressionPrivateId(..))
     }
 
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
@@ -1938,14 +1950,14 @@ impl CallExpression {
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
     pub fn assignment_target_type(&self) -> ATTKind {
         match self {
-            CallExpression::CallMemberExpression(_)
-            | CallExpression::SuperCall(_)
-            | CallExpression::ImportCall(_)
-            | CallExpression::CallExpressionArguments(..)
-            | CallExpression::CallExpressionTemplateLiteral(..) => ATTKind::Invalid,
-            CallExpression::CallExpressionExpression(..)
-            | CallExpression::CallExpressionIdentifierName(..)
-            | CallExpression::CallExpressionPrivateId(..) => ATTKind::Simple,
+            Self::CallMemberExpression(_)
+            | Self::SuperCall(_)
+            | Self::ImportCall(_)
+            | Self::CallExpressionArguments(..)
+            | Self::CallExpressionTemplateLiteral(..) => ATTKind::Invalid,
+            Self::CallExpressionExpression(..)
+            | Self::CallExpressionIdentifierName(..)
+            | Self::CallExpressionPrivateId(..) => ATTKind::Simple,
         }
     }
 
@@ -1954,15 +1966,15 @@ impl CallExpression {
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse
         // Node, a MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
         match this.as_ref() {
-            CallExpression::SuperCall(_)
-            | CallExpression::ImportCall(_)
-            | CallExpression::CallExpressionExpression(_, _, _)
-            | CallExpression::CallExpressionIdentifierName(_, _, _)
-            | CallExpression::CallExpressionPrivateId(_, _, _) => false,
+            Self::SuperCall(_)
+            | Self::ImportCall(_)
+            | Self::CallExpressionExpression(_, _, _)
+            | Self::CallExpressionIdentifierName(_, _, _)
+            | Self::CallExpressionPrivateId(_, _, _) => false,
 
-            CallExpression::CallMemberExpression(_)
-            | CallExpression::CallExpressionArguments(_, _)
-            | CallExpression::CallExpressionTemplateLiteral(_, _) => {
+            Self::CallMemberExpression(_)
+            | Self::CallExpressionArguments(_, _)
+            | Self::CallExpressionTemplateLiteral(_, _) => {
                 if let CallableExpression::CallExpression(call) = call {
                     Rc::ptr_eq(this, call)
                 } else {
@@ -1970,6 +1982,29 @@ impl CallExpression {
                 }
             }
         }
+    }
+
+    pub fn is_in_tail_position(self: &Rc<Self>, body: &PotentialTail) -> bool {
+        // Static Semantics: IsInTailPosition ( call )
+        // The abstract operation IsInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean. It performs the
+        // following steps when called:
+        //
+        //  1. If IsStrict(call) is false, return false.
+        //  2. If call is not contained within a FunctionBody, a ConciseBody, or an AsyncConciseBody, return
+        //     false.
+        //  3. Let body be the FunctionBody, ConciseBody, or AsyncConciseBody that most closely contains call.
+        //  4. If body is the FunctionBody of a GeneratorBody, return false.
+        //  5. If body is the FunctionBody of an AsyncFunctionBody, return false.
+        //  6. If body is the FunctionBody of an AsyncGeneratorBody, return false.
+        //  7. If body is an AsyncConciseBody, return false.
+        //  8. Return the result of HasCallInTailPosition of body with argument call.
+        // NOTE
+        // Tail Position calls are only defined in strict mode code because of a common non-standard language
+        // extension (see 10.2.4) that enables observation of the chain of caller contexts.
+
+        // We assume strict mode and the right kind of function body from the caller.
+        body.has_call_in_tail_position(&CallableExpression::CallExpression(self))
     }
 }
 

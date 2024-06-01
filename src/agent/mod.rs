@@ -2804,7 +2804,7 @@ pub fn prepare_for_tail_call() {
     // amount that the size of the target function's activation record exceeds the size of the calling
     // function's activation record. If the target function's activation record is smaller, then the total
     // size of the stack should decrease.
-    pop_execution_context()
+    pop_execution_context();
 }
 
 fn prefix_increment(expr: FullCompletion) -> FullCompletion {

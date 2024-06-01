@@ -599,6 +599,13 @@ impl ConciseBody {
             ConciseBody::Function { body, .. } => body.lexically_scoped_declarations(),
         }
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        match self {
+            ConciseBody::Expression(node) => node.has_call_in_tail_position(call),
+            ConciseBody::Function { body, location: _ } => body.has_call_in_tail_position(call),
+        }
+    }
 }
 
 // ExpressionBody[In, Await] :
@@ -685,6 +692,10 @@ impl ExpressionBody {
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.expression.early_errors(errs, strict);
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        self.expression.has_call_in_tail_position(call)
     }
 }
 

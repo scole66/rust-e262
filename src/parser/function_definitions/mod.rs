@@ -500,6 +500,10 @@ impl FunctionBody {
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.statements.lexically_scoped_declarations()
     }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        self.statements.has_call_in_tail_position(call)
+    }
 }
 
 // FunctionStatementList[Yield, Await] :
@@ -677,6 +681,13 @@ impl FunctionStatementList {
         match self {
             FunctionStatementList::Statements(s) => s.top_level_lexically_scoped_declarations(),
             FunctionStatementList::Empty(_) => vec![],
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
+        match self {
+            FunctionStatementList::Statements(s) => s.has_call_in_tail_position(call),
+            FunctionStatementList::Empty(_) => false,
         }
     }
 }
