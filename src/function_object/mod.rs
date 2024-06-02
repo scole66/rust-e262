@@ -1294,6 +1294,22 @@ impl From<&str> for FunctionName {
     }
 }
 
+impl TryFrom<ECMAScriptValue> for FunctionName {
+    type Error = anyhow::Error;
+    fn try_from(value: ECMAScriptValue) -> Result<Self, Self::Error> {
+        match value {
+            ECMAScriptValue::String(s) => Ok(FunctionName::String(s)),
+            ECMAScriptValue::Symbol(s) => Ok(FunctionName::Symbol(s)),
+            ECMAScriptValue::Undefined
+            | ECMAScriptValue::Null
+            | ECMAScriptValue::Boolean(_)
+            | ECMAScriptValue::Number(_)
+            | ECMAScriptValue::BigInt(_)
+            | ECMAScriptValue::Object(_) => Err(anyhow!("String or Symbol value expected")),
+        }
+    }
+}
+
 impl TryFrom<FunctionName> for PropertyKey {
     type Error = anyhow::Error;
 
