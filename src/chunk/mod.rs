@@ -202,7 +202,7 @@ impl Chunk {
             | Insn::PutValue
             | Insn::FunctionPrototype
             | Insn::Call
-            | Insn::StrictCall
+            | Insn::StrictCall | Insn::TailCall
             | Insn::EndFunction
             | Insn::Return
             | Insn::UpdateEmpty

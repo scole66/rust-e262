@@ -26,11 +26,13 @@ use std::io::Write;
 #[derive(Debug)]
 pub enum CallableExpression<'a> {
     CallExpression(&'a Rc<CallExpression>),
+    CallMemberExpression(&'a Rc<CallMemberExpression>),
     MemberExpression(&'a Rc<MemberExpression>),
     OptionalChain(&'a Rc<OptionalChain>),
 }
 
 pub enum PotentialTail<'a> {
+    None,
     FunctionBody(&'a Rc<FunctionBody>),
     ConciseBody(&'a Rc<ConciseBody>),
 }
@@ -38,6 +40,7 @@ pub enum PotentialTail<'a> {
 impl<'a> PotentialTail<'a> {
     pub fn has_call_in_tail_position(&self, call: &CallableExpression) -> bool {
         match self {
+            PotentialTail::None => false,
             PotentialTail::FunctionBody(node) => node.has_call_in_tail_position(call),
             PotentialTail::ConciseBody(node) => node.has_call_in_tail_position(call),
         }
@@ -1464,6 +1467,29 @@ impl CallMemberExpression {
         self.member_expression.early_errors(errs, strict);
         self.arguments.early_errors(errs, strict);
     }
+
+    pub fn is_in_tail_position(self: &Rc<Self>, body: &PotentialTail) -> bool {
+        // Static Semantics: IsInTailPosition ( call )
+        // The abstract operation IsInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean. It performs the
+        // following steps when called:
+        //
+        //  1. If IsStrict(call) is false, return false.
+        //  2. If call is not contained within a FunctionBody, a ConciseBody, or an AsyncConciseBody, return
+        //     false.
+        //  3. Let body be the FunctionBody, ConciseBody, or AsyncConciseBody that most closely contains call.
+        //  4. If body is the FunctionBody of a GeneratorBody, return false.
+        //  5. If body is the FunctionBody of an AsyncFunctionBody, return false.
+        //  6. If body is the FunctionBody of an AsyncGeneratorBody, return false.
+        //  7. If body is an AsyncConciseBody, return false.
+        //  8. Return the result of HasCallInTailPosition of body with argument call.
+        // NOTE
+        // Tail Position calls are only defined in strict mode code because of a common non-standard language
+        // extension (see 10.2.4) that enables observation of the chain of caller contexts.
+
+        // We assume strict mode and the right kind of function body from the caller.
+        body.has_call_in_tail_position(&CallableExpression::CallMemberExpression(self))
+    }
 }
 
 // SuperCall[Yield, Await] :
@@ -2824,6 +2850,29 @@ impl OptionalChain {
                 }
             }
         }
+    }
+
+    pub fn is_in_tail_position(self: &Rc<Self>, body: &PotentialTail) -> bool {
+        // Static Semantics: IsInTailPosition ( call )
+        // The abstract operation IsInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean. It performs the
+        // following steps when called:
+        //
+        //  1. If IsStrict(call) is false, return false.
+        //  2. If call is not contained within a FunctionBody, a ConciseBody, or an AsyncConciseBody, return
+        //     false.
+        //  3. Let body be the FunctionBody, ConciseBody, or AsyncConciseBody that most closely contains call.
+        //  4. If body is the FunctionBody of a GeneratorBody, return false.
+        //  5. If body is the FunctionBody of an AsyncFunctionBody, return false.
+        //  6. If body is the FunctionBody of an AsyncGeneratorBody, return false.
+        //  7. If body is an AsyncConciseBody, return false.
+        //  8. Return the result of HasCallInTailPosition of body with argument call.
+        // NOTE
+        // Tail Position calls are only defined in strict mode code because of a common non-standard language
+        // extension (see 10.2.4) that enables observation of the chain of caller contexts.
+
+        // We assume strict mode and the right kind of function body from the caller.
+        body.has_call_in_tail_position(&CallableExpression::OptionalChain(self))
     }
 }
 

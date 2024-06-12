@@ -772,7 +772,7 @@ mod primary_expression {
         fn normal(src: &str, strict: bool) -> Vec<String> {
             let node = Maker::new(src).primary_expression();
             let mut c = Chunk::new("pe");
-            node.compile(&mut c, strict, src).unwrap();
+            node.compile(&mut c, strict, src, &PotentialTail::None).unwrap();
             c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
         }
     }
@@ -875,7 +875,7 @@ mod parenthesized_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).parenthesized_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, src, &PotentialTail::None).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -890,7 +890,7 @@ mod object_literal {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).object_literal();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, src, &PotentialTail::None).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -928,7 +928,7 @@ mod property_definition_list {
     fn compile(src: &str, strict: bool) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).property_definition_list();
         let mut c = Chunk::new("x");
-        node.property_definition_evaluation(&mut c, strict, src)
+        node.property_definition_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1014,7 +1014,7 @@ mod property_definition {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).property_definition();
         let mut c = complex_filled_chunk("x", what);
-        node.property_definition_evaluation(&mut c, strict, src)
+        node.property_definition_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1037,7 +1037,7 @@ mod property_name {
         let node = Maker::new(src).property_name();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1103,7 +1103,7 @@ mod computed_property_name {
         let node = Maker::new(src).computed_property_name();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1207,7 +1207,7 @@ mod member_expression {
         let node = Maker::new(src).member_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1245,7 +1245,7 @@ mod new_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).new_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, src, &PotentialTail::None).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1390,7 +1390,7 @@ mod call_expression {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).call_expression();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1418,7 +1418,7 @@ mod call_member_expression {
         let node = Maker::new(src).call_member_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1479,7 +1479,7 @@ mod left_hand_side_expression {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).left_hand_side_expression();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, src, &PotentialTail::None).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1539,7 +1539,7 @@ mod arguments {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).arguments();
         let mut c = complex_filled_chunk("x", what);
-        node.argument_list_evaluation(&mut c, strict, src)
+        node.argument_list_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1713,7 +1713,7 @@ mod argument_list {
     ) -> Result<(Vec<String>, u16, bool, bool, bool), String> {
         let node = Maker::new(src).argument_list();
         let mut c = complex_filled_chunk("x", what);
-        node.argument_list_evaluation(&mut c, strict, src)
+        node.argument_list_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|(ArgListSizeHint { fixed_len: count, has_variable }, status)| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1819,7 +1819,7 @@ mod update_expression {
         let node = Maker::new(src).update_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1864,7 +1864,7 @@ mod unary_expression {
         let node = Maker::new(src).unary_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1922,7 +1922,7 @@ mod exponentiation_expression {
     fn compile(src: &str, strict: bool, slots_left: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).exponentiation_expression();
         let mut c = complex_filled_chunk("x", slots_left);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .as_ref()
             .map(|flags| {
                 (
@@ -1999,7 +1999,7 @@ mod multiplicative_expression {
     fn compile(src: &str, strict: bool, slots_left: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).multiplicative_expression();
         let mut c = complex_filled_chunk("x", slots_left);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .as_ref()
             .map(|flags| {
                 (
@@ -2026,7 +2026,7 @@ mod additive_expression {
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).additive_expression();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .as_ref()
             .map(|flags| {
                 (
@@ -2111,7 +2111,7 @@ mod shift_expression {
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).shift_expression();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .as_ref()
             .map(|status| {
                 (
@@ -2194,7 +2194,7 @@ mod relational_expression {
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).relational_expression();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .as_ref()
             .map(|status| {
                 (
@@ -2313,7 +2313,7 @@ mod equality_expression {
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).equality_expression();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .as_ref()
             .map(|status| {
                 (
@@ -2372,7 +2372,7 @@ mod bitwise_and_expression {
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_and_expression();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .as_ref()
             .map(|status| {
                 (
@@ -2431,7 +2431,7 @@ mod bitwise_xor_expression {
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_xor_expression();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .as_ref()
             .map(|status| {
                 (
@@ -2490,7 +2490,7 @@ mod bitwise_or_expression {
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).bitwise_or_expression();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .as_ref()
             .map(|status| {
                 (
@@ -2540,7 +2540,7 @@ mod logical_and_expression {
         let node = Maker::new(src).logical_and_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2589,7 +2589,7 @@ mod logical_or_expression {
         let node = Maker::new(src).logical_or_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2636,7 +2636,7 @@ mod coalesce_expression {
         let node = Maker::new(src).coalesce_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2680,7 +2680,7 @@ mod coalesce_expression_head {
         let node = Maker::new(src).coalesce_expression_head();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2724,7 +2724,7 @@ mod short_circuit_expression {
         let node = Maker::new(src).short_circuit_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2785,7 +2785,7 @@ mod conditional_expression {
         let node = Maker::new(src).conditional_expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3321,7 +3321,7 @@ mod assignment_expression {
     fn compile(src: &str, strict: bool, slots_left: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).assignment_expression();
         let mut c = complex_filled_chunk("x", slots_left);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3350,7 +3350,7 @@ mod expression {
         let node = Maker::new(src).expression();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3375,7 +3375,7 @@ mod expression_statement {
         fn normal(src: &str, strict: bool) -> Vec<String> {
             let node = Maker::new(src).expression_statement();
             let mut c = Chunk::new("x");
-            node.compile(&mut c, strict, src).unwrap();
+            node.compile(&mut c, strict, src, &PotentialTail::None).unwrap();
             c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
         }
 
@@ -3383,7 +3383,7 @@ mod expression_statement {
         fn error(src: &str) -> String {
             let node = Maker::new(src).expression_statement();
             let mut c = full_chunk("x");
-            node.compile(&mut c, true, src).unwrap_err().to_string()
+            node.compile(&mut c, true, src, &PotentialTail::None).unwrap_err().to_string()
         }
     }
 }
@@ -3428,7 +3428,7 @@ mod statement_list {
         let node = Maker::new(src).statement_list();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3475,7 +3475,7 @@ mod statement_list_item {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).statement_list_item();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, src, &PotentialTail::None).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -3546,7 +3546,7 @@ mod statement {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).statement();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, src, &PotentialTail::None).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 
@@ -3586,7 +3586,7 @@ mod statement {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.labelled_compile(&mut c, strict, src, &label_set)
+        node.labelled_compile(&mut c, strict, src, &label_set, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3625,7 +3625,7 @@ mod declaration {
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let node = Maker::new(src).declaration();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, src, &PotentialTail::None).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -3657,7 +3657,7 @@ mod lexical_declaration {
         let node = Maker::new(src).lexical_declaration();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3716,7 +3716,7 @@ mod binding_list {
         let node = Maker::new(src).binding_list();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3838,7 +3838,7 @@ mod lexical_binding {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).lexical_binding();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3860,7 +3860,7 @@ mod block_statement {
         let node = Maker::new(src).block_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3929,7 +3929,7 @@ mod block {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).block();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3979,7 +3979,7 @@ mod initializer {
         let node = Maker::new(src).initializer();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4026,7 +4026,7 @@ mod variable_statement {
         let node = Maker::new(src).variable_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4075,7 +4075,7 @@ mod variable_declaration_list {
         let node = Maker::new(src).variable_declaration_list();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4197,7 +4197,7 @@ mod variable_declaration {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).variable_declaration();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4236,7 +4236,7 @@ mod throw_statement {
         let node = Maker::new(src).throw_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4285,7 +4285,7 @@ mod script_body {
     fn compile(src: &str) -> Vec<String> {
         let node = Maker::new(src).script_body();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, false, src).unwrap();
+        node.compile(&mut c, false, src, &PotentialTail::None).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -4395,7 +4395,7 @@ mod if_statement {
         let node = Maker::new(src).if_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4441,7 +4441,7 @@ mod breakable_statement {
         let node = Maker::new(src).breakable_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4532,7 +4532,7 @@ mod breakable_statement {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.labelled_compile(&mut c, strict, src, &label_set)
+        node.labelled_compile(&mut c, strict, src, &label_set, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4641,7 +4641,7 @@ mod iteration_statement {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.loop_compile(&mut c, strict, src, &label_set)
+        node.loop_compile(&mut c, strict, src, &label_set, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4725,7 +4725,7 @@ mod do_while_statement {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.do_while_loop_compile(&mut c, strict, src, &label_set)
+        node.do_while_loop_compile(&mut c, strict, src, &label_set, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4757,7 +4757,7 @@ mod while_statement {
         let node = Maker::new(src).while_statement();
         let mut c = complex_filled_chunk("x", what);
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.while_loop_compile(&mut c, strict, src, &label_set)
+        node.while_loop_compile(&mut c, strict, src, &label_set, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5093,7 +5093,7 @@ mod for_statement {
         let node = Maker::new(src).for_statement();
         let mut c = complex_filled_chunk("x", what);
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.compile_for_loop(&mut c, strict, src, &label_set)
+        node.compile_for_loop(&mut c, strict, src, &label_set, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5198,7 +5198,7 @@ mod switch_statement {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).switch_statement();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5364,7 +5364,7 @@ mod labelled_item {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.labelled_compile(&mut c, strict, src, &label_set)
+        node.labelled_compile(&mut c, strict, src, &label_set, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5423,7 +5423,7 @@ mod labelled_statement {
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.labelled_compile(&mut c, strict, src, &label_set)
+        node.labelled_compile(&mut c, strict, src, &label_set, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5468,7 +5468,7 @@ mod labelled_statement {
         let node = Maker::new(src).labelled_statement();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5655,7 +5655,7 @@ mod binding_element {
         let node = Maker::new(src).binding_element();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5867,7 +5867,7 @@ mod binding_element {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).binding_element();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -5971,7 +5971,7 @@ mod binding_element {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).binding_element();
         let mut c = complex_filled_chunk("x", what);
-        node.keyed_binding_initialization(&mut c, strict, src, env)
+        node.keyed_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -6056,7 +6056,7 @@ mod binding_property {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).binding_property();
         let mut c = complex_filled_chunk("x", what);
-        node.property_binding_initialization(&mut c, strict, src, env)
+        node.property_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -6120,7 +6120,7 @@ mod binding_pattern {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).binding_pattern();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -6138,7 +6138,7 @@ mod return_statement {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).return_statement();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6311,7 +6311,7 @@ mod compile_fdi {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let (info, text) = make_function(strict);
         let mut c = complex_filled_chunk("compile-fdi-test", what);
-        super::compile_fdi(&mut c, &text, &info)
+        super::compile_fdi(&mut c, &text, &info, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6523,7 +6523,7 @@ mod expression_body {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).expression_body();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6573,7 +6573,7 @@ mod param_source {
             Kind::UniqueFormals => ParamSource::UniqueFormalParameters(Maker::new(src).unique_formal_parameters()),
         };
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .as_ref()
             .map(|status| {
                 (
@@ -6607,7 +6607,7 @@ mod formal_parameters {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).formal_parameters();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6639,7 +6639,7 @@ mod arrow_parameters {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).arrow_parameters();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6667,7 +6667,7 @@ mod arrow_formal_parameters {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).arrow_formal_parameters();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6695,7 +6695,7 @@ mod unique_formal_parameters {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).unique_formal_parameters();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6743,7 +6743,7 @@ mod formal_parameter_list {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).formal_parameter_list();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6771,7 +6771,7 @@ mod formal_parameter {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).formal_parameter();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6806,7 +6806,7 @@ mod single_name_binding {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).single_name_binding();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6928,7 +6928,7 @@ mod single_name_binding {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).single_name_binding();
         let mut c = complex_filled_chunk("x", what);
-        node.keyed_binding_initialization(&mut c, strict, src, env)
+        node.keyed_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -7067,7 +7067,7 @@ mod single_name_binding {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).single_name_binding();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -7086,7 +7086,7 @@ mod function_rest_parameter {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).function_rest_parameter();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7222,7 +7222,7 @@ mod function_statement_list {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).function_statement_list();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7302,7 +7302,7 @@ mod construct_expr {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = make_node(src);
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7430,15 +7430,22 @@ fn compile_new_evaluator(
     };
     let mut c = complex_filled_chunk("x", what);
 
-    super::compile_new_evaluator(&mut c, strict, src, &constructor_expression, potential_arguments)
-        .map(|status| {
-            (
-                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
-                status.maybe_abrupt(),
-                status.maybe_ref(),
-            )
-        })
-        .map_err(|e| e.to_string())
+    super::compile_new_evaluator(
+        &mut c,
+        strict,
+        src,
+        &constructor_expression,
+        potential_arguments,
+        &PotentialTail::None,
+    )
+    .map(|status| {
+        (
+            c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+            status.maybe_abrupt(),
+            status.maybe_ref(),
+        )
+    })
+    .map_err(|e| e.to_string())
 }
 
 mod catch_parameter {
@@ -7476,7 +7483,7 @@ mod catch_parameter {
         let mut c = complex_filled_chunk("x", what);
         let node = Maker::new(src).catch_parameter();
 
-        node.compile_binding_initialization(&mut c, strict, src)
+        node.compile_binding_initialization(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7627,7 +7634,7 @@ mod try_statement {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).try_statement();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7649,7 +7656,7 @@ mod finally {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).finally();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7681,7 +7688,7 @@ mod catch {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).catch();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_catch_clause_evaluation(&mut c, strict, src)
+        node.compile_catch_clause_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7765,7 +7772,7 @@ mod element_list {
     fn array_accumulation(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).element_list();
         let mut c = complex_filled_chunk("x", what);
-        node.array_accumulation(&mut c, strict, src)
+        node.array_accumulation(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7786,7 +7793,7 @@ mod spread_element {
     fn array_accumulation(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).spread_element();
         let mut c = complex_filled_chunk("x", what);
-        node.array_accumulation(&mut c, strict, src)
+        node.array_accumulation(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7815,7 +7822,7 @@ mod array_literal {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).array_literal();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7900,7 +7907,7 @@ mod template_middle_list {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).template_middle_list();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7934,7 +7941,7 @@ mod template_spans {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).template_spans();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8008,7 +8015,7 @@ mod substitution_template {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).substitution_template();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8039,7 +8046,7 @@ mod template_literal {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).template_literal();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8167,7 +8174,7 @@ mod binding_property_list {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).binding_property_list();
         let mut c = complex_filled_chunk("x", what);
-        node.property_binding_initialization(&mut c, strict, src, env)
+        node.property_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -8386,7 +8393,7 @@ mod array_binding_pattern {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).array_binding_pattern();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8454,7 +8461,7 @@ mod binding_rest_element {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).binding_rest_element();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -8508,7 +8515,7 @@ mod binding_elision_element {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).binding_elision_element();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -8573,7 +8580,7 @@ mod binding_element_list {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).binding_element_list();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -8687,7 +8694,7 @@ mod object_binding_pattern {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).object_binding_pattern();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -8718,14 +8725,20 @@ mod for_declaration {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).for_declaration();
         let mut c = complex_filled_chunk("x", what);
-        node.for_declaration_binding_initialization(&mut c, strict, src, EnvUsage::UseCurrentLexical)
-            .map(|status| {
-                (
-                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.maybe_abrupt(),
-                )
-            })
-            .map_err(|e| e.to_string())
+        node.for_declaration_binding_initialization(
+            &mut c,
+            strict,
+            src,
+            EnvUsage::UseCurrentLexical,
+            &PotentialTail::None,
+        )
+        .map(|status| {
+            (
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                status.maybe_abrupt(),
+            )
+        })
+        .map_err(|e| e.to_string())
     }
 }
 
@@ -8821,7 +8834,7 @@ mod for_binding {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).for_binding();
         let mut c = complex_filled_chunk("x", what);
-        node.binding_initialization(&mut c, strict, src, env)
+        node.binding_initialization(&mut c, strict, src, env, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8912,7 +8925,7 @@ mod for_in_of_expr {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = item.into();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -9062,7 +9075,7 @@ mod assignment_pattern {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).assignment_pattern();
         let mut c = complex_filled_chunk("x", what);
-        node.destructuring_assignment_evaluation(&mut c, strict, src)
+        node.destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9251,7 +9264,7 @@ mod assignment_property {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).assignment_property();
         let mut c = complex_filled_chunk("x", what);
-        node.property_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.property_destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -9332,7 +9345,7 @@ mod assignment_property_list {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).assignment_property_list();
         let mut c = complex_filled_chunk("x", what);
-        node.property_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.property_destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9383,7 +9396,7 @@ mod assignment_rest_property {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).assignment_rest_property();
         let mut c = complex_filled_chunk("x", what);
-        node.rest_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.rest_destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9538,7 +9551,7 @@ mod assignment_element {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).assignment_element();
         let mut c = complex_filled_chunk("x", what);
-        node.keyed_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.keyed_destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9705,7 +9718,7 @@ mod assignment_element {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).assignment_element();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9756,7 +9769,7 @@ mod assignment_elision_element {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).assignment_elision_element();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9817,7 +9830,7 @@ mod assignment_element_list {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).assignment_element_list();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9891,7 +9904,7 @@ mod assignment_rest_element {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).assignment_rest_element();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -10153,7 +10166,7 @@ mod array_assignment_pattern {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).array_assignment_pattern();
         let mut c = complex_filled_chunk("x", what);
-        node.destructuring_assignment_evaluation(&mut c, strict, src)
+        node.destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -10194,7 +10207,7 @@ mod destructuring_assignment_target {
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).destructuring_assignment_target();
         let mut c = complex_filled_chunk("x", what);
-        node.destructuring_assignment_evaluation(&mut c, strict, src)
+        node.destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -10204,7 +10217,7 @@ mod destructuring_assignment_target {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).destructuring_assignment_target();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, src, &PotentialTail::None)
             .map(|flags| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -10295,14 +10308,22 @@ mod for_in_of_statement {
         };
         let mut c = complex_filled_chunk("x", what);
         let uninitialized_bound_names = names.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
-        ForInOfStatement::for_in_of_head_evaluation(&mut c, strict, src, &uninitialized_bound_names, node, iter)
-            .map(|status| {
-                (
-                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.maybe_abrupt(),
-                )
-            })
-            .map_err(|e| e.to_string())
+        ForInOfStatement::for_in_of_head_evaluation(
+            &mut c,
+            strict,
+            src,
+            &uninitialized_bound_names,
+            node,
+            iter,
+            &PotentialTail::None,
+        )
+        .map(|status| {
+            (
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                status.maybe_abrupt(),
+            )
+        })
+        .map_err(|e| e.to_string())
     }
 
     #[test_case("for (item in thing) ;", false, &[], &[] => Ok(svec(&[
@@ -10789,7 +10810,7 @@ mod for_in_of_statement {
         let node = Maker::new(src).for_in_of_statement();
         let mut c = complex_filled_chunk("x", what);
         let label_set = labels.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
-        node.for_in_of_evaluation(&mut c, strict, src, &label_set)
+        node.for_in_of_evaluation(&mut c, strict, src, &label_set, &PotentialTail::None)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -11230,6 +11251,7 @@ mod for_in_of_statement {
             iteration_kind,
             &label_set,
             iterator_kind,
+            &PotentialTail::None,
         )
         .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
         .map_err(|e| e.to_string())
@@ -11406,7 +11428,7 @@ mod object_assignment_pattern {
         let node = Maker::new(src).object_assignment_pattern();
         let mut c = complex_filled_chunk("x", what);
 
-        node.destructuring_assignment_evaluation(&mut c, strict, src)
+        node.destructuring_assignment_evaluation(&mut c, strict, src, &PotentialTail::None)
             .map_err(|e| e.to_string())
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }
@@ -11423,7 +11445,7 @@ mod class_element_name {
         let node = Maker::new(src).class_element_name();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, strict, src, &PotentialTail::None).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11460,12 +11482,14 @@ mod field_definition {
         let mut c = complex_filled_chunk("x", what);
         let node2 = node.clone();
 
-        node.class_field_definition_evaluation(&mut c, strict, src, node2).map_err(|e| e.to_string()).map(|flags| {
-            (
-                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
-                flags.maybe_abrupt(),
-            )
-        })
+        node.class_field_definition_evaluation(&mut c, strict, src, node2, &PotentialTail::None)
+            .map_err(|e| e.to_string())
+            .map(|flags| {
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    flags.maybe_abrupt(),
+                )
+            })
     }
 }
 
@@ -11489,7 +11513,7 @@ mod class_static_block_statement_list {
         let node = Maker::new(src).class_static_block_statement_list();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, strict, src, &PotentialTail::None).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11518,7 +11542,7 @@ mod class_static_block_body {
         let node = Maker::new(src).class_static_block_body();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, strict, src, &PotentialTail::None).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11698,7 +11722,7 @@ mod optional_expression {
         let node = Maker::new(src).optional_expression();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, strict, src, &PotentialTail::None).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11883,7 +11907,7 @@ mod optional_chain {
         let node = Maker::new(src).optional_chain();
         let mut c = complex_filled_chunk("x", what);
 
-        node.chain_evaluation(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.chain_evaluation(&mut c, strict, src, &PotentialTail::None).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11903,7 +11927,7 @@ mod default_clause {
         let node = Maker::new(src).default_clause();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, strict, src, &PotentialTail::None).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11943,7 +11967,7 @@ mod case_clause {
         let node = Maker::new(src).case_clause();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, strict, src, &PotentialTail::None).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11982,12 +12006,14 @@ mod case_clause {
         let node = Maker::new(src).case_clause();
         let mut c = complex_filled_chunk("x", what);
 
-        node.case_clause_is_selected(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
-            (
-                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
-                flags.maybe_abrupt(),
-            )
-        })
+        node.case_clause_is_selected(&mut c, strict, src, &PotentialTail::None).map_err(|e| e.to_string()).map(
+            |flags| {
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    flags.maybe_abrupt(),
+                )
+            },
+        )
     }
 }
 
@@ -12430,7 +12456,7 @@ mod case_block {
         let node = Maker::new(src).case_block();
         let mut c = complex_filled_chunk("x", what);
 
-        node.case_block_evaluation(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.case_block_evaluation(&mut c, strict, src, &PotentialTail::None).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -12464,7 +12490,7 @@ mod method_definition {
         let node = Maker::new(src).method_definition();
         let mut c = complex_filled_chunk("x", what);
 
-        node.define_method(&mut c, strict, src, &node)
+        node.define_method(&mut c, strict, src, &PotentialTail::None)
             .map_err(|e| e.to_string())
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }
@@ -12550,7 +12576,7 @@ mod method_definition {
         let node = Maker::new(src).method_definition();
         let mut c = complex_filled_chunk("x", what);
 
-        node.method_definition_evaluation(enumerable, &mut c, strict, src, &node)
+        node.method_definition_evaluation(enumerable, &mut c, strict, src, &PotentialTail::None)
             .map_err(|e| e.to_string())
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }

@@ -2671,7 +2671,7 @@ mod insn_impl {
     pub fn evaluate_class_static_block_def(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
         let info = sfd_operand(chunk)?;
         let home_object = pop_obj()?;
-        let block_body = evaluate_class_static_block_definition(info, home_object.clone(), text)?;
+        let block_body = evaluate_class_static_block_definition(info, home_object.clone(), text, &PotentialTail::None)?;
 
         push_value(ECMAScriptValue::Object(home_object)).expect(PUSHABLE);
         push_value(ECMAScriptValue::Object(block_body)).expect(PUSHABLE);
@@ -3041,7 +3041,7 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                 Insn::UnwindList => insn_impl::unwind_list().expect(GOODCODE),
                 Insn::AppendList => insn_impl::append_list().expect(GOODCODE),
                 Insn::Call => insn_impl::call(false).expect(GOODCODE),
-                Insn::StrictCall => insn_impl::call(true).expect(GOODCODE),
+                Insn::StrictCall | Insn::TailCall => insn_impl::call(true).expect(GOODCODE),
                 Insn::EndFunction => insn_impl::end_function().expect(GOODCODE),
                 Insn::Construct => insn_impl::construct().expect(GOODCODE),
                 Insn::RequireConstructor => insn_impl::require_constructor().expect(GOODCODE),
@@ -3442,7 +3442,7 @@ fn evaluate_initialized_class_field_definition(
     let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
     let chunk_name = nameify(prod_text, 50);
     let mut compiled = Chunk::new(chunk_name);
-    to_compile.init.as_ref().unwrap().compile(&mut compiled, info.strict, text)?;
+    to_compile.init.as_ref().unwrap().compile(&mut compiled, info.strict, text, &PotentialTail::None)?;
     for line in compiled.disassemble() {
         println!("{line}");
     }
@@ -3472,6 +3472,7 @@ fn evaluate_class_static_block_definition(
     info: &StashedFunctionData,
     home_object: Object,
     text: &str,
+    ptail: &PotentialTail,
 ) -> anyhow::Result<Object> {
     // Pieces from ClassStaticBlockDefinitionEvaluation
     //  1. Let lex be the running execution context's LexicalEnvironment.
@@ -3484,7 +3485,7 @@ fn evaluate_class_static_block_definition(
     let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
     let chunk_name = nameify(prod_text, 50);
     let mut compiled = Chunk::new(chunk_name);
-    to_compile.block.as_ref().compile(&mut compiled, info.strict, text)?;
+    to_compile.block.as_ref().compile(&mut compiled, info.strict, text, ptail)?;
     for line in compiled.disassemble() {
         println!("{line}");
     }
