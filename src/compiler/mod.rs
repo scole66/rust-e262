@@ -10205,20 +10205,26 @@ impl GeneratorBody {
 
         // start:                   N arg[N-1] ... arg[0] func
         //   <fdi>                  (err func) or (func)
-        //   JUMP_IF_ABRUPT exit    func
+        //   JUMP_IF_ABRUPT endf    func
         //   GENSTART_FUNC          func  (steps 2-5)
         //   <genbody>              err/val func
+        //   JUMP exit
+        // endf:
+        //   END_FUNCTION
         // exit:
 
         let status = compile_fdi(chunk, text, info)?;
-        let exit_1 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        let endf = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
         chunk.op(Insn::GeneratorStartFromFunction);
 
         let strict = info.strict || self.0.function_body_contains_use_strict();
         let _ = self.0.statements.compile(chunk, strict, text)?;
 
-        if let Some(exit) = exit_1 {
-            chunk.fixup(exit)?;
+        if let Some(endf) = endf {
+            let exit = chunk.op_jump(Insn::Jump);
+            chunk.fixup(endf)?;
+            chunk.op(Insn::EndFunction);
+            chunk.fixup(exit).expect("Jump too short to fail");
         }
 
         Ok(AbruptResult::Maybe)
