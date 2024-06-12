@@ -933,7 +933,7 @@ impl PrimaryExpression {
                 node.compile(chunk, strict, text, node.clone()).map(CompilerStatusFlags::from)
             }
             PrimaryExpression::Class { node } => todo!(),
-            PrimaryExpression::Generator { node } => todo!(),
+            PrimaryExpression::Generator { node } => node.compile(chunk, strict, text).map(CompilerStatusFlags::from),
             PrimaryExpression::AsyncFunction { node } => todo!(),
             PrimaryExpression::AsyncGenerator { node } => todo!(),
             PrimaryExpression::RegularExpression { regex, location } => todo!(),
@@ -10082,8 +10082,16 @@ impl MethodDefinition {
 }
 
 impl GeneratorExpression {
+    fn compile(self: &Rc<Self>, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
+        let id = match &self.ident {
+            Some(ident) => NameLoc::Index(chunk.add_to_string_pool(ident.string_value())?),
+            None => NameLoc::None,
+        };
+        self.instantiate_generator_function_expression(chunk, strict, text, id)
+    }
+
     fn instantiate_generator_function_expression(
-        self_as_rc: &Rc<Self>,
+        self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
@@ -10113,16 +10121,16 @@ impl GeneratorExpression {
             chunk.op_plus_arg(Insn::String, name_id);
         }
 
-        let span = self_as_rc.location().span;
+        let span = self.location().span;
         let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
-        let params = ParamSource::from(Rc::clone(&self_as_rc.params));
-        let body = BodySource::from(Rc::clone(&self_as_rc.body));
+        let params = ParamSource::from(Rc::clone(&self.params));
+        let body = BodySource::from(Rc::clone(&self.body));
         let function_data = StashedFunctionData {
             source_text,
             params,
             body,
             strict,
-            to_compile: FunctionSource::from(self_as_rc.clone()),
+            to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::NonLexicalThis,
         };
         let func_id = chunk.add_to_func_stash(function_data)?;

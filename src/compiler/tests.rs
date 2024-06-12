@@ -765,7 +765,7 @@ mod primary_expression {
         #[test_case("[]", true => svec(&["ARRAY"]); "array literal")]
         #[test_case("``", true => svec(&["STRING 0 ()"]); "template literal")]
         #[test_case("function a(){}", true => svec(&["STRING 0 (a)", "FUNC_IOFE 0"]); "function expression")]
-        #[test_case("function *(){}", true => panics "not yet implemented"; "generator expression")]
+        #[test_case("function *(){}", true => svec(&["STRING 0 ()", "FUNC_GENE 0"]); "generator expression")]
         #[test_case("async function (){}", true => panics "not yet implemented"; "async function expression")]
         #[test_case("async function *(){}", true => panics "not yet implemented"; "async generator expression")]
         #[test_case("/abcd/", true => panics "not yet implemented"; "regular expression")]
