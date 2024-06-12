@@ -1763,7 +1763,7 @@ pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Op
     } else if slot_match(ARGUMENTS_OBJECT_SLOTS, &slot_set) {
         panic!("Additional info needed for arguments object; use direct constructor");
     } else if slot_match(GENERATOR_OBJECT_SLOTS, &slot_set) {
-        panic!("Additional info needed for generator object; use direct constructor");
+        GeneratorObject::object(prototype, GeneratorState::Undefined, "")
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {slot_set:?}");

@@ -632,11 +632,24 @@ pub fn generator_validate(generator: &ECMAScriptValue, generator_brand: &str) ->
     .map_err(|e| create_type_error(e.to_string()))
 }
 
-pub fn generator_start_from_function_body(_generator: &Object, _func: &dyn FunctionInterface) -> anyhow::Result<()> {
-    todo!()
-    //let closure = generator_body.into_closure(strict, text)?;
-    //generator_start_from_closure(generator, closure);
-    //Ok(())
+pub fn generator_start_from_function_body(generator: &Object, func: &dyn FunctionInterface, text: &str) {
+    // This is like generator_start_from_closure, except that our "closure" performs:
+    //    i. Let result be Completion(Evaluation of generatorBody).
+    // where that evaluation is an asynchronous routine that might relinquish control during its execution.
+    let fd = func.function_data();
+    let closure = fd.borrow().into_async_closure(text);
+    let generator_in_closure = generator.clone();
+    let gen_closure = Box::new(Gen::new(|co| gen_caller(generator_in_closure, co, closure)));
+    generator_start_from_closure(generator, gen_closure);
+    ec_push(Ok(generator.clone().into()));
+}
+
+impl FunctionObjectData {
+    pub fn into_async_closure(&self, text: &str) -> AsyncFnPtr {
+        let text = text.to_owned();
+        let closure = move |co| execute(co, text);
+        asyncfn_wrap(closure)
+    }
 }
 
 pub fn generator_start_from_closure(generator: &Object, generator_body: ECMAClosure) {
@@ -690,20 +703,6 @@ pub fn generator_start_from_closure(generator: &Object, generator_body: ECMAClos
     let gc = gdata.generator_context.as_mut().expect("Unstarted generators should already have their contexts");
     gc.generator = Some(generator.clone());
     gc.gen_closure = Some(generator_body);
-}
-
-impl FunctionBody {
-    pub fn into_closure(&self, _strict: bool, _text: &str) -> anyhow::Result<ECMAClosure> {
-        todo!()
-        //let mut chunk = Chunk::new("some name");
-        //let strict = strict || self.function_body_contains_use_strict();
-        //self.statements.compile(&mut chunk, strict, text)?;
-        //
-        //let closure = move |co| todo!();
-        //let gen_closure = Box::new(Gen::new(|co| gen_caller(generator.clone(), co, closure)));
-        //
-        //Ok(closure)
-    }
 }
 
 pub fn generator_resume(

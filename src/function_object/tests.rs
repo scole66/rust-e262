@@ -110,7 +110,6 @@ mod function_declaration {
 mod generator_declaration {
     use super::*;
     #[test]
-    #[should_panic(expected = "not yet implemented")]
     fn instantiate_function_object() {
         let src = "function *a(){}";
         let fd = Maker::new(src).generator_declaration();
@@ -121,7 +120,7 @@ mod generator_declaration {
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(global_env, None, false, src, fd.clone()).unwrap();
+        fd.instantiate_function_object(global_env, None, false, src).unwrap();
     }
 }
 

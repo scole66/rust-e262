@@ -118,6 +118,7 @@ pub enum Insn {
     InstantiateGeneratorFunctionExpression,
     InstantiateOrdinaryFunctionObject,
     GeneratorStartFromFunction,
+    Yield,
     LeftShift,
     SignedRightShift,
     UnsignedRightShift,
@@ -282,6 +283,7 @@ impl fmt::Display for Insn {
             Insn::InstantiateGeneratorFunctionExpression => "FUNC_GENE",
             Insn::InstantiateOrdinaryFunctionObject => "FUNC_OBJ",
             Insn::GeneratorStartFromFunction => "GEN_START",
+            Insn::Yield => "YIELD",
             Insn::LeftShift => "LSH",
             Insn::SignedRightShift => "SRSH",
             Insn::UnsignedRightShift => "URSH",
@@ -3363,6 +3365,53 @@ impl ConditionalExpression {
     }
 }
 
+impl YieldExpression {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        match self {
+            Self::Simple { .. } => {
+                // YieldExpression : yield
+                //  1. Return ? Yield(undefined).
+
+                // start:
+                //   UNDEFINED         undefined
+                //   YIELD             val/err
+                chunk.op(Insn::Undefined);
+                chunk.op(Insn::Yield);
+                Ok(CompilerStatusFlags::new().abrupt(true))
+            }
+            Self::Expression { exp, .. } => {
+                // YieldExpression : yield AssignmentExpression
+                //  1. Let exprRef be ? Evaluation of AssignmentExpression.
+                //  2. Let value be ? GetValue(exprRef).
+                //  3. Return ? Yield(value).
+
+                // start:
+                //   <ae>            val/ref/err
+                //   GET_VALUE       val/err
+                //   JUMP_IF_ABRUPT  exit
+                //   YIELD           val/err
+                // exit:
+
+                let status = exp.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let exit_1 = if status.maybe_abrupt() || status.maybe_ref() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+                chunk.op(Insn::Yield);
+                if let Some(exit) = exit_1 {
+                    chunk.fixup(exit).expect("Jump too short to fail");
+                }
+                Ok(CompilerStatusFlags::new().abrupt(true))
+            }
+            Self::From { .. } => todo!(),
+        }
+    }
+}
+
 impl AssignmentExpression {
     fn lor_land_coal_assign(
         lhse: &Rc<LeftHandSideExpression>,
@@ -3530,7 +3579,7 @@ impl AssignmentExpression {
                 }
                 Ok(AlwaysAbruptResult.into())
             }
-            AssignmentExpression::Yield(_) => todo!(),
+            AssignmentExpression::Yield(ye) => ye.compile(chunk, strict, text),
             AssignmentExpression::Arrow(arrow_function) => {
                 arrow_function.compile(chunk, strict, text, arrow_function.clone()).map(CompilerStatusFlags::from)
             }
@@ -10100,7 +10149,6 @@ impl GeneratorExpression {
 }
 
 impl GeneratorBody {
-    #[allow(unused_variables)]
     pub fn evaluate_generator_body(
         &self,
         chunk: &mut Chunk,
@@ -10120,22 +10168,49 @@ impl GeneratorBody {
         //  4. Perform GeneratorStart(G, FunctionBody).
         //  5. Return Completion Record { [[Type]]: RETURN, [[Value]]: G, [[Target]]: EMPTY }.
 
+        // At runtime, step 4 removes the current execution context from the stack and saves it away for later use.
+        // Since this function is still compiling for that context, the next instruction should be the "later use" set
+        // of instructions.
+
+        // "Later use" is defined in GeneratorStart:
+        //  4. Let closure be a new Abstract Closure with no parameters that captures generatorBody and performs the
+        //     following steps when called:
+        //      a. Let acGenContext be the running execution context.
+        //      b. Let acGenerator be the Generator component of acGenContext.
+        //      c. Let result be Completion(Evaluation of generatorBody).
+        //      d. Assert: If we return here, the generator either threw an exception or performed either an implicit or
+        //         explicit return.
+        //      e. Remove acGenContext from the execution context stack and restore the execution context that is at the
+        //         top of the execution context stack as the running execution context.
+        //      f. Set acGenerator.[[GeneratorState]] to COMPLETED.
+        //      g. NOTE: Once a generator enters the COMPLETED state it never leaves it and its associated execution
+        //         context is never resumed. Any execution state associated with acGenerator can be discarded at this
+        //         point.
+        //      h. If result is a normal completion, then
+        //          i. Let resultValue be undefined.
+        //      i. Else if result is a return completion, then
+        //          i. Let resultValue be result.[[Value]].
+        //      j. Else,
+        //          i. Assert: result is a throw completion.
+        //          ii. Return ? result.
+        //      k. Return CreateIterResultObject(resultValue, true).
+
         // start:                   N arg[N-1] ... arg[0] func
-        //   <fdi>                  err/func
+        //   <fdi>                  (err func) or (func)
         //   JUMP_IF_ABRUPT exit    func
-        //   GENSTART_FUNC          err/G  (steps 2-4)
-        //   JUMP_IF_ABRUPT exit    G
-        //   RETURN                 Return[G]
+        //   GENSTART_FUNC          func  (steps 2-5)
+        //   <genbody>              err/val func
         // exit:
 
         let status = compile_fdi(chunk, text, info)?;
         let exit_1 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
         chunk.op(Insn::GeneratorStartFromFunction);
-        let exit_2 = chunk.op_jump(Insn::JumpIfAbrupt);
-        chunk.op(Insn::Return);
-        chunk.fixup(exit_2).expect("Jump should be too short to fail");
+
+        let strict = info.strict || self.0.function_body_contains_use_strict();
+        let _ = self.0.statements.compile(chunk, strict, text)?;
+
         if let Some(exit) = exit_1 {
-            chunk.fixup(exit).expect("Jump should be too short to fail.");
+            chunk.fixup(exit)?;
         }
 
         Ok(AbruptResult::Maybe)

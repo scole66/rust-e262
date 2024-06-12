@@ -1,6 +1,7 @@
 use super::*;
 use ahash::AHashSet;
 use anyhow::{anyhow, Context};
+use genawaiter::rc::{Co, Gen};
 use itertools::Itertools;
 use num::pow::Pow;
 use num::{BigInt, BigUint, ToPrimitive, Zero};
@@ -614,7 +615,7 @@ pub fn evaluate(chunk: Rc<Chunk>, text: &str) -> Completion<ECMAScriptValue> {
         }
 
         prepare_running_ec_for_execution(chunk);
-        let result = execute(text);
+        let result = execute_synchronously(text);
 
         {
             let execution_context_stack = agent.execution_context_stack.borrow();
@@ -708,6 +709,10 @@ pub enum InternalRuntimeError {
     GetterMethodExpected,
     #[error("setter method production expected")]
     SetterMethodExpected,
+    #[error("generator expected")]
+    GeneratorExpected,
+    #[error("Normal, Throw, or Return completion expected")]
+    OkThrowOrReturnExpected,
 }
 mod insn_impl {
     use super::*;
@@ -1391,12 +1396,12 @@ mod insn_impl {
     pub fn initialize_referenced_binding() -> anyhow::Result<()> {
         // Input:  Stack: (value to store) (place to store)
         // Output: Stack: [empty] or error
-        let value = match pop_completion()?.map(ECMAScriptValue::try_from) {
+        let value = match pop_completion().context("InitializeReferencedBinding takes two arguments (got none)")?.map(ECMAScriptValue::try_from) {
             Ok(Ok(item)) => Ok(Ok(item)),
             Ok(Err(err)) => Err(err),
             Err(ac) => Ok(Err(ac)),
-        }?;
-        let lhs = pop_completion()?;
+        }.context("the first argument of InitializeReferencedBinding must be a ECMAScript language value or an Abrupt Completion")?;
+        let lhs = pop_completion().context("InitializeReferencedBinding takes two arguments (got only one)")?;
         let result = super::initialize_referenced_binding(lhs, value).map(NormalCompletion::from);
         push_completion(result).expect(PUSHABLE);
         Ok(())
@@ -2891,44 +2896,124 @@ mod insn_impl {
         push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn generator_start_from_function() -> anyhow::Result<()> {
+    pub fn generator_start_from_function(text: &str) -> anyhow::Result<()> {
         //  2. Let G be ? OrdinaryCreateFromConstructor(functionObject,
         //     "%GeneratorFunction.prototype.prototype%", « [[GeneratorState]], [[GeneratorContext]],
         //     [[GeneratorBrand]] »).
         //  3. Set G.[[GeneratorBrand]] to EMPTY.
         //  4. Perform GeneratorStart(G, FunctionBody).
         let func = pop_obj()?;
-        //let func_data = func.o.to_function_obj().expect("the item should be a function object").function_data();
-        //let data = func_data.borrow();
-        //let body = data.
         let g_res = func
             .ordinary_create_from_constructor(IntrinsicId::GeneratorFunctionPrototypePrototype, GENERATOR_OBJECT_SLOTS);
+        push_completion(g_res.clone().map(NormalCompletion::from)).expect(PUSHABLE);
         if let Ok(g_obj) = g_res.as_ref() {
-            let g = g_obj.o.to_generator_object().expect("obj should be a generator object");
+            let g = g_obj.o.to_generator_object().ok_or(InternalRuntimeError::GeneratorExpected)?;
             g.generator_data.borrow_mut().generator_brand = String::new();
             generator_start_from_function_body(
                 g_obj,
-                func.o.to_function_obj().expect("the item should be a function object"),
-            )
-            .expect("body should be ok?");
+                func.o.to_function_obj().ok_or(InternalRuntimeError::FunctionExpected)?,
+                text,
+            );
         }
-        push_completion(g_res.map(NormalCompletion::from)).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn instantiate_generator_function_expression(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        let info = sfd_operand(chunk)?;
+        // Runtime Semantics: InstantiateGeneratorFunctionExpression
+        // The syntax-directed operation InstantiateGeneratorFunctionExpression takes optional argument name (a property
+        // key or a Private Name) and returns a function object. It is defined piecewise over the following productions:
+        //
+        // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
+        //  1. If name is not present, set name to "".
+        //  2. Let env be the LexicalEnvironment of the running execution context.
+        //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+        //  4. Let sourceText be the source text matched by GeneratorExpression.
+        //  5. Let closure be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters,
+        //     GeneratorBody, non-lexical-this, env, privateEnv).
+        //  6. Perform SetFunctionName(closure, name).
+        //  7. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
+        //  8. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: prototype,
+        //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+        //  9. Return closure.
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let priv_env = current_private_environment();
+        let name = pop_string()?;
+
+        let to_compile: Rc<GeneratorExpression> = info.to_compile.clone().try_into()?;
+        let chunk_name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let generator_function_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototype);
+
+        let closure = ordinary_function_create(
+            generator_function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        super::set_function_name(&closure, name.into(), None);
+
+        let prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
+        let desc =
+            PotentialPropertyDescriptor::new().value(prototype).writable(true).enumerable(false).configurable(false);
+        define_property_or_throw(&closure, "prototype", desc).expect("simple property definition works");
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+    pub async fn yield_insn(co: &Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> anyhow::Result<()> {
+        // Yield ( value )
+        // The abstract operation Yield takes argument value (an ECMAScript language value) and returns either a normal
+        // completion containing an ECMAScript language value or an abrupt completion. It performs the following steps
+        // when called:
+        //
+        //  1. Let generatorKind be GetGeneratorKind().
+        //  2. If generatorKind is ASYNC, return ? AsyncGeneratorYield(? Await(value)).
+        //  3. Otherwise, return ? GeneratorYield(CreateIterResultObject(value, false)).
+        let value = pop_value()?;
+        let resobj = create_iter_result_object(value, false);
+        let yielded_result = generator_yield(co, ECMAScriptValue::Object(resobj)).await;
+        push_completion(yielded_result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
 }
 
-#[allow(clippy::cast_possible_wrap)]
-pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
+pub fn execute_synchronously(text: &str) -> Completion<ECMAScriptValue> {
+    match Gen::new(|co| execute(co, text.to_owned())).resume_with(Ok(ECMAScriptValue::Undefined)) {
+        genawaiter::GeneratorState::Yielded(val) => panic!("Yielded from synchronous context with value {val}"),
+        genawaiter::GeneratorState::Complete(val) => val,
+    }
+}
+
+pub async fn execute(
+    co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
+    text: String,
+) -> Completion<ECMAScriptValue> {
     const GOODCODE: &str = "code should have been properly compiled";
 
-    AGENT.with(|agent| {
-        // If our ec index drops below this, we exit.
-        let initial_context_index = agent.execution_context_stack.borrow().len() - 1;
-        loop {
-            let index = agent.execution_context_stack.borrow().len() - 1;
-            assert!(index <= RECURSION_LIMIT, "Recursion limit exceeded");
-            /* Diagnostics */
-            print!("Stack: [ ");
+    // If our ec index drops below this, we exit.
+    let initial_context_index = AGENT.with(|agent| agent.execution_context_stack.borrow().len() - 1);
+
+    loop {
+        let index = AGENT.with(|agent| agent.execution_context_stack.borrow().len() - 1);
+        assert!(index <= RECURSION_LIMIT, "Recursion limit exceeded");
+        /* Diagnostics */
+        print!("[{index:2}] Stack: [ ");
+        AGENT.with(|agent| {
             print!(
                 "{}",
                 agent.execution_context_stack.borrow()[index]
@@ -2941,231 +3026,238 @@ pub fn execute(text: &str) -> Completion<ECMAScriptValue> {
                     })
                     .join(" ] [ ")
             );
-            println!(" ]");
+        });
+        println!(" ]");
 
-            if index < initial_context_index {
-                break;
-            }
-
-            let chunk = match agent.execution_context_stack.borrow()[index].chunk.clone() {
-                Some(r) => Ok(r),
-                None => Err(create_type_error("No compiled units!")),
-            }?;
-
-            if agent.execution_context_stack.borrow()[index].pc >= chunk.opcodes.len() {
-                break;
-            }
-            let (_, repr) = chunk.insn_repr_at(agent.execution_context_stack.borrow()[index].pc);
-            println!("{:04}{}", agent.execution_context_stack.borrow()[index].pc, repr);
-
-            /* Real work */
-            let icode = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // in range due to while condition
-            let instruction = Insn::try_from(icode).unwrap(); // failure is a coding error (the compiler broke)
-            agent.execution_context_stack.borrow_mut()[index].pc += 1;
-            match instruction {
-                Insn::Nop => insn_impl::nop(),
-                Insn::ToDo => insn_impl::todo(),
-                Insn::String => insn_impl::string(&chunk).expect(GOODCODE),
-                Insn::Null => insn_impl::null().expect(GOODCODE),
-                Insn::True => insn_impl::true_val().expect(GOODCODE),
-                Insn::False => insn_impl::false_val().expect(GOODCODE),
-                Insn::Zero => insn_impl::zero().expect(GOODCODE),
-                Insn::Empty => insn_impl::empty().expect(GOODCODE),
-                Insn::EmptyIfNotError => insn_impl::empty_if_not_error().expect(GOODCODE),
-                Insn::Undefined => insn_impl::undefined().expect(GOODCODE),
-                Insn::This => insn_impl::this().expect(GOODCODE),
-                Insn::Resolve => insn_impl::resolve(false).expect(GOODCODE),
-                Insn::StrictResolve => insn_impl::resolve(true).expect(GOODCODE),
-                Insn::Float => insn_impl::float(&chunk).expect(GOODCODE),
-                Insn::Bigint => insn_impl::bigint(&chunk).expect(GOODCODE),
-                Insn::GetValue => insn_impl::get_value().expect(GOODCODE),
-                Insn::PutValue => insn_impl::put_value().expect(GOODCODE),
-                Insn::FunctionPrototype => insn_impl::function_prototype().expect(GOODCODE),
-                Insn::JumpIfAbrupt => insn_impl::jump_if_abrupt(&chunk).expect(GOODCODE),
-                Insn::JumpIfNormal => insn_impl::jump_if_normal(&chunk).expect(GOODCODE),
-                Insn::JumpIfFalse => insn_impl::jump_referencing_bool(false, &chunk).expect(GOODCODE),
-                Insn::JumpIfTrue => insn_impl::jump_referencing_bool(true, &chunk).expect(GOODCODE),
-                Insn::JumpPopIfFalse => insn_impl::jump_taking_bool(false, &chunk).expect(GOODCODE),
-                Insn::JumpPopIfTrue => insn_impl::jump_taking_bool(true, &chunk).expect(GOODCODE),
-                Insn::JumpIfNotNullish => insn_impl::jump_nullishness(false, &chunk).expect(GOODCODE),
-                Insn::JumpIfNullish => insn_impl::jump_nullishness(true, &chunk).expect(GOODCODE),
-                Insn::JumpIfNotUndef => insn_impl::jump_undefness(false, &chunk).expect(GOODCODE),
-                Insn::JumpNotThrow => insn_impl::jump_throwyness(false, &chunk).expect(GOODCODE),
-                Insn::Jump => insn_impl::jump(&chunk).expect(GOODCODE),
-                Insn::UpdateEmpty => insn_impl::update_empty().expect(GOODCODE),
-                Insn::Pop2Push3 => insn_impl::pop2push3().expect(GOODCODE),
-                Insn::RotateUp => insn_impl::rotate_up(&chunk).expect(GOODCODE),
-                Insn::RotateDown => insn_impl::rotate_down(&chunk).expect(GOODCODE),
-                Insn::RotateDownList => insn_impl::rotate_down_list(&chunk).expect(GOODCODE),
-                Insn::Ref => insn_impl::make_ref(false).expect(GOODCODE),
-                Insn::StrictRef => insn_impl::make_ref(true).expect(GOODCODE),
-                Insn::Pop => insn_impl::pop().expect(GOODCODE),
-                Insn::PopOrPanic => insn_impl::pop_or_panic().expect(GOODCODE),
-                Insn::Swap => insn_impl::swap().expect(GOODCODE),
-                Insn::SwapList => insn_impl::swap_list().expect(GOODCODE),
-                Insn::PopList => insn_impl::pop_list().expect(GOODCODE),
-                Insn::PopOutList => insn_impl::pop_out_list(&chunk).expect(GOODCODE),
-                Insn::SwapDeepList => insn_impl::swap_deep_list().expect(GOODCODE),
-                Insn::ListToArray => insn_impl::list_to_array().expect(GOODCODE),
-                Insn::InitializeReferencedBinding => insn_impl::initialize_referenced_binding().expect(GOODCODE),
-                Insn::PushNewLexEnv => insn_impl::push_new_lexical_environment(),
-                Insn::PopLexEnv => insn_impl::pop_lexical_environment().expect(GOODCODE),
-                Insn::PushNewVarEnvFromLex => insn_impl::push_new_var_env_from_lex(),
-                Insn::PushNewLexEnvFromVar => insn_impl::push_new_lex_env_from_var(),
-                Insn::SetLexEnvToVarEnv => insn_impl::set_lex_env_to_var_env(),
-                Insn::CreateStrictImmutableLexBinding => {
-                    insn_impl::create_immutable_lex_binding(true, &chunk).expect(GOODCODE);
-                }
-                Insn::CreateNonStrictImmutableLexBinding => {
-                    insn_impl::create_immutable_lex_binding(false, &chunk).expect(GOODCODE);
-                }
-                Insn::CreatePermanentMutableLexBinding => {
-                    insn_impl::create_mutable_lexical_binding(false, &chunk).expect(GOODCODE);
-                }
-                Insn::CreatePermanentMutableVarBinding => {
-                    insn_impl::create_mutable_var_binding(false, &chunk).expect(GOODCODE);
-                }
-                Insn::CreatePermanentMutableLexIfMissing => {
-                    insn_impl::create_mutable_lexical_binding_if_missing(&chunk).expect(GOODCODE);
-                }
-                Insn::CreateInitializedPermanentMutableLexIfMissing => {
-                    insn_impl::create_initialized_permanent_mutable_lexical_binding_if_missing(&chunk).expect(GOODCODE);
-                }
-                Insn::InitializeLexBinding => insn_impl::initialize_lex_binding(&chunk).expect(GOODCODE),
-                Insn::InitializeVarBinding => insn_impl::initialize_var_binding(&chunk).expect(GOODCODE),
-                Insn::GetLexBinding => insn_impl::get_lex_binding(&chunk).expect(GOODCODE),
-                Insn::SetMutableVarBinding => insn_impl::set_mutable_var_binding(&chunk).expect(GOODCODE),
-                Insn::CreatePerIterationEnvironment => {
-                    insn_impl::create_per_iteration_environment(&chunk).expect(GOODCODE);
-                }
-                Insn::ExtractThrownValue => insn_impl::extract_thrown_value().expect(GOODCODE),
-                Insn::ExtractArg => insn_impl::extract_arg().expect(GOODCODE),
-                Insn::FinishArgs => insn_impl::finish_args().expect(GOODCODE),
-                Insn::Object => insn_impl::object().expect(GOODCODE),
-                Insn::Array => insn_impl::array().expect(GOODCODE),
-                Insn::CreateDataProperty => insn_impl::create_data_property().expect(GOODCODE),
-                Insn::SetPrototype => insn_impl::set_prototype().expect(GOODCODE),
-                Insn::ToPropertyKey => insn_impl::to_property_key().expect(GOODCODE),
-                Insn::CopyDataProps => insn_impl::copy_data_props(&[]).expect(GOODCODE),
-                Insn::CopyDataPropsWithExclusions => insn_impl::copy_data_props_with_exclusions().expect(GOODCODE),
-                Insn::Dup => insn_impl::dup().expect(GOODCODE),
-                Insn::DupAfterList => insn_impl::dup_after_list().expect(GOODCODE),
-                Insn::ToString => insn_impl::to_string().expect(GOODCODE),
-                Insn::ToNumeric => insn_impl::to_numeric().expect(GOODCODE),
-                Insn::ToObject => insn_impl::to_object().expect(GOODCODE),
-                Insn::Increment => insn_impl::increment().expect(GOODCODE),
-                Insn::Decrement => insn_impl::decrement().expect(GOODCODE),
-                Insn::PreIncrement => insn_impl::pre_increment().expect(GOODCODE),
-                Insn::PreDecrement => insn_impl::pre_decrement().expect(GOODCODE),
-                Insn::Delete => insn_impl::delete().expect(GOODCODE),
-                Insn::Void => insn_impl::void().expect(GOODCODE),
-                Insn::TypeOf => insn_impl::type_of().expect(GOODCODE),
-                Insn::Unwind => insn_impl::unwind(&chunk).expect(GOODCODE),
-                Insn::UnwindIfAbrupt => insn_impl::unwind_if_abrupt(&chunk).expect(GOODCODE),
-                Insn::UnwindList => insn_impl::unwind_list().expect(GOODCODE),
-                Insn::AppendList => insn_impl::append_list().expect(GOODCODE),
-                Insn::Call => insn_impl::call(false).expect(GOODCODE),
-                Insn::StrictCall => insn_impl::call(true).expect(GOODCODE),
-                Insn::EndFunction => insn_impl::end_function().expect(GOODCODE),
-                Insn::Construct => insn_impl::construct().expect(GOODCODE),
-                Insn::RequireConstructor => insn_impl::require_constructor().expect(GOODCODE),
-                Insn::Return => insn_impl::return_insn().expect(GOODCODE),
-                Insn::UnaryPlus => insn_impl::unary_plus().expect(GOODCODE),
-                Insn::UnaryMinus => insn_impl::unary_minus().expect(GOODCODE),
-                Insn::UnaryComplement => insn_impl::unary_complement().expect(GOODCODE),
-                Insn::UnaryNot => insn_impl::unary_not().expect(GOODCODE),
-                Insn::Exponentiate => insn_impl::binary_operation(BinOp::Exponentiate).expect(GOODCODE),
-                Insn::Multiply => insn_impl::binary_operation(BinOp::Multiply).expect(GOODCODE),
-                Insn::Divide => insn_impl::binary_operation(BinOp::Divide).expect(GOODCODE),
-                Insn::Modulo => insn_impl::binary_operation(BinOp::Remainder).expect(GOODCODE),
-                Insn::Add => insn_impl::binary_operation(BinOp::Add).expect(GOODCODE),
-                Insn::Subtract => insn_impl::binary_operation(BinOp::Subtract).expect(GOODCODE),
-                Insn::InstantiateIdFreeFunctionExpression => {
-                    insn_impl::instantiate_id_free_function_expression(&chunk, text).expect(GOODCODE);
-                }
-                Insn::InstantiateOrdinaryFunctionExpression => {
-                    insn_impl::instantiate_ordinary_function_expression(&chunk, text).expect(GOODCODE);
-                }
-                Insn::InstantiateArrowFunctionExpression => {
-                    insn_impl::instantiate_arrow_function_expression(&chunk, text).expect(GOODCODE);
-                }
-                Insn::InstantiateGeneratorFunctionExpression => {
-                    let id = chunk.opcodes[agent.execution_context_stack.borrow()[index].pc]; // failure is a coding error (the compiler broke)
-                    agent.execution_context_stack.borrow_mut()[index].pc += 1;
-                    let info = &chunk.function_object_data[id as usize];
-                    instantiate_generator_function_expression(Some(index), text, info);
-                }
-                Insn::InstantiateOrdinaryFunctionObject => {
-                    insn_impl::instantiate_ordinary_function_object(&chunk, text).expect(GOODCODE);
-                }
-                Insn::LeftShift => insn_impl::binary_operation(BinOp::LeftShift).expect(GOODCODE),
-                Insn::SignedRightShift => insn_impl::binary_operation(BinOp::SignedRightShift).expect(GOODCODE),
-                Insn::UnsignedRightShift => insn_impl::binary_operation(BinOp::UnsignedRightShift).expect(GOODCODE),
-                Insn::Throw => insn_impl::throw().expect(GOODCODE),
-                Insn::Less => insn_impl::compare(false, false).expect(GOODCODE),
-                Insn::Greater => insn_impl::compare(true, false).expect(GOODCODE),
-                Insn::LessEqual => insn_impl::compare(true, true).expect(GOODCODE),
-                Insn::GreaterEqual => insn_impl::compare(false, true).expect(GOODCODE),
-                Insn::InstanceOf => insn_impl::instance_of().expect(GOODCODE),
-                Insn::In => insn_impl::in_op().expect(GOODCODE),
-                Insn::Equal => insn_impl::equal(false).expect(GOODCODE),
-                Insn::NotEqual => insn_impl::equal(true).expect(GOODCODE),
-                Insn::StrictEqual => insn_impl::strict_equal(false).expect(GOODCODE),
-                Insn::StrictNotEqual => insn_impl::strict_equal(true).expect(GOODCODE),
-                Insn::BitwiseAnd => insn_impl::binary_operation(BinOp::BitwiseAnd).expect(GOODCODE),
-                Insn::BitwiseOr => insn_impl::binary_operation(BinOp::BitwiseOr).expect(GOODCODE),
-                Insn::BitwiseXor => insn_impl::binary_operation(BinOp::BitwiseXor).expect(GOODCODE),
-                Insn::CreateUnmappedArguments => insn_impl::create_unmapped_arguments_object().expect(GOODCODE),
-                Insn::CreateMappedArguments => insn_impl::create_mapped_arguments_object().expect(GOODCODE),
-                Insn::AddMappedArgument => insn_impl::add_mapped_argument(&chunk).expect(GOODCODE),
-                Insn::HandleEmptyBreak => insn_impl::handle_empty_break().expect(GOODCODE),
-                Insn::HandleTargetedBreak => insn_impl::handle_targeted_break(&chunk).expect(GOODCODE),
-                Insn::CoalesceValue => insn_impl::coalesce_value().expect(GOODCODE),
-                Insn::LoopContinues => insn_impl::loop_continues(&chunk).expect(GOODCODE),
-                Insn::Continue => insn_impl::continue_insn().expect(GOODCODE),
-                Insn::TargetedContinue => insn_impl::targeted_continue(&chunk).expect(GOODCODE),
-                Insn::Break => insn_impl::break_insn().expect(GOODCODE),
-                Insn::TargetedBreak => insn_impl::targeted_break(&chunk).expect(GOODCODE),
-                Insn::IteratorAccumulate => insn_impl::iterator_accumulate().expect(GOODCODE),
-                Insn::IterateArguments => insn_impl::iterate_arguments().expect(GOODCODE),
-                Insn::IteratorDAEElision => insn_impl::elision_idae().expect(GOODCODE),
-                Insn::EmbellishedIteratorStep => insn_impl::embellished_iterator_step().expect(GOODCODE),
-                Insn::IteratorRest => insn_impl::iterator_rest().expect(GOODCODE),
-                Insn::RequireCoercible => insn_impl::require_coercible().expect(GOODCODE),
-                Insn::GetSyncIterator => insn_impl::get_sync_iterator().expect(GOODCODE),
-                Insn::IteratorClose => insn_impl::iterator_close().expect(GOODCODE),
-                Insn::IteratorCloseIfNotDone => insn_impl::iterator_close_if_not_done().expect(GOODCODE),
-                Insn::IteratorNext => insn_impl::iterator_next().expect(GOODCODE),
-                Insn::IteratorResultComplete => insn_impl::iterator_result_complete().expect(GOODCODE),
-                Insn::IteratorResultToValue => insn_impl::iterator_result_to_value().expect(GOODCODE),
-                Insn::GetV => insn_impl::getv().expect(GOODCODE),
-                Insn::EnumerateObjectProperties => insn_impl::enumerate_object_properties().expect(GOODCODE),
-                Insn::PrivateIdLookup => insn_impl::private_id_lookup(&chunk).expect(GOODCODE),
-                Insn::EvaluateInitializedClassFieldDefinition => {
-                    insn_impl::evaluate_initialized_class_field_def(&chunk, text).expect(GOODCODE);
-                }
-                Insn::EvaluateClassStaticBlockDefinition => {
-                    insn_impl::evaluate_class_static_block_def(&chunk, text).expect(GOODCODE);
-                }
-                Insn::DefineMethod => insn_impl::define_method(&chunk, text).expect(GOODCODE),
-                Insn::SetFunctionName => insn_impl::set_function_name().expect(GOODCODE),
-                Insn::DefineMethodProperty => insn_impl::define_method_property(&chunk).expect(GOODCODE),
-                Insn::DefineGetter => insn_impl::define_getter(&chunk, text).expect(GOODCODE),
-                Insn::DefineSetter => insn_impl::define_setter(&chunk, text).expect(GOODCODE),
-                Insn::GeneratorStartFromFunction => insn_impl::generator_start_from_function().expect(GOODCODE),
-            }
+        if index < initial_context_index {
+            break;
         }
-        let index = agent.execution_context_stack.borrow().len() - 1;
-        agent.execution_context_stack.borrow_mut()[index].stack.pop().map_or(Ok(ECMAScriptValue::Undefined), |svr| {
-            svr.map(|sv| match sv {
-                NormalCompletion::Reference(_) | NormalCompletion::Empty => ECMAScriptValue::Undefined,
-                NormalCompletion::Value(v) => v,
-                NormalCompletion::IteratorRecord(_)
-                | NormalCompletion::Environment(..)
-                | NormalCompletion::PrivateName(_)
-                | NormalCompletion::PrivateElement(_) => unreachable!(),
-            })
-        })
+
+        let chunk = match AGENT.with(|agent| agent.execution_context_stack.borrow()[index].chunk.clone()) {
+            Some(r) => Ok(r),
+            None => Err(create_type_error("No compiled units!")),
+        }?;
+
+        if AGENT.with(|agent| agent.execution_context_stack.borrow()[index].pc) >= chunk.opcodes.len() {
+            break;
+        }
+        let (_, repr) = chunk.insn_repr_at(AGENT.with(|agent| agent.execution_context_stack.borrow()[index].pc));
+        AGENT.with(|agent| {
+            println!("{:04}{}", agent.execution_context_stack.borrow()[index].pc, repr);
+        });
+
+        /* Real work */
+        let icode = chunk.opcodes[AGENT.with(|agent| agent.execution_context_stack.borrow()[index].pc)]; // in range due to while condition
+        let instruction = Insn::try_from(icode).unwrap(); // failure is a coding error (the compiler broke)
+        AGENT.with(|agent| {
+            agent.execution_context_stack.borrow_mut()[index].pc += 1;
+        });
+        match instruction {
+            Insn::Nop => insn_impl::nop(),
+            Insn::ToDo => insn_impl::todo(),
+            Insn::String => insn_impl::string(&chunk).expect(GOODCODE),
+            Insn::Null => insn_impl::null().expect(GOODCODE),
+            Insn::True => insn_impl::true_val().expect(GOODCODE),
+            Insn::False => insn_impl::false_val().expect(GOODCODE),
+            Insn::Zero => insn_impl::zero().expect(GOODCODE),
+            Insn::Empty => insn_impl::empty().expect(GOODCODE),
+            Insn::EmptyIfNotError => insn_impl::empty_if_not_error().expect(GOODCODE),
+            Insn::Undefined => insn_impl::undefined().expect(GOODCODE),
+            Insn::This => insn_impl::this().expect(GOODCODE),
+            Insn::Resolve => insn_impl::resolve(false).expect(GOODCODE),
+            Insn::StrictResolve => insn_impl::resolve(true).expect(GOODCODE),
+            Insn::Float => insn_impl::float(&chunk).expect(GOODCODE),
+            Insn::Bigint => insn_impl::bigint(&chunk).expect(GOODCODE),
+            Insn::GetValue => insn_impl::get_value().expect(GOODCODE),
+            Insn::PutValue => insn_impl::put_value().expect(GOODCODE),
+            Insn::FunctionPrototype => insn_impl::function_prototype().expect(GOODCODE),
+            Insn::JumpIfAbrupt => insn_impl::jump_if_abrupt(&chunk).expect(GOODCODE),
+            Insn::JumpIfNormal => insn_impl::jump_if_normal(&chunk).expect(GOODCODE),
+            Insn::JumpIfFalse => insn_impl::jump_referencing_bool(false, &chunk).expect(GOODCODE),
+            Insn::JumpIfTrue => insn_impl::jump_referencing_bool(true, &chunk).expect(GOODCODE),
+            Insn::JumpPopIfFalse => insn_impl::jump_taking_bool(false, &chunk).expect(GOODCODE),
+            Insn::JumpPopIfTrue => insn_impl::jump_taking_bool(true, &chunk).expect(GOODCODE),
+            Insn::JumpIfNotNullish => insn_impl::jump_nullishness(false, &chunk).expect(GOODCODE),
+            Insn::JumpIfNullish => insn_impl::jump_nullishness(true, &chunk).expect(GOODCODE),
+            Insn::JumpIfNotUndef => insn_impl::jump_undefness(false, &chunk).expect(GOODCODE),
+            Insn::JumpNotThrow => insn_impl::jump_throwyness(false, &chunk).expect(GOODCODE),
+            Insn::Jump => insn_impl::jump(&chunk).expect(GOODCODE),
+            Insn::UpdateEmpty => insn_impl::update_empty().expect(GOODCODE),
+            Insn::Pop2Push3 => insn_impl::pop2push3().expect(GOODCODE),
+            Insn::RotateUp => insn_impl::rotate_up(&chunk).expect(GOODCODE),
+            Insn::RotateDown => insn_impl::rotate_down(&chunk).expect(GOODCODE),
+            Insn::RotateDownList => insn_impl::rotate_down_list(&chunk).expect(GOODCODE),
+            Insn::Ref => insn_impl::make_ref(false).expect(GOODCODE),
+            Insn::StrictRef => insn_impl::make_ref(true).expect(GOODCODE),
+            Insn::Pop => insn_impl::pop().expect(GOODCODE),
+            Insn::PopOrPanic => insn_impl::pop_or_panic().expect(GOODCODE),
+            Insn::Swap => insn_impl::swap().expect(GOODCODE),
+            Insn::SwapList => insn_impl::swap_list().expect(GOODCODE),
+            Insn::PopList => insn_impl::pop_list().expect(GOODCODE),
+            Insn::PopOutList => insn_impl::pop_out_list(&chunk).expect(GOODCODE),
+            Insn::SwapDeepList => insn_impl::swap_deep_list().expect(GOODCODE),
+            Insn::ListToArray => insn_impl::list_to_array().expect(GOODCODE),
+            Insn::InitializeReferencedBinding => insn_impl::initialize_referenced_binding().expect(GOODCODE),
+            Insn::PushNewLexEnv => insn_impl::push_new_lexical_environment(),
+            Insn::PopLexEnv => insn_impl::pop_lexical_environment().expect(GOODCODE),
+            Insn::PushNewVarEnvFromLex => insn_impl::push_new_var_env_from_lex(),
+            Insn::PushNewLexEnvFromVar => insn_impl::push_new_lex_env_from_var(),
+            Insn::SetLexEnvToVarEnv => insn_impl::set_lex_env_to_var_env(),
+            Insn::CreateStrictImmutableLexBinding => {
+                insn_impl::create_immutable_lex_binding(true, &chunk).expect(GOODCODE);
+            }
+            Insn::CreateNonStrictImmutableLexBinding => {
+                insn_impl::create_immutable_lex_binding(false, &chunk).expect(GOODCODE);
+            }
+            Insn::CreatePermanentMutableLexBinding => {
+                insn_impl::create_mutable_lexical_binding(false, &chunk).expect(GOODCODE);
+            }
+            Insn::CreatePermanentMutableVarBinding => {
+                insn_impl::create_mutable_var_binding(false, &chunk).expect(GOODCODE);
+            }
+            Insn::CreatePermanentMutableLexIfMissing => {
+                insn_impl::create_mutable_lexical_binding_if_missing(&chunk).expect(GOODCODE);
+            }
+            Insn::CreateInitializedPermanentMutableLexIfMissing => {
+                insn_impl::create_initialized_permanent_mutable_lexical_binding_if_missing(&chunk).expect(GOODCODE);
+            }
+            Insn::InitializeLexBinding => insn_impl::initialize_lex_binding(&chunk).expect(GOODCODE),
+            Insn::InitializeVarBinding => insn_impl::initialize_var_binding(&chunk).expect(GOODCODE),
+            Insn::GetLexBinding => insn_impl::get_lex_binding(&chunk).expect(GOODCODE),
+            Insn::SetMutableVarBinding => insn_impl::set_mutable_var_binding(&chunk).expect(GOODCODE),
+            Insn::CreatePerIterationEnvironment => {
+                insn_impl::create_per_iteration_environment(&chunk).expect(GOODCODE);
+            }
+            Insn::ExtractThrownValue => insn_impl::extract_thrown_value().expect(GOODCODE),
+            Insn::ExtractArg => insn_impl::extract_arg().expect(GOODCODE),
+            Insn::FinishArgs => insn_impl::finish_args().expect(GOODCODE),
+            Insn::Object => insn_impl::object().expect(GOODCODE),
+            Insn::Array => insn_impl::array().expect(GOODCODE),
+            Insn::CreateDataProperty => insn_impl::create_data_property().expect(GOODCODE),
+            Insn::SetPrototype => insn_impl::set_prototype().expect(GOODCODE),
+            Insn::ToPropertyKey => insn_impl::to_property_key().expect(GOODCODE),
+            Insn::CopyDataProps => insn_impl::copy_data_props(&[]).expect(GOODCODE),
+            Insn::CopyDataPropsWithExclusions => insn_impl::copy_data_props_with_exclusions().expect(GOODCODE),
+            Insn::Dup => insn_impl::dup().expect(GOODCODE),
+            Insn::DupAfterList => insn_impl::dup_after_list().expect(GOODCODE),
+            Insn::ToString => insn_impl::to_string().expect(GOODCODE),
+            Insn::ToNumeric => insn_impl::to_numeric().expect(GOODCODE),
+            Insn::ToObject => insn_impl::to_object().expect(GOODCODE),
+            Insn::Increment => insn_impl::increment().expect(GOODCODE),
+            Insn::Decrement => insn_impl::decrement().expect(GOODCODE),
+            Insn::PreIncrement => insn_impl::pre_increment().expect(GOODCODE),
+            Insn::PreDecrement => insn_impl::pre_decrement().expect(GOODCODE),
+            Insn::Delete => insn_impl::delete().expect(GOODCODE),
+            Insn::Void => insn_impl::void().expect(GOODCODE),
+            Insn::TypeOf => insn_impl::type_of().expect(GOODCODE),
+            Insn::Unwind => insn_impl::unwind(&chunk).expect(GOODCODE),
+            Insn::UnwindIfAbrupt => insn_impl::unwind_if_abrupt(&chunk).expect(GOODCODE),
+            Insn::UnwindList => insn_impl::unwind_list().expect(GOODCODE),
+            Insn::AppendList => insn_impl::append_list().expect(GOODCODE),
+            Insn::Call => insn_impl::call(false).expect(GOODCODE),
+            Insn::StrictCall => insn_impl::call(true).expect(GOODCODE),
+            Insn::EndFunction => insn_impl::end_function().expect(GOODCODE),
+            Insn::Construct => insn_impl::construct().expect(GOODCODE),
+            Insn::RequireConstructor => insn_impl::require_constructor().expect(GOODCODE),
+            Insn::Return => insn_impl::return_insn().expect(GOODCODE),
+            Insn::UnaryPlus => insn_impl::unary_plus().expect(GOODCODE),
+            Insn::UnaryMinus => insn_impl::unary_minus().expect(GOODCODE),
+            Insn::UnaryComplement => insn_impl::unary_complement().expect(GOODCODE),
+            Insn::UnaryNot => insn_impl::unary_not().expect(GOODCODE),
+            Insn::Exponentiate => insn_impl::binary_operation(BinOp::Exponentiate).expect(GOODCODE),
+            Insn::Multiply => insn_impl::binary_operation(BinOp::Multiply).expect(GOODCODE),
+            Insn::Divide => insn_impl::binary_operation(BinOp::Divide).expect(GOODCODE),
+            Insn::Modulo => insn_impl::binary_operation(BinOp::Remainder).expect(GOODCODE),
+            Insn::Add => insn_impl::binary_operation(BinOp::Add).expect(GOODCODE),
+            Insn::Subtract => insn_impl::binary_operation(BinOp::Subtract).expect(GOODCODE),
+            Insn::InstantiateIdFreeFunctionExpression => {
+                insn_impl::instantiate_id_free_function_expression(&chunk, &text).expect(GOODCODE);
+            }
+            Insn::InstantiateOrdinaryFunctionExpression => {
+                insn_impl::instantiate_ordinary_function_expression(&chunk, &text).expect(GOODCODE);
+            }
+            Insn::InstantiateArrowFunctionExpression => {
+                insn_impl::instantiate_arrow_function_expression(&chunk, &text).expect(GOODCODE);
+            }
+            Insn::InstantiateGeneratorFunctionExpression => {
+                insn_impl::instantiate_generator_function_expression(&chunk, &text).expect(GOODCODE);
+            }
+            Insn::InstantiateOrdinaryFunctionObject => {
+                insn_impl::instantiate_ordinary_function_object(&chunk, &text).expect(GOODCODE);
+            }
+            Insn::LeftShift => insn_impl::binary_operation(BinOp::LeftShift).expect(GOODCODE),
+            Insn::SignedRightShift => insn_impl::binary_operation(BinOp::SignedRightShift).expect(GOODCODE),
+            Insn::UnsignedRightShift => insn_impl::binary_operation(BinOp::UnsignedRightShift).expect(GOODCODE),
+            Insn::Throw => insn_impl::throw().expect(GOODCODE),
+            Insn::Less => insn_impl::compare(false, false).expect(GOODCODE),
+            Insn::Greater => insn_impl::compare(true, false).expect(GOODCODE),
+            Insn::LessEqual => insn_impl::compare(true, true).expect(GOODCODE),
+            Insn::GreaterEqual => insn_impl::compare(false, true).expect(GOODCODE),
+            Insn::InstanceOf => insn_impl::instance_of().expect(GOODCODE),
+            Insn::In => insn_impl::in_op().expect(GOODCODE),
+            Insn::Equal => insn_impl::equal(false).expect(GOODCODE),
+            Insn::NotEqual => insn_impl::equal(true).expect(GOODCODE),
+            Insn::StrictEqual => insn_impl::strict_equal(false).expect(GOODCODE),
+            Insn::StrictNotEqual => insn_impl::strict_equal(true).expect(GOODCODE),
+            Insn::BitwiseAnd => insn_impl::binary_operation(BinOp::BitwiseAnd).expect(GOODCODE),
+            Insn::BitwiseOr => insn_impl::binary_operation(BinOp::BitwiseOr).expect(GOODCODE),
+            Insn::BitwiseXor => insn_impl::binary_operation(BinOp::BitwiseXor).expect(GOODCODE),
+            Insn::CreateUnmappedArguments => insn_impl::create_unmapped_arguments_object().expect(GOODCODE),
+            Insn::CreateMappedArguments => insn_impl::create_mapped_arguments_object().expect(GOODCODE),
+            Insn::AddMappedArgument => insn_impl::add_mapped_argument(&chunk).expect(GOODCODE),
+            Insn::HandleEmptyBreak => insn_impl::handle_empty_break().expect(GOODCODE),
+            Insn::HandleTargetedBreak => insn_impl::handle_targeted_break(&chunk).expect(GOODCODE),
+            Insn::CoalesceValue => insn_impl::coalesce_value().expect(GOODCODE),
+            Insn::LoopContinues => insn_impl::loop_continues(&chunk).expect(GOODCODE),
+            Insn::Continue => insn_impl::continue_insn().expect(GOODCODE),
+            Insn::TargetedContinue => insn_impl::targeted_continue(&chunk).expect(GOODCODE),
+            Insn::Break => insn_impl::break_insn().expect(GOODCODE),
+            Insn::TargetedBreak => insn_impl::targeted_break(&chunk).expect(GOODCODE),
+            Insn::IteratorAccumulate => insn_impl::iterator_accumulate().expect(GOODCODE),
+            Insn::IterateArguments => insn_impl::iterate_arguments().expect(GOODCODE),
+            Insn::IteratorDAEElision => insn_impl::elision_idae().expect(GOODCODE),
+            Insn::EmbellishedIteratorStep => insn_impl::embellished_iterator_step().expect(GOODCODE),
+            Insn::IteratorRest => insn_impl::iterator_rest().expect(GOODCODE),
+            Insn::RequireCoercible => insn_impl::require_coercible().expect(GOODCODE),
+            Insn::GetSyncIterator => insn_impl::get_sync_iterator().expect(GOODCODE),
+            Insn::IteratorClose => insn_impl::iterator_close().expect(GOODCODE),
+            Insn::IteratorCloseIfNotDone => insn_impl::iterator_close_if_not_done().expect(GOODCODE),
+            Insn::IteratorNext => insn_impl::iterator_next().expect(GOODCODE),
+            Insn::IteratorResultComplete => insn_impl::iterator_result_complete().expect(GOODCODE),
+            Insn::IteratorResultToValue => insn_impl::iterator_result_to_value().expect(GOODCODE),
+            Insn::GetV => insn_impl::getv().expect(GOODCODE),
+            Insn::EnumerateObjectProperties => insn_impl::enumerate_object_properties().expect(GOODCODE),
+            Insn::PrivateIdLookup => insn_impl::private_id_lookup(&chunk).expect(GOODCODE),
+            Insn::EvaluateInitializedClassFieldDefinition => {
+                insn_impl::evaluate_initialized_class_field_def(&chunk, &text).expect(GOODCODE);
+            }
+            Insn::EvaluateClassStaticBlockDefinition => {
+                insn_impl::evaluate_class_static_block_def(&chunk, &text).expect(GOODCODE);
+            }
+            Insn::DefineMethod => insn_impl::define_method(&chunk, &text).expect(GOODCODE),
+            Insn::SetFunctionName => insn_impl::set_function_name().expect(GOODCODE),
+            Insn::DefineMethodProperty => insn_impl::define_method_property(&chunk).expect(GOODCODE),
+            Insn::DefineGetter => insn_impl::define_getter(&chunk, &text).expect(GOODCODE),
+            Insn::DefineSetter => insn_impl::define_setter(&chunk, &text).expect(GOODCODE),
+            Insn::GeneratorStartFromFunction => insn_impl::generator_start_from_function(&text).expect(GOODCODE),
+            Insn::Yield => insn_impl::yield_insn(&co).await.expect(GOODCODE),
+        }
+    }
+
+    AGENT.with(|agent| {
+        agent.execution_context_stack.borrow_mut().last_mut().unwrap().stack.pop().map_or(
+            Ok(ECMAScriptValue::Undefined),
+            |svr| {
+                svr.map(|sv| match sv {
+                    NormalCompletion::Reference(_) | NormalCompletion::Empty => ECMAScriptValue::Undefined,
+                    NormalCompletion::Value(v) => v,
+                    NormalCompletion::IteratorRecord(_)
+                    | NormalCompletion::Environment(..)
+                    | NormalCompletion::PrivateName(_)
+                    | NormalCompletion::PrivateElement(_) => unreachable!(),
+                })
+            },
+        )
     })
 }
 
@@ -3426,74 +3518,6 @@ fn apply_string_or_numeric_binary_operator(left: ECMAScriptValue, right: ECMAScr
             Err(create_type_error("Cannot mix BigInt and other types, use explicit conversions"))
         }
     }
-}
-
-pub fn instantiate_generator_function_expression(index: Option<usize>, text: &str, info: &StashedFunctionData) {
-    // Runtime Semantics: InstantiateGeneratorFunctionExpression
-    // The syntax-directed operation InstantiateGeneratorFunctionExpression takes optional argument name (a property
-    // key or a Private Name) and returns a function object. It is defined piecewise over the following productions:
-    //
-    // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
-    //  1. If name is not present, set name to "".
-    //  2. Let env be the LexicalEnvironment of the running execution context.
-    //  3. Let privateEnv be the running execution context's PrivateEnvironment.
-    //  4. Let sourceText be the source text matched by GeneratorExpression.
-    //  5. Let closure be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters,
-    //     GeneratorBody, non-lexical-this, env, privateEnv).
-    //  6. Perform SetFunctionName(closure, name).
-    //  7. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
-    //  8. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: prototype,
-    //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
-    //  9. Return closure.
-    let index = index.unwrap_or(AGENT.with(|agent| agent.execution_context_stack.borrow().len()) - 1);
-    let env = current_lexical_environment().unwrap();
-    let priv_env = current_private_environment();
-
-    let name = AGENT.with(|agent| {
-        JSString::try_from(
-            ECMAScriptValue::try_from(agent.execution_context_stack.borrow_mut()[index].stack.pop().unwrap().unwrap())
-                .unwrap(),
-        )
-        .unwrap()
-    });
-
-    let to_compile: Rc<GeneratorExpression> =
-        info.to_compile.clone().try_into().expect("This routine only used with Generator Expressions");
-    let chunk_name = nameify(&info.source_text, 50);
-    let mut compiled = Chunk::new(chunk_name);
-    let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, text, info);
-    if let Err(err) = compilation_status {
-        AGENT.with(|agent| {
-            let typeerror = create_type_error(err.to_string());
-            let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
-            let l = execution_context_stack[index].stack.len();
-            execution_context_stack[index].stack[l - 1] = Err(typeerror); // pop then push
-        });
-        return;
-    }
-    for line in compiled.disassemble() {
-        println!("{line}");
-    }
-
-    let generator_function_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototype);
-
-    let closure = ordinary_function_create(
-        generator_function_prototype,
-        info.source_text.as_str(),
-        info.params.clone(),
-        info.body.clone(),
-        ThisLexicality::NonLexicalThis,
-        env,
-        priv_env,
-        info.strict,
-        Rc::new(compiled),
-    );
-    set_function_name(&closure, name.into(), None);
-
-    let prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-    let desc = PotentialPropertyDescriptor::new().value(prototype).writable(true).enumerable(false).configurable(false);
-    define_property_or_throw(&closure, "prototype", desc).expect("simple property definition works");
-    AGENT.with(|agent| agent.execution_context_stack.borrow_mut()[index].stack.push(Ok(closure.into())));
 }
 
 fn evaluate_initialized_class_field_definition(
@@ -3909,7 +3933,7 @@ impl FcnDef {
     ) -> Completion<ECMAScriptValue> {
         match self {
             FcnDef::Function(x) => x.instantiate_function_object(env, private_env, strict, text, x.clone()),
-            FcnDef::Generator(x) => x.instantiate_function_object(env, private_env, strict, text, x.clone()),
+            FcnDef::Generator(x) => x.instantiate_function_object(env, private_env, strict, text),
             FcnDef::AsyncFun(x) => x.instantiate_function_object(env, private_env, strict, text, x.clone()),
             FcnDef::AsyncGen(x) => x.instantiate_function_object(env, private_env, strict, text, x.clone()),
         }

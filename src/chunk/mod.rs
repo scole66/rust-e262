@@ -284,7 +284,8 @@ impl Chunk {
             | Insn::EnumerateObjectProperties
             | Insn::ListToArray
             | Insn::SetFunctionName
-            | Insn::GeneratorStartFromFunction => (1, format!("    {insn}")),
+            | Insn::GeneratorStartFromFunction
+            | Insn::Yield => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal

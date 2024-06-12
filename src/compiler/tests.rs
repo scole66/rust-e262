@@ -536,7 +536,7 @@ mod nameable_production {
     }
 
     #[test_case("function(){}", true => Ok((svec(&["STRING 0 (my_function_name)", "FUNC_IIFE 0"]), true, false)); "function expression")]
-    #[test_case("function *(){}", true => panics "not yet implemented"; "generator exprsesion")]
+    #[test_case("function *(){}", true => Ok((svec(&["STRING 0 (my_function_name)", "FUNC_GENE 0"]), true, false)); "generator exprsesion")]
     #[test_case("async function(){}", true => panics "not yet implemented"; "async function expression")]
     #[test_case("async function*(){}", true => panics "not yet implemented"; "async generator expression")]
     #[test_case("class {}", true => panics "not yet implemented"; "class expression")]
@@ -3192,7 +3192,7 @@ mod assignment_expression {
         "UPDATE_EMPTY"
     ]), true, false)); "lhse not abrupt")]
     #[test_case("x => 0", true, &[] => Ok((svec(&["STRING 0 ()", "FUNC_IAE 0"]), true, false)); "arrow function")]
-    #[test_case("yield 1", true, &[] => panics "not yet implemented"; "yield expr")]
+    #[test_case("yield 1", true, &[] => Ok((svec(&["FLOAT 0 (1)", "YIELD"]), true, false)); "yield expr")]
     #[test_case("async x => x", true, &[] => panics "not yet implemented"; "async arrow")]
     #[test_case(
         "a &&= b", true, &[]
