@@ -249,19 +249,35 @@ fn generator_prototype_next(
 }
 
 fn generator_prototype_return(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // %GeneratorPrototype%.return ( value )
+    // This method performs the following steps when called:
+    //
+    //  1. Let g be the this value.
+    //  2. Let C be Completion Record { [[Type]]: RETURN, [[Value]]: value, [[Target]]: EMPTY }.
+    //  3. Return ? GeneratorResumeAbrupt(g, C, EMPTY).
+    let mut args = FuncArgs::from(arguments);
+    let value = args.next_arg();
+    generator_resume_abrupt(this_value, AbruptCompletion::Return { value }, "")
 }
 
 fn generator_prototype_throw(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // %GeneratorPrototype%.throw ( exception )
+    // This method performs the following steps when called:
+    //
+    //  1. Let g be the this value.
+    //  2. Let C be ThrowCompletion(exception).
+    //  3. Return ? GeneratorResumeAbrupt(g, C, EMPTY).
+    let mut args = FuncArgs::from(arguments);
+    let exception = args.next_arg();
+    generator_resume_abrupt(this_value, AbruptCompletion::Throw { value: exception }, "")
 }
 
 pub type ECMAClosure = Box<

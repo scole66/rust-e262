@@ -155,8 +155,6 @@ fn iterator_prototype_iterator(make_params: impl FnOnce() -> ECMAScriptValue) ->
 }
 
 tbd_function!(generator_function);
-tbd_function!(generator_prototype_return);
-tbd_function!(generator_prototype_throw);
 
 mod generator_prototype_next {
     use super::*;
