@@ -8166,11 +8166,11 @@ impl BindingElement {
                 //   EXTRACT_ARG                arg0 (n-1) arg(n-1) ... arg(1)
                 //   <bp.bi(env)>               [empty]/err (n-1) arg(n-1) ... arg(1)
                 //   JUMP_IF_ABRUPT unwind      [empty] (n-1) arg(n-1) ... arg(1)
-                //   POP
+                //   POP                        (n-1) arg(n-1) ... arg(1)
                 //   JUMP exit
-                // unwind:
-                //   UNWIND_LIST
-                // exit:
+                // unwind:                      err (n-1) arg(n-1) ... arg(1)
+                //   UNWIND_LIST                err
+                // exit:                        ((n-1) arg(n-1) ... arg(1)) or err
                 chunk.op(Insn::ExtractArg);
                 bp.compile_binding_initialization(chunk, strict, text, env)?;
                 let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
@@ -8191,10 +8191,12 @@ impl BindingElement {
                 //   JUMP_IF_ABRUPT unwind      val (n-1) arg(n-1) ... arg(1)
                 // ok:                          val (n-1) arg(n-1) ... arg(1)
                 //   <bp.bi(env)>               [empty]/err (n-1) arg(n-1) ... arg(1)
-                //   JUMP_IF_NORMAL exit
-                // unwind:
-                //   UNWIND_LIST
-                // exit:                        ([empty] (n-1) arg(n-1) ... arg(1)) or err
+                //   JUMP_IF_ABRUPT unwind      [empty] (n-1) arg(n-1) ... arg(1)
+                //   POP                        (n-1) arg(n-1) ... arg(1)
+                //   JUMP exit
+                // unwind:                      err (n-1) arg(n-1) ... arg(1)
+                //   UNWIND_LIST                err
+                // exit:                        ((n-1) arg(n-1) ... arg(1)) or err
 
                 chunk.op(Insn::ExtractArg);
                 let mark = chunk.op_jump(Insn::JumpIfNotUndef);
@@ -8209,10 +8211,13 @@ impl BindingElement {
                 }
                 chunk.fixup(mark)?;
                 bp.compile_binding_initialization(chunk, strict, text, env)?;
-                let exit = chunk.op_jump(Insn::JumpIfNormal);
+                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Pop);
+                let exit = chunk.op_jump(Insn::Jump);
                 if let Some(unwind) = unwind {
                     chunk.fixup(unwind)?;
                 }
+                chunk.fixup(unwind2).expect("jump too short to fail");
                 chunk.op(Insn::UnwindList);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AbruptResult::Maybe)

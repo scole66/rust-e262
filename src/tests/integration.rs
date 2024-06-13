@@ -737,6 +737,8 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("String({ [Symbol.toPrimitive]: () => { return \"me\"; } })" => Ok(ECMAScriptValue::from("me")); "arrow function name")]
 // 6/12/2024: bad arguments in generator call
 #[test_case("(function *(a=(()=>{throw 'oops';})()){})()" => serr("Thrown: oops"); "errs in generator args")]
+// 6/13/2024: destructuring rest failure
+#[test_case("(function([...x]=['test']){return x[0];})()" => Ok(ECMAScriptValue::from("test")); "destructuring rest failure")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

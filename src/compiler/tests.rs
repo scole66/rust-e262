@@ -5590,7 +5590,7 @@ mod binding_element {
         "STRING 0 (beta)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 35",
+        "JUMP_IF_ABRUPT 38",
         "REQ_COER",
         "JUMP_IF_ABRUPT 30",
         "STRING 1 (alpha)",
@@ -5611,7 +5611,9 @@ mod binding_element {
         "JUMP_IF_ABRUPT 2",
         "POP_LIST",
         "EMPTY",
-        "JUMP_IF_NORMAL 1",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 1",
         "UNWIND_LIST"
     ]), true, false)); "init pattern")]
     #[test_case("{alpha}=3", true, EnvUsage::UseCurrentLexical, None => Ok((svec(&[
@@ -5639,7 +5641,9 @@ mod binding_element {
         "JUMP_IF_ABRUPT 2",
         "POP_LIST",
         "EMPTY",
-        "JUMP_IF_NORMAL 1",
+        "JUMP_IF_ABRUPT 3",
+        "POP",
+        "JUMP 1",
         "UNWIND_LIST"
     ]), true, false)); "init by errorfree")]
     #[test_case("{alpha}=beta", false, EnvUsage::UseCurrentLexical, Some(0) => serr("Out of room for strings in this compilation unit"); "no room")]
