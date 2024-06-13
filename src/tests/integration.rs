@@ -735,6 +735,8 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("(function (p = (() => { throw 'oops'; })(), q) {})()" => serr("Thrown: oops"); "errs in args")]
 // 5/28/2024: method definitions with arrow function values on symbol names don't work.
 #[test_case("String({ [Symbol.toPrimitive]: () => { return \"me\"; } })" => Ok(ECMAScriptValue::from("me")); "arrow function name")]
+// 6/13/2024: destructuring rest failure
+#[test_case("(function([...x]=['test']){return x[0];})()" => Ok(ECMAScriptValue::from("test")); "destructuring rest failure")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
