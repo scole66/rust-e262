@@ -35,7 +35,7 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
             let function_object = create_builtin_function(
                 $steps,
                 false,
-                $length as f64,
+                f64::from($length),
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
                 Some(realm.clone()),
@@ -85,7 +85,7 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
             let function_object = create_builtin_function(
                 $steps,
                 false,
-                $length as f64,
+                f64::from($length),
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
                 Some(realm.clone()),

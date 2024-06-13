@@ -511,7 +511,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
             let function_object = create_builtin_function(
                 $intrinsicid,
                 false,
-                $length as f64,
+                f64::from($length),
                 PropertyKey::from($name),
                 BUILTIN_FUNCTION_SLOTS,
                 Some(realm_rec.clone()),
