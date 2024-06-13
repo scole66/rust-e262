@@ -736,7 +736,7 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 // 5/28/2024: method definitions with arrow function values on symbol names don't work.
 #[test_case("String({ [Symbol.toPrimitive]: () => { return \"me\"; } })" => Ok(ECMAScriptValue::from("me")); "arrow function name")]
 // 6/12/2024: bad arguments in generator call
-#[test_case("function*add(f,s=(()=>{throw 'oops';})()){return f+s;}let g=add(67);" => serr("Thrown: oops"); "errs in generator args")]
+#[test_case("(function *(a=(()=>{throw 'oops';})()){})()" => serr("Thrown: oops"); "errs in generator args")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
