@@ -2968,7 +2968,8 @@ mod insn_impl {
         );
         super::set_function_name(&closure, name.into(), None);
 
-        let prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
+        let gfpp = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
+        let prototype = ordinary_object_create(Some(gfpp), &[]);
         let desc =
             PotentialPropertyDescriptor::new().value(prototype).writable(true).enumerable(false).configurable(false);
         define_property_or_throw(&closure, "prototype", desc).expect("simple property definition works");

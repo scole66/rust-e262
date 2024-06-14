@@ -739,6 +739,8 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("(function *(a=(()=>{throw 'oops';})()){})()" => serr("Thrown: oops"); "errs in generator args")]
 // 6/13/2024: destructuring rest failure
 #[test_case("(function([...x]=['test']){return x[0];})()" => Ok(ECMAScriptValue::from("test")); "destructuring rest failure")]
+// 6/13/2024: prototype chain for generator expressions
+#[test_case("Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Object.getPrototypeOf((function*(){})())),Symbol.toStringTag)?.value" => Ok(ECMAScriptValue::from("Generator")); "prototype chain for generator expressions")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
