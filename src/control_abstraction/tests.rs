@@ -154,10 +154,6 @@ fn iterator_prototype_iterator(make_params: impl FnOnce() -> ECMAScriptValue) ->
     super::iterator_prototype_iterator(&this_value, None, &[]).map_err(unwind_any_error)
 }
 
-tbd_function!(generator_function);
-tbd_function!(generator_prototype_return);
-tbd_function!(generator_prototype_throw);
-
 mod generator_prototype_next {
     use super::*;
     use test_case::test_case;

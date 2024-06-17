@@ -536,7 +536,7 @@ mod nameable_production {
     }
 
     #[test_case("function(){}", true => Ok((svec(&["STRING 0 (my_function_name)", "FUNC_IIFE 0"]), true, false)); "function expression")]
-    #[test_case("function *(){}", true => panics "not yet implemented"; "generator exprsesion")]
+    #[test_case("function *(){}", true => Ok((svec(&["STRING 0 (my_function_name)", "FUNC_GENE 0"]), true, false)); "generator exprsesion")]
     #[test_case("async function(){}", true => panics "not yet implemented"; "async function expression")]
     #[test_case("async function*(){}", true => panics "not yet implemented"; "async generator expression")]
     #[test_case("class {}", true => panics "not yet implemented"; "class expression")]
@@ -765,7 +765,7 @@ mod primary_expression {
         #[test_case("[]", true => svec(&["ARRAY"]); "array literal")]
         #[test_case("``", true => svec(&["STRING 0 ()"]); "template literal")]
         #[test_case("function a(){}", true => svec(&["STRING 0 (a)", "FUNC_IOFE 0"]); "function expression")]
-        #[test_case("function *(){}", true => panics "not yet implemented"; "generator expression")]
+        #[test_case("function *(){}", true => svec(&["STRING 0 ()", "FUNC_GENE 0"]); "generator expression")]
         #[test_case("async function (){}", true => panics "not yet implemented"; "async function expression")]
         #[test_case("async function *(){}", true => panics "not yet implemented"; "async generator expression")]
         #[test_case("/abcd/", true => panics "not yet implemented"; "regular expression")]
@@ -3192,7 +3192,7 @@ mod assignment_expression {
         "UPDATE_EMPTY"
     ]), true, false)); "lhse not abrupt")]
     #[test_case("x => 0", true, &[] => Ok((svec(&["STRING 0 ()", "FUNC_IAE 0"]), true, false)); "arrow function")]
-    #[test_case("yield 1", true, &[] => panics "not yet implemented"; "yield expr")]
+    #[test_case("yield 1", true, &[] => Ok((svec(&["FLOAT 0 (1)", "YIELD"]), true, false)); "yield expr")]
     #[test_case("async x => x", true, &[] => panics "not yet implemented"; "async arrow")]
     #[test_case(
         "a &&= b", true, &[]
@@ -4312,9 +4312,9 @@ mod fcn_def {
     }
 
     #[test_case(fcndecl, true => Ok((svec(&["FUNC_OBJ 0 a"]), true, false)); "function decl")]
-    #[test_case(gendecl, true => Ok((svec(&["TODO"]), false, false)); "generator decl")]
-    #[test_case(afcndecl, true => Ok((svec(&["TODO"]), false, false)); "async function decl")]
-    #[test_case(agendecl, true => Ok((svec(&["TODO"]), false, false)); "async generator decl")]
+    #[test_case(gendecl, true => Ok((svec(&["FUNC_GENO 0 a"]), true, false)); "generator decl")]
+    #[test_case(afcndecl, true => panics "not yet implemented"; "async function decl")]
+    #[test_case(agendecl, true => panics "not yet implemented"; "async generator decl")]
     fn compile_fo_instantiation(
         maker: fn() -> (FcnDef, String),
         strict: bool,
@@ -5232,7 +5232,7 @@ mod function_declaration {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).function_declaration();
         let mut c = complex_filled_chunk("x", slots_left);
-        node.compile_fo_instantiation(&mut c, strict, src, node.clone())
+        node.compile_fo_instantiation(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),

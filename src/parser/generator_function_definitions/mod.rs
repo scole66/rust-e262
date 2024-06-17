@@ -186,9 +186,9 @@ impl GeneratorMethod {
 //      [+Default] function * ( FormalParameters[+Yield, ~Await] ) { GeneratorBody }
 #[derive(Debug)]
 pub struct GeneratorDeclaration {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<GeneratorBody>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub params: Rc<FormalParameters>,
+    pub body: Rc<GeneratorBody>,
     location: Location,
 }
 

@@ -1039,7 +1039,7 @@ mod fcn_def {
     }
 
     #[test_case({ let src = "function red(){}"; (FcnDef::Function(Maker::new(src).function_declaration()), src.into()) } => sok("red"); "function decl")]
-    #[test_case({ let src = "function *blue(){}"; (FcnDef::Generator(Maker::new(src).generator_declaration()), src.into()) } => panics "not yet implemented"; "generator decl")]
+    #[test_case({ let src = "function *blue(){}"; (FcnDef::Generator(Maker::new(src).generator_declaration()), src.into()) } => sok("blue"); "generator decl")]
     #[test_case({ let src = "async function green(){}"; (FcnDef::AsyncFun(Maker::new(src).async_function_declaration()), src.into()) } => panics "not yet implemented"; "async function decl")]
     #[test_case({ let src = "async function *orange(){}"; (FcnDef::AsyncGen(Maker::new(src).async_generator_declaration()), src.into()) } => panics "not yet implemented"; "async generator decl")]
     fn instantiate_function_object(part: (FcnDef, String)) -> Result<String, String> {
@@ -1115,7 +1115,7 @@ mod global_declaration_instantiation {
     #[test_case("var a; let b; const c=0; for (var item in object) {}" => Ok((sset(&["a", "item"]), sset(&["b", "c"]))); "many")]
     #[test_case("class bob{}" => Ok((sset(&[]), sset(&["bob"]))); "a class")]
     #[test_case("function f(){}" => Ok((sset(&["f"]), sset(&[]))); "functions")]
-    #[test_case("function *g(){}" => panics "not yet implemented"; "generators")]
+    #[test_case("function *g(){}" => Ok((sset(&["g"]), sset(&[]))); "generators")]
     #[test_case("async function af(){}" => panics "not yet implemented"; "async functions")]
     #[test_case("async function *ag(){}" => panics "not yet implemented"; "async generators")]
     fn global_declaration_instantiation(src: &str) -> Result<(AHashSet<String>, AHashSet<String>), String> {

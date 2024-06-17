@@ -411,6 +411,7 @@ pub enum FunctionSource {
     FieldDefinition(Rc<FieldDefinition>),
     ClassStaticBlock(Rc<ClassStaticBlock>),
     FunctionDeclaration(Rc<FunctionDeclaration>),
+    GeneratorDeclaration(Rc<GeneratorDeclaration>),
 }
 
 impl fmt::Display for FunctionSource {
@@ -427,6 +428,7 @@ impl fmt::Display for FunctionSource {
             FunctionSource::FieldDefinition(node) => node.fmt(f),
             FunctionSource::ClassStaticBlock(node) => node.fmt(f),
             FunctionSource::FunctionDeclaration(node) => node.fmt(f),
+            FunctionSource::GeneratorDeclaration(node) => node.fmt(f),
         }
     }
 }
@@ -445,7 +447,22 @@ impl PartialEq for FunctionSource {
             (Self::FieldDefinition(l0), Self::FieldDefinition(r0)) => Rc::ptr_eq(l0, r0),
             (Self::ClassStaticBlock(l0), Self::ClassStaticBlock(r0)) => Rc::ptr_eq(l0, r0),
             (Self::FunctionDeclaration(l0), Self::FunctionDeclaration(r0)) => Rc::ptr_eq(l0, r0),
-            _ => false,
+            (Self::GeneratorDeclaration(l0), Self::GeneratorDeclaration(r0)) => Rc::ptr_eq(l0, r0),
+            (
+                Self::FunctionExpression(_)
+                | Self::GeneratorExpression(_)
+                | Self::AsyncGeneratorExpression(_)
+                | Self::AsyncFunctionExpression(_)
+                | Self::ArrowFunction(_)
+                | Self::AsyncArrowFunction(_)
+                | Self::MethodDefinition(_)
+                | Self::HoistableDeclaration(_)
+                | Self::FieldDefinition(_)
+                | Self::ClassStaticBlock(_)
+                | Self::FunctionDeclaration(_)
+                | Self::GeneratorDeclaration(_),
+                _,
+            ) => false,
         }
     }
 }
@@ -464,6 +481,11 @@ impl From<Rc<FunctionDeclaration>> for FunctionSource {
         Self::FunctionDeclaration(fd)
     }
 }
+impl From<Rc<GeneratorExpression>> for FunctionSource {
+    fn from(value: Rc<GeneratorExpression>) -> Self {
+        Self::GeneratorExpression(value)
+    }
+}
 impl From<Rc<FieldDefinition>> for FunctionSource {
     fn from(value: Rc<FieldDefinition>) -> Self {
         Self::FieldDefinition(value)
@@ -477,6 +499,11 @@ impl From<Rc<ClassStaticBlock>> for FunctionSource {
 impl From<Rc<MethodDefinition>> for FunctionSource {
     fn from(value: Rc<MethodDefinition>) -> Self {
         Self::MethodDefinition(value)
+    }
+}
+impl From<Rc<GeneratorDeclaration>> for FunctionSource {
+    fn from(value: Rc<GeneratorDeclaration>) -> Self {
+        Self::GeneratorDeclaration(value)
     }
 }
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
@@ -499,6 +526,16 @@ impl TryFrom<FunctionSource> for Rc<ArrowFunction> {
         }
     }
 }
+impl TryFrom<FunctionSource> for Rc<GeneratorExpression> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::GeneratorExpression(g) => Ok(g),
+            _ => bail!("Generator Expression expected"),
+        }
+    }
+}
 impl TryFrom<FunctionSource> for Rc<FunctionDeclaration> {
     type Error = anyhow::Error;
 
@@ -506,6 +543,16 @@ impl TryFrom<FunctionSource> for Rc<FunctionDeclaration> {
         match value {
             FunctionSource::FunctionDeclaration(fd) => Ok(fd),
             _ => bail!("FunctionDeclaration expected"),
+        }
+    }
+}
+impl TryFrom<FunctionSource> for Rc<GeneratorDeclaration> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::GeneratorDeclaration(fd) => Ok(fd),
+            _ => bail!("GeneratorDeclaration expected"),
         }
     }
 }
@@ -840,7 +887,7 @@ impl CallableObject for FunctionObject {
         let empty = String::new();
         let fod = self.function_data.borrow();
         let text = fod.script_or_module.as_ref().map_or(&empty, ScriptOrModule::source_text);
-        execute(text)
+        execute_synchronously(text)
     }
 }
 
@@ -1586,7 +1633,6 @@ pub fn create_builtin_function(
 }
 
 impl FunctionDeclaration {
-    #[allow(unused_variables)]
     pub fn instantiate_function_object(
         &self,
         env: Rc<dyn EnvironmentRecord>,
@@ -1669,16 +1715,95 @@ impl FunctionDeclaration {
 }
 
 impl GeneratorDeclaration {
-    #[allow(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
-        &self,
+        self: &Rc<Self>,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
         text: &str,
-        self_as_rc: Rc<Self>,
     ) -> Completion<ECMAScriptValue> {
-        todo!()
+        // Runtime Semantics: InstantiateGeneratorFunctionObject
+        // The syntax-directed operation InstantiateGeneratorFunctionObject takes arguments env (an Environment Record)
+        // and privateEnv (a PrivateEnvironment Record or null) and returns an ECMAScript function object. It is defined
+        // piecewise over the following productions:
+        //
+        // GeneratorDeclaration : function * BindingIdentifier ( FormalParameters ) { GeneratorBody }
+        //  1. Let name be the StringValue of BindingIdentifier.
+        //  2. Let sourceText be the source text matched by GeneratorDeclaration.
+        //  3. Let F be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters,
+        //     GeneratorBody, NON-LEXICAL-THIS, env, privateEnv).
+        //  4. Perform SetFunctionName(F, name).
+        //  5. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
+        //  6. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]:
+        //     true, [[Enumerable]]: false, [[Configurable]]: false }).
+        //  7. Return F.
+        //
+        // GeneratorDeclaration : function * ( FormalParameters ) { GeneratorBody }
+        //  1. Let sourceText be the source text matched by GeneratorDeclaration.
+        //  2. Let F be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters,
+        //     GeneratorBody, NON-LEXICAL-THIS, env, privateEnv).
+        //  3. Perform SetFunctionName(F, "default").
+        //  4. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
+        //  5. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]:
+        //     true, [[Enumerable]]: false, [[Configurable]]: false }).
+        //  6. Return F.
+        //
+        // NOTE | An anonymous GeneratorDeclaration can only occur as part of an export default declaration, and its
+        // function code is therefore always strict mode code.
+
+        let name = match &self.ident {
+            None => JSString::from("default"),
+            Some(id) => id.string_value(),
+        };
+        let strict = strict || self.body.function_body_contains_use_strict();
+        let span = self.location().span;
+        let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
+        let params = ParamSource::from(Rc::clone(&self.params));
+        let body = BodySource::from(Rc::clone(&self.body));
+        let chunk_name = nameify(&source_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let function_data = StashedFunctionData {
+            source_text,
+            params,
+            body,
+            strict,
+            to_compile: FunctionSource::from(self.clone()),
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        let compilation_status = self.body.evaluate_generator_body(&mut compiled, text, &function_data);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            return Err(typeerror);
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let function_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototype);
+
+        let closure = ordinary_function_create(
+            function_prototype,
+            function_data.source_text.as_str(),
+            function_data.params.clone(),
+            function_data.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            env,
+            private_env,
+            function_data.strict,
+            Rc::new(compiled),
+        );
+        set_function_name(&closure, name.into(), None);
+
+        let protoproto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
+        let prototype = ordinary_object_create(Some(protoproto), &[]);
+        define_property_or_throw(
+            &closure,
+            "prototype",
+            PotentialPropertyDescriptor::new().value(prototype).writable(true).enumerable(false).configurable(false),
+        )
+        .expect("Fresh objects should be free from errors");
+
+        Ok(closure.into())
     }
 }
 
@@ -2034,14 +2159,14 @@ fn function_constructor_function(
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum FunctionKind {
+pub enum FunctionKind {
     Normal,
     Generator,
     Async,
     AsyncGenerator,
 }
 
-fn create_dynamic_function(
+pub fn create_dynamic_function(
     constructor: &Object,
     new_target: Option<&Object>,
     kind: FunctionKind,
@@ -2154,7 +2279,7 @@ fn create_dynamic_function(
     };
     let compilation_status = match &body {
         BodySource::Function(fb) => fb.compile_body(&mut compiled, &source_text, &function_data),
-        BodySource::Generator(_) => todo!(),
+        BodySource::Generator(gb) => gb.compile_body(&mut compiled, &source_text, &function_data),
         BodySource::AsyncFunction(_) => todo!(),
         BodySource::AsyncGenerator(_) => todo!(),
         _ => unreachable!(),

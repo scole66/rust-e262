@@ -230,10 +230,24 @@ fn iterator_prototype_iterator(
 
 fn generator_function(
     _this_value: &ECMAScriptValue,
-    _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // GeneratorFunction ( ...parameterArgs, bodyArg )
+    // The last argument (if any) specifies the body (executable code) of a function; any preceding arguments
+    // specify formal parameters.
+    //
+    // This function performs the following steps when called:
+    //
+    //  1. Let C be the active function object.
+    //  2. If bodyArg is not present, set bodyArg to the empty String.
+    //  3. Return ? CreateDynamicFunction(C, NewTarget, GENERATOR, parameterArgs, bodyArg).
+    let empty = ECMAScriptValue::from("");
+    let (parameter_args, body_arg): (_, _) =
+        if let [rest @ .., last] = arguments { (rest, last) } else { (&[], &empty) };
+    let c = active_function_object().expect("A function should be running");
+    create_dynamic_function(&c, new_target, FunctionKind::Generator, parameter_args, body_arg)
+        .map(ECMAScriptValue::Object)
 }
 
 fn generator_prototype_next(
@@ -249,19 +263,35 @@ fn generator_prototype_next(
 }
 
 fn generator_prototype_return(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // %GeneratorPrototype%.return ( value )
+    // This method performs the following steps when called:
+    //
+    //  1. Let g be the this value.
+    //  2. Let C be Completion Record { [[Type]]: RETURN, [[Value]]: value, [[Target]]: EMPTY }.
+    //  3. Return ? GeneratorResumeAbrupt(g, C, EMPTY).
+    let mut args = FuncArgs::from(arguments);
+    let value = args.next_arg();
+    generator_resume_abrupt(this_value, AbruptCompletion::Return { value }, "")
 }
 
 fn generator_prototype_throw(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // %GeneratorPrototype%.throw ( exception )
+    // This method performs the following steps when called:
+    //
+    //  1. Let g be the this value.
+    //  2. Let C be ThrowCompletion(exception).
+    //  3. Return ? GeneratorResumeAbrupt(g, C, EMPTY).
+    let mut args = FuncArgs::from(arguments);
+    let exception = args.next_arg();
+    generator_resume_abrupt(this_value, AbruptCompletion::Throw { value: exception }, "")
 }
 
 pub type ECMAClosure = Box<
@@ -630,6 +660,26 @@ pub fn generator_validate(generator: &ECMAScriptValue, generator_brand: &str) ->
         _ => Err(GeneratorError::NotAGenerator),
     }
     .map_err(|e| create_type_error(e.to_string()))
+}
+
+pub fn generator_start_from_function_body(generator: &Object, func: &dyn FunctionInterface, text: &str) {
+    // This is like generator_start_from_closure, except that our "closure" performs:
+    //    i. Let result be Completion(Evaluation of generatorBody).
+    // where that evaluation is an asynchronous routine that might relinquish control during its execution.
+    let fd = func.function_data();
+    let closure = fd.borrow().into_async_closure(text);
+    let generator_in_closure = generator.clone();
+    let gen_closure = Box::new(Gen::new(|co| gen_caller(generator_in_closure, co, closure)));
+    generator_start_from_closure(generator, gen_closure);
+    ec_push(Ok(generator.clone().into()));
+}
+
+impl FunctionObjectData {
+    pub fn into_async_closure(&self, text: &str) -> AsyncFnPtr {
+        let text = text.to_owned();
+        let closure = move |co| execute(co, text);
+        asyncfn_wrap(closure)
+    }
 }
 
 pub fn generator_start_from_closure(generator: &Object, generator_body: ECMAClosure) {

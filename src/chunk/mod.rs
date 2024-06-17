@@ -165,6 +165,7 @@ impl Chunk {
             | Insn::PopOutList
             | Insn::InstantiateIdFreeFunctionExpression
             | Insn::InstantiateArrowFunctionExpression
+            | Insn::InstantiateGeneratorFunctionExpression
             | Insn::InstantiateOrdinaryFunctionExpression
             | Insn::EvaluateInitializedClassFieldDefinition
             | Insn::EvaluateClassStaticBlockDefinition
@@ -282,7 +283,9 @@ impl Chunk {
             | Insn::IteratorRest
             | Insn::EnumerateObjectProperties
             | Insn::ListToArray
-            | Insn::SetFunctionName => (1, format!("    {insn}")),
+            | Insn::SetFunctionName
+            | Insn::GeneratorStartFromFunction
+            | Insn::Yield => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal
@@ -297,7 +300,9 @@ impl Chunk {
                 let arg = self.opcodes[idx] as i16;
                 (2, format!("    {insn:<24}{arg}"))
             }
-            Insn::AddMappedArgument | Insn::InstantiateOrdinaryFunctionObject => {
+            Insn::AddMappedArgument
+            | Insn::InstantiateOrdinaryFunctionObject
+            | Insn::InstantiateGeneratorFunctionObject => {
                 let string_arg = self.opcodes[idx] as usize;
                 let index_arg = self.opcodes[idx + 1] as usize;
                 (3, format!("    {:<24}{} {}", insn, index_arg, self.strings[string_arg]))
