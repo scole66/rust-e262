@@ -2159,14 +2159,14 @@ fn function_constructor_function(
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum FunctionKind {
+pub enum FunctionKind {
     Normal,
     Generator,
     Async,
     AsyncGenerator,
 }
 
-fn create_dynamic_function(
+pub fn create_dynamic_function(
     constructor: &Object,
     new_target: Option<&Object>,
     kind: FunctionKind,
@@ -2279,7 +2279,7 @@ fn create_dynamic_function(
     };
     let compilation_status = match &body {
         BodySource::Function(fb) => fb.compile_body(&mut compiled, &source_text, &function_data),
-        BodySource::Generator(_) => todo!(),
+        BodySource::Generator(gb) => gb.compile_body(&mut compiled, &source_text, &function_data),
         BodySource::AsyncFunction(_) => todo!(),
         BodySource::AsyncGenerator(_) => todo!(),
         _ => unreachable!(),

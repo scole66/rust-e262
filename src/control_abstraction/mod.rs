@@ -230,10 +230,24 @@ fn iterator_prototype_iterator(
 
 fn generator_function(
     _this_value: &ECMAScriptValue,
-    _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // GeneratorFunction ( ...parameterArgs, bodyArg )
+    // The last argument (if any) specifies the body (executable code) of a function; any preceding arguments
+    // specify formal parameters.
+    //
+    // This function performs the following steps when called:
+    //
+    //  1. Let C be the active function object.
+    //  2. If bodyArg is not present, set bodyArg to the empty String.
+    //  3. Return ? CreateDynamicFunction(C, NewTarget, GENERATOR, parameterArgs, bodyArg).
+    let empty = ECMAScriptValue::from("");
+    let (parameter_args, body_arg): (_, _) =
+        if let [rest @ .., last] = arguments { (rest, last) } else { (&[], &empty) };
+    let c = active_function_object().expect("A function should be running");
+    create_dynamic_function(&c, new_target, FunctionKind::Generator, parameter_args, body_arg)
+        .map(ECMAScriptValue::Object)
 }
 
 fn generator_prototype_next(
