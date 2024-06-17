@@ -4312,9 +4312,9 @@ mod fcn_def {
     }
 
     #[test_case(fcndecl, true => Ok((svec(&["FUNC_OBJ 0 a"]), true, false)); "function decl")]
-    #[test_case(gendecl, true => Ok((svec(&["TODO"]), false, false)); "generator decl")]
-    #[test_case(afcndecl, true => Ok((svec(&["TODO"]), false, false)); "async function decl")]
-    #[test_case(agendecl, true => Ok((svec(&["TODO"]), false, false)); "async generator decl")]
+    #[test_case(gendecl, true => Ok((svec(&["FUNC_GENO 0 a"]), true, false)); "generator decl")]
+    #[test_case(afcndecl, true => panics "not yet implemented"; "async function decl")]
+    #[test_case(agendecl, true => panics "not yet implemented"; "async generator decl")]
     fn compile_fo_instantiation(
         maker: fn() -> (FcnDef, String),
         strict: bool,
@@ -5232,7 +5232,7 @@ mod function_declaration {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).function_declaration();
         let mut c = complex_filled_chunk("x", slots_left);
-        node.compile_fo_instantiation(&mut c, strict, src, node.clone())
+        node.compile_fo_instantiation(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),

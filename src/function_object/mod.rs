@@ -546,6 +546,16 @@ impl TryFrom<FunctionSource> for Rc<FunctionDeclaration> {
         }
     }
 }
+impl TryFrom<FunctionSource> for Rc<GeneratorDeclaration> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::GeneratorDeclaration(fd) => Ok(fd),
+            _ => bail!("GeneratorDeclaration expected"),
+        }
+    }
+}
 impl TryFrom<FunctionSource> for Rc<FieldDefinition> {
     type Error = anyhow::Error;
 
@@ -1705,7 +1715,6 @@ impl FunctionDeclaration {
 }
 
 impl GeneratorDeclaration {
-    #[allow(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
         self: &Rc<Self>,
         env: Rc<dyn EnvironmentRecord>,

@@ -2062,6 +2062,62 @@ mod insn_impl {
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
     }
+    pub fn instantiate_generator_function_object(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // GeneratorDeclaration : function * BindingIdentifier ( FormalParameters ) { GeneratorBody }
+        //  1. Let name be the StringValue of BindingIdentifier.
+        //  2. Let sourceText be the source text matched by GeneratorDeclaration.
+        //  3. Let F be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters,
+        //     GeneratorBody, NON-LEXICAL-THIS, env, privateEnv).
+        //  4. Perform SetFunctionName(F, name).
+        //  5. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
+        //  6. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]:
+        //     true, [[Enumerable]]: false, [[Configurable]]: false }).
+        //  7. Return F.
+        let name = string_operand(chunk)?;
+        let info = sfd_operand(chunk)?;
+
+        let to_compile: Rc<GeneratorDeclaration> =
+            info.to_compile.clone().try_into().context("finding function compilation source")?;
+        let chunk_name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let priv_env = current_private_environment();
+        let generator_function_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototype);
+
+        let closure = ordinary_function_create(
+            generator_function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        super::set_function_name(&closure, name.clone().into(), None);
+        let generator_function_prototype_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
+        let prototype = ordinary_object_create(Some(generator_function_prototype_prototype), &[]);
+        define_property_or_throw(
+            &closure,
+            "prototype",
+            PotentialPropertyDescriptor::new().value(prototype).writable(true).enumerable(false).configurable(false),
+        )
+        .expect("defining properties on an algorithmically generated object should work");
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
     pub fn throw() -> anyhow::Result<()> {
         // Convert the NormalCompletion::Value on top of the stack into a ThrowCompletion with a matching value
         let value = pop_value()?;
@@ -3185,6 +3241,9 @@ pub async fn execute(
             }
             Insn::InstantiateOrdinaryFunctionObject => {
                 insn_impl::instantiate_ordinary_function_object(&chunk, &text).expect(GOODCODE);
+            }
+            Insn::InstantiateGeneratorFunctionObject => {
+                insn_impl::instantiate_generator_function_object(&chunk, &text).expect(GOODCODE);
             }
             Insn::LeftShift => insn_impl::binary_operation(BinOp::LeftShift).expect(GOODCODE),
             Insn::SignedRightShift => insn_impl::binary_operation(BinOp::SignedRightShift).expect(GOODCODE),

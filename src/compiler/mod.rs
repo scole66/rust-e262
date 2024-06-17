@@ -117,6 +117,7 @@ pub enum Insn {
     InstantiateArrowFunctionExpression,
     InstantiateGeneratorFunctionExpression,
     InstantiateOrdinaryFunctionObject,
+    InstantiateGeneratorFunctionObject,
     GeneratorStartFromFunction,
     Yield,
     LeftShift,
@@ -282,6 +283,7 @@ impl fmt::Display for Insn {
             Insn::InstantiateArrowFunctionExpression => "FUNC_IAE",
             Insn::InstantiateGeneratorFunctionExpression => "FUNC_GENE",
             Insn::InstantiateOrdinaryFunctionObject => "FUNC_OBJ",
+            Insn::InstantiateGeneratorFunctionObject => "FUNC_GENO",
             Insn::GeneratorStartFromFunction => "GEN_START",
             Insn::Yield => "YIELD",
             Insn::LeftShift => "LSH",
@@ -5139,12 +5141,10 @@ impl FcnDef {
         text: &str,
     ) -> anyhow::Result<AbruptResult> {
         match self {
-            FcnDef::Function(f) => {
-                return f.compile_fo_instantiation(chunk, strict, text, f.clone()).map(AbruptResult::from);
-            }
-            FcnDef::Generator(_) | FcnDef::AsyncFun(_) | FcnDef::AsyncGen(_) => chunk.op(Insn::ToDo),
+            FcnDef::Function(f) => f.compile_fo_instantiation(chunk, strict, text).map(AbruptResult::from),
+            FcnDef::Generator(gen) => gen.compile_go_instantiation(chunk, strict, text).map(AbruptResult::from),
+            FcnDef::AsyncFun(_) | FcnDef::AsyncGen(_) => todo!(),
         }
-        Ok(NeverAbruptRefResult.into())
     }
 }
 
@@ -7330,11 +7330,10 @@ impl FunctionDeclaration {
     }
 
     fn compile_fo_instantiation(
-        &self,
+        self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        self_as_rc: Rc<Self>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: InstantiateOrdinaryFunctionObject
         //
@@ -7375,7 +7374,7 @@ impl FunctionDeclaration {
             params,
             body,
             strict,
-            to_compile: FunctionSource::from(self_as_rc),
+            to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::NonLexicalThis,
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
@@ -9613,6 +9612,17 @@ impl FunctionBody {
     }
 }
 
+impl GeneratorBody {
+    pub fn compile_body(
+        &self,
+        chunk: &mut Chunk,
+        text: &str,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<AbruptResult> {
+        self.0.compile_body(chunk, text, info)
+    }
+}
+
 impl FunctionStatementList {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         match self {
@@ -10158,6 +10168,61 @@ impl GeneratorExpression {
         // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
         //  1. Return InstantiateGeneratorFunctionExpression of GeneratorExpression with argument name.
         Self::instantiate_generator_function_expression(self_as_rc, chunk, strict, text, id)
+    }
+}
+
+impl GeneratorDeclaration {
+    pub fn compile_go_instantiation(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: InstantiateGeneratorFunctionObject
+        // The syntax-directed operation InstantiateGeneratorFunctionObject takes arguments env (an Environment Record)
+        // and privateEnv (a PrivateEnvironment Record or null) and returns an ECMAScript function object. It is defined
+        // piecewise over the following productions:
+        //
+        // GeneratorDeclaration : function * BindingIdentifier ( FormalParameters ) { GeneratorBody }
+        //  1. Let name be the StringValue of BindingIdentifier.
+        //  2. Let sourceText be the source text matched by GeneratorDeclaration.
+        //  3. Let F be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters,
+        //     GeneratorBody, NON-LEXICAL-THIS, env, privateEnv).
+        //  4. Perform SetFunctionName(F, name).
+        //  5. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
+        //  6. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]:
+        //     true, [[Enumerable]]: false, [[Configurable]]: false }).
+        //  7. Return F.
+        //
+        // GeneratorDeclaration : function * ( FormalParameters ) { GeneratorBody }
+        //  1. Let sourceText be the source text matched by GeneratorDeclaration.
+        //  2. Let F be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters,
+        //     GeneratorBody, NON-LEXICAL-THIS, env, privateEnv).
+        //  3. Perform SetFunctionName(F, "default").
+        //  4. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
+        //  5. Perform ! DefinePropertyOrThrow(F, "prototype", PropertyDescriptor { [[Value]]: prototype, [[Writable]]:
+        //     true, [[Enumerable]]: false, [[Configurable]]: false }).
+        //  6. Return F.
+        //
+        // NOTE An anonymous GeneratorDeclaration can only occur as part of an export default declaration, and its
+        // function code is therefore always strict mode code.
+        let name = if let Some(id) = &self.ident { id.string_value() } else { JSString::from("default") };
+        let name_id = chunk.add_to_string_pool(name)?;
+        let span = self.location().span;
+        let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
+        let params = ParamSource::from(Rc::clone(&self.params));
+        let body = BodySource::from(Rc::clone(&self.body));
+        let function_data = StashedFunctionData {
+            source_text,
+            params,
+            body,
+            strict,
+            to_compile: FunctionSource::from(self.clone()),
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        let func_id = chunk.add_to_func_stash(function_data)?;
+        chunk.op_plus_two_args(Insn::InstantiateGeneratorFunctionObject, name_id, func_id);
+        Ok(AlwaysAbruptResult)
     }
 }
 
