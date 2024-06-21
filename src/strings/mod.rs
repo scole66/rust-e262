@@ -45,6 +45,10 @@ impl JSString {
             -1
         }
     }
+
+    pub fn contains(&self, ch: u16) -> bool {
+        self.s.contains(&ch)
+    }
 }
 
 impl From<Vec<u16>> for JSString {

@@ -177,6 +177,7 @@ pub enum Insn {
     DefineMethodProperty,
     DefineGetter,
     DefineSetter,
+    RegExpCreate,
 }
 
 impl fmt::Display for Insn {
@@ -343,6 +344,7 @@ impl fmt::Display for Insn {
             Insn::DefineMethodProperty => "DEF_METH_PROP",
             Insn::DefineGetter => "DEF_GETTER",
             Insn::DefineSetter => "DEF_SETTER",
+            Insn::RegExpCreate => "REGEXP",
         })
     }
 }
@@ -938,7 +940,12 @@ impl PrimaryExpression {
             PrimaryExpression::Generator { node } => node.compile(chunk, strict, text).map(CompilerStatusFlags::from),
             PrimaryExpression::AsyncFunction { node } => todo!(),
             PrimaryExpression::AsyncGenerator { node } => todo!(),
-            PrimaryExpression::RegularExpression { regex, location } => todo!(),
+            PrimaryExpression::RegularExpression { regex, location } => {
+                let pattern_idx = chunk.add_to_string_pool(regex.body.clone().into())?;
+                let flags_idx = chunk.add_to_string_pool(regex.flags.clone().into())?;
+                chunk.op_plus_two_args(Insn::RegExpCreate, pattern_idx, flags_idx);
+                Ok(CompilerStatusFlags::from(AbruptResult::Never))
+            }
         }
     }
 }

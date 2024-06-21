@@ -2235,8 +2235,8 @@ fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RegularExpressionData {
-    body: String,
-    flags: String,
+    pub body: String,
+    pub flags: String,
 }
 
 impl fmt::Display for RegularExpressionData {

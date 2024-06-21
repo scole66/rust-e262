@@ -116,6 +116,18 @@ impl ECMAScriptValue {
     }
 }
 
+impl<X> From<Option<X>> for ECMAScriptValue
+where
+    X: Into<ECMAScriptValue>,
+{
+    fn from(value: Option<X>) -> Self {
+        match value {
+            None => Self::Undefined,
+            Some(s) => s.into(),
+        }
+    }
+}
+
 impl From<&Object> for ECMAScriptValue {
     fn from(source: &Object) -> Self {
         Self::Object(source.clone())
