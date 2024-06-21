@@ -808,13 +808,74 @@ fn array_prototype_flat_map(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
 fn array_prototype_for_each(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.forEach ( callbackfn [ , thisArg ] )
+    // NOTE 1
+    // | ========
+    // | callbackfn should be a function that accepts three arguments. forEach calls callbackfn once for each element
+    // | present in the array, in ascending order. callbackfn is called only for elements of the array which actually
+    // | exist; it is not called for missing elements of the array.
+    // |
+    // | If a thisArg parameter is provided, it will be used as the this value for each invocation of callbackfn. If it
+    // | is not provided, undefined is used instead.
+    // |
+    // | callbackfn is called with three arguments: the value of the element, the index of the element, and the object
+    // | being traversed.
+    // |
+    // | forEach does not directly mutate the object on which it is called but the object may be mutated by the calls to
+    // | callbackfn.
+    // |
+    // | The range of elements processed by forEach is set before the first call to callbackfn. Elements which are
+    // | appended to the array after the call to forEach begins will not be visited by callbackfn. If existing elements
+    // | of the array are changed, their value as passed to callbackfn will be the value at the time forEach visits
+    // | them; elements that are deleted after the call to forEach begins and before being visited are not visited.
+    // | ========
+    //
+    // This method performs the following steps when called:
+    //
+    //  1. Let O be ? ToObject(this value).
+    //  2. Let len be ? LengthOfArrayLike(O).
+    //  3. If IsCallable(callbackfn) is false, throw a TypeError exception.
+    //  4. Let k be 0.
+    //  5. Repeat, while k < len,
+    //      a. Let Pk be ! ToString(𝔽(k)).
+    //      b. Let kPresent be ? HasProperty(O, Pk).
+    //      c. If kPresent is true, then
+    //          i. Let kValue be ? Get(O, Pk).
+    //          ii. Perform ? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »).
+    //      d. Set k to k + 1.
+    //  6. Return undefined.
+    //
+    // NOTE 2
+    // | ========
+    // | This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // | transferred to other kinds of objects for use as a method.
+    // | ========
+    let mut args = FuncArgs::from(arguments);
+    let callbackfn = args.next_arg();
+    let this_arg = args.next_arg();
+
+    let o = to_object(this_value.clone())?;
+    let len = length_of_array_like(&o)?;
+    if !is_callable(&callbackfn) {
+        return Err(create_type_error("Array.prototoype.forEach requires a callable first argument"));
+    }
+    for k in 0..len {
+        let pk = PropertyKey::from(format!("{k}"));
+        let kpresent = has_property(&o, &pk)?;
+        if kpresent {
+            let kvalue = o.get(&pk)?;
+            call(&callbackfn, &this_arg, &[kvalue, ECMAScriptValue::from(k), ECMAScriptValue::from(o.clone())])?;
+        }
+    }
+    Ok(ECMAScriptValue::Undefined)
 }
+
 fn array_prototype_includes(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
