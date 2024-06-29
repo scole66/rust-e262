@@ -3047,6 +3047,14 @@ mod insn_impl {
         push_completion(yielded_result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
+    pub fn reg_exp_create(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let pattern = string_operand(chunk)?;
+        let flags = string_operand(chunk)?;
+        let ro = super::reg_exp_create(ECMAScriptValue::from(pattern), Some(flags.clone()))
+            .expect("compiled regex should have already been checked");
+        push_completion(Ok(NormalCompletion::from(ro)))?;
+        Ok(())
+    }
 }
 
 pub fn execute_synchronously(text: &str) -> Completion<ECMAScriptValue> {
@@ -3301,6 +3309,7 @@ pub async fn execute(
             Insn::DefineSetter => insn_impl::define_setter(&chunk, &text).expect(GOODCODE),
             Insn::GeneratorStartFromFunction => insn_impl::generator_start_from_function(&text).expect(GOODCODE),
             Insn::Yield => insn_impl::yield_insn(&co).await.expect(GOODCODE),
+            Insn::RegExpCreate => insn_impl::reg_exp_create(&chunk).expect(GOODCODE),
         }
     }
 

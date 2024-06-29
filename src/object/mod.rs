@@ -1162,6 +1162,9 @@ pub trait ObjectInterface: Debug {
     fn is_regexp_object(&self) -> bool {
         false
     }
+    fn to_regexp_object(&self) -> Option<&RegExpObject> {
+        None
+    }
     fn is_array_object(&self) -> bool {
         false
     }
@@ -1666,6 +1669,11 @@ pub enum InternalSlotName {
     // Proxy Objects
     ProxyTarget,
     ProxyHandler,
+    // Regexp
+    OriginalSource,
+    OriginalFlags,
+    RegExpRecord,
+    RegExpMatcher,
 
     Nonsense, // For testing purposes, for the time being.
 }
@@ -1725,6 +1733,14 @@ pub const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::RemainingKeys,
 ];
 pub const PROXY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::ProxyTarget, InternalSlotName::ProxyHandler];
+pub const REGEXP_OBJECT_SLOTS: &[InternalSlotName] = &[
+    InternalSlotName::Prototype,
+    InternalSlotName::Extensible,
+    InternalSlotName::OriginalSource,
+    InternalSlotName::OriginalFlags,
+    InternalSlotName::RegExpRecord,
+    InternalSlotName::RegExpMatcher,
+];
 
 pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
     if slot_list.len() != slot_set.len() {
@@ -1764,6 +1780,8 @@ pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Op
         panic!("Additional info needed for arguments object; use direct constructor");
     } else if slot_match(GENERATOR_OBJECT_SLOTS, &slot_set) {
         GeneratorObject::object(prototype, GeneratorState::Undefined, "")
+    } else if slot_match(REGEXP_OBJECT_SLOTS, &slot_set) {
+        RegExpObject::object(prototype)
     } else {
         // Unknown combination of slots
         panic!("Unknown object for slots {slot_set:?}");
