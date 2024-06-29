@@ -747,11 +747,11 @@ fn unicode_range_checker(ch: char, range: &[ranges::CharRange]) -> bool {
     false
 }
 
-fn is_unicode_id_start(ch: char) -> bool {
+pub fn is_unicode_id_start(ch: char) -> bool {
     unicode_range_checker(ch, ranges::ID_START)
 }
 
-fn is_unicode_id_continue(ch: char) -> bool {
+pub fn is_unicode_id_continue(ch: char) -> bool {
     unicode_range_checker(ch, ranges::ID_CONTINUE)
 }
 

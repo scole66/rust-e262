@@ -768,7 +768,7 @@ mod primary_expression {
         #[test_case("function *(){}", true => svec(&["STRING 0 ()", "FUNC_GENE 0"]); "generator expression")]
         #[test_case("async function (){}", true => panics "not yet implemented"; "async function expression")]
         #[test_case("async function *(){}", true => panics "not yet implemented"; "async generator expression")]
-        #[test_case("/abcd/", true => panics "not yet implemented"; "regular expression")]
+        #[test_case("/abcd/", true => svec(&["REGEXP /abcd/"]); "regular expression")]
         fn normal(src: &str, strict: bool) -> Vec<String> {
             let node = Maker::new(src).primary_expression();
             let mut c = Chunk::new("pe");
