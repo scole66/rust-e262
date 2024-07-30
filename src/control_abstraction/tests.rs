@@ -349,11 +349,9 @@ mod generator_object {
     false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_error_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);

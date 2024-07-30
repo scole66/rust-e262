@@ -2641,20 +2641,6 @@ fn object_interface_is_error_object() {
     assert!(!obj.o.is_error_object());
 }
 #[test]
-fn object_interface_is_boolean_object() {
-    setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
-
-    assert!(!obj.o.is_boolean_object());
-}
-#[test]
-fn object_interface_is_number_object() {
-    setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
-
-    assert!(!obj.o.is_number_object());
-}
-#[test]
 fn object_interface_is_string_object() {
     setup_test_agent();
     let obj = ordinary_object_create(None, &[]);
@@ -2760,9 +2746,9 @@ fn ordinary_object_create_03c() {
 #[test_case(&[InternalSlotName::Nonsense] => panics "Nonsense"; "all bad")]
 #[test_case(&[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible] => panics "Nonsense"; "one bad")]
 #[test_case(ORDINARY_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_plain_object()); "ordinary obj")]
-#[test_case(BOOLEAN_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_boolean_object()); "boolean obj")]
+#[test_case(BOOLEAN_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.to_boolean_obj().is_some()); "boolean obj")]
 #[test_case(ERROR_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_error_object()); "error obj")]
-#[test_case(NUMBER_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_number_object()); "number obj")]
+#[test_case(NUMBER_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.to_number_obj().is_some()); "number obj")]
 #[test_case(ARRAY_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_array_object()); "array obj")]
 #[test_case(SYMBOL_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_symbol_object()); "symbol obj")]
 #[test_case(ARGUMENTS_OBJECT_SLOTS => panics "Additional info needed for arguments object; use direct constructor"; "args obj")]
@@ -4729,12 +4715,10 @@ mod ordinary_object {
     false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_error_object);
     false_function!(is_generator_object);
-    false_function!(is_number_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
     false_function!(is_string_object);
@@ -4796,12 +4780,10 @@ mod immutable_prototype_exotic_object {
     false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_error_object);
     false_function!(is_generator_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
@@ -5102,12 +5084,10 @@ mod dead_object {
     false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_error_object);
     false_function!(is_generator_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);

@@ -223,12 +223,10 @@ mod array_object {
     }
     false_function!(is_arguments_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_error_object);
     false_function!(is_generator_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
@@ -679,7 +677,6 @@ fn defaults() {
     assert!(a.o.to_function_obj().is_none());
     assert!(a.o.to_error_obj().is_none());
     assert_eq!(a.o.is_arguments_object(), false);
-    assert_eq!(a.o.is_number_object(), false);
     assert!(a.o.to_builtin_function_obj().is_none());
     assert!(a.o.to_callable_obj().is_none());
     assert!(a.o.to_number_obj().is_none());
@@ -687,7 +684,6 @@ fn defaults() {
     assert_eq!(a.o.is_string_object(), false);
     assert_eq!(a.o.is_regexp_object(), false);
     assert!(a.o.to_constructable().is_none());
-    assert_eq!(a.o.is_boolean_object(), false);
     assert!(a.o.to_boolean_obj().is_none());
     assert_eq!(a.o.is_proxy_object(), false);
     assert_eq!(a.o.is_error_object(), false);

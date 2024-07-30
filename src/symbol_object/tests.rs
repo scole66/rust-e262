@@ -59,30 +59,12 @@ mod symbol_object {
     }
 
     #[test]
-    fn is_number_object() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(!obj.o.is_number_object());
-    }
-
-    #[test]
     fn is_arguments_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
         let obj = Object::from(sym);
 
         assert!(!obj.o.is_arguments_object());
-    }
-
-    #[test]
-    fn is_boolean_object() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(!obj.o.is_boolean_object());
     }
 
     #[test]

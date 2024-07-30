@@ -15,8 +15,7 @@ mod prototype {
 
             let result = object_prototype_value_of(&value, None, &[]).unwrap();
             match &result {
-                ECMAScriptValue::Object(obj) => {
-                    assert!(obj.o.is_number_object());
+                ECMAScriptValue::Object(_obj) => {
                     assert_eq!(result.to_number().unwrap(), 10.0);
                 }
                 _ => {

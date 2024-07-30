@@ -32,8 +32,8 @@ impl ObjectInterface for NumberObject {
     fn to_number_obj(&self) -> Option<&dyn NumberObjectInterface> {
         Some(self)
     }
-    fn is_number_object(&self) -> bool {
-        true
+    fn kind(&self) -> &'static str {
+        NUMBER_TAG
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
@@ -528,14 +528,11 @@ fn number_is_safe_integer(
 // abstract operation thisNumberValue with the this value of the method invocation passed as the argument.
 fn this_number_value(value: &ECMAScriptValue) -> Completion<f64> {
     match value {
-        ECMAScriptValue::Number(x) => Ok(*x),
-        ECMAScriptValue::Object(o) if o.o.is_number_object() => {
-            let no = o.o.to_number_obj().unwrap();
-            let n = *no.number_data().borrow();
-            Ok(n)
-        }
-        _ => Err(create_type_error("Number method called with non-number receiver")),
+        ECMAScriptValue::Number(x) => Some(*x),
+        ECMAScriptValue::Object(o) => o.o.to_number_obj().map(|no| *no.number_data().borrow()),
+        _ => None,
     }
+    .ok_or_else(|| create_type_error("Number method called with non-number receiver"))
 }
 
 // Number.prototype.toExponential ( fractionDigits )

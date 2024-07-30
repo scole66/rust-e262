@@ -138,6 +138,9 @@ impl ObjectInterface for ArrayObject {
     fn to_array_object(&self) -> Option<&ArrayObject> {
         Some(self)
     }
+    fn kind(&self) -> &'static str {
+        ARRAY_TAG
+    }
 }
 
 pub fn array_create(length: u64, proto: Option<Object>) -> Completion<Object> {

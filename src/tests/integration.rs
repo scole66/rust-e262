@@ -702,6 +702,40 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("'a' in new Proxy({}, { has(p) { throw 'oops'; }})" => serr("Thrown: oops"); "in-operator: HasProperty(...) throws")]
 #[test_case("'a' in ({a: 10})" => Ok(ECMAScriptValue::Boolean(true)); "in-operator: success (true)")]
 #[test_case("'b' in ({a: 10})" => Ok(ECMAScriptValue::Boolean(false)); "in-operator: success (false)")]
+// Number.isInteger
+#[test_case("Number.isInteger(20)" => Ok(ECMAScriptValue::Boolean(true)); "value 20")]
+#[test_case("Number.isInteger(20.0001)" => Ok(ECMAScriptValue::Boolean(false)); "value 20.0001")]
+#[test_case("Number.isInteger(Infinity)" => Ok(ECMAScriptValue::Boolean(false)); "value Infinity")]
+#[test_case("Number.isInteger('sixteen')" => Ok(ECMAScriptValue::Boolean(false)); "value 'sixteen'")]
+// Boolean.toString
+#[test_case("true.toString()" => Ok(ECMAScriptValue::from("true")); "Boolean.prototype.toString(true)")]
+#[test_case("false.toString()" => Ok(ECMAScriptValue::from("false")); "Boolean.prototype.toString(false)")]
+#[test_case("Boolean.prototype.toString.call(0)" => serr("Thrown: TypeError: Value is not boolean"); "Boolean.prototype.toString non-boolean this")]
+// Boolean.valueOf
+#[test_case("true.valueOf()" => Ok(ECMAScriptValue::from(true)); "Boolean.prototype.valueOf(true)")]
+#[test_case("false.valueOf()" => Ok(ECMAScriptValue::from(false)); "Boolean.prototype.valueOf(false)")]
+#[test_case("Boolean.prototype.valueOf.call(0)" => serr("Thrown: TypeError: Value is not boolean"); "Boolean.prototype.valueOf non-boolean this")]
+// Boolean constructor
+#[test_case("Boolean(10)" => Ok(ECMAScriptValue::from(true)); "Boolean as func")]
+#[test_case("new Boolean(true).valueOf()" => Ok(ECMAScriptValue::from(true)); "Boolean as constructor")]
+#[test_case(
+    "function X() { this.x = 0; }
+     x = new Proxy(X, { 'get' : (obj, key) => { throw `get(${obj}, ${key})`; }});
+     Reflect.construct(Boolean, [true], x)"
+    => serr("Thrown: get(function X() { this.x = 0; }, prototype)");
+    "boolean construction fails in new-from-constructor"
+)]
+// this_boolean_value
+#[test_case("Boolean.prototype.valueOf.call(new Object())" => serr("Thrown: TypeError: Object has no boolean value"); "not-boolean object in this_boolean_value")]
+// Boolean::uses_ordinary_get_prototype_of
+#[test_case("Object.setPrototypeOf(new String(''), new Boolean(true)).valueOf()" => serr("Thrown: TypeError: Object has no boolean value"); "Boolean::uses_ordinary_get_prototype_of")]
+// is_boolean_obj on boolean object
+#[test_case("Object.prototype.toString.call(new Boolean(true))" => Ok(ECMAScriptValue::from("[object Boolean]")); "BooleanObject::is_boolean_object coverage")]
+#[test_case("Object.getPrototypeOf(Object.setPrototypeOf(new Boolean(), null))" => Ok(ECMAScriptValue::Null); "BooleanObject::set_prototype_of coverage")]
+#[test_case("Object.isFrozen(Object.freeze(new Boolean()))" => Ok(ECMAScriptValue::from(true)); "BooleanObject::prevent_extensions coverage")]
+#[test_case("let bo = new Boolean(); bo.prop = 10; bo.prop" => Ok(ECMAScriptValue::from(10)); "BooleanObject::set coverage")]
+#[test_case("Reflect.has(new Boolean(), 'mystery')" => Ok(ECMAScriptValue::from(false)); "BooleanObject::has_property coverage")]
+#[test_case("let bo = new Boolean(); bo.prop = 10; delete bo.prop; Object.hasOwnProperty(bo, 'prop')" => Ok(ECMAScriptValue::from(false)); "BooleanObject::delete coverage")]
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {

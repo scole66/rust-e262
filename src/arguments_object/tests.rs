@@ -188,9 +188,7 @@ mod arguments_object {
     }
 
     #[test_case(|ao| ao.o.is_proxy_object() => false; "is_proxy_object")]
-    #[test_case(|ao| ao.o.is_number_object() => false; "is_number_object")]
     #[test_case(|ao| ao.o.is_date_object() => false; "is_date_object")]
-    #[test_case(|ao| ao.o.is_boolean_object() => false; "is_boolean_object")]
     #[test_case(|ao| ao.o.is_regexp_object() => false; "is_regexp_object")]
     #[test_case(|ao| ao.o.is_callable_obj() => false; "is_callable_obj")]
     #[test_case(|ao| ao.o.is_plain_object() => false; "is_plain_object")]

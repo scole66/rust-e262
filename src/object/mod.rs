@@ -467,7 +467,6 @@ fn ospo_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> bool {
         return false;
     }
     let mut p = val.clone();
-    #[allow(clippy::assigning_clones)] // clippy is actually _wrong_ here.
     while let Some(pp) = p {
         if pp.o.id() == obj.id() {
             return false;
@@ -1092,6 +1091,17 @@ pub fn array_index_key(item: &PropertyKey) -> u32 {
     }
 }
 
+pub const ARRAY_TAG: &str = "Array";
+pub const OBJECT_TAG: &str = "Object";
+pub const NUMBER_TAG: &str = "Number";
+pub const BOOLEAN_TAG: &str = "Boolean";
+pub const STRING_TAG: &str = "String";
+pub const ARGUMENTS_TAG: &str = "Arguments";
+pub const DATE_TAG: &str = "Date";
+pub const REGEXP_TAG: &str = "RegExp";
+pub const FUNCTION_TAG: &str = "Function";
+pub const ERROR_TAG: &str = "Error";
+
 pub trait ObjectInterface: Debug {
     fn common_object_data(&self) -> &RefCell<CommonObjectData>;
     fn uses_ordinary_get_prototype_of(&self) -> bool; // True if implements ordinary defintion of GetPrototypeOf
@@ -1138,6 +1148,9 @@ pub trait ObjectInterface: Debug {
     fn is_plain_object(&self) -> bool {
         false
     }
+    fn kind(&self) -> &'static str {
+        OBJECT_TAG
+    }
     fn is_arguments_object(&self) -> bool {
         false
     }
@@ -1145,12 +1158,6 @@ pub trait ObjectInterface: Debug {
         false
     }
     fn is_error_object(&self) -> bool {
-        false
-    }
-    fn is_boolean_object(&self) -> bool {
-        false
-    }
-    fn is_number_object(&self) -> bool {
         false
     }
     fn is_string_object(&self) -> bool {

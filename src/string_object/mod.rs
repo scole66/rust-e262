@@ -55,6 +55,9 @@ impl ObjectInterface for StringObject {
     fn is_string_object(&self) -> bool {
         true
     }
+    fn kind(&self) -> &'static str {
+        STRING_TAG
+    }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))

@@ -55,27 +55,7 @@ pub fn object_prototype_to_string(
         return Ok(ECMAScriptValue::from("[object Null]"));
     }
     let o = to_object(this_value.clone()).unwrap();
-    let builtin_tag = if o.is_array()? {
-        "Array"
-    } else if o.o.is_arguments_object() {
-        "Arguments"
-    } else if o.o.is_callable_obj() {
-        "Function"
-    } else if o.o.is_error_object() {
-        "Error"
-    } else if o.o.is_boolean_object() {
-        "Boolean"
-    } else if o.o.is_number_object() {
-        "Number"
-    } else if o.o.is_string_object() {
-        "String"
-    } else if o.o.is_date_object() {
-        "Date"
-    } else if o.o.is_regexp_object() {
-        "RegExp"
-    } else {
-        "Object"
-    };
+    let builtin_tag = if o.is_array()? { ARRAY_TAG } else { o.o.kind() };
     let to_string_tag_symbol = wks(WksId::ToStringTag);
     let tag = o.get(&PropertyKey::from(to_string_tag_symbol))?;
     let tag_string = match tag {

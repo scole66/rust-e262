@@ -44,6 +44,11 @@ impl ObjectInterface for ProxyObject {
 
         proxy_items.as_ref().map_or(false, |items| items.proxy_target.o.is_callable_obj())
     }
+    fn kind(&self) -> &'static str {
+        let proxy_items = self.proxy_items.borrow();
+
+        proxy_items.as_ref().map_or(OBJECT_TAG, |items| items.proxy_target.o.kind())
+    }
 
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let proxy_items = self.proxy_items.borrow();
@@ -1227,6 +1232,13 @@ impl ObjectInterface for BuiltinFunctionWithRevokableProxySlot {
     }
     fn is_callable_obj(&self) -> bool {
         self.func.is_callable_obj()
+    }
+    fn kind(&self) -> &'static str {
+        if self.is_callable_obj() {
+            FUNCTION_TAG
+        } else {
+            OBJECT_TAG
+        }
     }
 }
 

@@ -402,9 +402,7 @@ fn error_object_other_automatic_functions() {
     setup_test_agent();
     let no = create_error_object();
 
-    assert!(!no.o.is_number_object());
     assert!(no.o.to_function_obj().is_none());
-    assert!(!no.o.is_boolean_object());
     assert!(!no.o.is_string_object());
     assert!(!no.o.is_regexp_object());
     assert!(no.o.to_builtin_function_obj().is_none());

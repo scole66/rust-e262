@@ -2282,7 +2282,6 @@ mod proxy_object {
     }
 
     false_function!(is_plain_object);
-    false_function!(is_number_object);
     false_function!(is_regexp_object);
     false_function!(is_arguments_object);
     false_function!(is_error_object);
@@ -2291,7 +2290,6 @@ mod proxy_object {
     false_function!(is_symbol_object);
     false_function!(is_generator_object);
     false_function!(is_callable_obj);
-    false_function!(is_boolean_object);
     false_function!(is_date_object);
     false_function!(uses_ordinary_get_prototype_of);
     false_function!(is_bigint_object);

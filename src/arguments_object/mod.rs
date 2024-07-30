@@ -79,6 +79,9 @@ impl ObjectInterface for ArgumentsObject {
     fn is_arguments_object(&self) -> bool {
         true
     }
+    fn kind(&self) -> &'static str {
+        ARGUMENTS_TAG
+    }
     fn to_arguments_object(&self) -> Option<&ArgumentsObject> {
         Some(self)
     }

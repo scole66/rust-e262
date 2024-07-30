@@ -75,15 +75,6 @@ fn number_object_to_number_object() {
     assert!(result.is_some());
 }
 #[test]
-fn number_object_is_number_object() {
-    setup_test_agent();
-    let no = Object::from(100.0);
-
-    let result = no.o.is_number_object();
-
-    assert!(result);
-}
-#[test]
 fn number_object_get_prototype_of() {
     setup_test_agent();
     let no = Object::from(100.0);
@@ -184,7 +175,6 @@ fn number_object_other_automatic_functions() {
 
     assert!(!no.o.is_error_object());
     assert!(no.o.to_function_obj().is_none());
-    assert!(!no.o.is_boolean_object());
     assert!(!no.o.is_string_object());
     assert!(!no.o.is_regexp_object());
     assert!(no.o.to_builtin_function_obj().is_none());
@@ -298,7 +288,6 @@ fn number_constructor_as_constructor_01() {
 
     assert!(result.is_object());
     if let ECMAScriptValue::Object(o) = result {
-        assert!(o.o.is_number_object());
         let data = *o.o.to_number_obj().unwrap().number_data().borrow();
         assert_eq!(data, 0.0);
     }
@@ -317,7 +306,6 @@ fn number_constructor_as_constructor_02() {
 
     assert!(result.is_object());
     if let ECMAScriptValue::Object(o) = result {
-        assert!(o.o.is_number_object());
         let data = *o.o.to_number_obj().unwrap().number_data().borrow();
         assert_eq!(data, 195_951_326.0);
     }

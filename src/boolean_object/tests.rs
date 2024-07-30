@@ -191,7 +191,6 @@ fn uses_ordinary_get_prototype_of_01() {
 fn bool_object_checks() {
     setup_test_agent();
     let bool_obj = Object::from(true);
-    assert_eq!(bool_obj.o.is_boolean_object(), true);
     assert_eq!(bool_obj.o.is_callable_obj(), false);
     assert_eq!(bool_obj.o.is_string_object(), false);
     assert_eq!(bool_obj.o.is_regexp_object(), false);
@@ -199,7 +198,6 @@ fn bool_object_checks() {
     assert_eq!(bool_obj.o.is_error_object(), false);
     assert!(bool_obj.o.to_function_obj().is_none());
     assert!(bool_obj.o.to_builtin_function_obj().is_none());
-    assert_eq!(bool_obj.o.is_number_object(), false);
     assert_eq!(bool_obj.o.is_date_object(), false);
     assert!(bool_obj.o.to_error_obj().is_none());
     assert!(bool_obj.o.to_callable_obj().is_none());
@@ -301,7 +299,7 @@ fn provision_boolean_intrinsic() {
     let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
     let boolean_prototype_prototype = prototype.o.get_prototype_of().unwrap().unwrap();
     assert_eq!(boolean_prototype_prototype, object_prototype);
-    assert!(prototype.o.is_boolean_object());
+    assert!(prototype.o.to_boolean_obj().is_some());
 
     func_validation(prototype.o.get_own_property(&"toString".into()).unwrap().unwrap(), "toString", 0);
     func_validation(prototype.o.get_own_property(&"valueOf".into()).unwrap().unwrap(), "valueOf", 0);
