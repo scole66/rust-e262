@@ -47,6 +47,7 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::ReferenceError,
     IntrinsicId::ReferenceErrorPrototype,
     IntrinsicId::Reflect,
+    IntrinsicId::RegExpPrototype,
     IntrinsicId::String,
     IntrinsicId::StringPrototype,
     IntrinsicId::Symbol,
