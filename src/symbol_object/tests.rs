@@ -129,15 +129,6 @@ mod symbol_object {
     }
 
     #[test]
-    fn to_error_obj() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(obj.o.to_error_obj().is_none());
-    }
-
-    #[test]
     fn to_constructable() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);

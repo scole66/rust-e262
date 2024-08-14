@@ -218,12 +218,6 @@ mod arguments_object {
     }
 
     #[test]
-    fn to_error_obj() {
-        setup_test_agent();
-        let ao = test_ao();
-        assert!(ao.o.to_error_obj().is_none());
-    }
-    #[test]
     fn to_symbol_obj() {
         setup_test_agent();
         let ao = test_ao();

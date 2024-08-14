@@ -2296,7 +2296,6 @@ mod proxy_object {
     none_function!(to_number_obj);
     none_function!(to_array_object);
     none_function!(to_constructable);
-    none_function!(to_error_obj);
     none_function!(to_generator_object);
     none_function!(to_for_in_iterator);
     none_function!(to_boolean_obj);

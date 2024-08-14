@@ -1147,9 +1147,6 @@ pub trait ObjectInterface: Debug {
     fn to_number_obj(&self) -> Option<&dyn NumberObjectInterface> {
         None
     }
-    fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
-        None
-    }
     fn to_symbol_obj(&self) -> Option<&dyn SymbolObjectInterface> {
         None
     }

@@ -1041,7 +1041,6 @@ mod function_object {
     none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_generator_object);
     none_function!(to_number_obj);
@@ -1339,7 +1338,6 @@ mod built_in_function_object {
     none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_function_obj);
     none_function!(to_generator_object);

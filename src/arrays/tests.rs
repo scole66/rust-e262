@@ -237,7 +237,6 @@ mod array_object {
     none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
     none_function!(to_constructable);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_function_obj);
     none_function!(to_generator_object);
@@ -674,7 +673,6 @@ fn defaults() {
     let a = super::array_create(10, None).unwrap();
     assert_eq!(a.o.is_date_object(), false);
     assert!(a.o.to_function_obj().is_none());
-    assert!(a.o.to_error_obj().is_none());
     assert_eq!(a.o.is_arguments_object(), false);
     assert!(a.o.to_builtin_function_obj().is_none());
     assert!(a.o.to_callable_obj().is_none());

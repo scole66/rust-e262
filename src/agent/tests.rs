@@ -1585,7 +1585,6 @@ mod for_in_iterator_object {
     none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
     none_function!(to_constructable);
-    none_function!(to_error_obj);
     none_function!(to_function_obj);
     none_function!(to_generator_object);
     none_function!(to_number_obj);

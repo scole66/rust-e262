@@ -136,9 +136,6 @@ impl ObjectInterface for ErrorObject {
     fn id(&self) -> usize {
         self.common.borrow().objid
     }
-    fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
-        Some(self)
-    }
     fn kind(&self) -> ObjectTag {
         ObjectTag::Error
     }

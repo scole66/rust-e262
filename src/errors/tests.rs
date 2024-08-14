@@ -285,14 +285,6 @@ fn error_object_id() {
     no.o.id();
 }
 #[test]
-fn error_object_to_error_object() {
-    setup_test_agent();
-    let no = create_error_object();
-
-    let result = no.o.to_error_obj();
-    assert!(result.is_some());
-}
-#[test]
 fn error_object_get_prototype_of() {
     setup_test_agent();
     let no = create_error_object();

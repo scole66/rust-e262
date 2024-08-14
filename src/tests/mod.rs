@@ -72,7 +72,7 @@ where
 }
 
 pub fn unwind_error_object(kind: &str, err: &Object) -> String {
-    assert!(err.o.to_error_obj().is_some());
+    assert!(err.is_error_object());
     let name = err.get(&PropertyKey::from("name")).expect("Error object was missing 'name' property");
     assert!(matches!(name, ECMAScriptValue::String(_)));
     if let ECMAScriptValue::String(name_value) = name {

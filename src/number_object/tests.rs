@@ -179,7 +179,6 @@ fn number_object_other_automatic_functions() {
     assert!(no.o.to_builtin_function_obj().is_none());
     assert!(!no.o.is_callable_obj());
     assert!(no.o.to_boolean_obj().is_none());
-    assert!(no.o.to_error_obj().is_none());
     assert!(no.o.to_callable_obj().is_none());
     assert!(no.o.to_constructable().is_none());
     assert!(!no.o.is_arguments_object());

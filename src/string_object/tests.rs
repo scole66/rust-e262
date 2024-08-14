@@ -74,7 +74,6 @@ mod string_object {
     none_function!(to_array_object);
     none_function!(to_callable_obj);
     none_function!(to_function_obj);
-    none_function!(to_error_obj);
     none_function!(to_builtin_function_obj);
     none_function!(to_symbol_obj);
     none_function!(to_number_obj);

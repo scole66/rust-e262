@@ -198,7 +198,6 @@ fn bool_object_checks() {
     assert!(bool_obj.o.to_function_obj().is_none());
     assert!(bool_obj.o.to_builtin_function_obj().is_none());
     assert_eq!(bool_obj.o.is_date_object(), false);
-    assert!(bool_obj.o.to_error_obj().is_none());
     assert!(bool_obj.o.to_callable_obj().is_none());
     assert!(!bool_obj.o.is_proxy_object());
     assert!(bool_obj.o.to_proxy_object().is_none());

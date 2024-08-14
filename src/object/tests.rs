@@ -4722,7 +4722,6 @@ mod ordinary_object {
     none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
     none_function!(to_constructable);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_function_obj);
     none_function!(to_generator_object);
@@ -4788,7 +4787,6 @@ mod immutable_prototype_exotic_object {
     none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
     none_function!(to_constructable);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_function_obj);
     none_function!(to_generator_object);
@@ -5091,7 +5089,6 @@ mod dead_object {
     none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
     none_function!(to_constructable);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_function_obj);
     none_function!(to_generator_object);
