@@ -195,7 +195,6 @@ fn bool_object_checks() {
     assert_eq!(bool_obj.o.is_string_object(), false);
     assert_eq!(bool_obj.o.is_regexp_object(), false);
     assert_eq!(bool_obj.o.is_arguments_object(), false);
-    assert_eq!(bool_obj.o.is_error_object(), false);
     assert!(bool_obj.o.to_function_obj().is_none());
     assert!(bool_obj.o.to_builtin_function_obj().is_none());
     assert_eq!(bool_obj.o.is_date_object(), false);

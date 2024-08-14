@@ -55,7 +55,7 @@ pub fn object_prototype_to_string(
         return Ok(ECMAScriptValue::from("[object Null]"));
     }
     let o = to_object(this_value.clone()).unwrap();
-    let builtin_tag = if o.is_array()? { ARRAY_TAG } else { o.o.kind() };
+    let builtin_tag = if o.is_array()? { ARRAY_TAG } else { &o.o.kind().to_string() };
     let to_string_tag_symbol = wks(WksId::ToStringTag);
     let tag = o.get(&PropertyKey::from(to_string_tag_symbol))?;
     let tag_string = match tag {

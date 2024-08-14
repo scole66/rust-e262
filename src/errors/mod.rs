@@ -139,11 +139,8 @@ impl ObjectInterface for ErrorObject {
     fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
         Some(self)
     }
-    fn is_error_object(&self) -> bool {
-        true
-    }
-    fn kind(&self) -> &'static str {
-        ERROR_TAG
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Error
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {

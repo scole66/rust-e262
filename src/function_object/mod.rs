@@ -669,8 +669,8 @@ impl ObjectInterface for FunctionObject {
     fn is_callable_obj(&self) -> bool {
         true
     }
-    fn kind(&self) -> &'static str {
-        FUNCTION_TAG
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Function
     }
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let is_c = self.function_data().borrow().is_constructor;
@@ -1483,8 +1483,8 @@ impl ObjectInterface for BuiltInFunctionObject {
     fn is_callable_obj(&self) -> bool {
         true
     }
-    fn kind(&self) -> &'static str {
-        FUNCTION_TAG
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Function
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {

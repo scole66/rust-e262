@@ -138,8 +138,8 @@ impl ObjectInterface for ArrayObject {
     fn to_array_object(&self) -> Option<&ArrayObject> {
         Some(self)
     }
-    fn kind(&self) -> &'static str {
-        ARRAY_TAG
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Array
     }
 }
 

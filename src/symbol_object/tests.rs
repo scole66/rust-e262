@@ -77,15 +77,6 @@ mod symbol_object {
     }
 
     #[test]
-    fn is_error_object() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(!obj.o.is_error_object());
-    }
-
-    #[test]
     fn is_regexp_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);

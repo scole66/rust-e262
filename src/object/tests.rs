@@ -2634,13 +2634,6 @@ fn object_interface_is_callable_obj() {
     assert!(!obj.o.is_callable_obj());
 }
 #[test]
-fn object_interface_is_error_object() {
-    setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
-
-    assert!(!obj.o.is_error_object());
-}
-#[test]
 fn object_interface_is_string_object() {
     setup_test_agent();
     let obj = ordinary_object_create(None, &[]);
@@ -2747,7 +2740,7 @@ fn ordinary_object_create_03c() {
 #[test_case(&[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible] => panics "Nonsense"; "one bad")]
 #[test_case(ORDINARY_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_plain_object()); "ordinary obj")]
 #[test_case(BOOLEAN_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.to_boolean_obj().is_some()); "boolean obj")]
-#[test_case(ERROR_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_error_object()); "error obj")]
+#[test_case(ERROR_OBJECT_SLOTS => with |obj: Object| assert!(obj.is_error_object()); "error obj")]
 #[test_case(NUMBER_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.to_number_obj().is_some()); "number obj")]
 #[test_case(ARRAY_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_array_object()); "array obj")]
 #[test_case(SYMBOL_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_symbol_object()); "symbol obj")]
@@ -4717,7 +4710,6 @@ mod ordinary_object {
     false_function!(is_bigint_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
-    false_function!(is_error_object);
     false_function!(is_generator_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
@@ -4782,7 +4774,6 @@ mod immutable_prototype_exotic_object {
     false_function!(is_bigint_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
-    false_function!(is_error_object);
     false_function!(is_generator_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
@@ -5086,7 +5077,6 @@ mod dead_object {
     false_function!(is_bigint_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
-    false_function!(is_error_object);
     false_function!(is_generator_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);

@@ -736,6 +736,8 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("let bo = new Boolean(); bo.prop = 10; bo.prop" => Ok(ECMAScriptValue::from(10)); "BooleanObject::set coverage")]
 #[test_case("Reflect.has(new Boolean(), 'mystery')" => Ok(ECMAScriptValue::from(false)); "BooleanObject::has_property coverage")]
 #[test_case("let bo = new Boolean(); bo.prop = 10; delete bo.prop; Object.hasOwnProperty(bo, 'prop')" => Ok(ECMAScriptValue::from(false)); "BooleanObject::delete coverage")]
+#[test_case("Number.prototype.valueOf.call(new Boolean())" => serr("Thrown: TypeError: Number method called with non-number receiver"); "BooleanObject::to_number_obj coverage")]
+#[test_case("String.prototype.valueOf.call(new Boolean())" => serr("Thrown: TypeError: String.prototype.valueOf requires that 'this' be a String"); "BooleanObject::to_string_obj coverage")]
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {

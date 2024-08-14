@@ -32,8 +32,8 @@ impl ObjectInterface for NumberObject {
     fn to_number_obj(&self) -> Option<&dyn NumberObjectInterface> {
         Some(self)
     }
-    fn kind(&self) -> &'static str {
-        NUMBER_TAG
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Number
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {

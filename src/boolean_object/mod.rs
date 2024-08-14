@@ -31,8 +31,8 @@ impl ObjectInterface for BooleanObject {
     fn to_boolean_obj(&self) -> Option<&dyn BooleanObjectInterface> {
         Some(self)
     }
-    fn kind(&self) -> &'static str {
-        BOOLEAN_TAG
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Boolean
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {

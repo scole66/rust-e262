@@ -173,7 +173,6 @@ fn number_object_other_automatic_functions() {
     setup_test_agent();
     let no = Object::from(100.0);
 
-    assert!(!no.o.is_error_object());
     assert!(no.o.to_function_obj().is_none());
     assert!(!no.o.is_string_object());
     assert!(!no.o.is_regexp_object());

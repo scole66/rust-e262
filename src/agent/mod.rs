@@ -4152,7 +4152,7 @@ impl fmt::Display for ProcessError {
         match self {
             ProcessError::RuntimeError { error } => {
                 if let ECMAScriptValue::Object(o) = error {
-                    if o.o.is_error_object() {
+                    if o.is_error_object() {
                         return write!(f, "Thrown: {}", unwind_any_error_object(o));
                     }
                 }

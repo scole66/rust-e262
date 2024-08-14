@@ -1103,6 +1103,40 @@ pub const REGEXP_TAG: &str = "RegExp";
 pub const FUNCTION_TAG: &str = "Function";
 pub const ERROR_TAG: &str = "Error";
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ObjectTag {
+    Array,
+    Object,
+    Number,
+    Boolean,
+    String,
+    Arguments,
+    Date,
+    RegExp,
+    Function,
+    Error,
+}
+impl fmt::Display for ObjectTag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ObjectTag::Array => ARRAY_TAG,
+                ObjectTag::Object => OBJECT_TAG,
+                ObjectTag::Number => NUMBER_TAG,
+                ObjectTag::Boolean => BOOLEAN_TAG,
+                ObjectTag::String => STRING_TAG,
+                ObjectTag::Arguments => ARGUMENTS_TAG,
+                ObjectTag::Date => DATE_TAG,
+                ObjectTag::RegExp => REGEXP_TAG,
+                ObjectTag::Function => FUNCTION_TAG,
+                ObjectTag::Error => ERROR_TAG,
+            }
+        )
+    }
+}
+
 pub trait ObjectInterface: Debug {
     fn common_object_data(&self) -> &RefCell<CommonObjectData>;
     fn uses_ordinary_get_prototype_of(&self) -> bool; // True if implements ordinary defintion of GetPrototypeOf
@@ -1149,16 +1183,13 @@ pub trait ObjectInterface: Debug {
     fn is_plain_object(&self) -> bool {
         false
     }
-    fn kind(&self) -> &'static str {
-        OBJECT_TAG
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Object
     }
     fn is_arguments_object(&self) -> bool {
         false
     }
     fn is_callable_obj(&self) -> bool {
-        false
-    }
-    fn is_error_object(&self) -> bool {
         false
     }
     fn is_string_object(&self) -> bool {
@@ -1613,6 +1644,10 @@ impl Object {
 
     pub fn is_constructor(&self) -> bool {
         self.o.to_constructable().is_some()
+    }
+
+    pub fn is_error_object(&self) -> bool {
+        self.o.kind() == ObjectTag::Error
     }
 }
 

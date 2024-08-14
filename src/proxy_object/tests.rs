@@ -2284,7 +2284,6 @@ mod proxy_object {
     false_function!(is_plain_object);
     false_function!(is_regexp_object);
     false_function!(is_arguments_object);
-    false_function!(is_error_object);
     false_function!(is_string_object);
     false_function!(is_array_object);
     false_function!(is_symbol_object);
