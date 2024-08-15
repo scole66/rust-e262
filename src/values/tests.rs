@@ -144,7 +144,7 @@ mod ecmascript_value {
     #[test]
     fn from_object_ref() {
         setup_test_agent();
-        let o = ordinary_object_create(None, &[]);
+        let o = ordinary_object_create(None);
 
         let val = ECMAScriptValue::from(&o);
         assert!(val.is_object());
@@ -154,7 +154,7 @@ mod ecmascript_value {
     #[test]
     fn from_object() {
         setup_test_agent();
-        let o = ordinary_object_create(None, &[]);
+        let o = ordinary_object_create(None);
         let orig_id = o.o.id();
 
         let val = ECMAScriptValue::from(o);
@@ -248,7 +248,7 @@ mod ecmascript_value {
     #[test]
     fn is_object() {
         setup_test_agent();
-        let o = ordinary_object_create(None, &[]);
+        let o = ordinary_object_create(None);
         assert_eq!(ECMAScriptValue::Undefined.is_object(), false);
         assert_eq!(ECMAScriptValue::from(o).is_object(), true);
         assert_eq!(ECMAScriptValue::Null.is_object(), false);
@@ -265,7 +265,7 @@ mod ecmascript_value {
         // Calling this on our own isn't really do-able; we need to get there via Display or Debug.
         setup_test_agent();
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(obj_proto), &[]);
+        let obj = ordinary_object_create(Some(obj_proto));
         define_property_or_throw(
             &obj,
             PropertyKey::from("Undefined"),
@@ -346,7 +346,7 @@ mod ecmascript_value {
 
         #[test_case(|| ECMAScriptValue::Symbol(wks(WksId::ToPrimitive)) => "Symbol(Symbol.toPrimitive)"; "symbol")]
         #[test_case(|| {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             ECMAScriptValue::Object(obj)
         } => with |s: String| assert!(Regex::new("^<Object [0-9]+>$").unwrap().is_match(&s)); "object")]
         fn complex(maker: fn() -> ECMAScriptValue) -> String {
@@ -494,7 +494,7 @@ mod ecmascript_value {
     #[test_case(|| None => "undefined"; "choose-none")]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("item", 10).unwrap();
             Some(obj)
         }
@@ -510,7 +510,7 @@ mod ecmascript_value {
     #[test_case(|| None => "null"; "choose-none")]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("item", 10).unwrap();
             Some(obj)
         }
@@ -703,7 +703,7 @@ mod ecmascript_value {
     #[test]
     fn to_number_10() {
         setup_test_agent();
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let input = ECMAScriptValue::from(obj);
 
         let result = input.to_number().unwrap_err();
@@ -713,7 +713,7 @@ mod ecmascript_value {
     fn to_number_11() {
         setup_test_agent();
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(obj_proto), &[]);
+        let obj = ordinary_object_create(Some(obj_proto));
         let input = ECMAScriptValue::from(obj);
 
         let result = input.to_number().unwrap();
@@ -1064,7 +1064,7 @@ fn to_boolean_01() {
 
     setup_test_agent();
     assert_eq!(to_boolean(ECMAScriptValue::from(wks(WksId::ToPrimitive))), true);
-    let o = ordinary_object_create(None, &[]);
+    let o = ordinary_object_create(None);
     assert_eq!(to_boolean(ECMAScriptValue::from(o)), true);
 }
 
@@ -1220,7 +1220,7 @@ mod jsstring {
         #[test_case(|| ECMAScriptValue::BigInt(Rc::new(BigInt::from(1000))) => sok("1000"); "bigint")]
         #[test_case(|| ECMAScriptValue::Symbol(wks(WksId::ToPrimitive)) => serr("Symbols may not be converted to strings"); "symbol")]
         #[test_case(|| {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             ECMAScriptValue::Object(obj)
         } => serr("Object to string conversions require an agent"); "object")]
         fn ecmasript_value(maker: fn() -> ECMAScriptValue) -> Result<String, String> {
@@ -1289,7 +1289,7 @@ mod numeric {
 #[test]
 fn to_numeric_01() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let result = to_numeric(ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
@@ -1380,14 +1380,14 @@ fn to_string_07() {
 fn to_string_08() {
     setup_test_agent();
     let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(obj_proto), &[]);
+    let obj = ordinary_object_create(Some(obj_proto));
     let result = to_string(ECMAScriptValue::from(obj)).unwrap();
     assert_eq!(result, "[object Object]");
 }
 #[test]
 fn to_string_09() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let result = to_string(ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
@@ -1403,7 +1403,7 @@ fn tostring_symbol(
 #[test]
 fn to_string_10() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let badtostring =
         create_builtin_function(tostring_symbol, false, 0_f64, PropertyKey::from("toString"), &[], None, None, None);
     obj.create_data_property("toString", badtostring).unwrap();
@@ -1455,7 +1455,7 @@ fn to_object_04() {
     let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
 
     let number_obj = result.o.to_number_obj().unwrap();
-    assert_eq!(*number_obj.number_data().borrow(), test_value);
+    assert_eq!(*number_obj.number_data(), test_value);
 }
 #[test]
 fn to_object_05() {
@@ -1485,7 +1485,7 @@ fn to_object_07() {
 #[test]
 fn to_object_08() {
     setup_test_agent();
-    let test_value = ordinary_object_create(None, &[]);
+    let test_value = ordinary_object_create(None);
     let id = test_value.o.id();
     let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
     assert_eq!(result.o.id(), id);
@@ -1523,7 +1523,7 @@ fn faux_makes_obj(
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_prototype), &[]);
+    let obj = ordinary_object_create(Some(object_prototype));
     Ok(ECMAScriptValue::from(obj))
 }
 // error
@@ -1544,7 +1544,7 @@ fn make_test_obj(valueof: FauxKind, tostring: FauxKind) -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let connect = |name, length, steps| {
         let key = PropertyKey::from(name);
         let fcn = create_builtin_function(
@@ -1597,7 +1597,7 @@ pub fn make_tostring_getter_error() -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let key = PropertyKey::from("valueOf");
     let fcn = create_builtin_function(
         faux_makes_number,
@@ -1650,7 +1650,7 @@ pub fn make_tostring_getter_error() -> Object {
 pub fn make_test_obj_uncallable() -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let connect = |name| {
         let key = PropertyKey::from(name);
         define_property_or_throw(
@@ -1808,7 +1808,7 @@ fn make_toprimitive_obj(
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let key = PropertyKey::from(wks(WksId::ToPrimitive));
     let fcn = create_builtin_function(
         steps,
@@ -1855,7 +1855,7 @@ fn exotic_returns_object(
 ) -> Completion<ECMAScriptValue> {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     Ok(ECMAScriptValue::from(target))
 }
 #[test]
@@ -1889,7 +1889,7 @@ fn to_primitive_exotic_getter_throws() {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let key = PropertyKey::from(wks(WksId::ToPrimitive));
     let toprim_getter = create_builtin_function(
         faux_errors,
@@ -2136,7 +2136,7 @@ mod option_object {
     use test_case::test_case;
 
     fn object_with_marker() -> ECMAScriptValue {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         define_property_or_throw(&obj, "marker", PotentialPropertyDescriptor::new().value("sentinel")).unwrap();
         ECMAScriptValue::Object(obj)
     }
@@ -2254,7 +2254,7 @@ mod agent {
     }
     fn object_10() -> ECMAScriptValue {
         let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let object = ordinary_object_create(Some(object_prototype), &[]);
+        let object = ordinary_object_create(Some(object_prototype));
         let to_primitive = wks(WksId::ToPrimitive);
         let realm = current_realm_record();
         let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);

@@ -19,9 +19,9 @@ mod proxy_object {
         proxy_items: RefCell::new(None),
     } => serr("TypeError: Proxy has been revoked"); "revoked proxy")]
     #[test_case(|| {
-        let proxy_target = ordinary_object_create(None, &[]);
+        let proxy_target = ordinary_object_create(None);
         proxy_target.set("marker", "testcase proxy target", true).unwrap();
-        let proxy_handler = ordinary_object_create(None, &[]);
+        let proxy_handler = ordinary_object_create(None);
         proxy_handler.set("marker", "testcase proxy handler", true).unwrap();
         ProxyObject {
             common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
@@ -86,7 +86,7 @@ mod proxy_object {
             _new_target: Option<&Object>,
             _args: &[ECMAScriptValue],
         ) -> Completion<ECMAScriptValue> {
-            let alternate = ordinary_object_create(None, &[]);
+            let alternate = ordinary_object_create(None);
             define_property_or_throw(&alternate, "test_prop", PotentialPropertyDescriptor::new().value("alternate"))
                 .unwrap();
             Ok(alternate.into())
@@ -115,9 +115,9 @@ mod proxy_object {
         ProxyObject::object(None)
     }
     fn no_overrides() -> Object {
-        let prototype = ordinary_object_create(None, &[]);
+        let prototype = ordinary_object_create(None);
         define_property_or_throw(&prototype, "test_prop", PotentialPropertyDescriptor::new().value("core")).unwrap();
-        let target = ordinary_object_create(Some(prototype), &[]);
+        let target = ordinary_object_create(Some(prototype));
         let ppd = PotentialPropertyDescriptor {
             value: Some("target".into()),
             writable: Some(true),
@@ -125,11 +125,11 @@ mod proxy_object {
             ..Default::default()
         };
         define_property_or_throw(&target, "test_key", ppd).unwrap();
-        let handler = ordinary_object_create(None, &[]);
+        let handler = ordinary_object_create(None);
         ProxyObject::object(Some((target, handler)))
     }
     fn dead_handler() -> Object {
-        let target = ordinary_object_create(None, &[]);
+        let target = ordinary_object_create(None);
         let handler = DeadObject::object();
         ProxyObject::object(Some((target, handler)))
     }
@@ -139,24 +139,24 @@ mod proxy_object {
         use test_case::test_case;
 
         fn handler_call_throws() -> Object {
-            let target = ordinary_object_create(None, &[]);
-            let handler = ordinary_object_create(None, &[]);
+            let target = ordinary_object_create(None);
+            let handler = ordinary_object_create(None);
             let thrower = intrinsic(IntrinsicId::ThrowTypeError);
             let ppd = PotentialPropertyDescriptor::new().value(thrower);
             define_property_or_throw(&handler, "getPrototypeOf", ppd).unwrap();
             ProxyObject::object(Some((target, handler)))
         }
         fn get_prototype_of_returns_null() -> Object {
-            let target = ordinary_object_create(None, &[]);
-            let handler = ordinary_object_create(None, &[]);
+            let target = ordinary_object_create(None);
+            let handler = ordinary_object_create(None);
             let get_prototype_of = fn_returning_null();
             let ppd = PotentialPropertyDescriptor::new().value(get_prototype_of);
             define_property_or_throw(&handler, "getPrototypeOf", ppd).unwrap();
             ProxyObject::object(Some((target, handler)))
         }
         fn get_prototype_of_returns_string() -> Object {
-            let target = ordinary_object_create(None, &[]);
-            let handler = ordinary_object_create(None, &[]);
+            let target = ordinary_object_create(None);
+            let handler = ordinary_object_create(None);
             let get_prototype_of = fn_returning_string();
             let ppd = PotentialPropertyDescriptor::new().value(get_prototype_of);
             define_property_or_throw(&handler, "getPrototypeOf", ppd).unwrap();
@@ -164,49 +164,49 @@ mod proxy_object {
         }
         fn target_dead() -> Object {
             let target = DeadObject::object();
-            let handler = ordinary_object_create(None, &[]);
+            let handler = ordinary_object_create(None);
             let get_prototype_of = fn_returning_null();
             let ppd = PotentialPropertyDescriptor::new().value(get_prototype_of);
             define_property_or_throw(&handler, "getPrototypeOf", ppd).unwrap();
             ProxyObject::object(Some((target, handler)))
         }
         fn handler_returns_alt() -> Object {
-            let prototype = ordinary_object_create(None, &[]);
+            let prototype = ordinary_object_create(None);
             define_property_or_throw(&prototype, "test_prop", PotentialPropertyDescriptor::new().value("core"))
                 .unwrap();
-            let target = ordinary_object_create(Some(prototype), &[]);
-            let handler = ordinary_object_create(None, &[]);
+            let target = ordinary_object_create(Some(prototype));
+            let handler = ordinary_object_create(None);
             let get_prototype_of = fn_returning_alternate_object();
             let ppd = PotentialPropertyDescriptor::new().value(get_prototype_of);
             define_property_or_throw(&handler, "getPrototypeOf", ppd).unwrap();
             ProxyObject::object(Some((target, handler)))
         }
         fn handler_returns_alt_but_not_extensible() -> Object {
-            let prototype = ordinary_object_create(None, &[]);
+            let prototype = ordinary_object_create(None);
             define_property_or_throw(&prototype, "test_prop", PotentialPropertyDescriptor::new().value("core"))
                 .unwrap();
-            let target = ordinary_object_create(Some(prototype), &[]);
+            let target = ordinary_object_create(Some(prototype));
             target.o.prevent_extensions().unwrap();
-            let handler = ordinary_object_create(None, &[]);
+            let handler = ordinary_object_create(None);
             let get_prototype_of = fn_returning_alternate_object();
             let ppd = PotentialPropertyDescriptor::new().value(get_prototype_of);
             define_property_or_throw(&handler, "getPrototypeOf", ppd).unwrap();
             ProxyObject::object(Some((target, handler)))
         }
         fn handler_returns_same_and_not_extensible() -> Object {
-            let prototype = ordinary_object_create(None, &[]);
+            let prototype = ordinary_object_create(None);
             define_property_or_throw(&prototype, "test_prop", PotentialPropertyDescriptor::new().value("core"))
                 .unwrap();
-            let target = ordinary_object_create(Some(prototype.clone()), &[]);
+            let target = ordinary_object_create(Some(prototype.clone()));
             target.o.prevent_extensions().unwrap();
-            let handler = ordinary_object_create(None, &[]);
+            let handler = ordinary_object_create(None);
             let get_prototype_of = fn_returning_target_proto();
             let ppd = PotentialPropertyDescriptor::new().value(get_prototype_of);
             define_property_or_throw(&handler, "getPrototypeOf", ppd).unwrap();
             ProxyObject::object(Some((target, handler)))
         }
         fn target_get_proto_of_fails() -> Object {
-            let handler = ordinary_object_create(None, &[]);
+            let handler = ordinary_object_create(None);
             let get_prototype_of = fn_returning_alternate_object();
             let ppd = PotentialPropertyDescriptor::new().value(get_prototype_of);
             define_property_or_throw(&handler, "getPrototypeOf", ppd).unwrap();
@@ -242,7 +242,7 @@ mod proxy_object {
         // SetPrototypeOf argument makers
         #[allow(clippy::unnecessary_wraps)]
         fn proto_with_name() -> Option<Object> {
-            let proto = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let proto = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value("proto-in-argument");
             define_property_or_throw(&proto, "test_prop", ppd).unwrap();
             Some(proto)
@@ -299,24 +299,24 @@ mod proxy_object {
 
         // Proxy Object makers
         fn make_handler(fcn: Object) -> Object {
-            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value(fcn);
             define_property_or_throw(&handler, "setPrototypeOf", ppd).unwrap();
             handler
         }
 
         fn handler_set_proto_throws() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let handler = make_handler(intrinsic(IntrinsicId::ThrowTypeError));
             ProxyObject::object(Some((target, handler)))
         }
         fn handler_checks_proto_arg() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let handler = make_handler(fn_checks_arg_returns_true());
             ProxyObject::object(Some((target, handler)))
         }
         fn handler_checks_proto_returns_false() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let handler = make_handler(fn_checks_arg_returns_false());
             ProxyObject::object(Some((target, handler)))
         }
@@ -332,7 +332,7 @@ mod proxy_object {
             ProxyObject::object(Some((target, handler)))
         }
         fn target_not_extensible() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             target.o.prevent_extensions().unwrap();
             let handler = make_handler(fn_checks_arg_returns_true());
             ProxyObject::object(Some((target, handler)))
@@ -411,7 +411,7 @@ mod proxy_object {
 
         // Proxy Object makers
         fn make_handler(fcn: Object) -> Object {
-            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value(fcn);
             define_property_or_throw(&handler, "isExtensible", ppd).unwrap();
             let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true);
@@ -419,7 +419,7 @@ mod proxy_object {
             handler
         }
         fn make_target() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value("target object");
             define_property_or_throw(&target, "test_marker", ppd).unwrap();
             target
@@ -526,7 +526,7 @@ mod proxy_object {
 
         // Proxy Object makers
         fn make_handler(fcn: Object) -> Object {
-            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value(fcn);
             define_property_or_throw(&handler, "preventExtensions", ppd).unwrap();
             let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true);
@@ -534,7 +534,7 @@ mod proxy_object {
             handler
         }
         fn make_target() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value("target object");
             define_property_or_throw(&target, "test_marker", ppd).unwrap();
             target
@@ -730,7 +730,7 @@ mod proxy_object {
 
         // Proxy Object Makers
         fn make_handler(fcn: Object) -> Object {
-            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value(fcn);
             define_property_or_throw(&handler, "getOwnPropertyDescriptor", ppd).unwrap();
             let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true).configurable(true);
@@ -738,7 +738,7 @@ mod proxy_object {
             handler
         }
         fn make_target() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value("target object");
             define_property_or_throw(&target, "test_marker", ppd).unwrap();
             target
@@ -1011,7 +1011,7 @@ mod proxy_object {
 
         // Handler/Target makers
         fn make_handler(fcn: Object) -> Object {
-            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value(fcn);
             define_property_or_throw(&handler, "defineProperty", ppd).unwrap();
             let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true).configurable(true);
@@ -1019,7 +1019,7 @@ mod proxy_object {
             handler
         }
         fn make_target() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value("target object");
             define_property_or_throw(&target, "test_marker", ppd).unwrap();
             target
@@ -1247,7 +1247,7 @@ mod proxy_object {
 
         // Handler/Target makers
         fn make_handler(fcn: Object) -> Object {
-            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value(fcn);
             define_property_or_throw(&handler, "has", ppd).unwrap();
             let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true).configurable(true);
@@ -1255,7 +1255,7 @@ mod proxy_object {
             handler
         }
         fn make_target() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value("target object");
             define_property_or_throw(&target, "test_marker", ppd).unwrap();
             target
@@ -1447,7 +1447,7 @@ mod proxy_object {
 
         // Handler/Target makers
         fn make_handler(fcn: Object) -> Object {
-            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value(fcn);
             define_property_or_throw(&handler, "get", ppd).unwrap();
             let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true).configurable(true);
@@ -1455,7 +1455,7 @@ mod proxy_object {
             handler
         }
         fn make_target() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value("target object");
             define_property_or_throw(&target, "test_marker", ppd).unwrap();
             target
@@ -1512,7 +1512,7 @@ mod proxy_object {
 
         #[allow(clippy::unnecessary_wraps)]
         fn alternate_receiver() -> Option<Object> {
-            let alt = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let alt = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new()
                 .value("alternate receiver")
                 .configurable(true)
@@ -1647,7 +1647,7 @@ mod proxy_object {
 
         // Handler/Target makers
         fn make_handler(fcn: Object) -> Object {
-            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value(fcn);
             define_property_or_throw(&handler, "set", ppd).unwrap();
             let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true).configurable(true);
@@ -1655,7 +1655,7 @@ mod proxy_object {
             handler
         }
         fn make_target() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value("target object");
             define_property_or_throw(&target, "test_marker", ppd).unwrap();
             target
@@ -1663,7 +1663,7 @@ mod proxy_object {
 
         #[allow(clippy::unnecessary_wraps)]
         fn alternate_receiver() -> Option<Object> {
-            let alt = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let alt = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new()
                 .value("alternate receiver")
                 .configurable(true)
@@ -1860,7 +1860,7 @@ mod proxy_object {
 
         // Handler/Target makers
         fn make_handler(fcn: Object) -> Object {
-            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value(fcn);
             define_property_or_throw(&handler, "deleteProperty", ppd).unwrap();
             let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true).configurable(true);
@@ -1868,7 +1868,7 @@ mod proxy_object {
             handler
         }
         fn make_target() -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value("target object");
             define_property_or_throw(&target, "test_marker", ppd).unwrap();
             target
@@ -2061,7 +2061,7 @@ mod proxy_object {
 
         // Handler/Target makers
         fn make_handler(fcn: Object) -> Object {
-            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value(fcn);
             define_property_or_throw(&handler, "ownKeys", ppd).unwrap();
             let ppd = PotentialPropertyDescriptor::new().value("not called").writable(true).configurable(true);
@@ -2069,7 +2069,7 @@ mod proxy_object {
             handler
         }
         fn make_target(configurable: bool) -> Object {
-            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value("target object").configurable(configurable);
             define_property_or_throw(&target, "test_marker", ppd).unwrap();
             target
@@ -2272,18 +2272,17 @@ mod proxy_object {
     fn make() -> Object {
         ProxyObject::object(Some((
             {
-                let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                let target = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
                 let ppd = PotentialPropertyDescriptor::new().value("target object").configurable(true);
                 define_property_or_throw(&target, "test_marker", ppd).unwrap();
                 target
             },
-            ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]),
+            ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype))),
         )))
     }
 
     false_function!(is_plain_object);
     false_function!(is_regexp_object);
-    false_function!(is_arguments_object);
     false_function!(is_string_object);
     false_function!(is_array_object);
     false_function!(is_symbol_object);
@@ -2319,9 +2318,9 @@ mod proxy_object {
     #[test_case(|| ProxyObject::new(None) => None; "proxy started off revoked")]
     #[test_case(
         || {
-            let target = ordinary_object_create(None, &[]);
+            let target = ordinary_object_create(None);
             target.create_data_property_or_throw("marker", "target").unwrap();
-            let handler = ordinary_object_create(None, &[]);
+            let handler = ordinary_object_create(None);
             handler.create_data_property_or_throw("marker", "handler").unwrap();
             ProxyObject::new(Some((target, handler)))
         }
@@ -2345,10 +2344,8 @@ mod proxy_items {
 
     #[test]
     fn debug() {
-        let items = ProxyItems {
-            proxy_handler: ordinary_object_create(None, &[]),
-            proxy_target: ordinary_object_create(None, &[]),
-        };
+        let items =
+            ProxyItems { proxy_handler: ordinary_object_create(None), proxy_target: ordinary_object_create(None) };
         assert_ne!(format!("{items:?}"), "");
     }
 }
@@ -2368,12 +2365,12 @@ mod proxy_constructor_function {
             Some(intrinsic(IntrinsicId::Proxy)),
             vec![
                 ECMAScriptValue::Object({
-                    let o = ordinary_object_create(None, &[]);
+                    let o = ordinary_object_create(None);
                     o.create_data_property_or_throw("name", "target").unwrap();
                     o
                 }),
                 ECMAScriptValue::Object({
-                    let o = ordinary_object_create(None, &[]);
+                    let o = ordinary_object_create(None);
                     o.create_data_property_or_throw("name", "handler").unwrap();
                     o
                 })
@@ -2410,24 +2407,24 @@ mod proxy_create {
         "no objects"
     )]
     #[test_case(
-        || (ECMAScriptValue::Object(ordinary_object_create(None, &[])), ECMAScriptValue::Undefined)
+        || (ECMAScriptValue::Object(ordinary_object_create(None)), ECMAScriptValue::Undefined)
         => serr("TypeError: Proxy handler must be an object");
         "handler not obj"
     )]
     #[test_case(
-        || (ECMAScriptValue::Undefined, ECMAScriptValue::Object(ordinary_object_create(None, &[])))
+        || (ECMAScriptValue::Undefined, ECMAScriptValue::Object(ordinary_object_create(None)))
         => serr("TypeError: Proxy target must be an object");
         "target not obj"
     )]
     #[test_case(
         || (
             ECMAScriptValue::Object({
-                let o = ordinary_object_create(None, &[]);
+                let o = ordinary_object_create(None);
                 o.create_data_property_or_throw("name", "target").unwrap();
                 o
             }),
             ECMAScriptValue::Object({
-                let o = ordinary_object_create(None, &[]);
+                let o = ordinary_object_create(None);
                 o.create_data_property_or_throw("name", "handler").unwrap();
                 o
             })

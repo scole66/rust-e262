@@ -31,7 +31,7 @@ pub fn provision_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
     //
     //      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()))
 
-    let iterator_prototype = ordinary_object_create(Some(object_prototype), &[]);
+    let iterator_prototype = ordinary_object_create(Some(object_prototype));
 
     // Prototype Function Properties
     macro_rules! prototype_function {
@@ -127,7 +127,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     //  * is not a function object and does not have an [[ECMAScriptCode]] internal slot or any other of
     //    the internal slots listed in Table 33 or Table 86.
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
-    let generator_function_prototype = ordinary_object_create(Some(function_prototype.clone()), &[]);
+    let generator_function_prototype = ordinary_object_create(Some(function_prototype.clone()));
 
     macro_rules! gf_prototype_data {
         ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
@@ -157,7 +157,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     //  * is not a Generator instance and does not have a [[GeneratorState]] internal slot.
     //  * has a [[Prototype]] internal slot whose value is %IteratorPrototype%.
     //  * has properties that are indirectly inherited by all Generator instances.
-    let generator_prototype = ordinary_object_create(Some(iterator_prototype), &[]);
+    let generator_prototype = ordinary_object_create(Some(iterator_prototype));
     gf_prototype_data!("prototype", generator_prototype.clone(), false, false, true);
 
     macro_rules! gen_prototype_data {
@@ -312,7 +312,7 @@ pub fn create_iter_result_object(value: ECMAScriptValue, done: bool) -> Object {
     //  3. Perform ! CreateDataPropertyOrThrow(obj, "done", done).
     //  4. Return obj.
     let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_prototype), &[]);
+    let obj = ordinary_object_create(Some(object_prototype));
     obj.create_data_property_or_throw("value", value).unwrap();
     obj.create_data_property_or_throw("done", done).unwrap();
     obj

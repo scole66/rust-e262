@@ -392,7 +392,6 @@ fn error_object_other_automatic_functions() {
     assert!(no.o.to_number_obj().is_none());
     assert!(no.o.to_callable_obj().is_none());
     assert!(no.o.to_constructable().is_none());
-    assert!(!no.o.is_arguments_object());
     assert!(!no.o.is_date_object());
     assert!(!no.o.is_proxy_object());
     assert!(no.o.to_proxy_object().is_none());
@@ -785,10 +784,10 @@ fn unwind_any_error(maker: fn() -> AbruptCompletion) -> String {
 }
 
 #[test_case(|| create_type_error_object("test case 1") => "TypeError: test case 1"; "with name and msg")]
-#[test_case(|| ordinary_object_create(None, &[]) => "Error"; "neither name nor message")]
+#[test_case(|| ordinary_object_create(None) => "Error"; "neither name nor message")]
 #[test_case(
     || {
-        let o = ordinary_object_create(None, &[]);
+        let o = ordinary_object_create(None);
         o.create_data_property_or_throw("name", "TestError").unwrap();
         o
     }
@@ -797,7 +796,7 @@ fn unwind_any_error(maker: fn() -> AbruptCompletion) -> String {
 )]
 #[test_case(
     || {
-        let o = ordinary_object_create(None, &[]);
+        let o = ordinary_object_create(None);
         o.create_data_property_or_throw("name", "").unwrap();
         o.create_data_property_or_throw("message", "test case beta").unwrap();
         o

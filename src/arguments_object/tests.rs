@@ -196,7 +196,6 @@ mod arguments_object {
     #[test_case(|ao| ao.o.is_string_object() => false; "is_string_object")]
     #[test_case(|ao| ao.o.is_array_object() => false; "is_array_object")]
     #[test_case(|ao| ao.o.uses_ordinary_get_prototype_of() => true; "uses_ordinary_get_prototype_of")]
-    #[test_case(|ao| ao.o.is_arguments_object() => true; "is_arguments_object")]
     fn bool_stub(op: impl FnOnce(&Object) -> bool) -> bool {
         setup_test_agent();
         let ao = test_ao();

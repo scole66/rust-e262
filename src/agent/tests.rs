@@ -224,7 +224,7 @@ mod agent {
         // 3. Let fenv be NewFunctionEnvironment(F, undefined).
         // 4. Let actualThis be fenv.GetThisBinding().
         // 5. Return MakeSuperPropertyReference(actualThis, "test_property", true)
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let copy = obj.clone();
         let myref = Reference::new(Base::Value(obj.into()), "item", true, Some(copy.into()));
         Ok(NormalCompletion::from(myref))
@@ -604,7 +604,7 @@ mod agent {
             assert_eq!(callee.enumerable, false);
             assert_eq!(callee.configurable, false);
 
-            assert!(ao.o.is_arguments_object());
+            assert!(ao.o.to_arguments_object().is_some());
         }
 
         #[test]
@@ -644,7 +644,7 @@ mod agent {
             let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "create_mapped_arguments_object test"));
             super::set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
 
-            let func_obj = ordinary_object_create(None, &[]);
+            let func_obj = ordinary_object_create(None);
 
             let num_values = values.len();
             let index = AGENT.with(|agent| {
@@ -734,7 +734,7 @@ fn prepare_for_execution() {
 type ValueMaker = fn() -> ECMAScriptValue;
 fn empty_object() -> ECMAScriptValue {
     let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    ECMAScriptValue::from(ordinary_object_create(Some(obj_proto), &[]))
+    ECMAScriptValue::from(ordinary_object_create(Some(obj_proto)))
 }
 fn bool_class() -> ECMAScriptValue {
     let boolean = intrinsic(IntrinsicId::Boolean);
@@ -769,7 +769,7 @@ fn test_has_instance(
 }
 fn faux_class() -> ECMAScriptValue {
     let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(obj_proto), &[]);
+    let obj = ordinary_object_create(Some(obj_proto));
     let realm = current_realm_record();
     let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
     let has_instance = create_builtin_function(
@@ -1182,7 +1182,7 @@ mod process_error {
         ProcessError::RuntimeError { error }
     }
     fn runtime_err_non_err_obj() -> ProcessError {
-        let error = ordinary_object_create(None, &[]).into();
+        let error = ordinary_object_create(None).into();
         ProcessError::RuntimeError { error }
     }
     #[allow(clippy::needless_pass_by_value)]
@@ -1480,9 +1480,9 @@ mod begin_call_evaluation {
     }
 
     fn object_this() -> NormalCompletion {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         obj.set("marker", "legitimate this", true).unwrap();
-        let base = ECMAScriptValue::from(ordinary_object_create(None, &[]));
+        let base = ECMAScriptValue::from(ordinary_object_create(None));
         let r = Reference::new(Base::Value(base), "callee", true, Some(ECMAScriptValue::from(obj)));
         NormalCompletion::from(r)
     }
@@ -1497,7 +1497,7 @@ mod begin_call_evaluation {
 
     fn with_env() -> NormalCompletion {
         let objproto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(objproto), &[]);
+        let obj = ordinary_object_create(Some(objproto));
         obj.create_data_property_or_throw("marker", "with-object").unwrap();
         let we = ObjectEnvironmentRecord::new(obj, true, None, "with_env test");
         Reference::new(Base::Environment(Rc::new(we)), "test_report", true, None).into()
@@ -1567,7 +1567,6 @@ mod for_in_iterator_object {
     default_delete_test!();
     default_own_property_keys_test!();
     default_id_test!();
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
     false_function!(is_callable_obj);
@@ -1599,7 +1598,7 @@ mod for_in_iterator_internals {
     #[test]
     fn debug() {
         setup_test_agent();
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let item = ForInIteratorInternals {
             object: obj,
             object_was_visited: false,
@@ -1614,7 +1613,7 @@ mod for_in_iterator_internals {
 fn create_for_in_iterator() {
     setup_test_agent();
     let proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(proto), &[]);
+    let obj = ordinary_object_create(Some(proto));
 
     let fii = super::create_for_in_iterator(obj.clone());
     let fii_obj = fii.o.to_for_in_iterator().expect("object should be f-i iterator");
@@ -1645,7 +1644,7 @@ mod for_in_iterator_prototype_next {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
         object_proto.create_data_property_or_throw("proto_prop", 67).unwrap();
         object_proto.create_data_property_or_throw("masked", 0).unwrap();
-        let object = ordinary_object_create(Some(object_proto), &[]);
+        let object = ordinary_object_create(Some(object_proto));
         object.create_data_property_or_throw("on_object", 999).unwrap();
         object.create_data_property_or_throw(wks(WksId::ToStringTag), "TestObject").unwrap();
         object.create_data_property_or_throw("masked", 99).unwrap();
@@ -1679,7 +1678,7 @@ mod for_in_iterator_prototype_next {
         crate::agent::create_for_in_iterator(o).into()
     }
 
-    #[test_case(|| crate::agent::create_for_in_iterator(ordinary_object_create(None, &[])).into() => Ok(vec![]); "empty object")]
+    #[test_case(|| crate::agent::create_for_in_iterator(ordinary_object_create(None)).into() => Ok(vec![]); "empty object")]
     #[test_case(make_busy_object => Ok(vec!["on_object".into(), "masked".into(), "proto_prop".into()]); "busy object")]
     #[test_case(|| crate::agent::create_for_in_iterator(DeadObject::object()).into() => serr("TypeError: own_property_keys called on DeadObject"); "own_property_keys fails")]
     #[test_case(lyingkeys => Ok(vec![]); "own_property_keys lies")]
@@ -1713,7 +1712,7 @@ mod evaluate_initialized_class_field_definition {
         let src = "sum = 10+20";
         let fd = Maker::new(src).field_definition();
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let home = ordinary_object_create(Some(proto), &[]);
+        let home = ordinary_object_create(Some(proto));
         let name = ClassName::from("class_name");
         let info = StashedFunctionData {
             source_text: String::new(),
@@ -1741,7 +1740,7 @@ mod evaluate_initialized_class_field_definition {
         let src = "sum = @@# + 10+20";
         let fd = Maker::new(src).field_definition();
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let home = ordinary_object_create(Some(proto), &[]);
+        let home = ordinary_object_create(Some(proto));
         let name = ClassName::from("class_name");
         let info = StashedFunctionData {
             source_text: String::new(),
@@ -1768,7 +1767,7 @@ mod define_method_property {
     }
 
     fn ordinary() -> Object {
-        ordinary_object_create(None, &[])
+        ordinary_object_create(None)
     }
 
     #[test_case(
@@ -1845,7 +1844,7 @@ mod define_method {
     use test_case::test_case;
 
     fn ordinary() -> Object {
-        ordinary_object_create(None, &[])
+        ordinary_object_create(None)
     }
     fn std_data() -> (StashedFunctionData, String) {
         let source = String::from("bob() {}");

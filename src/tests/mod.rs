@@ -543,7 +543,7 @@ pub fn make_toprimitive_throw_obj() -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
     let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let to_prim_sym = wks(WksId::ToPrimitive);
     let key = PropertyKey::from(to_prim_sym);
     let fcn = create_builtin_function(

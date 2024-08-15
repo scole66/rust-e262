@@ -386,7 +386,7 @@ mod reference {
         fn value_has_this() {
             setup_test_agent();
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let normal_object = ordinary_object_create(Some(object_proto), &[]);
+            let normal_object = ordinary_object_create(Some(object_proto));
             let this_value = ECMAScriptValue::from(normal_object);
             let value = ECMAScriptValue::from("Gatsby turned out all right at the end");
             let reference = Reference::new(Base::Value(value), "phrase", true, Some(this_value.clone()));
@@ -448,7 +448,7 @@ mod get_value {
     fn value_base() {
         setup_test_agent();
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         let value = ECMAScriptValue::from("value_base test value");
         let descriptor = PotentialPropertyDescriptor {
             writable: Some(true),
@@ -475,7 +475,7 @@ mod get_value {
         setup_test_agent();
         let pn = PrivateName::new("test name");
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         let value = ECMAScriptValue::from("test value for private identifier");
         private_field_add(&normal_object, pn.clone(), value.clone()).unwrap();
         let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object)), pn, true, None);
@@ -486,7 +486,7 @@ mod get_value {
     fn environment() {
         setup_test_agent();
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let global = ordinary_object_create(Some(object_proto), &[]);
+        let global = ordinary_object_create(Some(object_proto));
         let this_obj = global.clone();
         let env = GlobalEnvironmentRecord::new(global, this_obj, "test-global");
         let value = ECMAScriptValue::from("sentinel string for environment test");
@@ -584,7 +584,7 @@ mod put_value {
         let value = ECMAScriptValue::from("In my younger and more vulnerable years");
         let pn = PrivateName::new("test name");
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         private_field_add(&normal_object, pn.clone(), ECMAScriptValue::Undefined).unwrap();
         let reference =
             Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), pn.clone(), true, None);
@@ -607,7 +607,7 @@ mod put_value {
         setup_test_agent();
         let value = ECMAScriptValue::from("my father gave me some advice");
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         let key = PropertyKey::from("phrase");
         let reference =
             Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), key.clone(), true, None);
@@ -623,7 +623,7 @@ mod put_value {
         let value = ECMAScriptValue::from("that I’ve been turning over in my mind ever since.");
         let thrower = ECMAScriptValue::from(intrinsic(IntrinsicId::ThrowTypeError));
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         let key = PropertyKey::from("phrase");
         let reference =
             Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), key.clone(), true, None);
@@ -648,7 +648,7 @@ mod put_value {
         setup_test_agent();
         let value = ECMAScriptValue::from("“Whenever you feel like criticizing anyone,”");
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         let key = PropertyKey::from("phrase");
         define_property_or_throw(
             &normal_object,

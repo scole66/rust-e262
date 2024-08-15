@@ -66,7 +66,7 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //  * has a [[Prototype]] internal slot whose value is %Object.prototype%.
     //  * The phrase “this BigInt value” within the specification of a method refers to the result returned by calling
     //    the abstract operation ThisBigIntValue with the this value of the method invocation passed as the argument.
-    let bigint_prototype = ordinary_object_create(Some(object_prototype.clone()), &[]);
+    let bigint_prototype = ordinary_object_create(Some(object_prototype.clone()));
     define_property_or_throw(
         &bigint_constructor,
         "prototype",

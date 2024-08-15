@@ -76,9 +76,6 @@ impl ObjectInterface for ArgumentsObject {
     fn id(&self) -> usize {
         self.common.borrow().objid
     }
-    fn is_arguments_object(&self) -> bool {
-        true
-    }
     fn kind(&self) -> ObjectTag {
         ObjectTag::Arguments
     }

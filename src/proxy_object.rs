@@ -1095,7 +1095,7 @@ fn proxy_revocable(
     let proxy = to_object(proxy_create(target, handler)?).expect("Proxy should already be an object");
     let revoker =
         BuiltinFunctionWithRevokableProxySlot::create(revoker_closure, 0.0, PropertyKey::from(""), proxy.clone());
-    let result = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+    let result = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
     result.create_data_property_or_throw("proxy", proxy)?;
     result.create_data_property_or_throw("revoke", revoker)?;
     Ok(ECMAScriptValue::Object(result))

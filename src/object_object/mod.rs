@@ -236,7 +236,7 @@ fn object_constructor_function(
         if let Some(afo) = active_function_object() {
             if *nt != afo {
                 return nt
-                    .ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, &[])
+                    .ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, ordinary_object_create)
                     .map(ECMAScriptValue::from);
             }
         }
@@ -244,7 +244,7 @@ fn object_constructor_function(
     let mut args = FuncArgs::from(arguments);
     let value = args.next_arg();
     let obj = if value.is_null() || value.is_undefined() {
-        ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[])
+        ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)))
     } else {
         to_object(value).unwrap()
     };
@@ -321,7 +321,7 @@ fn object_create(
         }
     };
     let properties = args.next_arg();
-    let obj = ordinary_object_create(o, &[]);
+    let obj = ordinary_object_create(o);
     if properties.is_undefined() {
         Ok(ECMAScriptValue::from(obj))
     } else {
@@ -535,7 +535,7 @@ fn object_from_entries(
     let iterable = args.next_arg();
     require_object_coercible(&iterable)?;
     let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(obj_proto), &[]);
+    let obj = ordinary_object_create(Some(obj_proto));
     let closure = |this: &ECMAScriptValue, _: Option<&Object>, args: &[ECMAScriptValue]| {
         let this_obj = Object::try_from(this).expect("'this' should be an object");
         let mut args = FuncArgs::from(args);
@@ -598,7 +598,7 @@ fn object_get_own_property_descriptors(
     let obj = to_object(o)?;
     let own_keys = obj.o.own_property_keys()?;
     let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let descriptors = ordinary_object_create(Some(object_proto), &[]);
+    let descriptors = ordinary_object_create(Some(object_proto));
     for key in own_keys {
         let desc = obj.o.get_own_property(&key)?;
         let descriptor = from_property_descriptor(desc);

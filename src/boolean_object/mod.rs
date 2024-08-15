@@ -168,9 +168,8 @@ impl BooleanObject {
 impl From<bool> for Object {
     fn from(b: bool) -> Self {
         let constructor = intrinsic(IntrinsicId::Boolean);
-        let o = constructor
-            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, &[InternalSlotName::BooleanData])
-            .unwrap();
+        let o =
+            constructor.ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, BooleanObject::object).unwrap();
         *o.o.to_boolean_obj().unwrap().boolean_data().borrow_mut() = b;
         o
     }
@@ -314,8 +313,7 @@ fn boolean_constructor_function(
     match new_target {
         None => Ok(b.into()),
         Some(obj) => {
-            let o =
-                obj.ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, &[InternalSlotName::BooleanData])?;
+            let o = obj.ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, BooleanObject::object)?;
             let bool_obj = o.o.to_boolean_obj().expect("we just crafted a boolean object");
             *bool_obj.boolean_data().borrow_mut() = b;
             Ok(o.into())

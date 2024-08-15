@@ -4,13 +4,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 pub trait NumberObjectInterface: ObjectInterface {
-    fn number_data(&self) -> &RefCell<f64>;
+    fn number_data(&self) -> &f64;
 }
 
 #[derive(Debug)]
 pub struct NumberObject {
     common: RefCell<CommonObjectData>,
-    number_data: RefCell<f64>,
+    number_data: f64,
 }
 
 impl<'a> From<&'a NumberObject> for &'a dyn ObjectInterface {
@@ -142,20 +142,17 @@ impl ObjectInterface for NumberObject {
 }
 
 impl NumberObjectInterface for NumberObject {
-    fn number_data(&self) -> &RefCell<f64> {
+    fn number_data(&self) -> &f64 {
         &self.number_data
     }
 }
 
 impl NumberObject {
-    pub fn new(prototype: Option<Object>) -> Self {
-        Self {
-            common: RefCell::new(CommonObjectData::new(prototype, true, NUMBER_OBJECT_SLOTS)),
-            number_data: RefCell::new(0_f64),
-        }
+    pub fn new(prototype: Option<Object>, number: f64) -> Self {
+        Self { common: RefCell::new(CommonObjectData::new(prototype, true, NUMBER_OBJECT_SLOTS)), number_data: number }
     }
-    pub fn object(prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self::new(prototype)) }
+    pub fn object(prototype: Option<Object>, number: f64) -> Object {
+        Object { o: Rc::new(Self::new(prototype, number)) }
     }
 }
 
@@ -308,7 +305,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // The initial value of Number.prototype is the Number prototype object.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    let number_prototype = ordinary_object_create(Some(object_prototype), &[InternalSlotName::NumberData]);
+    let number_prototype = NumberObject::object(Some(object_prototype), 0.0);
     constructor_data!(&number_prototype, "prototype");
 
     // Properties of the Number Prototype Object
@@ -383,11 +380,9 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
 impl From<f64> for Object {
     fn from(n: f64) -> Self {
         let constructor = intrinsic(IntrinsicId::Number);
-        let o = constructor
-            .ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])
-            .unwrap();
-        *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
-        o
+        constructor
+            .ordinary_create_from_constructor(IntrinsicId::NumberPrototype, |proto| NumberObject::object(proto, n))
+            .unwrap()
     }
 }
 
@@ -425,9 +420,9 @@ fn number_constructor_function(
     match new_target {
         None => Ok(ECMAScriptValue::from(n)),
         Some(nt) => {
-            let o =
-                nt.ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])?;
-            *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
+            let o = nt.ordinary_create_from_constructor(IntrinsicId::NumberPrototype, |proto| {
+                NumberObject::object(proto, n)
+            })?;
             Ok(ECMAScriptValue::from(o))
         }
     }
@@ -529,7 +524,7 @@ fn number_is_safe_integer(
 fn this_number_value(value: &ECMAScriptValue) -> Completion<f64> {
     match value {
         ECMAScriptValue::Number(x) => Some(*x),
-        ECMAScriptValue::Object(o) => o.o.to_number_obj().map(|no| *no.number_data().borrow()),
+        ECMAScriptValue::Object(o) => o.o.to_number_obj().map(|no| *no.number_data()),
         _ => None,
     }
     .ok_or_else(|| create_type_error("Number method called with non-number receiver"))

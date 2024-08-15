@@ -69,7 +69,7 @@ fn this_boolean_value_05() {
 fn this_boolean_value_06() {
     setup_test_agent();
     let proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let other_obj = ordinary_object_create(Some(proto), &[]);
+    let other_obj = ordinary_object_create(Some(proto));
     let result = this_boolean_value(&ECMAScriptValue::Object(other_obj));
     assert!(result.is_err());
     let msg = unwind_type_error(result.unwrap_err());
@@ -194,7 +194,6 @@ fn bool_object_checks() {
     assert_eq!(bool_obj.o.is_callable_obj(), false);
     assert_eq!(bool_obj.o.is_string_object(), false);
     assert_eq!(bool_obj.o.is_regexp_object(), false);
-    assert_eq!(bool_obj.o.is_arguments_object(), false);
     assert!(bool_obj.o.to_function_obj().is_none());
     assert!(bool_obj.o.to_builtin_function_obj().is_none());
     assert_eq!(bool_obj.o.is_date_object(), false);

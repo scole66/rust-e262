@@ -101,7 +101,7 @@ mod normal_completion {
         #[test]
         fn object() {
             setup_test_agent();
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             let nc = NormalCompletion::from(obj.clone());
 
             if let NormalCompletion::Value(ECMAScriptValue::Object(result)) = nc {
@@ -245,7 +245,7 @@ mod normal_completion {
 
         #[test_case(
             || {
-                let iterator = ordinary_object_create(None, &[]);
+                let iterator = ordinary_object_create(None);
                 iterator.create_data_property_or_throw("sentinel", 3939).unwrap();
                 let next_method = intrinsic(IntrinsicId::ThrowTypeError);
                 let done = Cell::new(true);
@@ -289,7 +289,7 @@ mod normal_completion {
             #[test]
             fn actual() {
                 setup_test_agent();
-                let obj = ordinary_object_create(None, &[]);
+                let obj = ordinary_object_create(None);
                 let val = ECMAScriptValue::from(obj.clone());
                 let nc = NormalCompletion::from(val);
                 let extracted: Object = nc.try_into().unwrap();

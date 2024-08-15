@@ -311,7 +311,7 @@ where
 //      a. Perform ! CreateDataPropertyOrThrow(obj, "configurable", Desc.[[Configurable]]).
 //  10. Return obj.
 fn fpd(d: PotentialPropertyDescriptor) -> Object {
-    let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+    let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
     if let Some(value) = d.value {
         obj.create_data_property_or_throw("value", value).unwrap();
     }
@@ -1183,9 +1183,6 @@ pub trait ObjectInterface: Debug {
     fn kind(&self) -> ObjectTag {
         ObjectTag::Object
     }
-    fn is_arguments_object(&self) -> bool {
-        false
-    }
     fn is_callable_obj(&self) -> bool {
         false
     }
@@ -1792,13 +1789,13 @@ pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Op
     } else if slot_match(ERROR_OBJECT_SLOTS, &slot_set) {
         ErrorObject::object(prototype)
     } else if slot_match(NUMBER_OBJECT_SLOTS, &slot_set) {
-        NumberObject::object(prototype)
+        panic!("More items are needed for initialization. Use NumberObject::object directly instead")
     } else if slot_match(ARRAY_OBJECT_SLOTS, &slot_set) {
         ArrayObject::object(prototype)
     } else if slot_match(SYMBOL_OBJECT_SLOTS, &slot_set) {
-        SymbolObject::object(prototype)
+        //SymbolObject::object(prototype)
+        panic!("More items are needed for initialization. Use SymbolObject::object directly instead")
     } else if slot_match(FUNCTION_OBJECT_SLOTS, &slot_set) {
-        //FunctionObject::object(prototype)
         panic!("More items are needed for initialization. Use FunctionObject::object directly instead")
     } else if slot_match(ARGUMENTS_OBJECT_SLOTS, &slot_set) {
         panic!("Additional info needed for arguments object; use direct constructor");
@@ -2395,11 +2392,8 @@ pub fn enumerable_own_properties(obj: &Object, kind: KeyValueKind) -> Completion
 //          to create an ordinary object, and not an exotic one. Thus, within this specification, it is not called by
 //          any algorithm that subsequently modifies the internal methods of the object in ways that would make the
 //          result non-ordinary. Operations that create exotic objects invoke MakeBasicObject directly.
-pub fn ordinary_object_create(proto: Option<Object>, additional_internal_slots_list: &[InternalSlotName]) -> Object {
-    let mut slots = vec![InternalSlotName::Prototype, InternalSlotName::Extensible];
-    slots.extend_from_slice(additional_internal_slots_list);
-    let o = make_basic_object(slots.as_slice(), proto);
-    o
+pub fn ordinary_object_create(proto: Option<Object>) -> Object {
+    Object::new(proto, true)
 }
 
 // OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] )
@@ -2419,10 +2413,11 @@ impl Object {
     pub fn ordinary_create_from_constructor(
         &self,
         intrinsic_default_proto: IntrinsicId,
-        internal_slots_list: &[InternalSlotName],
+        factory: impl FnOnce(Option<Object>) -> Object,
     ) -> Completion<Object> {
         let proto = self.get_prototype_from_constructor(intrinsic_default_proto)?;
-        Ok(ordinary_object_create(Some(proto), internal_slots_list))
+        //Ok(ordinary_object_create(Some(proto)))
+        Ok(factory(Some(proto)))
     }
 }
 

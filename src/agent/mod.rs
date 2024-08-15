@@ -373,7 +373,7 @@ pub fn set_variable_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
 pub fn set_realm_global_object(global_obj: Option<Object>, this_value: Option<Object>) {
     let go = global_obj.unwrap_or_else(|| {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        ordinary_object_create(Some(object_proto), &[])
+        ordinary_object_create(Some(object_proto))
     });
     let tv = this_value.unwrap_or_else(|| go.clone());
     let realm_ref = current_realm_record().unwrap();
@@ -1578,7 +1578,7 @@ mod insn_impl {
     }
     pub fn object() -> anyhow::Result<()> {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let o = ordinary_object_create(Some(obj_proto), &[]);
+        let o = ordinary_object_create(Some(obj_proto));
         push_value(ECMAScriptValue::Object(o))
     }
     pub fn array() -> anyhow::Result<()> {
@@ -2108,7 +2108,7 @@ mod insn_impl {
         );
         super::set_function_name(&closure, name.clone().into(), None);
         let generator_function_prototype_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-        let prototype = ordinary_object_create(Some(generator_function_prototype_prototype), &[]);
+        let prototype = ordinary_object_create(Some(generator_function_prototype_prototype));
         define_property_or_throw(
             &closure,
             "prototype",
@@ -2959,8 +2959,9 @@ mod insn_impl {
         //  3. Set G.[[GeneratorBrand]] to EMPTY.
         //  4. Perform GeneratorStart(G, FunctionBody).
         let func = pop_obj()?;
-        let g_res = func
-            .ordinary_create_from_constructor(IntrinsicId::GeneratorFunctionPrototypePrototype, GENERATOR_OBJECT_SLOTS);
+        let g_res = func.ordinary_create_from_constructor(IntrinsicId::GeneratorFunctionPrototypePrototype, |proto| {
+            GeneratorObject::object(proto, GeneratorState::Undefined, "")
+        });
         push_completion(g_res.clone().map(NormalCompletion::from)).expect(PUSHABLE);
         if let Ok(g_obj) = g_res.as_ref() {
             let g = g_obj.o.to_generator_object().ok_or(InternalRuntimeError::GeneratorExpected)?;
@@ -3025,7 +3026,7 @@ mod insn_impl {
         super::set_function_name(&closure, name.into(), None);
 
         let gfpp = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-        let prototype = ordinary_object_create(Some(gfpp), &[]);
+        let prototype = ordinary_object_create(Some(gfpp));
         let desc =
             PotentialPropertyDescriptor::new().value(prototype).writable(true).enumerable(false).configurable(false);
         define_property_or_throw(&closure, "prototype", desc).expect("simple property definition works");
@@ -4435,7 +4436,7 @@ pub fn provision_for_in_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
     //  * is never directly accessible to ECMAScript code.
 
     let iterator_prototype = realm.borrow().intrinsics.iterator_prototype.clone();
-    let for_in_iterator_prototype = ordinary_object_create(Some(iterator_prototype), &[]);
+    let for_in_iterator_prototype = ordinary_object_create(Some(iterator_prototype));
 
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
     macro_rules! prototype_function {

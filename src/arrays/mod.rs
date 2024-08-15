@@ -559,7 +559,7 @@ pub fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // * is an ordinary object.
     // * has a [[Prototype]] internal slot whose value is %IteratorPrototype%.
     let iterator_prototype = realm.borrow().intrinsics.iterator_prototype.clone();
-    let array_iterator_prototype = ordinary_object_create(Some(iterator_prototype), &[]);
+    let array_iterator_prototype = ordinary_object_create(Some(iterator_prototype));
 
     // %ArrayIteratorPrototype% [ @@toStringTag ]
     // The initial value of the @@toStringTag property is the String value "Array Iterator".

@@ -39,7 +39,6 @@ mod string_object {
         assert_eq!(*sobj.string_data.borrow(), JSString::from("orange"));
     }
 
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
     false_function!(is_callable_obj);
@@ -655,7 +654,7 @@ mod provision_string_intrinsic {
 #[test_case(|| ECMAScriptValue::from("blue") => sok("blue"); "string value")]
 #[test_case(|| ECMAScriptValue::from(Object::from(JSString::from("red"))) => sok("red"); "string object value")]
 #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: unit testing requires that 'this' be a String"); "bad value")]
-#[test_case(|| ECMAScriptValue::from(ordinary_object_create(None, &[])) => serr("TypeError: unit testing requires that 'this' be a String"); "bad object value")]
+#[test_case(|| ECMAScriptValue::from(ordinary_object_create(None)) => serr("TypeError: unit testing requires that 'this' be a String"); "bad object value")]
 fn this_string_value(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
     setup_test_agent();
     let val = make_val();

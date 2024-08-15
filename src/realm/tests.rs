@@ -226,7 +226,7 @@ mod intrinsics {
     #[test_case(|| intrinsic(IntrinsicId::TypeErrorPrototype) => Some(IntrinsicId::TypeErrorPrototype); "id: TypeErrorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::URIError) => Some(IntrinsicId::URIError); "id: URIError")]
     #[test_case(|| intrinsic(IntrinsicId::URIErrorPrototype) => Some(IntrinsicId::URIErrorPrototype); "id: URIErrorPrototype")]
-    #[test_case(|| ordinary_object_create(None, &[]) => None; "not an intrinsic")]
+    #[test_case(|| ordinary_object_create(None) => None; "not an intrinsic")]
     fn which(make_object: fn() -> Object) -> Option<IntrinsicId> {
         setup_test_agent();
         let obj = make_object();

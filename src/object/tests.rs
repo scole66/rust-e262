@@ -582,7 +582,7 @@ mod potential_property_descriptor {
     #[test_case(|| JSString::from("jsstring") => "jsstring"; "value is JSString")]
     #[test_case(|| ECMAScriptValue::Null => "null"; "value is ECMAScriptValue")]
     #[test_case(|| true => "true"; "value is boolean")]
-    #[test_case(|| { let o = ordinary_object_create(None, &[]); o.set("propkey", "propvalue", true).unwrap(); o } => "propkey:propvalue"; "value is object")]
+    #[test_case(|| { let o = ordinary_object_create(None); o.set("propkey", "propvalue", true).unwrap(); o } => "propkey:propvalue"; "value is object")]
     fn value<T>(maker: impl FnOnce() -> T) -> String
     where
         T: Into<ECMAScriptValue>,
@@ -591,7 +591,7 @@ mod potential_property_descriptor {
         let val = maker();
         PotentialPropertyDescriptor::new().value(val).value.unwrap().test_result_string()
     }
-    #[test_case(|| { let o = ordinary_object_create(None, &[]); o.set("propkey", "propvalue", true).unwrap(); o } => "propkey:propvalue"; "value is object")]
+    #[test_case(|| { let o = ordinary_object_create(None); o.set("propkey", "propvalue", true).unwrap(); o } => "propkey:propvalue"; "value is object")]
     #[test_case(|| true => "true"; "value is bool")]
     fn ppd_set<T>(maker: impl FnOnce() -> T) -> String
     where
@@ -743,7 +743,7 @@ fn is_generic_descriptor_01() {
 fn ordinary_get_prototype_of_01() {
     setup_test_agent();
     let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto.clone()), &[]);
+    let obj = ordinary_object_create(Some(object_proto.clone()));
 
     let result = ordinary_get_prototype_of(&obj);
     assert_eq!(result, Some(object_proto));
@@ -762,16 +762,16 @@ mod ordinary_set_prototype_of {
         || {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
             object_proto.create_data_property("sentinel", "original").unwrap();
-            let new_proto = ordinary_object_create(Some(object_proto.clone()), &[]);
+            let new_proto = ordinary_object_create(Some(object_proto.clone()));
             new_proto.create_data_property("sentinel", "replacement").unwrap();
-            let obj = ordinary_object_create(Some(object_proto), &[]);
+            let obj = ordinary_object_create(Some(object_proto));
             (obj, Some(new_proto))
         }
         => (true, Some("replacement".to_string()));
         "straightforward ordinary"
     )]
     #[test_case(
-        || (ordinary_object_create(None, &[]), None)
+        || (ordinary_object_create(None), None)
         => (true, None);
         "none replaced with none"
     )]
@@ -779,7 +779,7 @@ mod ordinary_set_prototype_of {
         || {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
             object_proto.create_data_property("sentinel", "original").unwrap();
-            let obj = ordinary_object_create(Some(object_proto.clone()), &[]);
+            let obj = ordinary_object_create(Some(object_proto.clone()));
             (obj, Some(object_proto))
         }
         => (true, Some("original".to_string()));
@@ -789,7 +789,7 @@ mod ordinary_set_prototype_of {
         || {
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
             proto.create_data_property("sentinel", "intrinsic").unwrap();
-            (ordinary_object_create(None, &[]), Some(intrinsic(IntrinsicId::ObjectPrototype)))
+            (ordinary_object_create(None), Some(intrinsic(IntrinsicId::ObjectPrototype)))
         }
         => (true, ssome("intrinsic"));
         "missing proto replaced by intrinsic"
@@ -798,7 +798,7 @@ mod ordinary_set_prototype_of {
         || {
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
             proto.create_data_property("sentinel", "intrinsic").unwrap();
-            let obj = ordinary_object_create(Some(proto), &[]);
+            let obj = ordinary_object_create(Some(proto));
             obj.o.prevent_extensions().unwrap();
             (obj, None)
         }
@@ -809,7 +809,7 @@ mod ordinary_set_prototype_of {
         || {
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
             proto.create_data_property("sentinel", "intrinsic").unwrap();
-            let obj = ordinary_object_create(Some(proto), &[]);
+            let obj = ordinary_object_create(Some(proto));
             (obj.clone(), Some(obj))
         }
         => (false, ssome("intrinsic"));
@@ -849,7 +849,7 @@ mod ordinary_set_prototype_of {
         "using AdaptableObject"
     )]
     #[test_case(|| (ArrayObject::new(None), None) => (true, None); "using ArrayObject")]
-    #[test_case(|| (NumberObject::new(None), None) => (true, None); "using NumberObject")]
+    #[test_case(|| (NumberObject::new(None, 0.0), None) => (true, None); "using NumberObject")]
     #[test_case(
         || (ForInIteratorObject::new(None, intrinsic(IntrinsicId::ObjectPrototype)), None)
         => (true, None);
@@ -862,7 +862,7 @@ mod ordinary_set_prototype_of {
     )]
     #[test_case(|| (ArgumentsObject::new(None, None), None) => (true, None); "using ArgumentsObject")]
     #[test_case(|| (BooleanObject::new(None), None) => (true, None); "using BooleanObject")]
-    #[test_case(|| (SymbolObject::new(None), None) => (true, None); "using SymbolObject")]
+    #[test_case(|| (SymbolObject::new(None, wks(WksId::ToStringTag)), None) => (true, None); "using SymbolObject")]
     #[test_case(
         || (GeneratorObject::new(None, GeneratorState::Undefined, ""), None)
         => (true, None);
@@ -885,7 +885,7 @@ mod ordinary_set_prototype_of {
 fn ordinary_is_extensible_01() {
     setup_test_agent();
     let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
+    let obj = ordinary_object_create(Some(object_proto));
 
     let result = ordinary_is_extensible(&obj);
     assert!(result);
@@ -904,7 +904,7 @@ mod ordinary_prevent_extensions {
         Ok(ECMAScriptValue::Undefined)
     }
 
-    #[test_case(|| ordinary_object_create(None, &[]) => (true, false); "normal")]
+    #[test_case(|| ordinary_object_create(None) => (true, false); "normal")]
     #[test_case(|| AdaptableObject::new(None, &AdaptableMethods::default()) => (true, false); "with AdaptableObject")]
     #[test_case(|| StringObject::new("".into(), None) => (true, false); "with StringObject")]
     #[test_case(
@@ -918,8 +918,8 @@ mod ordinary_prevent_extensions {
     #[test_case(|| ImmutablePrototypeExoticObject::new(None) => (true, false); "with ImmutablePrototypeExoticObject")]
     #[test_case(|| TestObject::new(None, &[]) => (true, false); "with TestObject")]
     #[test_case(|| ErrorObject::new(None) => (true, false); "with ErrorObject")]
-    #[test_case(|| NumberObject::new(None) => (true, false); "with NumberObject")]
-    #[test_case(|| SymbolObject::new(None) => (true, false); "with SymbolObject")]
+    #[test_case(|| NumberObject::new(None, 0.0) => (true, false); "with NumberObject")]
+    #[test_case(|| SymbolObject::new(None, wks(WksId::ToStringTag)) => (true, false); "with SymbolObject")]
     #[test_case(|| OrdinaryObject::new(None, true) => (true, false); "with OrdinaryObject")]
     #[test_case(|| GeneratorObject::new(None, GeneratorState::Undefined, "") => (true, false); "with GeneratorObject")]
     #[test_case(|| FunctionObject::new(
@@ -963,7 +963,7 @@ mod ordinary_prevent_extensions {
 fn ordinary_get_own_property_01() {
     setup_test_agent();
     let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
+    let obj = ordinary_object_create(Some(object_proto));
     let key = PropertyKey::from("a");
 
     let result = ordinary_get_own_property(&obj, &key);
@@ -973,7 +973,7 @@ fn ordinary_get_own_property_01() {
 fn ordinary_get_own_property_02() {
     setup_test_agent();
     let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
+    let obj = ordinary_object_create(Some(object_proto));
     let key = PropertyKey::from("a");
     let ppd = PotentialPropertyDescriptor {
         value: Some(ECMAScriptValue::from(10)),
@@ -1004,7 +1004,7 @@ mod ordinary_define_own_property {
     }
 
     #[test_case(
-        || ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]),
+        || ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype))),
         || "a",
         || PotentialPropertyDescriptor::new().value(10).writable(true).enumerable(true).configurable(true)
         => Ok((true, ssome("value:10,writable:true,enumerable:true,configurable:true")));
@@ -1012,7 +1012,7 @@ mod ordinary_define_own_property {
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             obj.o.prevent_extensions().unwrap();
             obj
         },
@@ -1023,7 +1023,7 @@ mod ordinary_define_own_property {
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             obj.create_data_property("a", 10).unwrap();
             obj
         },
@@ -1128,7 +1128,7 @@ mod ordinary_define_own_property {
         "using FunctionObject"
     )]
     #[test_case(
-        || NumberObject::new(None),
+        || NumberObject::new(None, 0.0),
         || PropertyKey::from("pk"),
         || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
         => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
@@ -1156,7 +1156,7 @@ mod ordinary_define_own_property {
         "using StringObject"
     )]
     #[test_case(
-        || SymbolObject::new(None),
+        || SymbolObject::new(None, wks(WksId::ToStringTag)),
         || PropertyKey::from("pk"),
         || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
         => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
@@ -1222,7 +1222,7 @@ fn validate_and_apply_property_descriptor_03() {
     // current Undefined; empty descriptor
     setup_test_agent();
     let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
+    let obj = ordinary_object_create(Some(object_proto));
     let ppd = PotentialPropertyDescriptor { ..Default::default() };
     let key = PropertyKey::from("key");
 
@@ -1239,7 +1239,7 @@ fn validate_and_apply_property_descriptor_04() {
     // current Undefined; overfull descriptor
     setup_test_agent();
     let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
+    let obj = ordinary_object_create(Some(object_proto));
     let ppd = PotentialPropertyDescriptor {
         value: Some(ECMAScriptValue::from(true)),
         writable: Some(true),
@@ -1263,7 +1263,7 @@ fn validate_and_apply_property_descriptor_05() {
     // current Undefined; accessor descriptor
     setup_test_agent();
     let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
+    let obj = ordinary_object_create(Some(object_proto));
     let ppd = PotentialPropertyDescriptor {
         enumerable: Some(true),
         configurable: Some(true),
@@ -1292,7 +1292,7 @@ fn validate_and_apply_property_descriptor_06() {
     // object Undefined; current reasonable; any valid input
     setup_test_agent();
     let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
+    let obj = ordinary_object_create(Some(object_proto));
     let existing = PotentialPropertyDescriptor {
         value: Some(ECMAScriptValue::from(99)),
         writable: Some(true),
@@ -1639,7 +1639,7 @@ fn figure_expectation(
 fn validate_and_apply_property_descriptor_many() {
     setup_test_agent();
     let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_proto), &[]);
+    let obj = ordinary_object_create(Some(object_proto));
     for (name, ppd) in VAPDIter::new() {
         for (idx, _) in VAPDCheck::new().enumerate() {
             let key = PropertyKey::from(format!("{name}-{idx}"));
@@ -1703,7 +1703,7 @@ mod ordinary_has_property {
     #[test_case(
         || {
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let obj = ordinary_object_create(Some(proto), &[]);
+            let obj = ordinary_object_create(Some(proto));
             (obj, PropertyKey::from("not_actually_a_key"))
         }
         => Ok(false);
@@ -1716,14 +1716,14 @@ mod ordinary_has_property {
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.set("test_key", "value", true).unwrap();
             (obj, PropertyKey::from("test_key"))
         }
         => Ok(true);
         "Property exists"
     )]
-    #[test_case(|| setup(NumberObject::new(None)) => Ok(true); "using NumberObject")]
+    #[test_case(|| setup(NumberObject::new(None, 0.0)) => Ok(true); "using NumberObject")]
     #[test_case(
         || setup(ForInIteratorObject::new(None, intrinsic(IntrinsicId::Object)))
         => Ok(true);
@@ -1737,7 +1737,7 @@ mod ordinary_has_property {
     #[test_case(|| setup(OrdinaryObject::new(None, true)) => Ok(true); "using OrdinaryObject")]
     #[test_case(|| setup(ArrayObject::new(None)) => Ok(true); "using ArrayObject")]
     #[test_case(|| setup(BooleanObject::new(None)) => Ok(true); "using BooleanObject")]
-    #[test_case(|| setup(SymbolObject::new(None)) => Ok(true); "using SymbolObject")]
+    #[test_case(|| setup(SymbolObject::new(None, wks(WksId::ToStringTag))) => Ok(true); "using SymbolObject")]
     #[test_case(
         || setup(BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, steps, false))
         => Ok(true);
@@ -1854,7 +1854,7 @@ mod ordinary_get {
     #[test_case(
         || {
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
-            withoutprop(ordinary_object_create(Some(proto), &[]))
+            withoutprop(ordinary_object_create(Some(proto)))
         }
         => sok("undefined");
         "has proto, but not in proto chain"
@@ -1863,7 +1863,7 @@ mod ordinary_get {
         || {
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
             proto.set("test_key", "thirteen", true).unwrap();
-            withoutprop(ordinary_object_create(Some(proto), &[]))
+            withoutprop(ordinary_object_create(Some(proto)))
         }
         => sok("thirteen");
         "in proto chain"
@@ -1879,7 +1879,7 @@ mod ordinary_get {
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             let receiver = obj.clone();
             let ppd = PotentialPropertyDescriptor::new().get(ECMAScriptValue::Undefined);
             define_property_or_throw(&obj, "test_key", ppd).unwrap();
@@ -1890,9 +1890,9 @@ mod ordinary_get {
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("marker", "object-to-get-from").unwrap();
-            let receiver = ordinary_object_create(None, &[]);
+            let receiver = ordinary_object_create(None);
             receiver.create_data_property_or_throw("marker", "receiver-object").unwrap();
             let getter = cbf(steps);
             let ppd = PotentialPropertyDescriptor::new().get(getter);
@@ -1903,7 +1903,7 @@ mod ordinary_get {
         "getter defined"
     )]
     #[test_case(|| withoutprop(StringObject::new("a".into(), None)) => sok("undefined"); "using StringObject")]
-    #[test_case(|| withoutprop(NumberObject::new(None)) => sok("undefined"); "using NumberObject")]
+    #[test_case(|| withoutprop(NumberObject::new(None, 0.0)) => sok("undefined"); "using NumberObject")]
     #[test_case(|| withoutprop(BooleanObject::new(None)) => sok("undefined"); "using BooleanObject")]
     #[test_case(
         || withoutprop(GeneratorObject::new(None, GeneratorState::Undefined, ""))
@@ -1917,7 +1917,7 @@ mod ordinary_get {
         => sok("undefined");
         "using ImmutablePrototypeExoticObject"
     )]
-    #[test_case(|| withoutprop(SymbolObject::new(None)) => sok("undefined"); "using SymbolObject")]
+    #[test_case(|| withoutprop(SymbolObject::new(None, wks(WksId::ToStringTag))) => sok("undefined"); "using SymbolObject")]
     #[test_case(
         || withoutprop(ForInIteratorObject::new(None, intrinsic(IntrinsicId::StringPrototype)))
         => sok("undefined");
@@ -1973,7 +1973,7 @@ mod ordinary_set {
 
     fn setup<O>(obj: O) -> (O, PropertyKey, ECMAScriptValue, ECMAScriptValue) {
         let key = PropertyKey::from("test_key");
-        (obj, key, ECMAScriptValue::Undefined, ordinary_object_create(None, &[]).into())
+        (obj, key, ECMAScriptValue::Undefined, ordinary_object_create(None).into())
     }
 
     #[test_case(
@@ -1983,7 +1983,7 @@ mod ordinary_set {
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             (
                 obj.clone(),
                 PropertyKey::from("test_key"),
@@ -2046,12 +2046,12 @@ mod ordinary_set {
         "FunctionObject argument"
     )]
     #[test_case(
-        || setup(NumberObject::new(None))
+        || setup(NumberObject::new(None, 0.0))
         => Ok((true, "undefined".to_string()));
         "NumberObject argument"
     )]
     #[test_case(
-        || setup(SymbolObject::new(None))
+        || setup(SymbolObject::new(None, wks(WksId::ToStringTag)))
         => Ok((true, "undefined".to_string()));
         "SymbolObject argument"
     )]
@@ -2121,7 +2121,7 @@ fn ordinary_set_with_own_descriptor_02() {
     // If ownDesc is None, call [[Set]] on the parent. (We check by having the parent throw when we call its [[Set]].)
     setup_test_agent();
     let parent = TestObject::object(&[FunctionId::Set(None)]);
-    let obj = ordinary_object_create(Some(parent), &[]);
+    let obj = ordinary_object_create(Some(parent));
     let key = PropertyKey::from("a");
 
     let result = ordinary_set_with_own_descriptor(&obj, key, ECMAScriptValue::Undefined, &ECMAScriptValue::Null, None)
@@ -2132,7 +2132,7 @@ fn ordinary_set_with_own_descriptor_02() {
 fn ordinary_set_with_own_descriptor_03() {
     // ownDesc has writable:false; function should return false.
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let own_desc = PropertyDescriptor {
         property: PropertyKind::Data(DataProperty { writable: false, value: ECMAScriptValue::Undefined }),
         enumerable: true,
@@ -2150,7 +2150,7 @@ fn ordinary_set_with_own_descriptor_03() {
 fn ordinary_set_with_own_descriptor_04() {
     // Type(receiver) is not object -> return false
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(999);
@@ -2174,7 +2174,7 @@ fn ordinary_set_with_own_descriptor_05() {
 fn ordinary_set_with_own_descriptor_06() {
     // existing is an accessor
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(obj.clone());
@@ -2202,7 +2202,7 @@ fn ordinary_set_with_own_descriptor_06() {
 fn ordinary_set_with_own_descriptor_07() {
     // existing is read-only
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(obj.clone());
@@ -2228,7 +2228,7 @@ fn ordinary_set_with_own_descriptor_07() {
 fn ordinary_set_with_own_descriptor_08() {
     // existing exists
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(obj.clone());
@@ -2257,7 +2257,7 @@ fn ordinary_set_with_own_descriptor_08() {
 fn ordinary_set_with_own_descriptor_09() {
     // existing does not exist
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from("test sentinel");
     let receiver = ECMAScriptValue::from(obj.clone());
@@ -2292,7 +2292,7 @@ fn test_setter(
 fn ordinary_set_with_own_descriptor_10() {
     // own_desc is an accessor descriptor, with the above setter function
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from("test sentinel");
     let receiver = ECMAScriptValue::from(obj.clone());
@@ -2319,7 +2319,7 @@ fn ordinary_set_with_own_descriptor_10() {
 fn ordinary_set_with_own_descriptor_11() {
     // own_desc is an accessor descriptor, with a setter function that throws
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from("test sentinel");
     let receiver = ECMAScriptValue::from(obj.clone());
@@ -2341,7 +2341,7 @@ fn ordinary_set_with_own_descriptor_11() {
 fn ordinary_set_with_own_descriptor_12() {
     // own_desc is an accessor descriptor, with an undefined setter function
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let key = PropertyKey::from("a");
     let value = ECMAScriptValue::from("test sentinel");
     let receiver = ECMAScriptValue::from(obj.clone());
@@ -2374,13 +2374,13 @@ mod ordinary_delete {
         "[[GetOwnProperty]] throws"
     )]
     #[test_case(
-        || ordinary_object_create(None, &[]), "a"
+        || ordinary_object_create(None), "a"
         => Ok((true, String::new()));
         "property isn't actually there"
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             let ppd = PotentialPropertyDescriptor::new();
             define_property_or_throw(&obj, "key", ppd).unwrap();
             obj
@@ -2391,7 +2391,7 @@ mod ordinary_delete {
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("key", "normal").unwrap();
             obj.create_data_property_or_throw("alt", "sticks around").unwrap();
             obj
@@ -2406,8 +2406,8 @@ mod ordinary_delete {
         => Ok((true, String::new()));
         "with GeneratorObject"
     )]
-    #[test_case(|| SymbolObject::new(None), "key" => Ok((true, String::new())); "with SymbolObject")]
-    #[test_case(|| NumberObject::new(None), "key" => Ok((true, String::new())); "with NumberObject")]
+    #[test_case(|| SymbolObject::new(None, wks(WksId::ToStringTag)), "key" => Ok((true, String::new())); "with SymbolObject")]
+    #[test_case(|| NumberObject::new(None, 0.0), "key" => Ok((true, String::new())); "with NumberObject")]
     #[test_case(|| ErrorObject::new(None), "key" => Ok((true, String::new())); "with ErrorObject")]
     #[test_case(|| TestObject::new(None, &[]), "key" => Ok((true, String::new())); "with TestObject")]
     #[test_case(
@@ -2491,7 +2491,7 @@ mod ordinary_own_property_keys {
     }
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             let sym1 = Symbol::new(Some(JSString::from("TestSymbol 1")));
             let sym2 = Symbol::new(Some(JSString::from("TestSymbol 2")));
             obj.create_data_property(sym1.clone(), ECMAScriptValue::Null).unwrap();
@@ -2518,7 +2518,7 @@ mod ordinary_own_property_keys {
             ]);
         "many keys"
     )]
-    #[test_case(|| ordinary_object_create(None, &[]) => svec(&[]); "empty object")]
+    #[test_case(|| ordinary_object_create(None) => svec(&[]); "empty object")]
     #[test_case(|| ArgumentsObject::new(None, None) => svec(&[]); "ArgumentsObject")]
     #[test_case(|| ErrorObject::new(None) => svec(&[]); "ErrorObject")]
     #[test_case(
@@ -2552,12 +2552,12 @@ mod ordinary_own_property_keys {
         => svec(&[]);
         "FunctionObject")]
     #[test_case(|| BooleanObject::new(None) => svec(&[]); "BooleanObject")]
-    #[test_case(|| NumberObject::new(None) => svec(&[]); "NumberObject")]
+    #[test_case(|| NumberObject::new(None, 0.0) => svec(&[]); "NumberObject")]
     #[test_case(|| GeneratorObject::new(None, GeneratorState::Undefined, "") => svec(&[]); "GeneratorObject")]
     #[test_case(|| TestObject::new(None, &[]) => svec(&[]); "TestObject")]
     #[test_case(|| ArrayObject::new(None) => svec(&[]); "ArrayObject")]
     #[test_case(|| ImmutablePrototypeExoticObject::new(None) => svec(&[]); "ImmutablePrototypeExoticObject")]
-    #[test_case(|| SymbolObject::new(None) => svec(&[]); "SymbolObject")]
+    #[test_case(|| SymbolObject::new(None, wks(WksId::ToStringTag)) => svec(&[]); "SymbolObject")]
     #[test_case(
         || ForInIteratorObject::new(None, intrinsic(IntrinsicId::StringPrototype))
         => svec(&[]);
@@ -2594,63 +2594,56 @@ fn array_index_key_03() {
 #[test]
 fn object_interface_to_boolean_obj() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
 
     assert!(obj.o.to_boolean_obj().is_none());
 }
 #[test]
 fn object_interface_to_function_obj() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
 
     assert!(obj.o.to_function_obj().is_none());
 }
 #[test]
 fn object_interface_to_callable_obj() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
 
     assert!(obj.o.to_callable_obj().is_none());
 }
 #[test]
 fn object_interface_to_builtin_function_obj() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
 
     assert!(obj.o.to_builtin_function_obj().is_none());
 }
 #[test]
-fn object_interface_is_arguments_object() {
-    setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
-
-    assert!(!obj.o.is_arguments_object());
-}
-#[test]
 fn object_interface_is_callable_obj() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
 
     assert!(!obj.o.is_callable_obj());
 }
 #[test]
 fn object_interface_is_string_object() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
 
     assert!(!obj.o.is_string_object());
 }
 #[test]
 fn object_interface_is_date_object() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
 
     assert!(!obj.o.is_date_object());
 }
 #[test]
 fn object_interface_is_regexp_object() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
 
     assert!(!obj.o.is_regexp_object());
 }
@@ -2661,7 +2654,7 @@ fn ordinary_object_create_01() {
     setup_test_agent();
 
     // Then requesting a new object with no prototype or extra slots
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
 
     // Gives us the emptiest of all objects
     let data = obj.o.common_object_data().borrow();
@@ -2674,10 +2667,10 @@ fn ordinary_object_create_01() {
 fn ordinary_object_create_02() {
     // When an agent and a prototype are provided
     setup_test_agent();
-    let proto = ordinary_object_create(None, &[]);
+    let proto = ordinary_object_create(None);
 
     // Then requesting a new object with that prototype but no extra slots
-    let obj = ordinary_object_create(Some(proto.clone()), &[]);
+    let obj = ordinary_object_create(Some(proto.clone()));
 
     // Gives us an empty object with its prototype slot filled.
     let data = obj.o.common_object_data().borrow();
@@ -2687,63 +2680,14 @@ fn ordinary_object_create_02() {
     assert_ne!(obj, proto);
 }
 
-#[test]
-fn ordinary_object_create_03a() {
-    // When an agent and a prototype are provided
-    setup_test_agent();
-    let proto = ordinary_object_create(None, &[]);
-
-    // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
-    let obj = ordinary_object_create(Some(proto.clone()), &[InternalSlotName::Prototype]);
-
-    // Gives us an empty object with its prototype slot filled.
-    let data = obj.o.common_object_data().borrow();
-    assert_eq!(data.prototype.as_ref(), Some(&proto));
-    assert_eq!(data.extensible, true);
-    assert_eq!(data.properties.len(), 0);
-    assert_ne!(&obj, &proto);
-}
-#[test]
-fn ordinary_object_create_03b() {
-    // When an agent and a prototype are provided
-    setup_test_agent();
-    let proto = ordinary_object_create(None, &[]);
-
-    // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
-    let obj = ordinary_object_create(Some(proto.clone()), &[InternalSlotName::Extensible]);
-
-    // Gives us an empty object with its prototype slot filled.
-    let data = obj.o.common_object_data().borrow();
-    assert_eq!(data.prototype.as_ref(), Some(&proto));
-    assert_eq!(data.extensible, true);
-    assert_eq!(data.properties.len(), 0);
-    assert_ne!(&obj, &proto);
-}
-#[test]
-fn ordinary_object_create_03c() {
-    // When an agent and a prototype are provided
-    setup_test_agent();
-    let proto = ordinary_object_create(None, &[]);
-
-    // Then requesting a new object with that prototype and needlessly requesting prototype or extensible slots
-    let obj = ordinary_object_create(Some(proto.clone()), &[InternalSlotName::Prototype, InternalSlotName::Extensible]);
-
-    // Gives us an empty object with its prototype slot filled.
-    let data = obj.o.common_object_data().borrow();
-    assert_eq!(data.prototype.as_ref(), Some(&proto));
-    assert_eq!(data.extensible, true);
-    assert_eq!(data.properties.len(), 0);
-    assert_ne!(&obj, &proto);
-}
-
 #[test_case(&[InternalSlotName::Nonsense] => panics "Nonsense"; "all bad")]
 #[test_case(&[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible] => panics "Nonsense"; "one bad")]
 #[test_case(ORDINARY_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_plain_object()); "ordinary obj")]
 #[test_case(BOOLEAN_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.to_boolean_obj().is_some()); "boolean obj")]
 #[test_case(ERROR_OBJECT_SLOTS => with |obj: Object| assert!(obj.is_error_object()); "error obj")]
-#[test_case(NUMBER_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.to_number_obj().is_some()); "number obj")]
+#[test_case(NUMBER_OBJECT_SLOTS => panics "More items are needed for initialization. Use NumberObject::object directly instead"; "number obj")]
 #[test_case(ARRAY_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_array_object()); "array obj")]
-#[test_case(SYMBOL_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_symbol_object()); "symbol obj")]
+#[test_case(SYMBOL_OBJECT_SLOTS => panics "More items are needed for initialization. Use SymbolObject::object directly instead"; "symbol obj")]
 #[test_case(ARGUMENTS_OBJECT_SLOTS => panics "Additional info needed for arguments object; use direct constructor"; "args obj")]
 #[test_case(FUNCTION_OBJECT_SLOTS => panics "More items are needed for initialization. Use FunctionObject::object directly instead"; "function obj")]
 #[test_case(GENERATOR_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_generator_object()); "generator obj")]
@@ -2755,7 +2699,7 @@ fn make_basic_object(slots: &[InternalSlotName]) -> Object {
 #[test]
 fn get_prototype_of_01() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let result = obj.o.get_prototype_of();
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), None);
@@ -2763,8 +2707,8 @@ fn get_prototype_of_01() {
 #[test]
 fn get_prototype_of_02() {
     setup_test_agent();
-    let proto = ordinary_object_create(None, &[]);
-    let obj = ordinary_object_create(Some(proto.clone()), &[]);
+    let proto = ordinary_object_create(None);
+    let obj = ordinary_object_create(Some(proto.clone()));
     let result = obj.o.get_prototype_of();
     assert!(result.is_ok());
     assert_eq!(result.unwrap().as_ref(), Some(&proto));
@@ -2774,7 +2718,7 @@ fn get_prototype_of_02() {
 fn set_prototype_of_01() {
     // Not changing an empty prototype
     setup_test_agent();
-    let obj_a = ordinary_object_create(None, &[]);
+    let obj_a = ordinary_object_create(None);
     let result = obj_a.o.set_prototype_of(None);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
@@ -2784,8 +2728,8 @@ fn set_prototype_of_01() {
 fn set_prototype_of_02() {
     // Not changing a Some() prototype
     setup_test_agent();
-    let obj_a = ordinary_object_create(None, &[]);
-    let obj_b = ordinary_object_create(Some(obj_a.clone()), &[]);
+    let obj_a = ordinary_object_create(None);
+    let obj_b = ordinary_object_create(Some(obj_a.clone()));
     let result = obj_b.o.set_prototype_of(Some(obj_a.clone()));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
@@ -2795,9 +2739,9 @@ fn set_prototype_of_02() {
 fn set_prototype_of_03() {
     // Changing a Some() prototype to a different Some() prototype
     setup_test_agent();
-    let proto = ordinary_object_create(None, &[]);
-    let obj_b = ordinary_object_create(Some(proto), &[]);
-    let new_proto = ordinary_object_create(None, &[]);
+    let proto = ordinary_object_create(None);
+    let obj_b = ordinary_object_create(Some(proto));
+    let new_proto = ordinary_object_create(None);
     let result = obj_b.o.set_prototype_of(Some(new_proto.clone()));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
@@ -2807,8 +2751,8 @@ fn set_prototype_of_03() {
 fn set_prototype_of_04() {
     // Trying to make a prototype loop
     setup_test_agent();
-    let proto = ordinary_object_create(None, &[]);
-    let obj_b = ordinary_object_create(Some(proto.clone()), &[]);
+    let proto = ordinary_object_create(None);
+    let obj_b = ordinary_object_create(Some(proto.clone()));
     let result = proto.o.set_prototype_of(Some(obj_b));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
@@ -2818,10 +2762,10 @@ fn set_prototype_of_04() {
 fn set_prototype_of_05() {
     // Changing the prototype of an object that's not extensible
     setup_test_agent();
-    let proto = ordinary_object_create(None, &[]);
-    let obj_b = ordinary_object_create(Some(proto.clone()), &[]);
+    let proto = ordinary_object_create(None);
+    let obj_b = ordinary_object_create(Some(proto.clone()));
     obj_b.o.common_object_data().borrow_mut().extensible = false;
-    let new_proto = ordinary_object_create(None, &[]);
+    let new_proto = ordinary_object_create(None);
     let result = obj_b.o.set_prototype_of(Some(new_proto));
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), false);
@@ -2831,7 +2775,7 @@ fn set_prototype_of_05() {
 #[test]
 fn is_extensible_01() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let result = obj.o.is_extensible();
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
@@ -2839,7 +2783,7 @@ fn is_extensible_01() {
 #[test]
 fn is_extensible_02() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     obj.o.common_object_data().borrow_mut().extensible = false;
     let result = obj.o.is_extensible();
     assert!(result.is_ok());
@@ -2849,7 +2793,7 @@ fn is_extensible_02() {
 #[test]
 fn prevent_extensions_01() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let result = obj.o.prevent_extensions();
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), true);
@@ -2859,7 +2803,7 @@ fn prevent_extensions_01() {
 #[test]
 fn get_own_property_01() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let key = PropertyKey::String(JSString::from("blue"));
     let result = obj.o.get_own_property(&key);
     assert!(result.is_ok());
@@ -2868,7 +2812,7 @@ fn get_own_property_01() {
 #[test]
 fn get_own_property_02() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let key = PropertyKey::String(JSString::from("blue"));
     let value = ECMAScriptValue::Number(89.0);
     let desc = PotentialPropertyDescriptor {
@@ -2899,7 +2843,7 @@ fn get_own_property_02() {
 fn set_and_get() {
     setup_test_agent();
 
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let key = PropertyKey::String(JSString::from("blue"));
     let value = ECMAScriptValue::Number(56.7);
 
@@ -2916,7 +2860,7 @@ mod private_element_find {
     fn setup() -> (Object, Vec<PrivateName>) {
         setup_test_agent();
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(object_proto), &[]);
+        let obj = ordinary_object_create(Some(object_proto));
 
         let name1 = PrivateName::new("name1");
         let name2 = PrivateName::new("alice");
@@ -2972,7 +2916,7 @@ mod private_field_add {
 
     fn setup() -> (Object, Vec<PrivateName>) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(object_proto), &[]);
+        let obj = ordinary_object_create(Some(object_proto));
 
         let name1 = PrivateName::new("name1");
         let name2 = PrivateName::new("alice");
@@ -3034,7 +2978,7 @@ mod private_method_or_accessor_add {
 
     fn setup() -> (Object, PrivateName) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(object_proto), &[]);
+        let obj = ordinary_object_create(Some(object_proto));
 
         let name = PrivateName::new("name1");
 
@@ -3086,7 +3030,7 @@ mod private_get {
 
     fn setup() -> (Object, PrivateName, PrivateName, PrivateName, PrivateName) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(object_proto), &[]);
+        let obj = ordinary_object_create(Some(object_proto));
 
         let field_name = PrivateName::new("field");
         let method_name = PrivateName::new("method");
@@ -3166,7 +3110,7 @@ mod private_set {
 
     fn setup() -> (Object, PrivateName, PrivateName, PrivateName, PrivateName, PrivateName) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(object_proto), &[]);
+        let obj = ordinary_object_create(Some(object_proto));
 
         let field_name = PrivateName::new("field");
         let method_name = PrivateName::new("method");
@@ -3350,7 +3294,7 @@ mod to_property_descriptor {
     use test_case::test_case;
 
     fn happy_data() -> ECMAScriptValue {
-        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
         obj.create_data_property_or_throw("value", "blue").unwrap();
         obj.create_data_property_or_throw("writable", true).unwrap();
         obj.create_data_property_or_throw("enumerable", true).unwrap();
@@ -3358,7 +3302,7 @@ mod to_property_descriptor {
         ECMAScriptValue::from(obj)
     }
     fn fcn_data() -> ECMAScriptValue {
-        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
         obj.create_data_property_or_throw("get", ECMAScriptValue::Undefined).unwrap();
         obj.create_data_property_or_throw("set", ECMAScriptValue::Undefined).unwrap();
         obj.create_data_property_or_throw("enumerable", true).unwrap();
@@ -3403,7 +3347,7 @@ mod to_property_descriptor {
     fn create_getter_error(name: &str) -> ECMAScriptValue {
         let realm = current_realm_record().unwrap();
         let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(object_prototype), &[]);
+        let obj = ordinary_object_create(Some(object_prototype));
         let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
         let key = PropertyKey::from(name);
         let getter = create_builtin_function(
@@ -3426,7 +3370,7 @@ mod to_property_descriptor {
         ECMAScriptValue::from(obj)
     }
     fn create_nonfcn(name: &str) -> ECMAScriptValue {
-        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
         obj.create_data_property_or_throw(name, name).unwrap();
         ECMAScriptValue::from(obj)
     }
@@ -3522,7 +3466,7 @@ mod enumerable_own_property_names {
     }
     fn normal() -> Object {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(object_proto), &[]);
+        let obj = ordinary_object_create(Some(object_proto));
         obj.create_data_property_or_throw("one", 1.0).unwrap();
         obj.create_data_property_or_throw("three", 3.0).unwrap();
         let sym = Symbol::new(Some("two".into()));
@@ -3606,7 +3550,7 @@ mod set_integrity_level {
 
     fn normal() -> Object {
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(proto), &[]);
+        let obj = ordinary_object_create(Some(proto));
         obj.create_data_property_or_throw("property", 67).unwrap();
         define_property_or_throw(
             &obj,
@@ -3791,21 +3735,21 @@ mod ordinary_has_instance {
     }
     fn empty_object() -> ECMAScriptValue {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        ECMAScriptValue::from(ordinary_object_create(Some(obj_proto), &[]))
+        ECMAScriptValue::from(ordinary_object_create(Some(obj_proto)))
     }
     fn bool_child() -> ECMAScriptValue {
         let bool_constructor = intrinsic(IntrinsicId::Boolean);
         bool_constructor
-            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, BOOLEAN_OBJECT_SLOTS)
+            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, BooleanObject::object)
             .unwrap()
             .into()
     }
     fn bool_grandchild() -> ECMAScriptValue {
         let bool_constructor = intrinsic(IntrinsicId::Boolean);
         let bool_child = bool_constructor
-            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, BOOLEAN_OBJECT_SLOTS)
+            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, BooleanObject::object)
             .unwrap();
-        let grandkid = ordinary_object_create(Some(bool_child), &[]);
+        let grandkid = ordinary_object_create(Some(bool_child));
         grandkid.into()
     }
 
@@ -3870,7 +3814,7 @@ mod internal_slot_name {
 
 #[test_case(DeadObject::object => serr("TypeError: get called on DeadObject"); "get throws")]
 #[test_case(|| {
-        let o = ordinary_object_create(None, &[]);
+        let o = ordinary_object_create(None);
         let sym = wks(WksId::Unscopables);
         o.create_data_property_or_throw("length", sym).unwrap();
         o
@@ -3886,7 +3830,7 @@ mod object {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(|| ordinary_object_create(None, &[]) => false; "not")]
+    #[test_case(|| ordinary_object_create(None) => false; "not")]
     fn is_typed_array(make_obj: impl FnOnce() -> Object) -> bool {
         setup_test_agent();
         let obj = make_obj();
@@ -3904,7 +3848,7 @@ mod object {
             }
         }
 
-        #[test_case(|| ordinary_object_create(None, &[]) => (true, 1); "simple obj")]
+        #[test_case(|| ordinary_object_create(None) => (true, 1); "simple obj")]
         fn t(make_obj: impl FnOnce() -> Object) -> (bool, usize) {
             let output = format!("{:?}", Wrapper(make_obj()));
             let lines = output.lines().collect::<Vec<_>>();
@@ -3915,7 +3859,7 @@ mod object {
     #[test]
     fn debug() {
         setup_test_agent();
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let result = format!("{obj:?}");
         assert_ne!(result, "");
     }
@@ -3926,7 +3870,7 @@ mod object {
             static ref MATCH: Regex = Regex::new("^<Object [0-9]+>$").expect("Valid regex");
         }
         setup_test_agent();
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let result = format!("{obj}");
         assert!(MATCH.is_match(&result));
     }
@@ -3938,7 +3882,7 @@ mod object {
         #[test_case(|| ECMAScriptValue::Undefined => serr("Only object values may be converted to true objects"); "not object")]
         #[test_case(
             || {
-                let obj = ordinary_object_create(None, &[]);
+                let obj = ordinary_object_create(None);
                 obj.set("key_1", "value_1", true).unwrap();
                 obj.set("key_2", "value_2", true).unwrap();
                 obj.into()
@@ -3957,7 +3901,7 @@ mod object {
             "not object")]
         #[test_case(
             || {
-                let obj = ordinary_object_create(None, &[]);
+                let obj = ordinary_object_create(None);
                 obj.set("key_1", "value_1", true).unwrap();
                 obj.set("key_2", "value_2", true).unwrap();
                 obj.into()
@@ -3974,14 +3918,14 @@ mod object {
 
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             (obj.clone(), obj)
         }
         => true; "equal")]
     #[test_case(
         || {
-            let obj_1 = ordinary_object_create(None, &[]);
-            let obj_2 = ordinary_object_create(None, &[]);
+            let obj_1 = ordinary_object_create(None);
+            let obj_2 = ordinary_object_create(None);
             (obj_1, obj_2)
         }
         => false; "unequal")]
@@ -3994,7 +3938,7 @@ mod object {
     #[test]
     fn clone() {
         setup_test_agent();
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let second = obj.clone();
         assert_eq!(obj, second);
     }
@@ -4008,7 +3952,7 @@ mod object {
     }
 
     #[test_case(
-        || ordinary_object_create(None, &[])
+        || ordinary_object_create(None)
         => Ok(false);
         "plain object")]
     #[test_case(
@@ -4020,11 +3964,11 @@ mod object {
         => serr("TypeError: Proxy has been revoked");
         "revoked proxy")]
     #[test_case(
-        || ProxyObject::object(Some((create_array_from_list(&[]), ordinary_object_create(None, &[]))))
+        || ProxyObject::object(Some((create_array_from_list(&[]), ordinary_object_create(None))))
         => Ok(true);
         "proxy on array")]
     #[test_case(
-        || ProxyObject::object(Some((ordinary_object_create(None, &[]), ordinary_object_create(None, &[]))))
+        || ProxyObject::object(Some((ordinary_object_create(None), ordinary_object_create(None))))
         => Ok(false);
         "proxy on plain object")]
     fn is_array(make_obj: impl FnOnce() -> Object) -> Result<bool, String> {
@@ -4034,7 +3978,7 @@ mod object {
 
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("test_key", "test_value").unwrap();
             obj
         },
@@ -4066,7 +4010,7 @@ mod object {
         }
 
         fn empty_obj() -> Object {
-            ordinary_object_create(None, &[])
+            ordinary_object_create(None)
         }
         #[test_case(
             empty_obj,
@@ -4119,7 +4063,7 @@ mod object {
             empty_obj,
             || "test_key",
             || {
-                let obj = ordinary_object_create(None, &[]);
+                let obj = ordinary_object_create(None);
                 let ppd = PotentialPropertyDescriptor::new().value("value");
                 define_property_or_throw(&obj, "test_key", ppd).unwrap();
                 obj
@@ -4129,7 +4073,7 @@ mod object {
             empty_obj,
             || PropertyKey::from("test_key"),
             || {
-                let obj = ordinary_object_create(None, &[]);
+                let obj = ordinary_object_create(None);
                 let ppd = PotentialPropertyDescriptor::new().value("value");
                 define_property_or_throw(&obj, "test_key", ppd).unwrap();
                 obj
@@ -4173,12 +4117,12 @@ mod object {
         use test_case::test_case;
 
         #[test_case(
-            || (ordinary_object_create(None, &[]), PropertyKey::from("test_key"), ECMAScriptValue::from("value"))
+            || (ordinary_object_create(None), PropertyKey::from("test_key"), ECMAScriptValue::from("value"))
             => sok("test_key:value");
             "no conversion; success")]
         #[test_case(
             || {
-                let obj = ordinary_object_create(None, &[]);
+                let obj = ordinary_object_create(None);
                 obj.o.prevent_extensions().unwrap();
                 (obj, PropertyKey::from("test_key"), ECMAScriptValue::from("value"))
             }
@@ -4193,67 +4137,67 @@ mod object {
             => serr("TypeError: [[DefineOwnProperty]] called on TestObject");
             "no conversions; define own throws")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), JSString::from("test_key"), ECMAScriptValue::from("value"))
+            || (ordinary_object_create(None), JSString::from("test_key"), ECMAScriptValue::from("value"))
             => sok("test_key:value");
             "JSString:ECMAScriptValue")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), "test_key", "value")
+            || (ordinary_object_create(None), "test_key", "value")
             => sok("test_key:value");
             "&str:&str")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), "test_key", 0.125)
+            || (ordinary_object_create(None), "test_key", 0.125)
             => sok("test_key:0.125");
             "&str:f64")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), "test_key", 1_i32)
+            || (ordinary_object_create(None), "test_key", 1_i32)
             => sok("test_key:1");
             "&str:i32")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), "test_key", true)
+            || (ordinary_object_create(None), "test_key", true)
             => sok("test_key:true");
             "&str:bool")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), "test_key", intrinsic(IntrinsicId::Object))
+            || (ordinary_object_create(None), "test_key", intrinsic(IntrinsicId::Object))
             => sok("test_key:function Object");
             "&str:Object")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), PropertyKey::from("test_key"), 0.125)
+            || (ordinary_object_create(None), PropertyKey::from("test_key"), 0.125)
             => sok("test_key:0.125");
             "PropertyKey:f64")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), "test_key", wks(WksId::ToStringTag))
+            || (ordinary_object_create(None), "test_key", wks(WksId::ToStringTag))
             => sok("test_key:Symbol(Symbol.toStringTag)");
             "&str:Symbol")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), "test_key", ECMAScriptValue::from("value"))
+            || (ordinary_object_create(None), "test_key", ECMAScriptValue::from("value"))
             => sok("test_key:value");
             "&str:ECMAScriptValue")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), PropertyKey::from("test_key"), intrinsic(IntrinsicId::Object))
+            || (ordinary_object_create(None), PropertyKey::from("test_key"), intrinsic(IntrinsicId::Object))
             => sok("test_key:function Object");
             "PropertyKey:Object")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), PropertyKey::from("test_key"), "value")
+            || (ordinary_object_create(None), PropertyKey::from("test_key"), "value")
             => sok("test_key:value");
             "PropertyKey:&str")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), 1010_usize, "value")
+            || (ordinary_object_create(None), 1010_usize, "value")
             => sok("1010:value");
             "usize:&str")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), 1010_usize, ECMAScriptValue::from("value"))
+            || (ordinary_object_create(None), 1010_usize, ECMAScriptValue::from("value"))
             => sok("1010:value");
             "usize:ECMAScriptValue")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), wks(WksId::ToStringTag), 0.125)
+            || (ordinary_object_create(None), wks(WksId::ToStringTag), 0.125)
             => sok("Symbol(Symbol.toStringTag):0.125");
             "Symbol:f64")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), wks(WksId::ToStringTag), "value")
+            || (ordinary_object_create(None), wks(WksId::ToStringTag), "value")
             => sok("Symbol(Symbol.toStringTag):value");
             "Symbol:&str")]
         #[test_case(
-            || (ordinary_object_create(None, &[]), String::from("test_key"), ECMAScriptValue::from("value"))
+            || (ordinary_object_create(None), String::from("test_key"), ECMAScriptValue::from("value"))
             => sok("test_key:value");
             "String:ECMAScriptValue")]
         fn t<P, V>(make_items: impl FnOnce() -> (Object, P, V)) -> Result<String, String>
@@ -4269,7 +4213,7 @@ mod object {
         }
     }
 
-    #[test_case(|| (ordinary_object_create(None, &[]), "value"), "key", true => Ok(true); "simple set")]
+    #[test_case(|| (ordinary_object_create(None), "value"), "key", true => Ok(true); "simple set")]
     #[test_case(
         || (TestObject::object(&[FunctionId::Set(Some("key".into()))]), "value"), "key", true
         => serr("TypeError: [[Set]] called on TestObject");
@@ -4277,7 +4221,7 @@ mod object {
     )]
     #[test_case(
         || ({
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.o.prevent_extensions().unwrap();
             obj
         }, "value"),
@@ -4398,7 +4342,7 @@ mod object {
             X: Into<ECMAScriptValue>,
         {
             setup_test_agent();
-            let target = ordinary_object_create(None, &[]);
+            let target = ordinary_object_create(None);
             let source = make_source().into();
             let excluded = make_excluded();
             target
@@ -4488,7 +4432,7 @@ mod test_integrity_level {
         obj
     }
 
-    #[test_case(|| ordinary_object_create(None, &[]), IntegrityLevel::Sealed => Ok(false); "very basic object")]
+    #[test_case(|| ordinary_object_create(None), IntegrityLevel::Sealed => Ok(false); "very basic object")]
     #[test_case(DeadObject::object, IntegrityLevel::Sealed => serr("TypeError: is_extensible called on DeadObject"); "is_extensible throws")]
     #[test_case(|| make_simple_obj(IntegrityLevel::Sealed), IntegrityLevel::Sealed => Ok(true); "sealed object / checking sealed")]
     #[test_case(|| make_simple_obj(IntegrityLevel::Sealed), IntegrityLevel::Frozen => Ok(false); "sealed object / checking frozen")]
@@ -4511,7 +4455,7 @@ mod concise_optional_object {
     #[test]
     fn from_some() {
         setup_test_agent();
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
 
         let obj_id = obj.o.id();
 
@@ -4540,7 +4484,7 @@ mod concise_optional_object {
     #[test]
     fn fmt_some() {
         setup_test_agent();
-        let obj = Some(ordinary_object_create(None, &[]));
+        let obj = Some(ordinary_object_create(None));
         let coo = ConciseOptionalObject::from(&obj);
         let res = format!("{coo:#?}");
         assert_ne!(res, "");
@@ -4553,7 +4497,7 @@ mod create_list_from_array_like {
     use test_case::test_case;
 
     fn not_arraylike() -> ECMAScriptValue {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         obj.set("length", wks(WksId::AsyncIterator), true).unwrap();
         obj.into()
     }
@@ -4562,7 +4506,7 @@ mod create_list_from_array_like {
         obj.into()
     }
     fn evil_get() -> ECMAScriptValue {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         obj.set("length", 10, true).unwrap();
         let thrower = intrinsic(IntrinsicId::ThrowTypeError);
         let desc = PotentialPropertyDescriptor::new().get(thrower);
@@ -4612,7 +4556,7 @@ mod define_property_or_throw {
 
     #[test_case(
         || (
-            ordinary_object_create(None, &[]),
+            ordinary_object_create(None),
             PropertyKey::from("test_key"),
             PotentialPropertyDescriptor::new().value(99)
         )
@@ -4628,7 +4572,7 @@ mod define_property_or_throw {
         "define_own_property fails")]
     #[test_case(
         || ({
-                let obj = ordinary_object_create(None, &[]);
+                let obj = ordinary_object_create(None);
                 let ppd = PotentialPropertyDescriptor::new().value(100);
                 super::super::define_property_or_throw(&obj, "test_key", ppd).unwrap();
                 obj
@@ -4654,7 +4598,7 @@ mod define_property_or_throw {
     #[test_case(PropertyKey::from("key") => sok("key:0"); "just a key")]
     fn define_property_or_throw(key: impl Into<PropertyKey>) -> Result<String, String> {
         setup_test_agent();
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let ppd = PotentialPropertyDescriptor::new().value(0);
         super::super::define_property_or_throw(&obj, key, ppd)
             .map_err(unwind_any_error)
@@ -4705,7 +4649,6 @@ mod ordinary_object {
     default_get_test!(|| "proto_sentinel".into(), ECMAScriptValue::from(true));
     default_set_test!();
     default_own_property_keys_test!();
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
     false_function!(is_callable_obj);
@@ -4768,7 +4711,6 @@ mod immutable_prototype_exotic_object {
     default_get_test!(|| "proto_sentinel".into(), ECMAScriptValue::from(true));
     default_set_test!();
     default_own_property_keys_test!();
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
     false_function!(is_callable_obj);
@@ -4975,7 +4917,7 @@ fn ecmascriptvalue_get(make_items: impl FnOnce() -> (ECMAScriptValue, PropertyKe
     v.get(&p).map_err(unwind_any_error).map(|v| v.test_result_string())
 }
 
-#[test_case(|| ordinary_object_create(None, &[]), &ClassFieldDefinitionRecord{} => panics "not yet implemented"; "panics")]
+#[test_case(|| ordinary_object_create(None), &ClassFieldDefinitionRecord{} => panics "not yet implemented"; "panics")]
 #[test_case(DeadObject::object, &ClassFieldDefinitionRecord{} => serr("TypeError: get called on DeadObject"); "fails")]
 fn define_field(make_obj: impl FnOnce() -> Object, fdr: &ClassFieldDefinitionRecord) -> Result<(), String> {
     setup_test_agent();
@@ -5070,7 +5012,6 @@ mod dead_object {
         DeadObject::object()
     }
 
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
     false_function!(is_callable_obj);
@@ -5264,7 +5205,7 @@ mod get_prototype_from_constructor {
     }
 
     fn make_handler(fcn: Object) -> Object {
-        let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        let handler = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
         let ppd = PotentialPropertyDescriptor::new().value(fcn);
         define_property_or_throw(&handler, "get", ppd).unwrap();
         handler
@@ -5274,7 +5215,7 @@ mod get_prototype_from_constructor {
         || {
             let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
             object_prototype.create_data_property_or_throw("sentinel", "prototype").unwrap();
-            ordinary_object_create(None, &[])
+            ordinary_object_create(None)
         },
         IntrinsicId::ObjectPrototype
         => sok("prototype");
@@ -5338,7 +5279,7 @@ mod get_method {
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("some_key", ECMAScriptValue::Null).unwrap();
             obj
         },
@@ -5348,7 +5289,7 @@ mod get_method {
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("some_key", "some_string").unwrap();
             obj
         },
@@ -5381,11 +5322,11 @@ mod get_function_realm {
 
     #[test_case(|| ProxyObject::object(None) => serr("TypeError: Proxy has been revoked"); "revoked proxy")]
     #[test_case(
-        || ProxyObject::object(Some((intrinsic(IntrinsicId::Object), ordinary_object_create(None, &[]))))
+        || ProxyObject::object(Some((intrinsic(IntrinsicId::Object), ordinary_object_create(None))))
         => Ok(0);
         "through the proxy"
     )]
-    #[test_case(|| ordinary_object_create(None, &[]) => Ok(0); "not actually a function")]
+    #[test_case(|| ordinary_object_create(None) => Ok(0); "not actually a function")]
     #[test_case(
         || {
             initialize_host_defined_realm(1, false);
@@ -5432,7 +5373,7 @@ mod ordinary_create_from_constructor {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
             string_proto.create_data_property_or_throw("[[TestName]]", "String").unwrap();
             object_proto.create_data_property_or_throw("[[TestName]]", "Object").unwrap();
-            ordinary_object_create(Some(object_proto), &[])
+            ordinary_object_create(Some(object_proto))
         },
         IntrinsicId::StringPrototype
         => sok("String");
@@ -5446,10 +5387,12 @@ mod ordinary_create_from_constructor {
     fn t(make_cstr: impl FnOnce() -> Object, default_ip: IntrinsicId) -> Result<String, String> {
         setup_test_agent();
         let cstr = make_cstr();
-        cstr.ordinary_create_from_constructor(default_ip, &[]).map_err(unwind_any_error).map(|obj| {
-            let proto = obj.o.get_prototype_of().unwrap().unwrap();
-            proto.get(&"[[TestName]]".into()).unwrap().test_result_string()
-        })
+        cstr.ordinary_create_from_constructor(default_ip, super::ordinary_object_create).map_err(unwind_any_error).map(
+            |obj| {
+                let proto = obj.o.get_prototype_of().unwrap().unwrap();
+                proto.get(&"[[TestName]]".into()).unwrap().test_result_string()
+            },
+        )
     }
 }
 
@@ -5481,10 +5424,10 @@ fn has_own_property(make_val: impl FnOnce() -> Object, key: impl Into<PropertyKe
     obj.has_own_property(&key).map_err(unwind_any_error)
 }
 
-#[test_case(|| ordinary_object_create(None, &[]), "bob" => sok(""); "prop not there")]
+#[test_case(|| ordinary_object_create(None), "bob" => sok(""); "prop not there")]
 #[test_case(
     || {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         obj.create_data_property_or_throw("named", 27).unwrap();
         obj.create_data_property_or_throw("other", 12).unwrap();
         obj
@@ -5500,7 +5443,7 @@ fn has_own_property(make_val: impl FnOnce() -> Object, key: impl Into<PropertyKe
 )]
 #[test_case(
     || {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         obj.create_data_property_or_throw("named", 11).unwrap();
         set_integrity_level(&obj, IntegrityLevel::Frozen).unwrap();
         obj

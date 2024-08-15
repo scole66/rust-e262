@@ -346,7 +346,6 @@ mod generator_object {
         GeneratorObject::object(Some(gp), GeneratorState::Undefined, "TestingBrand")
     }
 
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
     false_function!(is_callable_obj);
@@ -850,7 +849,7 @@ mod get_iterator_from_method {
     ) -> Completion<ECMAScriptValue> {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let obj = ordinary_object_create(Some(iter_proto));
         let this_sentinel = to_string(this_value.get(&"sentinel".into()).unwrap()).unwrap();
         define_property_or_throw(
             &obj,
@@ -862,7 +861,7 @@ mod get_iterator_from_method {
                 .configurable(true),
         )
         .unwrap();
-        let faux_next = ordinary_object_create(Some(obj_proto), &[]);
+        let faux_next = ordinary_object_create(Some(obj_proto));
         define_property_or_throw(
             &faux_next,
             "sentinel",
@@ -888,7 +887,7 @@ mod get_iterator_from_method {
         ECMAScriptValue::from(obj)
     }
     fn silly_this() -> ECMAScriptValue {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -932,7 +931,7 @@ mod get_iterator {
     }
     fn empty_object() -> ECMAScriptValue {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        ECMAScriptValue::from(ordinary_object_create(Some(obj_proto), &[]))
+        ECMAScriptValue::from(ordinary_object_create(Some(obj_proto)))
     }
     #[allow(clippy::unnecessary_wraps)]
     fn silly_iterator(
@@ -942,7 +941,7 @@ mod get_iterator {
     ) -> Completion<ECMAScriptValue> {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let obj = ordinary_object_create(Some(iter_proto));
         let this_sentinel = to_string(this_value.get(&"sentinel".into()).unwrap()).unwrap();
         define_property_or_throw(
             &obj,
@@ -954,7 +953,7 @@ mod get_iterator {
                 .configurable(true),
         )
         .unwrap();
-        let faux_next = ordinary_object_create(Some(obj_proto), &[]);
+        let faux_next = ordinary_object_create(Some(obj_proto));
         define_property_or_throw(
             &faux_next,
             "sentinel",
@@ -980,7 +979,7 @@ mod get_iterator {
         ECMAScriptValue::from(obj)
     }
     fn silly_this() -> ECMAScriptValue {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -1030,7 +1029,7 @@ mod iterator_record {
     ) -> Completion<ECMAScriptValue> {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let obj = ordinary_object_create(Some(iter_proto));
         let this_sentinel = to_string(this_value.get(&"sentinel".into()).unwrap()).unwrap();
         define_property_or_throw(
             &obj,
@@ -1042,7 +1041,7 @@ mod iterator_record {
                 .configurable(true),
         )
         .unwrap();
-        let faux_next = ordinary_object_create(Some(obj_proto), &[]);
+        let faux_next = ordinary_object_create(Some(obj_proto));
         define_property_or_throw(
             &faux_next,
             "sentinel",
@@ -1063,7 +1062,7 @@ mod iterator_record {
         behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     ) -> Completion<ECMAScriptValue> {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let obj = ordinary_object_create(Some(iter_proto));
         let this_sentinel = to_string(this_value.get(&"sentinel".into()).unwrap()).unwrap();
         define_property_or_throw(
             &obj,
@@ -1143,7 +1142,7 @@ mod iterator_record {
         NextReturnsObject,
     }
     fn silly_this(kind: IRKind) -> ECMAScriptValue {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -1211,7 +1210,7 @@ mod iterator_record {
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(obj_proto), &[]);
+        let obj = ordinary_object_create(Some(obj_proto));
         obj.create_data_property_or_throw("value", ECMAScriptValue::from("value"))?;
         let done_getter = intrinsic(IntrinsicId::ThrowTypeError);
         let done_ppd = PotentialPropertyDescriptor::new().get(done_getter).configurable(true).enumerable(true);
@@ -1220,7 +1219,7 @@ mod iterator_record {
     }
     fn create_iterator_object_with_throwing_next() -> Object {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let obj = ordinary_object_create(Some(iter_proto));
         let next_method =
             create_builtin_function(next_returns_broken_iter_result, false, 0.0, "next".into(), &[], None, None, None);
         obj.create_data_property_or_throw("next", next_method).unwrap();
@@ -1279,7 +1278,7 @@ mod iterator_record {
     }
     fn create_tracking_iterator_with_return() -> Object {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let iterator = ordinary_object_create(Some(iter_proto), &[]);
+        let iterator = ordinary_object_create(Some(iter_proto));
         let tracking_array = array_create(0, None).unwrap();
         iterator.create_data_property_or_throw("tracker", tracking_array).unwrap();
         let next = create_builtin_function(tracking_next, false, 1.0, "next".into(), &[], None, None, None);
@@ -1299,7 +1298,7 @@ mod iterator_record {
     }
     fn create_iterator_with_broken_return() -> Object {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let iterator = ordinary_object_create(Some(iter_proto), &[]);
+        let iterator = ordinary_object_create(Some(iter_proto));
         let ireturn = create_builtin_function(invalid_return, false, 1.0, "return".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("return", ireturn).unwrap();
         iterator

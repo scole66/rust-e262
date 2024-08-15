@@ -155,7 +155,7 @@ mod execution_context {
         setup_test_agent();
         let som = maker();
         let original_was_none = som.is_none();
-        let func = Some(ordinary_object_create(None, &[]));
+        let func = Some(ordinary_object_create(None));
         let ec = ExecutionContext::new(func.clone(), current_realm_record().unwrap(), som);
         assert_eq!(&func, &ec.function);
         assert!(Rc::ptr_eq(&ec.realm, &current_realm_record().unwrap()));

@@ -7,7 +7,7 @@ fn number_object_debug() {
     setup_test_agent();
     let no = NumberObject {
         common: RefCell::new(CommonObjectData::new(None, false, NUMBER_OBJECT_SLOTS)),
-        number_data: RefCell::new(0.0),
+        number_data: 0.0,
     };
 
     assert_ne!(format!("{no:?}"), "");
@@ -18,10 +18,10 @@ fn number_object_debug() {
 fn number_object_object() {
     setup_test_agent();
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
-    let no = NumberObject::object(Some(number_prototype.clone()));
+    let no = NumberObject::object(Some(number_prototype.clone()), 0.0);
 
     assert_eq!(no.o.common_object_data().borrow().prototype, Some(number_prototype));
-    assert_eq!(*no.o.to_number_obj().unwrap().number_data().borrow(), 0.0);
+    assert_eq!(*no.o.to_number_obj().unwrap().number_data(), 0.0);
 }
 
 #[test]
@@ -32,7 +32,7 @@ fn create_number_object_01() {
 
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
     assert_eq!(no.o.get_prototype_of().unwrap(), Some(number_prototype));
-    assert_eq!(*no.o.to_number_obj().unwrap().number_data().borrow(), 100.0);
+    assert_eq!(*no.o.to_number_obj().unwrap().number_data(), 100.0);
 }
 
 #[test]
@@ -181,7 +181,6 @@ fn number_object_other_automatic_functions() {
     assert!(no.o.to_boolean_obj().is_none());
     assert!(no.o.to_callable_obj().is_none());
     assert!(no.o.to_constructable().is_none());
-    assert!(!no.o.is_arguments_object());
     assert!(!no.o.is_date_object());
     assert!(!no.o.is_proxy_object());
     assert!(!no.o.is_symbol_object());
@@ -286,7 +285,7 @@ fn number_constructor_as_constructor_01() {
 
     assert!(result.is_object());
     if let ECMAScriptValue::Object(o) = result {
-        let data = *o.o.to_number_obj().unwrap().number_data().borrow();
+        let data = *o.o.to_number_obj().unwrap().number_data();
         assert_eq!(data, 0.0);
     }
 }
@@ -304,7 +303,7 @@ fn number_constructor_as_constructor_02() {
 
     assert!(result.is_object());
     if let ECMAScriptValue::Object(o) = result {
-        let data = *o.o.to_number_obj().unwrap().number_data().borrow();
+        let data = *o.o.to_number_obj().unwrap().number_data();
         assert_eq!(data, 195_951_326.0);
     }
 }
@@ -500,7 +499,7 @@ fn this_number_value_02() {
 fn this_number_value_03() {
     // called with non-number object
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
 
     let result = this_number_value(&ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
