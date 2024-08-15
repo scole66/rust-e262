@@ -1445,7 +1445,7 @@ fn to_object_03() {
     let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
 
     let boolean_obj = result.o.to_boolean_obj().unwrap();
-    assert_eq!(*boolean_obj.boolean_data().borrow(), test_value);
+    assert_eq!(*boolean_obj.boolean_data(), test_value);
 }
 #[test]
 #[allow(clippy::float_cmp)]

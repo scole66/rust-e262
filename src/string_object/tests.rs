@@ -21,7 +21,7 @@ mod string_object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject {
             common: RefCell::new(CommonObjectData::new(Some(prototype), true, STRING_OBJECT_SLOTS)),
-            string_data: RefCell::new(JSString::from("baloney")),
+            string_data: JSString::from("baloney"),
         };
         assert_ne!(format!("{so:?}"), "");
     }
@@ -36,7 +36,7 @@ mod string_object {
         assert_eq!(length, ECMAScriptValue::from(6));
 
         let sobj = so.o.to_string_obj().unwrap();
-        assert_eq!(*sobj.string_data.borrow(), JSString::from("orange"));
+        assert_eq!(sobj.string_data, JSString::from("orange"));
     }
 
     false_function!(is_array_object);
@@ -464,7 +464,7 @@ fn string_create() {
     assert_eq!(cod.prototype.as_ref().unwrap(), &object_prototype);
 
     let sobj = s.o.to_string_obj().unwrap();
-    assert_eq!(&*sobj.string_data.borrow(), &JSString::from("value"));
+    assert_eq!(&sobj.string_data, &JSString::from("value"));
 }
 
 #[test]
@@ -477,7 +477,7 @@ fn create_string_object_tst() {
     assert_eq!(cod.prototype.as_ref().unwrap(), &string_prototype);
 
     let sobj = s.o.to_string_obj().unwrap();
-    assert_eq!(&*sobj.string_data.borrow(), &JSString::from("value"));
+    assert_eq!(&sobj.string_data, &JSString::from("value"));
 }
 
 mod provision_string_intrinsic {
@@ -512,7 +512,7 @@ mod provision_string_intrinsic {
         // The String prototype object: has a [[StringData]] internal slot whose value is the empty
         // String.
         let sobj = string_proto.o.to_string_obj().unwrap();
-        assert_eq!(&*sobj.string_data.borrow(), &JSString::from(""));
+        assert_eq!(&sobj.string_data, &JSString::from(""));
 
         // The String prototype object: has a "length" property whose initial value is +0𝔽 and whose
         // attributes are { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
@@ -675,9 +675,7 @@ fn string_constructor_function(
     super::string_constructor_function(&ECMAScriptValue::Undefined, new_target.as_ref(), &arguments)
         .map(|val| match val {
             ECMAScriptValue::String(s) => (false, String::from(s)),
-            ECMAScriptValue::Object(o) => {
-                (true, String::from(o.o.to_string_obj().unwrap().string_data.borrow().clone()))
-            }
+            ECMAScriptValue::Object(o) => (true, String::from(o.o.to_string_obj().unwrap().string_data.clone())),
             _ => panic!("Bad value from string_constructor_function: {val:?}"),
         })
         .map_err(unwind_any_error)

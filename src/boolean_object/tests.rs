@@ -11,7 +11,7 @@ fn create_boolean_object_01() {
     assert!(maybe_native.is_some());
 
     let native = maybe_native.unwrap();
-    assert_eq!(*native.boolean_data().borrow(), true);
+    assert_eq!(*native.boolean_data(), true);
 }
 
 #[test]
@@ -23,7 +23,7 @@ fn create_boolean_object_02() {
     assert!(maybe_native.is_some());
 
     let native = maybe_native.unwrap();
-    assert_eq!(*native.boolean_data().borrow(), false);
+    assert_eq!(*native.boolean_data(), false);
 }
 
 #[test]
@@ -268,7 +268,7 @@ fn boolean_constructor_function(
             ECMAScriptValue::Boolean(b) => (*b, format!("Boolean({b})")),
             ECMAScriptValue::Object(o) => {
                 let bo = o.o.to_boolean_obj().unwrap();
-                let b = *bo.boolean_data().borrow();
+                let b = *bo.boolean_data();
                 (b, format!("Object({b}): {}", v.test_result_string()))
             }
             _ => panic!("Bad value back"),

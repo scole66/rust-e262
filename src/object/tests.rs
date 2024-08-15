@@ -861,7 +861,7 @@ mod ordinary_set_prototype_of {
         "using BuiltInFunctionObject"
     )]
     #[test_case(|| (ArgumentsObject::new(None, None), None) => (true, None); "using ArgumentsObject")]
-    #[test_case(|| (BooleanObject::new(None), None) => (true, None); "using BooleanObject")]
+    #[test_case(|| (BooleanObject::new(None, false), None) => (true, None); "using BooleanObject")]
     #[test_case(|| (SymbolObject::new(None, wks(WksId::ToStringTag)), None) => (true, None); "using SymbolObject")]
     #[test_case(
         || (GeneratorObject::new(None, GeneratorState::Undefined, ""), None)
@@ -912,7 +912,7 @@ mod ordinary_prevent_extensions {
         => (true, false);
         "with ForInIteratorObject"
     )]
-    #[test_case(|| BooleanObject::new(None) => (true, false); "with BooleanObject")]
+    #[test_case(|| BooleanObject::new(None, false) => (true, false); "with BooleanObject")]
     #[test_case(|| ArrayObject::new(None) => (true, false); "with ArrayObject")]
     #[test_case(|| ArgumentsObject::new(None, None) => (true, false); "with ArgumentsObject")]
     #[test_case(|| ImmutablePrototypeExoticObject::new(None) => (true, false); "with ImmutablePrototypeExoticObject")]
@@ -1075,7 +1075,7 @@ mod ordinary_define_own_property {
         "using ArrayObject:PropertyKey"
     )]
     #[test_case(
-        || BooleanObject::new(None),
+        || BooleanObject::new(None, false),
         || PropertyKey::from("pk"),
         || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
         => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
@@ -1736,7 +1736,7 @@ mod ordinary_has_property {
     )]
     #[test_case(|| setup(OrdinaryObject::new(None, true)) => Ok(true); "using OrdinaryObject")]
     #[test_case(|| setup(ArrayObject::new(None)) => Ok(true); "using ArrayObject")]
-    #[test_case(|| setup(BooleanObject::new(None)) => Ok(true); "using BooleanObject")]
+    #[test_case(|| setup(BooleanObject::new(None, false)) => Ok(true); "using BooleanObject")]
     #[test_case(|| setup(SymbolObject::new(None, wks(WksId::ToStringTag))) => Ok(true); "using SymbolObject")]
     #[test_case(
         || setup(BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, steps, false))
@@ -1904,7 +1904,7 @@ mod ordinary_get {
     )]
     #[test_case(|| withoutprop(StringObject::new("a".into(), None)) => sok("undefined"); "using StringObject")]
     #[test_case(|| withoutprop(NumberObject::new(None, 0.0)) => sok("undefined"); "using NumberObject")]
-    #[test_case(|| withoutprop(BooleanObject::new(None)) => sok("undefined"); "using BooleanObject")]
+    #[test_case(|| withoutprop(BooleanObject::new(None, false)) => sok("undefined"); "using BooleanObject")]
     #[test_case(
         || withoutprop(GeneratorObject::new(None, GeneratorState::Undefined, ""))
         => sok("undefined");
@@ -2081,7 +2081,7 @@ mod ordinary_set {
         "ErrorObject argument"
     )]
     #[test_case(
-        || setup(BooleanObject::new(None))
+        || setup(BooleanObject::new(None, false))
         => Ok((true, "undefined".to_string()));
         "BooleanObject argument"
     )]
@@ -2417,7 +2417,7 @@ mod ordinary_delete {
     )]
     #[test_case(|| ArgumentsObject::new(None, None), "key" => Ok((true, String::new())); "with ArgumentsObject")]
     #[test_case(|| ArrayObject::new(None), "key" => Ok((true, String::new())); "with ArrayObject")]
-    #[test_case(|| BooleanObject::new(None), "key" => Ok((true, String::new())); "with BooleanObject")]
+    #[test_case(|| BooleanObject::new(None, false), "key" => Ok((true, String::new())); "with BooleanObject")]
     #[test_case(
         || ForInIteratorObject::new(None, intrinsic(IntrinsicId::Object)), "key"
         => Ok((true, String::new()));
@@ -2551,7 +2551,7 @@ mod ordinary_own_property_keys {
         }
         => svec(&[]);
         "FunctionObject")]
-    #[test_case(|| BooleanObject::new(None) => svec(&[]); "BooleanObject")]
+    #[test_case(|| BooleanObject::new(None, false) => svec(&[]); "BooleanObject")]
     #[test_case(|| NumberObject::new(None, 0.0) => svec(&[]); "NumberObject")]
     #[test_case(|| GeneratorObject::new(None, GeneratorState::Undefined, "") => svec(&[]); "GeneratorObject")]
     #[test_case(|| TestObject::new(None, &[]) => svec(&[]); "TestObject")]
@@ -2678,22 +2678,6 @@ fn ordinary_object_create_02() {
     assert_eq!(data.extensible, true);
     assert_eq!(data.properties.len(), 0);
     assert_ne!(obj, proto);
-}
-
-#[test_case(&[InternalSlotName::Nonsense] => panics "Nonsense"; "all bad")]
-#[test_case(&[InternalSlotName::Nonsense, InternalSlotName::Prototype, InternalSlotName::Extensible] => panics "Nonsense"; "one bad")]
-#[test_case(ORDINARY_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_plain_object()); "ordinary obj")]
-#[test_case(BOOLEAN_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.to_boolean_obj().is_some()); "boolean obj")]
-#[test_case(ERROR_OBJECT_SLOTS => with |obj: Object| assert!(obj.is_error_object()); "error obj")]
-#[test_case(NUMBER_OBJECT_SLOTS => panics "More items are needed for initialization. Use NumberObject::object directly instead"; "number obj")]
-#[test_case(ARRAY_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_array_object()); "array obj")]
-#[test_case(SYMBOL_OBJECT_SLOTS => panics "More items are needed for initialization. Use SymbolObject::object directly instead"; "symbol obj")]
-#[test_case(ARGUMENTS_OBJECT_SLOTS => panics "Additional info needed for arguments object; use direct constructor"; "args obj")]
-#[test_case(FUNCTION_OBJECT_SLOTS => panics "More items are needed for initialization. Use FunctionObject::object directly instead"; "function obj")]
-#[test_case(GENERATOR_OBJECT_SLOTS => with |obj: Object| assert!(obj.o.is_generator_object()); "generator obj")]
-fn make_basic_object(slots: &[InternalSlotName]) -> Object {
-    setup_test_agent();
-    super::make_basic_object(slots, None)
 }
 
 #[test]
@@ -3740,14 +3724,18 @@ mod ordinary_has_instance {
     fn bool_child() -> ECMAScriptValue {
         let bool_constructor = intrinsic(IntrinsicId::Boolean);
         bool_constructor
-            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, BooleanObject::object)
+            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, |proto| {
+                BooleanObject::object(proto, false)
+            })
             .unwrap()
             .into()
     }
     fn bool_grandchild() -> ECMAScriptValue {
         let bool_constructor = intrinsic(IntrinsicId::Boolean);
         let bool_child = bool_constructor
-            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, BooleanObject::object)
+            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, |proto| {
+                BooleanObject::object(proto, false)
+            })
             .unwrap();
         let grandkid = ordinary_object_create(Some(bool_child));
         grandkid.into()

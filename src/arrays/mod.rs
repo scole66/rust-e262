@@ -166,10 +166,7 @@ impl ArrayObject {
         }
         let length: u32 = length.try_into().unwrap();
         let proto = proto.unwrap_or_else(|| intrinsic(IntrinsicId::ArrayPrototype));
-        let a = make_basic_object(
-            &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker],
-            Some(proto),
-        );
+        let a = ArrayObject::object(Some(proto));
         ordinary_define_own_property(
             &a,
             "length",

@@ -172,8 +172,7 @@ impl SymbolObject {
 impl From<Symbol> for Object {
     fn from(sym: Symbol) -> Self {
         let symbol_proto = intrinsic(IntrinsicId::SymbolPrototype);
-        let obj = SymbolObject::object(Some(symbol_proto), sym);
-        obj
+        SymbolObject::object(Some(symbol_proto), sym)
     }
 }
 

@@ -1,5 +1,5 @@
 use super::*;
-use ahash::{AHashMap, AHashSet};
+use ahash::AHashMap;
 use anyhow::anyhow;
 use std::cell::RefCell;
 use std::convert::TryFrom;
@@ -1762,50 +1762,6 @@ pub const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::RemainingKeys,
 ];
 pub const PROXY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::ProxyTarget, InternalSlotName::ProxyHandler];
-
-pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
-    if slot_list.len() != slot_set.len() {
-        return false;
-    }
-    for slot_id in slot_list {
-        if !slot_set.contains(slot_id) {
-            return false;
-        }
-    }
-    true
-}
-
-pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Option<Object>) -> Object {
-    let mut slot_set = AHashSet::with_capacity(internal_slots_list.len());
-    for slot in internal_slots_list {
-        slot_set.insert(slot);
-    }
-
-    if slot_match(ORDINARY_OBJECT_SLOTS, &slot_set) {
-        // Ordinary Objects
-        Object::new(prototype, true)
-    } else if slot_match(BOOLEAN_OBJECT_SLOTS, &slot_set) {
-        BooleanObject::object(prototype)
-    } else if slot_match(ERROR_OBJECT_SLOTS, &slot_set) {
-        ErrorObject::object(prototype)
-    } else if slot_match(NUMBER_OBJECT_SLOTS, &slot_set) {
-        panic!("More items are needed for initialization. Use NumberObject::object directly instead")
-    } else if slot_match(ARRAY_OBJECT_SLOTS, &slot_set) {
-        ArrayObject::object(prototype)
-    } else if slot_match(SYMBOL_OBJECT_SLOTS, &slot_set) {
-        //SymbolObject::object(prototype)
-        panic!("More items are needed for initialization. Use SymbolObject::object directly instead")
-    } else if slot_match(FUNCTION_OBJECT_SLOTS, &slot_set) {
-        panic!("More items are needed for initialization. Use FunctionObject::object directly instead")
-    } else if slot_match(ARGUMENTS_OBJECT_SLOTS, &slot_set) {
-        panic!("Additional info needed for arguments object; use direct constructor");
-    } else if slot_match(GENERATOR_OBJECT_SLOTS, &slot_set) {
-        GeneratorObject::object(prototype, GeneratorState::Undefined, "")
-    } else {
-        // Unknown combination of slots
-        panic!("Unknown object for slots {slot_set:?}");
-    }
-}
 
 impl ECMAScriptValue {
     /// Convert a value to an object, and then do a property lookup
