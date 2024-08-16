@@ -12,7 +12,7 @@ pub fn provision_reflect_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //  * does not have a [[Call]] internal method; it cannot be invoked as a function.
 
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
-    let reflect = ordinary_object_create(Some(object_prototype), &[]);
+    let reflect = ordinary_object_create(Some(object_prototype));
     realm.borrow_mut().intrinsics.reflect = reflect.clone();
 
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();

@@ -138,6 +138,9 @@ impl ObjectInterface for ArrayObject {
     fn to_array_object(&self) -> Option<&ArrayObject> {
         Some(self)
     }
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Array
+    }
 }
 
 pub fn array_create(length: u64, proto: Option<Object>) -> Completion<Object> {
@@ -163,10 +166,7 @@ impl ArrayObject {
         }
         let length: u32 = length.try_into().unwrap();
         let proto = proto.unwrap_or_else(|| intrinsic(IntrinsicId::ArrayPrototype));
-        let a = make_basic_object(
-            &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker],
-            Some(proto),
-        );
+        let a = ArrayObject::object(Some(proto));
         ordinary_define_own_property(
             &a,
             "length",
@@ -556,7 +556,7 @@ pub fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // * is an ordinary object.
     // * has a [[Prototype]] internal slot whose value is %IteratorPrototype%.
     let iterator_prototype = realm.borrow().intrinsics.iterator_prototype.clone();
-    let array_iterator_prototype = ordinary_object_create(Some(iterator_prototype), &[]);
+    let array_iterator_prototype = ordinary_object_create(Some(iterator_prototype));
 
     // %ArrayIteratorPrototype% [ @@toStringTag ]
     // The initial value of the @@toStringTag property is the String value "Array Iterator".

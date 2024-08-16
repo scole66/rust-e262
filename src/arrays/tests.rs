@@ -221,14 +221,10 @@ mod array_object {
         let a = ArrayObject::create(0, None).unwrap();
         assert!(a.o.is_array_object());
     }
-    false_function!(is_arguments_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
-    false_function!(is_error_object);
     false_function!(is_generator_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
@@ -240,7 +236,6 @@ mod array_object {
     none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
     none_function!(to_constructable);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_function_obj);
     none_function!(to_generator_object);
@@ -271,7 +266,7 @@ mod array_object {
         fn screwy_get_value() -> PotentialPropertyDescriptor {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
             let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
-            let obj = ordinary_object_create(Some(object_proto), &[]);
+            let obj = ordinary_object_create(Some(object_proto));
             let value_of = create_builtin_function(
                 value_just_once,
                 false,
@@ -523,7 +518,7 @@ mod array_object {
 fn array_create() {
     setup_test_agent();
     let array_proto = intrinsic(IntrinsicId::ArrayPrototype);
-    let custom_proto = ordinary_object_create(Some(array_proto), &[]);
+    let custom_proto = ordinary_object_create(Some(array_proto));
     let aobj = super::array_create(231, Some(custom_proto.clone())).unwrap();
     assert_eq!(aobj.o.get_prototype_of().unwrap(), Some(custom_proto));
     assert_eq!(aobj.get(&"length".into()).unwrap(), ECMAScriptValue::from(231.0));
@@ -532,7 +527,7 @@ fn array_create() {
 
 fn make_ordinary_object() -> ECMAScriptValue {
     let proto = intrinsic(IntrinsicId::ObjectPrototype);
-    ordinary_object_create(Some(proto), &[]).into()
+    ordinary_object_create(Some(proto)).into()
 }
 fn make_array_object() -> ECMAScriptValue {
     super::array_create(10, None).unwrap().into()
@@ -556,7 +551,7 @@ mod array_species_create {
 
     fn make_ordinary() -> Object {
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
-        ordinary_object_create(Some(proto), &[])
+        ordinary_object_create(Some(proto))
     }
 
     fn make_throwing_constructor_prop() -> Object {
@@ -677,9 +672,6 @@ fn defaults() {
     let a = super::array_create(10, None).unwrap();
     assert_eq!(a.o.is_date_object(), false);
     assert!(a.o.to_function_obj().is_none());
-    assert!(a.o.to_error_obj().is_none());
-    assert_eq!(a.o.is_arguments_object(), false);
-    assert_eq!(a.o.is_number_object(), false);
     assert!(a.o.to_builtin_function_obj().is_none());
     assert!(a.o.to_callable_obj().is_none());
     assert!(a.o.to_number_obj().is_none());
@@ -687,10 +679,8 @@ fn defaults() {
     assert_eq!(a.o.is_string_object(), false);
     assert_eq!(a.o.is_regexp_object(), false);
     assert!(a.o.to_constructable().is_none());
-    assert_eq!(a.o.is_boolean_object(), false);
     assert!(a.o.to_boolean_obj().is_none());
     assert_eq!(a.o.is_proxy_object(), false);
-    assert_eq!(a.o.is_error_object(), false);
 }
 
 #[test_case(super::array_from => panics "not yet implemented"; "array_from")]
@@ -745,7 +735,7 @@ fn array_is_array(make_arg: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScri
 
 #[test_case(
     || {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         obj.create_data_property_or_throw("sentinel", 99).unwrap();
         obj.into()
     }
@@ -765,7 +755,7 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
 )]
 #[test_case(
     || {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         obj.create_data_property_or_throw("length", wks(WksId::Iterator)).unwrap();
         obj.into()
     }
@@ -809,7 +799,7 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
             Ok(rval)
         }
         let array = create_array_from_list(&[1.into(), 2.into()]);
-        let handler = ordinary_object_create(None, &[]);
+        let handler = ordinary_object_create(None);
         let get_replacement =
             create_builtin_function(
                 behavior,
@@ -857,7 +847,7 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
             Ok(rval.into())
         }
         let array = create_array_from_list(&[1.into(), 2.into()]);
-        let handler = ordinary_object_create(None, &[]);
+        let handler = ordinary_object_create(None);
         let set_replacement =
             create_builtin_function(
                 behavior,
@@ -892,7 +882,7 @@ fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(S
 )]
 #[test_case(
     || {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         obj.create_data_property_or_throw("length", wks(WksId::Iterator)).unwrap();
         (obj.into(), vec![])
     }
@@ -901,7 +891,7 @@ fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(S
 )]
 #[test_case(
     || {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         obj.create_data_property_or_throw("length", 9_007_199_254_740_991_i64).unwrap();
         (obj.into(), vec![10.into()])
     }
@@ -936,7 +926,7 @@ fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(S
             Ok(rval.into())
         }
         let array = create_array_from_list(&[1.into(), 2.into()]);
-        let handler = ordinary_object_create(None, &[]);
+        let handler = ordinary_object_create(None);
         let set_replacement =
             create_builtin_function(
                 behavior,
@@ -1109,7 +1099,7 @@ mod key_value_kind {
             => serr("TypeError: Undefined and null cannot be converted to objects")
             ; "ToObject throws")]
 #[test_case(|| {
-                   let obj = ordinary_object_create(None, &[]);
+                   let obj = ordinary_object_create(None);
                    let sym = wks(WksId::Unscopables);
                    obj.create_data_property_or_throw("length", sym).unwrap();
                    ECMAScriptValue::from(obj)
@@ -1175,7 +1165,7 @@ fn array_prototype_join(
 #[test_case(|| ECMAScriptValue::from(DeadObject::object())
             => serr("TypeError: get called on DeadObject")
             ; "get throws")]
-#[test_case(|| ECMAScriptValue::from(ordinary_object_create(None, &[]))
+#[test_case(|| ECMAScriptValue::from(ordinary_object_create(None))
             => vok("[object Object]")
             ; "lacking join")]
 fn array_prototype_to_string(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
@@ -1301,7 +1291,7 @@ mod array_constructor_function {
             || vec![ECMAScriptValue::from("three")] => Ok(vec![ECMAScriptValue::from("three")]); "called as func, not constructor")]
     #[test_case(|| {
                 let func_proto = intrinsic(IntrinsicId::FunctionPrototype);
-                let obj = ordinary_object_create(Some(func_proto), &[]);
+                let obj = ordinary_object_create(Some(func_proto));
                 let thrower = intrinsic(IntrinsicId::ThrowTypeError);
                 let desc = PotentialPropertyDescriptor::new().get(thrower);
                 define_property_or_throw(&obj, "prototype", desc).unwrap();
@@ -1413,7 +1403,7 @@ mod array_prototype_map {
                 &[10.into(), 8.into(), 6.into(), 4.into(), 2.into(), 0.into()]
             );
             let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let callback_this = ordinary_object_create(Some(obj_proto), &[]);
+            let callback_this = ordinary_object_create(Some(obj_proto));
             let ppd = PotentialPropertyDescriptor::new()
                 .value("callback this ")
                 .writable(true)
@@ -1492,7 +1482,7 @@ mod array_prototype_map {
     )]
     #[test_case(
         || {
-            let o = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let o = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             o.create_data_property_or_throw("length", 6).unwrap();
             o.create_data_property_or_throw(0, 10).unwrap();
             vec![o.into(), identity().into()]

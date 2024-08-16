@@ -15,7 +15,7 @@ mod symbol_object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         let so = SymbolObject {
             common: RefCell::new(CommonObjectData::new(Some(prototype), true, SYMBOL_OBJECT_SLOTS)),
-            symbol_data: RefCell::new(None),
+            symbol_data: wks(WksId::ToStringTag),
         };
         assert_ne!(format!("{so:?}"), "");
     }
@@ -24,10 +24,10 @@ mod symbol_object {
     fn object() {
         setup_test_agent();
         let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let prototype = ordinary_object_create(Some(object_prototype), &[]);
+        let prototype = ordinary_object_create(Some(object_prototype));
         define_property_or_throw(&prototype, "marker", PotentialPropertyDescriptor::new().value("sentinel")).unwrap();
 
-        let obj = SymbolObject::object(Some(prototype));
+        let obj = SymbolObject::object(Some(prototype), wks(WksId::ToStringTag));
 
         assert!(obj.o.is_symbol_object());
         let recovered_proto = obj.o.get_prototype_of().unwrap().unwrap();
@@ -41,12 +41,12 @@ mod symbol_object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         let so = SymbolObject {
             common: RefCell::new(CommonObjectData::new(Some(prototype), true, SYMBOL_OBJECT_SLOTS)),
-            symbol_data: RefCell::new(Some(wks(WksId::ToPrimitive))),
+            symbol_data: wks(WksId::ToPrimitive),
         };
 
         let sd = so.symbol_data();
-        let recovered = sd.borrow().clone();
-        assert_eq!(recovered, Some(wks(WksId::ToPrimitive)));
+        let recovered = sd.clone();
+        assert_eq!(recovered, wks(WksId::ToPrimitive));
     }
 
     #[test]
@@ -59,48 +59,12 @@ mod symbol_object {
     }
 
     #[test]
-    fn is_number_object() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(!obj.o.is_number_object());
-    }
-
-    #[test]
-    fn is_arguments_object() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(!obj.o.is_arguments_object());
-    }
-
-    #[test]
-    fn is_boolean_object() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(!obj.o.is_boolean_object());
-    }
-
-    #[test]
     fn is_array_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
         let obj = Object::from(sym);
 
         assert!(!obj.o.is_array_object());
-    }
-
-    #[test]
-    fn is_error_object() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(!obj.o.is_error_object());
     }
 
     #[test]
@@ -153,15 +117,6 @@ mod symbol_object {
         let obj = Object::from(sym);
 
         assert!(obj.o.to_callable_obj().is_none());
-    }
-
-    #[test]
-    fn to_error_obj() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(obj.o.to_error_obj().is_none());
     }
 
     #[test]
@@ -383,7 +338,7 @@ fn symbol_match(expected: &str) -> impl FnOnce(Result<ECMAScriptValue, String>) 
     }
 }
 
-#[test_case(|| Some(ordinary_object_create(None, &[])), Vec::new => serr("TypeError: Symbol is not a constructor"); "called as constructor")]
+#[test_case(|| Some(ordinary_object_create(None)), Vec::new => serr("TypeError: Symbol is not a constructor"); "called as constructor")]
 #[test_case(|| None, Vec::new => using symbol_match("Symbol()"); "empty description")]
 #[test_case(|| None, || vec![ECMAScriptValue::from("giants")] => using symbol_match("Symbol(giants)"); "with description")]
 #[test_case(|| None, || vec![ECMAScriptValue::from(wks(WksId::ToPrimitive))] => serr("TypeError: Symbols may not be converted to strings"); "with bad description")]
@@ -491,7 +446,7 @@ mod this_symbol_value {
         setup_test_agent();
         let this_value = ECMAScriptValue::Undefined;
 
-        let result = this_symbol_value(this_value);
+        let result = this_symbol_value(&this_value);
 
         assert_eq!(unwind_any_error(result.unwrap_err()), "TypeError: Not a symbol");
     }
@@ -502,7 +457,7 @@ mod this_symbol_value {
         let sym = Symbol::new(Some("test_sentinel".into()));
         let this_value = ECMAScriptValue::from(sym.clone());
 
-        let result = this_symbol_value(this_value).unwrap();
+        let result = this_symbol_value(&this_value).unwrap();
 
         assert_eq!(result, sym);
         assert_eq!(result.description(), sym.description());
@@ -515,7 +470,7 @@ mod this_symbol_value {
         let o = Object::from(sym.clone());
         let this_value = ECMAScriptValue::from(o);
 
-        let result = this_symbol_value(this_value).unwrap();
+        let result = this_symbol_value(&this_value).unwrap();
 
         assert_eq!(result, sym);
         assert_eq!(String::from(result.description().unwrap()), "test_sentinel");
@@ -639,7 +594,7 @@ mod create_symbol_object {
         setup_test_agent();
         let s1 = Symbol::new(Some("train".into()));
         let sobj = Object::from(s1.clone());
-        assert_eq!(s1, this_symbol_value(sobj.into()).unwrap());
+        assert_eq!(s1, this_symbol_value(&ECMAScriptValue::from(sobj)).unwrap());
     }
 }
 

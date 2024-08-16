@@ -20,7 +20,7 @@ mod add_entries_from_iterable {
 
     fn good_objs() -> (ECMAScriptValue, ECMAScriptValue, ECMAScriptValue) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let target = ordinary_object_create(Some(object_proto), &[]);
+        let target = ordinary_object_create(Some(object_proto));
         let data = create_array_from_list(&[true.into(), 3.into(), "blue".into()]);
         let generator = create_array_iterator(data, KeyValueKind::KeyValue);
         let adder = create_builtin_function(
@@ -39,7 +39,7 @@ mod add_entries_from_iterable {
 
     fn good_iterator_bad_adder() -> (ECMAScriptValue, ECMAScriptValue, ECMAScriptValue) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let target = ordinary_object_create(Some(object_proto), &[]);
+        let target = ordinary_object_create(Some(object_proto));
         let data = create_array_from_list(&[true.into(), 3.into(), "blue".into()]);
         let generator = create_array_iterator(data, KeyValueKind::KeyValue);
         let thrower = intrinsic(IntrinsicId::ThrowTypeError);
@@ -49,9 +49,9 @@ mod add_entries_from_iterable {
 
     fn iterator_next_error() -> (ECMAScriptValue, ECMAScriptValue, ECMAScriptValue) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let target = ordinary_object_create(Some(object_proto), &[]);
+        let target = ordinary_object_create(Some(object_proto));
         let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let iterator = ordinary_object_create(Some(iterator_proto), &[]);
+        let iterator = ordinary_object_create(Some(iterator_proto));
         let next_behavior = intrinsic(IntrinsicId::ThrowTypeError);
         iterator.create_data_property_or_throw("next", next_behavior).unwrap();
 
@@ -60,12 +60,12 @@ mod add_entries_from_iterable {
 
     fn iterator_next_with_bad_iterator_result() -> (ECMAScriptValue, ECMAScriptValue, ECMAScriptValue) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let target = ordinary_object_create(Some(object_proto), &[]);
+        let target = ordinary_object_create(Some(object_proto));
         let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let iterator = ordinary_object_create(Some(iterator_proto), &[]);
+        let iterator = ordinary_object_create(Some(iterator_proto));
         let next_behavior = |_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let obj = ordinary_object_create(Some(object_proto), &[]);
+            let obj = ordinary_object_create(Some(object_proto));
             let thrower = intrinsic(IntrinsicId::ThrowTypeError);
             let value_ppd = PotentialPropertyDescriptor::new().get(thrower);
             define_property_or_throw(&obj, "value", value_ppd).unwrap();
@@ -79,12 +79,12 @@ mod add_entries_from_iterable {
     }
     fn iterator_next_non_object_value() -> (ECMAScriptValue, ECMAScriptValue, ECMAScriptValue) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let target = ordinary_object_create(Some(object_proto), &[]);
+        let target = ordinary_object_create(Some(object_proto));
         let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let iterator = ordinary_object_create(Some(iterator_proto), &[]);
+        let iterator = ordinary_object_create(Some(iterator_proto));
         let next_behavior = |_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let obj = ordinary_object_create(Some(object_proto), &[]);
+            let obj = ordinary_object_create(Some(object_proto));
             obj.create_data_property_or_throw("value", "oopsie").unwrap();
             let result: Completion<ECMAScriptValue> = Ok(obj.into());
             result
@@ -96,13 +96,13 @@ mod add_entries_from_iterable {
     }
     fn iterator_next_bad_zeroth() -> (ECMAScriptValue, ECMAScriptValue, ECMAScriptValue) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let target = ordinary_object_create(Some(object_proto), &[]);
+        let target = ordinary_object_create(Some(object_proto));
         let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let iterator = ordinary_object_create(Some(iterator_proto), &[]);
+        let iterator = ordinary_object_create(Some(iterator_proto));
         let next_behavior = |_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let obj = ordinary_object_create(Some(object_proto.clone()), &[]);
-            let items = ordinary_object_create(Some(object_proto), &[]);
+            let obj = ordinary_object_create(Some(object_proto.clone()));
+            let items = ordinary_object_create(Some(object_proto));
             let error_ppd = PotentialPropertyDescriptor::new().get(intrinsic(IntrinsicId::ThrowTypeError));
             define_property_or_throw(&items, "0", error_ppd).unwrap();
             obj.create_data_property_or_throw("value", items).unwrap();
@@ -116,13 +116,13 @@ mod add_entries_from_iterable {
     }
     fn iterator_next_bad_first() -> (ECMAScriptValue, ECMAScriptValue, ECMAScriptValue) {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let target = ordinary_object_create(Some(object_proto), &[]);
+        let target = ordinary_object_create(Some(object_proto));
         let iterator_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let iterator = ordinary_object_create(Some(iterator_proto), &[]);
+        let iterator = ordinary_object_create(Some(iterator_proto));
         let next_behavior = |_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| {
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let obj = ordinary_object_create(Some(object_proto.clone()), &[]);
-            let items = ordinary_object_create(Some(object_proto), &[]);
+            let obj = ordinary_object_create(Some(object_proto.clone()));
+            let items = ordinary_object_create(Some(object_proto));
             let error_ppd = PotentialPropertyDescriptor::new().get(intrinsic(IntrinsicId::ThrowTypeError));
             define_property_or_throw(&items, "1", error_ppd).unwrap();
             items.create_data_property_or_throw("0", "key").unwrap();

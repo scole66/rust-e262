@@ -1,5 +1,5 @@
 use super::*;
-use ahash::{AHashMap, AHashSet};
+use ahash::AHashMap;
 use anyhow::anyhow;
 use std::cell::RefCell;
 use std::convert::TryFrom;
@@ -311,7 +311,7 @@ where
 //      a. Perform ! CreateDataPropertyOrThrow(obj, "configurable", Desc.[[Configurable]]).
 //  10. Return obj.
 fn fpd(d: PotentialPropertyDescriptor) -> Object {
-    let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+    let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
     if let Some(value) = d.value {
         obj.create_data_property_or_throw("value", value).unwrap();
     }
@@ -1092,6 +1092,51 @@ pub fn array_index_key(item: &PropertyKey) -> u32 {
     }
 }
 
+pub const ARRAY_TAG: &str = "Array";
+pub const OBJECT_TAG: &str = "Object";
+pub const NUMBER_TAG: &str = "Number";
+pub const BOOLEAN_TAG: &str = "Boolean";
+pub const STRING_TAG: &str = "String";
+pub const ARGUMENTS_TAG: &str = "Arguments";
+pub const DATE_TAG: &str = "Date";
+pub const REGEXP_TAG: &str = "RegExp";
+pub const FUNCTION_TAG: &str = "Function";
+pub const ERROR_TAG: &str = "Error";
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ObjectTag {
+    Array,
+    Object,
+    Number,
+    Boolean,
+    String,
+    Arguments,
+    Date,
+    RegExp,
+    Function,
+    Error,
+}
+impl fmt::Display for ObjectTag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ObjectTag::Array => ARRAY_TAG,
+                ObjectTag::Object => OBJECT_TAG,
+                ObjectTag::Number => NUMBER_TAG,
+                ObjectTag::Boolean => BOOLEAN_TAG,
+                ObjectTag::String => STRING_TAG,
+                ObjectTag::Arguments => ARGUMENTS_TAG,
+                ObjectTag::Date => DATE_TAG,
+                ObjectTag::RegExp => REGEXP_TAG,
+                ObjectTag::Function => FUNCTION_TAG,
+                ObjectTag::Error => ERROR_TAG,
+            }
+        )
+    }
+}
+
 pub trait ObjectInterface: Debug {
     fn common_object_data(&self) -> &RefCell<CommonObjectData>;
     fn uses_ordinary_get_prototype_of(&self) -> bool; // True if implements ordinary defintion of GetPrototypeOf
@@ -1100,9 +1145,6 @@ pub trait ObjectInterface: Debug {
         None
     }
     fn to_number_obj(&self) -> Option<&dyn NumberObjectInterface> {
-        None
-    }
-    fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
         None
     }
     fn to_symbol_obj(&self) -> Option<&dyn SymbolObjectInterface> {
@@ -1138,19 +1180,10 @@ pub trait ObjectInterface: Debug {
     fn is_plain_object(&self) -> bool {
         false
     }
-    fn is_arguments_object(&self) -> bool {
-        false
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Object
     }
     fn is_callable_obj(&self) -> bool {
-        false
-    }
-    fn is_error_object(&self) -> bool {
-        false
-    }
-    fn is_boolean_object(&self) -> bool {
-        false
-    }
-    fn is_number_object(&self) -> bool {
         false
     }
     fn is_string_object(&self) -> bool {
@@ -1606,6 +1639,10 @@ impl Object {
     pub fn is_constructor(&self) -> bool {
         self.o.to_constructable().is_some()
     }
+
+    pub fn is_error_object(&self) -> bool {
+        self.o.kind() == ObjectTag::Error
+    }
 }
 
 // MakeBasicObject ( internalSlotsList )
@@ -1725,50 +1762,6 @@ pub const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::RemainingKeys,
 ];
 pub const PROXY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::ProxyTarget, InternalSlotName::ProxyHandler];
-
-pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
-    if slot_list.len() != slot_set.len() {
-        return false;
-    }
-    for slot_id in slot_list {
-        if !slot_set.contains(slot_id) {
-            return false;
-        }
-    }
-    true
-}
-
-pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Option<Object>) -> Object {
-    let mut slot_set = AHashSet::with_capacity(internal_slots_list.len());
-    for slot in internal_slots_list {
-        slot_set.insert(slot);
-    }
-
-    if slot_match(ORDINARY_OBJECT_SLOTS, &slot_set) {
-        // Ordinary Objects
-        Object::new(prototype, true)
-    } else if slot_match(BOOLEAN_OBJECT_SLOTS, &slot_set) {
-        BooleanObject::object(prototype)
-    } else if slot_match(ERROR_OBJECT_SLOTS, &slot_set) {
-        ErrorObject::object(prototype)
-    } else if slot_match(NUMBER_OBJECT_SLOTS, &slot_set) {
-        NumberObject::object(prototype)
-    } else if slot_match(ARRAY_OBJECT_SLOTS, &slot_set) {
-        ArrayObject::object(prototype)
-    } else if slot_match(SYMBOL_OBJECT_SLOTS, &slot_set) {
-        SymbolObject::object(prototype)
-    } else if slot_match(FUNCTION_OBJECT_SLOTS, &slot_set) {
-        //FunctionObject::object(prototype)
-        panic!("More items are needed for initialization. Use FunctionObject::object directly instead")
-    } else if slot_match(ARGUMENTS_OBJECT_SLOTS, &slot_set) {
-        panic!("Additional info needed for arguments object; use direct constructor");
-    } else if slot_match(GENERATOR_OBJECT_SLOTS, &slot_set) {
-        GeneratorObject::object(prototype, GeneratorState::Undefined, "")
-    } else {
-        // Unknown combination of slots
-        panic!("Unknown object for slots {slot_set:?}");
-    }
-}
 
 impl ECMAScriptValue {
     /// Convert a value to an object, and then do a property lookup
@@ -2355,11 +2348,8 @@ pub fn enumerable_own_properties(obj: &Object, kind: KeyValueKind) -> Completion
 //          to create an ordinary object, and not an exotic one. Thus, within this specification, it is not called by
 //          any algorithm that subsequently modifies the internal methods of the object in ways that would make the
 //          result non-ordinary. Operations that create exotic objects invoke MakeBasicObject directly.
-pub fn ordinary_object_create(proto: Option<Object>, additional_internal_slots_list: &[InternalSlotName]) -> Object {
-    let mut slots = vec![InternalSlotName::Prototype, InternalSlotName::Extensible];
-    slots.extend_from_slice(additional_internal_slots_list);
-    let o = make_basic_object(slots.as_slice(), proto);
-    o
+pub fn ordinary_object_create(proto: Option<Object>) -> Object {
+    Object::new(proto, true)
 }
 
 // OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] )
@@ -2379,10 +2369,11 @@ impl Object {
     pub fn ordinary_create_from_constructor(
         &self,
         intrinsic_default_proto: IntrinsicId,
-        internal_slots_list: &[InternalSlotName],
+        factory: impl FnOnce(Option<Object>) -> Object,
     ) -> Completion<Object> {
         let proto = self.get_prototype_from_constructor(intrinsic_default_proto)?;
-        Ok(ordinary_object_create(Some(proto), internal_slots_list))
+        //Ok(ordinary_object_create(Some(proto)))
+        Ok(factory(Some(proto)))
     }
 }
 

@@ -44,6 +44,11 @@ impl ObjectInterface for ProxyObject {
 
         proxy_items.as_ref().map_or(false, |items| items.proxy_target.o.is_callable_obj())
     }
+    fn kind(&self) -> ObjectTag {
+        let proxy_items = self.proxy_items.borrow();
+
+        proxy_items.as_ref().map_or(ObjectTag::Object, |items| items.proxy_target.o.kind())
+    }
 
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let proxy_items = self.proxy_items.borrow();
@@ -1090,7 +1095,7 @@ fn proxy_revocable(
     let proxy = to_object(proxy_create(target, handler)?).expect("Proxy should already be an object");
     let revoker =
         BuiltinFunctionWithRevokableProxySlot::create(revoker_closure, 0.0, PropertyKey::from(""), proxy.clone());
-    let result = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+    let result = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
     result.create_data_property_or_throw("proxy", proxy)?;
     result.create_data_property_or_throw("revoke", revoker)?;
     Ok(ECMAScriptValue::Object(result))
@@ -1227,6 +1232,13 @@ impl ObjectInterface for BuiltinFunctionWithRevokableProxySlot {
     }
     fn is_callable_obj(&self) -> bool {
         self.func.is_callable_obj()
+    }
+    fn kind(&self) -> ObjectTag {
+        if self.is_callable_obj() {
+            ObjectTag::Function
+        } else {
+            ObjectTag::Object
+        }
     }
 }
 

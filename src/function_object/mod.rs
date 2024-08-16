@@ -669,6 +669,9 @@ impl ObjectInterface for FunctionObject {
     fn is_callable_obj(&self) -> bool {
         true
     }
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Function
+    }
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let is_c = self.function_data().borrow().is_constructor;
         if is_c {
@@ -848,7 +851,7 @@ impl CallableObject for FunctionObject {
         //  8. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
         let kind = self.function_data().borrow().constructor_kind;
         let this_argument = if kind == ConstructorKind::Base {
-            let ta = new_target.ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, &[]);
+            let ta = new_target.ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, ordinary_object_create);
             match ta {
                 Err(err) => {
                     ec_push(Err(err));
@@ -1480,6 +1483,9 @@ impl ObjectInterface for BuiltInFunctionObject {
     fn is_callable_obj(&self) -> bool {
         true
     }
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Function
+    }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
@@ -1795,7 +1801,7 @@ impl GeneratorDeclaration {
         set_function_name(&closure, name.into(), None);
 
         let protoproto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-        let prototype = ordinary_object_create(Some(protoproto), &[]);
+        let prototype = ordinary_object_create(Some(protoproto));
         define_property_or_throw(
             &closure,
             "prototype",
@@ -1977,7 +1983,7 @@ pub fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
         Some(p) => p,
         None => {
             let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let p = ordinary_object_create(Some(obj_proto), &[]);
+            let p = ordinary_object_create(Some(obj_proto));
             define_property_or_throw(
                 &p,
                 "constructor",
@@ -2309,8 +2315,7 @@ pub fn create_dynamic_function(
             make_constructor(&f, None);
         }
         FunctionKind::Generator => {
-            let prototype =
-                ordinary_object_create(Some(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype)), &[]);
+            let prototype = ordinary_object_create(Some(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype)));
             define_property_or_throw(
                 &f,
                 "prototype",
@@ -2325,7 +2330,7 @@ pub fn create_dynamic_function(
         FunctionKind::Async => {}
         FunctionKind::AsyncGenerator => {
             let prototype =
-                ordinary_object_create(Some(intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype)), &[]);
+                ordinary_object_create(Some(intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype)));
             define_property_or_throw(
                 &f,
                 "prototype",

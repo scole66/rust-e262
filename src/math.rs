@@ -14,7 +14,7 @@ pub fn provision_math_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //  * does not have a [[Call]] internal method; it cannot be invoked as a function.
 
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
-    let math = ordinary_object_create(Some(object_prototype), &[]);
+    let math = ordinary_object_create(Some(object_prototype));
     realm.borrow_mut().intrinsics.math = math.clone();
 
     macro_rules! data_property {

@@ -235,7 +235,7 @@ fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completi
 #[test_case(|| 0 => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Number)")]
 #[test_case(|| BigInt::from(0) => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (BigInt)")]
 #[test_case(|| wks(WksId::Unscopables) => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Symbol)")]
-#[test_case(|| ordinary_object_create(None, &[]) => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Object)")]
+#[test_case(|| ordinary_object_create(None) => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Object)")]
 #[test_case(
     || {
         let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
@@ -460,7 +460,7 @@ mod make_method {
         let fobj = Object::try_from(fvalue).unwrap();
         let f_funobj = fobj.o.to_function_obj().unwrap();
 
-        let home = ordinary_object_create(None, &[]);
+        let home = ordinary_object_create(None);
 
         assert!(f_funobj.function_data().borrow().home_object.is_none());
 
@@ -1027,14 +1027,10 @@ mod function_object {
         )
     }
 
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_date_object);
-    false_function!(is_error_object);
     false_function!(is_generator_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
@@ -1044,7 +1040,6 @@ mod function_object {
     none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_generator_object);
     none_function!(to_number_obj);
@@ -1328,14 +1323,10 @@ mod built_in_function_object {
     default_get_own_property_test!();
     default_get_test!(|| PropertyKey::from("proto_sentinel"), ECMAScriptValue::from(true));
 
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_date_object);
-    false_function!(is_error_object);
     false_function!(is_generator_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
@@ -1345,7 +1336,6 @@ mod built_in_function_object {
     none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_function_obj);
     none_function!(to_generator_object);
@@ -1602,7 +1592,7 @@ mod built_in_function_object {
     #[test_case(
         || (
             intrinsic(IntrinsicId::Object),
-            ordinary_object_create(None, &[]),
+            ordinary_object_create(None),
             ECMAScriptValue::Undefined,
             vec![]
         )
@@ -1649,9 +1639,9 @@ mod built_in_function_object {
     #[test_case(
         || (
             intrinsic(IntrinsicId::Object),
-            ordinary_object_create(None, &[]),
+            ordinary_object_create(None),
             vec![],
-            ordinary_object_create(None, &[])
+            ordinary_object_create(None)
         )
         => panics "self and self_object must refer to the same object";
         "self != self_object"
@@ -1875,13 +1865,13 @@ mod initialize_instance_elements {
     use test_case::test_case;
 
     #[test_case(
-        || ordinary_object_create(None, &[]),
+        || ordinary_object_create(None),
         make_working_function_object
         => Ok(Vec::new());
         "No private fields/methods"
     )]
     #[test_case(
-        || ordinary_object_create(None, &[]),
+        || ordinary_object_create(None),
         || {
             let cstr = make_working_function_object();
             let dup = cstr.clone();
@@ -1897,7 +1887,7 @@ mod initialize_instance_elements {
         "One private method"
     )]
     #[test_case(
-        || ordinary_object_create(None, &[]),
+        || ordinary_object_create(None),
         || {
             let cstr = make_working_function_object();
             let dup = cstr.clone();
@@ -1914,7 +1904,7 @@ mod initialize_instance_elements {
         "Duplicate private method"
     )]
     #[test_case(
-        || ordinary_object_create(None, &[]),
+        || ordinary_object_create(None),
         || {
             let cstr = make_working_function_object();
             let dup = cstr.clone();

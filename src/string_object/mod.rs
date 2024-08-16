@@ -26,7 +26,7 @@ use std::cell::RefCell;
 #[derive(Debug)]
 pub struct StringObject {
     common: RefCell<CommonObjectData>,
-    string_data: RefCell<JSString>,
+    string_data: JSString,
 }
 
 impl<'a> From<&'a StringObject> for &'a dyn ObjectInterface {
@@ -54,6 +54,9 @@ impl ObjectInterface for StringObject {
 
     fn is_string_object(&self) -> bool {
         true
+    }
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::String
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
@@ -146,7 +149,7 @@ impl ObjectInterface for StringObject {
         //      a. Add P as the last element of keys.
         //  9. Return keys.
         let mut keys = vec![];
-        let string = self.string_data.borrow();
+        let string = &self.string_data;
         let len = string.len();
         for idx in 0..len {
             keys.push(PropertyKey::from(idx));
@@ -200,10 +203,7 @@ impl From<&str> for Object {
 
 impl StringObject {
     pub fn new(value: JSString, prototype: Option<Object>) -> Self {
-        Self {
-            common: RefCell::new(CommonObjectData::new(prototype, true, STRING_OBJECT_SLOTS)),
-            string_data: RefCell::new(value),
-        }
+        Self { common: RefCell::new(CommonObjectData::new(prototype, true, STRING_OBJECT_SLOTS)), string_data: value }
     }
 
     pub fn object(value: JSString, prototype: Option<Object>) -> Object {
@@ -258,7 +258,7 @@ impl StringObject {
             let index = canonical_numeric_index_string(p)?;
             is_integral_number(&index.into()).then_some(())?;
             (index != 0.0 || index.signum() != -1.0).then_some(())?;
-            let string = self.string_data.borrow();
+            let string = &self.string_data;
             let len = string.len();
             #[allow(clippy::cast_precision_loss)]
             (index >= 0.0 && index < len as f64).then_some(())?;
@@ -490,7 +490,7 @@ fn this_string_value(value: ECMAScriptValue, from_where: &str) -> Completion<JSS
         ECMAScriptValue::String(s) => Ok(s),
         ECMAScriptValue::Object(obj) if obj.o.is_string_object() => {
             let sobj = obj.o.to_string_obj().unwrap();
-            Ok(sobj.string_data.borrow().clone())
+            Ok(sobj.string_data.clone())
         }
         _ => Err(create_type_error(format!("{from_where} requires that 'this' be a String"))),
     }
