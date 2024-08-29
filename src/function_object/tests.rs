@@ -84,7 +84,7 @@ mod function_declaration {
             assert_eq!(function.source_text, src);
             assert!(function.fields.is_empty());
             assert!(function.private_methods.is_empty());
-            assert!(matches!(function.class_field_initializer_name, ClassName::Empty));
+            assert!(matches!(function.class_field_initializer_name, None));
             assert!(!function.is_class_constructor);
             assert!(function.is_constructor);
 
@@ -257,7 +257,7 @@ fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completi
             "function(a, b, c) { return a+b+c; }",
             vec![],
             vec![],
-            ClassName::Empty,
+            None,
             false,
             Rc::new(Chunk::new("tester")),
         )
@@ -266,7 +266,7 @@ fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completi
     "standard function object"
 )]
 #[test_case(
-    || BuiltInFunctionObject::object(None, true, current_realm_record().unwrap(), None, do_nothing, false)
+    || BuiltInFunctionObject::object(None, true, current_realm_record().unwrap(), None, do_nothing, None)
     => sok("function () { [native code] }");
     "built-in without InitialName"
 )]
@@ -476,11 +476,11 @@ mod class_name {
 
     #[test]
     fn fmt_debug() {
-        let cn = ClassName::Empty;
+        let cn = ClassName::String(JSString::from("bob"));
         assert_ne!(format!("{cn:?}"), "");
     }
 
-    #[test_case(&ClassName::Empty => ClassName::Empty; "empty")]
+    #[test_case(&ClassName::String(JSString::from("alice")) => ClassName::String(JSString::from("alice")); "string")]
     fn clone(a: &ClassName) -> ClassName {
         a.clone()
     }
@@ -512,15 +512,15 @@ mod class_name {
         setup_test_agent();
         let nc = make_nc();
         let pn = if let NormalCompletion::PrivateName(pn) = &nc { Some(pn) } else { None };
-        let cn = ClassName::try_from(nc.clone()).map_err(|e| e.to_string())?;
+        let cn: Option<ClassName> = TryFrom::try_from(nc.clone()).map_err(|e: anyhow::Error| e.to_string())?;
 
         match cn {
-            ClassName::String(s) => Ok(format!("String({s})")),
-            ClassName::Symbol(sym) => Ok(format!("Symbol({sym})")),
-            ClassName::Private(cnpn) => {
+            Some(ClassName::String(s)) => Ok(format!("String({s})")),
+            Some(ClassName::Symbol(sym)) => Ok(format!("Symbol({sym})")),
+            Some(ClassName::Private(cnpn)) => {
                 Ok(format!("PrivateName({})", if &cnpn == pn.unwrap() { "matches" } else { "doesn't match" }))
             }
-            ClassName::Empty => Ok(String::from("Empty")),
+            None => Ok(String::from("Empty")),
         }
     }
 }
@@ -883,7 +883,7 @@ fn make_working_function_object() -> Object {
         &source_text,
         vec![],
         vec![],
-        ClassName::Empty,
+        None,
         false,
         Rc::new(compiled),
     );
@@ -937,7 +937,7 @@ fn make_strict_function_object() -> Object {
         &source_text,
         vec![],
         vec![],
-        ClassName::Empty,
+        None,
         false,
         Rc::new(compiled),
     );
@@ -986,7 +986,7 @@ fn make_arrow_function_object() -> Object {
         &source_text,
         vec![],
         vec![],
-        ClassName::Empty,
+        None,
         false,
         Rc::new(compiled),
     );
@@ -1021,7 +1021,7 @@ mod function_object {
             "function(a, b, c) { return a+b+c; }",
             vec![],
             vec![],
-            ClassName::Empty,
+            None,
             false,
             Rc::new(Chunk::new("tester")),
         )
@@ -1306,7 +1306,7 @@ mod built_in_function_object {
         Ok(ECMAScriptValue::Undefined)
     }
     fn make() -> Object {
-        let o = create_builtin_function(behavior, false, 0.0, PropertyKey::from("f"), &[], None, None, None);
+        let o = create_builtin_function(behavior, None, 0.0, PropertyKey::from("f"), &[], None, None, None);
         let proto = o.o.get_prototype_of().unwrap().unwrap();
         proto.set("proto_sentinel", true, true).unwrap();
         o
@@ -1820,7 +1820,6 @@ mod normal_completion {
         => NormalCompletion::Value(ECMAScriptValue::Symbol(wks(WksId::Unscopables)));
         "Symbol"
     )]
-    #[test_case(|| ClassName::Empty => NormalCompletion::Empty; "empty")]
     fn from(make_cn: impl FnOnce() -> ClassName) -> NormalCompletion {
         setup_test_agent();
         NormalCompletion::from(make_cn())
@@ -1909,7 +1908,7 @@ mod initialize_instance_elements {
             let cstr = make_working_function_object();
             let dup = cstr.clone();
             let mut data = dup.o.to_function_obj().unwrap().function_data().borrow_mut();
-            let field = ClassFieldDefinitionRecord {};
+            let field = ClassFieldDefinitionRecord { name: ClassName::String(JSString::from("a_field")), initializer: None };
             data.fields.push(field);
             cstr
         }
@@ -1923,7 +1922,7 @@ mod initialize_instance_elements {
             let cstr = make_working_function_object();
             let dup = cstr.clone();
             let mut data = dup.o.to_function_obj().unwrap().function_data().borrow_mut();
-            let field = ClassFieldDefinitionRecord {};
+            let field = ClassFieldDefinitionRecord { name: ClassName::String(JSString::from("my_field")), initializer: None};
             data.fields.push(field);
             cstr
         }

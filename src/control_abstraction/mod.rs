@@ -39,7 +39,7 @@ pub fn provision_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
-                false,
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -94,7 +94,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     //  * has a "name" property whose value is "GeneratorFunction".
     let generator_function_constructor = create_builtin_function(
         generator_function,
-        true,
+        Some(ConstructorKind::Base),
         1.0,
         "GeneratorFunction".into(),
         BUILTIN_FUNCTION_SLOTS,
@@ -183,7 +183,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
-                false,
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,

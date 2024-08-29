@@ -238,6 +238,17 @@ impl TryFrom<NormalCompletion> for PrivateName {
     }
 }
 
+impl TryFrom<NormalCompletion> for Box<Reference> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::Reference(r) => Ok(r),
+            _ => Err(anyhow!("reference expected")),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct ThrowValue(ECMAScriptValue);
 impl TryFrom<AbruptCompletion> for ThrowValue {

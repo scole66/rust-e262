@@ -276,7 +276,7 @@ fn reflect_delete_property(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> 
             let result = to_string(title)?.concat(JSString::from(" Bob"));
             Ok(ECMAScriptValue::String(result))
         }
-        let func = create_builtin_function(behavior, false, 0.0, PropertyKey::from("name"), &[], None, None, None);
+        let func = create_builtin_function(behavior, None, 0.0, PropertyKey::from("name"), &[], None, None, None);
         let o = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
         let p = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
         p.create_data_property_or_throw("title", "Mrs.").unwrap();
@@ -529,7 +529,7 @@ fn reflect_prevent_extensions(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) 
             obj.create_data_property_or_throw("test-report", result)?;
             Ok(ECMAScriptValue::Boolean(true))
         }
-        let func = create_builtin_function(behavior, false, 0.0, PropertyKey::from("name"), &[], None, None, None);
+        let func = create_builtin_function(behavior, None, 0.0, PropertyKey::from("name"), &[], None, None, None);
         let o = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
         let p = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
         p.create_data_property_or_throw("title", "Mrs.").unwrap();

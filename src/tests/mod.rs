@@ -548,7 +548,7 @@ pub fn make_toprimitive_throw_obj() -> Object {
     let key = PropertyKey::from(to_prim_sym);
     let fcn = create_builtin_function(
         faux_errors,
-        false,
+        None,
         0_f64,
         "[Symbol toPrimitive]".into(),
         BUILTIN_FUNCTION_SLOTS,

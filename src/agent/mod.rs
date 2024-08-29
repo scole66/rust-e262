@@ -356,6 +356,15 @@ pub fn set_variable_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
     });
 }
 
+pub fn set_private_environment(env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>) {
+    AGENT.with(|agent| {
+        let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
+        if let Some(context) = execution_context_stack.last_mut() {
+            context.private_environment = env;
+        }
+    });
+}
+
 // SetRealmGlobalObject ( realmRec, globalObj, thisValue )
 //
 // The abstract operation SetRealmGlobalObject takes arguments realmRec, globalObj (an Object or undefined), and
@@ -713,6 +722,8 @@ pub enum InternalRuntimeError {
     GeneratorExpected,
     #[error("Normal, Throw, or Return completion expected")]
     OkThrowOrReturnExpected,
+    #[error("parent expected for current lexical environment")]
+    NoParentLexicalEnvironment,
 }
 mod insn_impl {
     use super::*;
@@ -812,14 +823,17 @@ mod insn_impl {
     fn pop_ir() -> anyhow::Result<Rc<IteratorRecord>> {
         Rc::<IteratorRecord>::try_from(pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?)
     }
-    fn pop_classname() -> anyhow::Result<ClassName> {
-        ClassName::try_from(pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?)
+    fn pop_classname() -> anyhow::Result<Option<ClassName>> {
+        TryFrom::try_from(pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?)
     }
     fn pop_functionname() -> anyhow::Result<FunctionName> {
         FunctionName::try_from(pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?)
     }
     fn pop_key() -> anyhow::Result<PropertyKey> {
         PropertyKey::try_from(pop_value()?)
+    }
+    fn pop_ref() -> anyhow::Result<Box<Reference>> {
+        pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?.try_into()
     }
     fn pop_key_list() -> anyhow::Result<Vec<PropertyKey>> {
         let list_len = pop_usize()?;
@@ -984,6 +998,11 @@ mod insn_impl {
         // Input: None
         // Output: Stack: Current realm's %Function.prototype%
         push_value(ECMAScriptValue::Object(intrinsic(IntrinsicId::FunctionPrototype)))
+    }
+    pub fn object_prototype() -> anyhow::Result<()> {
+        // Input: None
+        // Output:: Stack: Current realm's %Object.prototype%
+        push_value(ECMAScriptValue::Object(intrinsic(IntrinsicId::ObjectPrototype)))
     }
     pub fn this() -> anyhow::Result<()> {
         // Input: Nothing
@@ -1431,6 +1450,28 @@ mod insn_impl {
         let current_env = current_variable_environment();
         set_lexical_environment(current_env);
     }
+    pub fn set_aside_lex_env() -> anyhow::Result<()> {
+        // Input: None
+        // Output on Stack: the top lexical environment (which is then popped)
+        let current_env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let outer_env = current_env.get_outer_env().ok_or(InternalRuntimeError::NoParentLexicalEnvironment)?;
+        set_lexical_environment(Some(outer_env));
+        push_completion(Ok(NormalCompletion::Environment(current_env)))
+    }
+    pub fn restore_lex_env() -> anyhow::Result<()> {
+        // Input on stack: Env
+        // Output: None
+        let completion = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
+        let env: Rc<dyn EnvironmentRecord> = completion.try_into()?;
+        set_lexical_environment(Some(env));
+        Ok(())
+    }
+    pub fn push_new_private_env() {
+        // Input: None; Output: None
+        let outer_private_environment = current_private_environment();
+        let new_private_environment = PrivateEnvironmentRecord::new(outer_private_environment);
+        set_private_environment(Some(Rc::new(RefCell::new(new_private_environment))));
+    }
     pub fn create_immutable_lex_binding(strict: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
         let name = string_operand(chunk)?;
@@ -1513,6 +1554,17 @@ mod insn_impl {
         env.set_mutable_binding(name.clone(), value, false).or(Err(InternalRuntimeError::SetMutableBindingFailure))?;
         Ok(())
     }
+    pub fn create_private_name_if_missing(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input operand: string Index
+        let name = string_operand(chunk)?;
+        let pe_holder = current_private_environment().ok_or(InternalRuntimeError::NoPrivateEnv)?;
+        let mut pe = pe_holder.borrow_mut();
+        if !pe.names.iter().map(|pn| &pn.description).any(|description| description == name) {
+            let pn = PrivateName::new(name.clone());
+            pe.names.push(pn);
+        }
+        Ok(())
+    }
     pub fn create_per_iteration_environment(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // A 1-operand instruction that takes nothing from the stack as input, and produces one
         // stack item ([empty]/error) on exit.
@@ -1579,6 +1631,13 @@ mod insn_impl {
     pub fn object() -> anyhow::Result<()> {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
         let o = ordinary_object_create(Some(obj_proto));
+        push_value(ECMAScriptValue::Object(o))
+    }
+    pub fn object_with_proto() -> anyhow::Result<()> {
+        // Input on stack: proto
+        // Output on stack: object
+        let proto: Option<Object> = pop_value()?.try_into()?;
+        let o = ordinary_object_create(proto);
         push_value(ECMAScriptValue::Object(o))
     }
     pub fn array() -> anyhow::Result<()> {
@@ -1906,7 +1965,7 @@ mod insn_impl {
         );
 
         super::set_function_name(&closure, name.into(), None);
-        make_constructor(&closure, None);
+        super::make_constructor(&closure, None);
 
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
@@ -1975,7 +2034,7 @@ mod insn_impl {
         );
 
         super::set_function_name(&closure, name.clone().into(), None);
-        make_constructor(&closure, None);
+        super::make_constructor(&closure, None);
         func_env.initialize_binding(&name, closure.clone().into()).expect("binding has been created");
 
         push_value(closure.into()).expect(PUSHABLE);
@@ -2057,7 +2116,7 @@ mod insn_impl {
             Rc::new(compiled),
         );
         super::set_function_name(&closure, name.clone().into(), None);
-        make_constructor(&closure, None);
+        super::make_constructor(&closure, None);
 
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
@@ -2739,9 +2798,8 @@ mod insn_impl {
         Ok(())
     }
     pub fn define_method(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
-        // on the stack: propkey object prototype
+        // on the stack: object prototype
         let info = sfd_operand(chunk)?;
-        let propkey = pop_key()?;
         let obj = pop_obj()?;
         let prototype = pop_obj()?;
 
@@ -2781,7 +2839,6 @@ mod insn_impl {
             );
 
             push_value(ECMAScriptValue::Object(closure)).expect(PUSHABLE);
-            push_completion(Ok(propkey.into())).expect(PUSHABLE);
             Ok(())
         } else {
             Err(InternalRuntimeError::ExpectedMethod)?
@@ -3048,6 +3105,110 @@ mod insn_impl {
         push_completion(yielded_result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
+    pub fn get_parents_from_superclass() -> anyhow::Result<()> {
+        // Input Stack:   err/superclass-reference
+        // Output Stack:  err/(proto-parent constructor-parent)
+
+        //      e. Let superclass be ? GetValue(? superclassRef).
+        //      f. If superclass is null, then
+        //          i. Let protoParent be null.
+        //          ii. Let constructorParent be %Function.prototype%.
+        //      g. Else if IsConstructor(superclass) is false, then
+        //          i. Throw a TypeError exception.
+        //      h. Else,
+        //          i. Let protoParent be ? Get(superclass, "prototype").
+        //          ii. If protoParent is not an Object and protoParent is not null, throw a TypeError exception.
+        //          iii. Let constructorParent be superclass.
+
+        let item = pop_completion()?;
+        let result = (|item| {
+            let superclass = super::get_value(item)?;
+            if superclass == ECMAScriptValue::Null {
+                Ok((ECMAScriptValue::Null, ECMAScriptValue::Object(intrinsic(IntrinsicId::FunctionPrototype))))
+            } else if !superclass.is_constructor() {
+                Err(create_type_error("Constructor expected"))
+            } else {
+                let proto_parent = superclass.get(&"prototype".into())?;
+                if matches!(proto_parent, ECMAScriptValue::Null | ECMAScriptValue::Object(_)) {
+                    Ok((proto_parent, superclass))
+                } else {
+                    Err(create_type_error("Constructor has bad prototype property"))
+                }
+            }
+        })(item);
+        match result {
+            Ok((proto_parent, constructor_parent)) => {
+                push_value(constructor_parent)?;
+                push_value(proto_parent)?;
+            }
+            Err(err) => {
+                push_completion(Err(err))?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn create_default_constructor() -> anyhow::Result<()> {
+        // Input: Stack: constructorParent className
+        // Output: Stack: constructorFunctionObject
+
+        let constructor_parent = pop_value()?.try_into()?;
+        let class_name = pop_value()?.try_into()?;
+        let realm = current_realm_record();
+
+        // a. Let defaultConstructor be a new Abstract Closure with no parameters that captures nothing and
+        //    performs the following steps when called:
+        //    [ See default_constructor, below ]
+        // b. Let F be CreateBuiltinFunction(defaultConstructor, 0, className, « [[ConstructorKind]],
+        //    [[SourceText]] », the current Realm Record, constructorParent).
+        let f = create_builtin_function(
+            default_constructor,
+            Some(ConstructorKind::Base),
+            0.0,
+            class_name,
+            &[InternalSlotName::ConstructorKind, InternalSlotName::SourceText],
+            realm,
+            constructor_parent,
+            None,
+        );
+        push_value(ECMAScriptValue::Object(f)).expect(PUSHABLE);
+        Ok(())
+    }
+
+    pub fn make_class_constructor_and_set_name() -> anyhow::Result<()> {
+        // Input Stack: functionObject className
+        // Output Stack: functionObject
+        let function_object = pop_value()?.try_into()?;
+        let class_name = pop_value()?.try_into()?;
+
+        make_class_constructor(&function_object);
+        super::set_function_name(&function_object, class_name, None);
+
+        push_value(ECMAScriptValue::Object(function_object)).expect(PUSHABLE);
+        Ok(())
+    }
+
+    pub fn make_constructor() -> anyhow::Result<()> {
+        // Input Stack: func-object
+        // Output Stack: func-object
+        let function_object = pop_value()?.try_into()?;
+        super::make_constructor(&function_object, None);
+        push_value(ECMAScriptValue::Object(function_object)).expect(PUSHABLE);
+        Ok(())
+    }
+
+    pub fn set_derived() -> anyhow::Result<()> {
+        // Input Stack: func-object
+        // Output Stack: func-object
+        let function_object: Object = pop_value()?.try_into()?;
+        let fobj = function_object.o.to_function_obj().ok_or(InternalRuntimeError::FunctionExpected)?;
+        {
+            let mut data_ref = fobj.function_data().borrow_mut();
+            data_ref.constructor_kind = ConstructorKind::Derived;
+        }
+        push_value(ECMAScriptValue::Object(function_object)).expect(PUSHABLE);
+        Ok(())
+    }
 }
 
 pub fn execute_synchronously(text: &str) -> Completion<ECMAScriptValue> {
@@ -3129,6 +3290,7 @@ pub async fn execute(
             Insn::GetValue => insn_impl::get_value().expect(GOODCODE),
             Insn::PutValue => insn_impl::put_value().expect(GOODCODE),
             Insn::FunctionPrototype => insn_impl::function_prototype().expect(GOODCODE),
+            Insn::ObjectPrototype => insn_impl::object_prototype().expect(GOODCODE),
             Insn::JumpIfAbrupt => insn_impl::jump_if_abrupt(&chunk).expect(GOODCODE),
             Insn::JumpIfNormal => insn_impl::jump_if_normal(&chunk).expect(GOODCODE),
             Insn::JumpIfFalse => insn_impl::jump_referencing_bool(false, &chunk).expect(GOODCODE),
@@ -3161,6 +3323,9 @@ pub async fn execute(
             Insn::PushNewVarEnvFromLex => insn_impl::push_new_var_env_from_lex(),
             Insn::PushNewLexEnvFromVar => insn_impl::push_new_lex_env_from_var(),
             Insn::SetLexEnvToVarEnv => insn_impl::set_lex_env_to_var_env(),
+            Insn::SetAsideLexEnv => insn_impl::set_aside_lex_env().expect(GOODCODE),
+            Insn::RestoreLexEnv => insn_impl::restore_lex_env().expect(GOODCODE),
+            Insn::PushNewPrivateEnv => insn_impl::push_new_private_env(),
             Insn::CreateStrictImmutableLexBinding => {
                 insn_impl::create_immutable_lex_binding(true, &chunk).expect(GOODCODE);
             }
@@ -3183,6 +3348,7 @@ pub async fn execute(
             Insn::InitializeVarBinding => insn_impl::initialize_var_binding(&chunk).expect(GOODCODE),
             Insn::GetLexBinding => insn_impl::get_lex_binding(&chunk).expect(GOODCODE),
             Insn::SetMutableVarBinding => insn_impl::set_mutable_var_binding(&chunk).expect(GOODCODE),
+            Insn::CreatePrivateNameIfMissing => insn_impl::create_private_name_if_missing(&chunk).expect(GOODCODE),
             Insn::CreatePerIterationEnvironment => {
                 insn_impl::create_per_iteration_environment(&chunk).expect(GOODCODE);
             }
@@ -3190,6 +3356,7 @@ pub async fn execute(
             Insn::ExtractArg => insn_impl::extract_arg().expect(GOODCODE),
             Insn::FinishArgs => insn_impl::finish_args().expect(GOODCODE),
             Insn::Object => insn_impl::object().expect(GOODCODE),
+            Insn::ObjectWithProto => insn_impl::object_with_proto().expect(GOODCODE),
             Insn::Array => insn_impl::array().expect(GOODCODE),
             Insn::CreateDataProperty => insn_impl::create_data_property().expect(GOODCODE),
             Insn::SetPrototype => insn_impl::set_prototype().expect(GOODCODE),
@@ -3300,6 +3467,11 @@ pub async fn execute(
             Insn::DefineMethodProperty => insn_impl::define_method_property(&chunk).expect(GOODCODE),
             Insn::DefineGetter => insn_impl::define_getter(&chunk, &text).expect(GOODCODE),
             Insn::DefineSetter => insn_impl::define_setter(&chunk, &text).expect(GOODCODE),
+            Insn::GetParentsFromSuperclass => insn_impl::get_parents_from_superclass().expect(GOODCODE),
+            Insn::CreateDefaultConstructor => insn_impl::create_default_constructor().expect(GOODCODE),
+            Insn::MakeClassConstructorAndSetName => insn_impl::make_class_constructor_and_set_name().expect(GOODCODE),
+            Insn::MakeConstructor => insn_impl::make_constructor().expect(GOODCODE),
+            Insn::SetDerived => insn_impl::set_derived().expect(GOODCODE),
             Insn::GeneratorStartFromFunction => insn_impl::generator_start_from_function(&text).expect(GOODCODE),
             Insn::Yield => insn_impl::yield_insn(&co).await.expect(GOODCODE),
         }
@@ -3584,7 +3756,7 @@ fn apply_string_or_numeric_binary_operator(left: ECMAScriptValue, right: ECMAScr
 fn evaluate_initialized_class_field_definition(
     info: &StashedFunctionData,
     home_object: Object,
-    name: ClassName,
+    name: Option<ClassName>,
     text: &str,
 ) -> anyhow::Result<Object> {
     // Pieces from ClassFieldDefinitionEvaluation
@@ -4444,7 +4616,7 @@ pub fn provision_for_in_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
-                false,
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -4536,6 +4708,48 @@ fn for_in_iterator_prototype_next(
                 return Ok(create_iter_result_object(ECMAScriptValue::Undefined, true).into());
             }
         }
+    }
+}
+
+pub fn default_constructor(
+    _this_value: &ECMAScriptValue,
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    //  i. Let args be the List of arguments that was passed to this function by [[Call]] or [[Construct]].
+    //  ii. If NewTarget is undefined, throw a TypeError exception.
+    //  iii. Let F be the active function object.
+    //  iv. If F.[[ConstructorKind]] is derived, then
+    //      1. NOTE: This branch behaves similarly to constructor(...args) { super(...args); }. The most
+    //         notable distinction is that while the aforementioned ECMAScript source text observably calls
+    //         the %Symbol.iterator% method on %Array.prototype%, this function does not.
+    //      2. Let func be ! F.[[GetPrototypeOf]]().
+    //      3. If IsConstructor(func) is false, throw a TypeError exception.
+    //      4. Let result be ? Construct(func, args, NewTarget).
+    //  v. Else,
+    //      1. NOTE: This branch behaves similarly to constructor() {}.
+    //      2. Let result be ? OrdinaryCreateFromConstructor(NewTarget, "%Object.prototype%").
+    //  vi. Perform ? InitializeInstanceElements(result, F).
+    //  vii. Return result.
+
+    if let Some(nt) = new_target {
+        let f = active_function_object().expect("a function should be active");
+        // f points to *this function* which we know is a builtin.
+        let func_interface = f.o.to_builtin_function_obj().expect("f should be a builtin function");
+        let kind = func_interface.builtin_function_data().borrow().constructor_kind;
+        let result = if kind == Some(ConstructorKind::Derived) {
+            match f.o.get_prototype_of().expect("[[GetPrototypeOf]] f should complete successfully") {
+                Some(func) if func.is_constructor() => Ok(Object::try_from(construct(&func, arguments, Some(nt))?)
+                    .expect("construct should return an object")),
+                _ => Err(create_type_error("not a constructor")),
+            }
+        } else {
+            nt.ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, ordinary_object_create)
+        }?;
+        initialize_instance_elements(&result, &f)?;
+        Ok(ECMAScriptValue::Object(result))
+    } else {
+        Err(create_type_error("Class constructor canot be invoked without 'new'"))
     }
 }
 

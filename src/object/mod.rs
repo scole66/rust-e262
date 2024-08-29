@@ -2372,7 +2372,6 @@ impl Object {
         factory: impl FnOnce(Option<Object>) -> Object,
     ) -> Completion<Object> {
         let proto = self.get_prototype_from_constructor(intrinsic_default_proto)?;
-        //Ok(ordinary_object_create(Some(proto)))
         Ok(factory(Some(proto)))
     }
 }

@@ -774,7 +774,7 @@ fn faux_class() -> ECMAScriptValue {
     let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
     let has_instance = create_builtin_function(
         test_has_instance,
-        false,
+        None,
         1_f64,
         PropertyKey::from("[Symbol.hasInstance]"),
         BUILTIN_FUNCTION_SLOTS,
@@ -1469,7 +1469,7 @@ mod begin_call_evaluation {
     fn good_func() -> ECMAScriptValue {
         ECMAScriptValue::from(create_builtin_function(
             test_reporter,
-            false,
+            None,
             2.0,
             "test_reporter".into(),
             &[],
@@ -1713,7 +1713,7 @@ mod evaluate_initialized_class_field_definition {
         let fd = Maker::new(src).field_definition();
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
         let home = ordinary_object_create(Some(proto));
-        let name = ClassName::from("class_name");
+        let name = Some(ClassName::from("class_name"));
         let info = StashedFunctionData {
             source_text: String::new(),
             params: Rc::new(FormalParameters::Empty(Location::default())).into(),
@@ -1726,7 +1726,7 @@ mod evaluate_initialized_class_field_definition {
         let obj = evaluate_initialized_class_field_definition(&info, home.clone(), name, src).unwrap();
 
         let fdata = obj.o.to_function_obj().unwrap().function_data().borrow();
-        assert_eq!(fdata.class_field_initializer_name, ClassName::from("class_name"));
+        assert_eq!(fdata.class_field_initializer_name, Some(ClassName::from("class_name")));
         assert_eq!(fdata.home_object.as_ref().unwrap().o.id(), home.o.id());
     }
 
@@ -1741,7 +1741,7 @@ mod evaluate_initialized_class_field_definition {
         let fd = Maker::new(src).field_definition();
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
         let home = ordinary_object_create(Some(proto));
-        let name = ClassName::from("class_name");
+        let name = Some(ClassName::from("class_name"));
         let info = StashedFunctionData {
             source_text: String::new(),
             params: Rc::new(FormalParameters::Empty(Location::default())).into(),

@@ -546,7 +546,7 @@ mod nameable_production {
         let node = NameableProduction::try_from(Maker::new(src).primary_expression()).unwrap();
         let mut c = Chunk::new("x");
         let id = c.add_to_string_pool("my_function_name".into()).unwrap();
-        node.compile_named_evaluation(&mut c, strict, src, NameLoc::Index(id))
+        node.compile_named_evaluation(&mut c, strict, src, Some(NameLoc::Index(id)))
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -984,7 +984,12 @@ mod property_definition {
                 "FUNC_PROTO",
                 "SWAP",
                 "STRING 0 (a)",
+                "ROTATEDOWN 3",
                 "DEFINE_METHOD 0",
+                "JUMP_IF_ABRUPT 3",
+                "SWAP",
+                "JUMP 2",
+                "UNWIND 1",
                 "JUMP_IF_ABRUPT 3",
                 "SET_FUNC_NAME",
                 "DEF_METH_PROP 1",
@@ -5271,7 +5276,7 @@ mod function_expression {
     ) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).function_expression();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_named_evaluation(&mut c, strict, src, node.clone(), NameLoc::OnStack)
+        node.compile_named_evaluation(&mut c, strict, src, node.clone(), Some(NameLoc::OnStack))
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5305,9 +5310,9 @@ mod function_expression {
         let node = Maker::new(src).function_expression();
         let mut c = complex_filled_chunk("x", what);
         let name = match name {
-            TestLoc::None => NameLoc::None,
-            TestLoc::Stack => NameLoc::OnStack,
-            TestLoc::Index => NameLoc::Index(c.add_to_string_pool("myname".into()).unwrap()),
+            TestLoc::None => None,
+            TestLoc::Stack => Some(NameLoc::OnStack),
+            TestLoc::Index => Some(NameLoc::Index(c.add_to_string_pool("myname".into()).unwrap())),
         };
         node.instantiate_ordinary_function_expression(&mut c, strict, name, src, node.clone())
             .map(|status| {
@@ -6351,9 +6356,9 @@ mod arrow_function {
         let node = Maker::new(src).arrow_function();
         let mut c = complex_filled_chunk("x", what);
         let name = match name {
-            TestLoc::None => NameLoc::None,
-            TestLoc::Stack => NameLoc::OnStack,
-            TestLoc::Index => NameLoc::Index(c.add_to_string_pool("myname".into()).unwrap()),
+            TestLoc::None => None,
+            TestLoc::Stack => Some(NameLoc::OnStack),
+            TestLoc::Index => Some(NameLoc::Index(c.add_to_string_pool("myname".into()).unwrap())),
         };
         node.instantiate_arrow_function_expression(&mut c, strict, src, name, node.clone())
             .map(|status| {
@@ -6385,7 +6390,7 @@ mod arrow_function {
     fn compile_named_evaluation(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).arrow_function();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_named_evaluation(&mut c, true, src, node.clone(), NameLoc::OnStack)
+        node.compile_named_evaluation(&mut c, true, src, node.clone(), Some(NameLoc::OnStack))
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -12454,10 +12459,10 @@ mod method_definition {
     )]
     #[test_case(
         "[1n] () {}", true, &[]
-        => Ok(svec(&["BIGINT 0 (1)", "TO_KEY", "JUMP_IF_ABRUPT 4", "DEFINE_METHOD 0", "JUMP 2", "UNWIND 2"]));
+        => Ok(svec(&["BIGINT 0 (1)", "TO_KEY", "JUMP_IF_ABRUPT 9", "ROTATEDOWN 3", "DEFINE_METHOD 0", "JUMP_IF_ABRUPT 5", "SWAP", "JUMP 4", "UNWIND 1", "UNWIND 1"]));
         "success; fallible name"
     )]
-    #[test_case("a(){}", true, &[] => Ok(svec(&["STRING 0 (a)", "DEFINE_METHOD 0"])); "success; infallible name")]
+    #[test_case("a(){}", true, &[] => Ok(svec(&["STRING 0 (a)", "ROTATEDOWN 3", "DEFINE_METHOD 0", "JUMP_IF_ABRUPT 3", "SWAP", "JUMP 2", "UNWIND 1"])); "success; infallible name")]
     #[test_case(
         "a(){}", true, &[(Fillable::FunctionStash, 0)]
         => serr("Out of room for more functions!");
@@ -12468,7 +12473,7 @@ mod method_definition {
         let node = Maker::new(src).method_definition();
         let mut c = complex_filled_chunk("x", what);
 
-        node.define_method(&mut c, strict, src, &node)
+        node.define_method(&mut c, strict, src)
             .map_err(|e| e.to_string())
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }
@@ -12485,7 +12490,12 @@ mod method_definition {
             "FUNC_PROTO",
             "SWAP",
             "STRING 0 (a)",
+            "ROTATEDOWN 3",
             "DEFINE_METHOD 0",
+            "JUMP_IF_ABRUPT 3",
+            "SWAP",
+            "JUMP 2",
+            "UNWIND 1",
             "JUMP_IF_ABRUPT 3",
             "SET_FUNC_NAME",
             "DEF_METH_PROP 0",
@@ -12500,7 +12510,12 @@ mod method_definition {
             "FUNC_PROTO",
             "SWAP",
             "STRING 0 (a)",
+            "ROTATEDOWN 3",
             "DEFINE_METHOD 0",
+            "JUMP_IF_ABRUPT 3",
+            "SWAP",
+            "JUMP 2",
+            "UNWIND 1",
             "JUMP_IF_ABRUPT 3",
             "SET_FUNC_NAME",
             "DEF_METH_PROP 1",
@@ -12554,7 +12569,7 @@ mod method_definition {
         let node = Maker::new(src).method_definition();
         let mut c = complex_filled_chunk("x", what);
 
-        node.method_definition_evaluation(enumerable, &mut c, strict, src, &node)
+        node.method_definition_evaluation(enumerable, &mut c, strict, src)
             .map_err(|e| e.to_string())
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }

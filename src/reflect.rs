@@ -21,7 +21,7 @@ pub fn provision_reflect_intrinsic(realm: &Rc<RefCell<Realm>>) {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
-                false,
+                None,
                 f64::from($length),
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,

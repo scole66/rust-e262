@@ -219,7 +219,7 @@ pub fn provision_boolean_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let bool_constructor = create_builtin_function(
         boolean_constructor_function,
-        true,
+        Some(ConstructorKind::Base),
         1_f64,
         PropertyKey::from("Boolean"),
         BUILTIN_FUNCTION_SLOTS,
@@ -266,7 +266,7 @@ pub fn provision_boolean_intrinsic(realm: &Rc<RefCell<Realm>>) {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
-                false,
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,

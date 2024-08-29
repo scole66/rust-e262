@@ -41,7 +41,7 @@ mod proxy_object {
     ) -> Object {
         create_builtin_function(
             behavior,
-            false,
+            None,
             0.0,
             "f".into(),
             BUILTIN_FUNCTION_SLOTS,

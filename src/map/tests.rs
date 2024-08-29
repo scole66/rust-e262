@@ -25,7 +25,7 @@ mod add_entries_from_iterable {
         let generator = create_array_iterator(data, KeyValueKind::KeyValue);
         let adder = create_builtin_function(
             good_adder,
-            false,
+            None,
             2.0,
             "good_adder".into(),
             BUILTIN_FUNCTION_SLOTS,
@@ -72,7 +72,7 @@ mod add_entries_from_iterable {
             let result: Completion<ECMAScriptValue> = Ok(obj.into());
             result
         };
-        let next = create_builtin_function(next_behavior, false, 0.0, "next".into(), &[], None, None, None);
+        let next = create_builtin_function(next_behavior, None, 0.0, "next".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("next", next).unwrap();
 
         (target.into(), iterator.into(), ECMAScriptValue::Undefined)
@@ -89,7 +89,7 @@ mod add_entries_from_iterable {
             let result: Completion<ECMAScriptValue> = Ok(obj.into());
             result
         };
-        let next = create_builtin_function(next_behavior, false, 0.0, "next".into(), &[], None, None, None);
+        let next = create_builtin_function(next_behavior, None, 0.0, "next".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("next", next).unwrap();
 
         (target.into(), iterator.into(), ECMAScriptValue::Undefined)
@@ -109,7 +109,7 @@ mod add_entries_from_iterable {
             let result: Completion<ECMAScriptValue> = Ok(obj.into());
             result
         };
-        let next = create_builtin_function(next_behavior, false, 0.0, "next".into(), &[], None, None, None);
+        let next = create_builtin_function(next_behavior, None, 0.0, "next".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("next", next).unwrap();
 
         (target.into(), iterator.into(), ECMAScriptValue::Undefined)
@@ -130,7 +130,7 @@ mod add_entries_from_iterable {
             let result: Completion<ECMAScriptValue> = Ok(obj.into());
             result
         };
-        let next = create_builtin_function(next_behavior, false, 0.0, "next".into(), &[], None, None, None);
+        let next = create_builtin_function(next_behavior, None, 0.0, "next".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("next", next).unwrap();
 
         (target.into(), iterator.into(), ECMAScriptValue::Undefined)

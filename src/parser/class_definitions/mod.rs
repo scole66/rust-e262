@@ -287,8 +287,8 @@ impl ClassExpression {
 //      ClassHeritage[?Yield, ?Await]opt { ClassBody[?Yield, ?Await]opt }
 #[derive(Debug)]
 pub struct ClassTail {
-    heritage: Option<Rc<ClassHeritage>>,
-    body: Option<Rc<ClassBody>>,
+    pub heritage: Option<Rc<ClassHeritage>>,
+    pub body: Option<Rc<ClassBody>>,
     location: Location,
 }
 
@@ -706,6 +706,13 @@ impl ClassBody {
     pub fn constructor_method(&self) -> Option<&Rc<ClassElement>> {
         self.0.constructor_method()
     }
+
+    pub fn non_constructor_elements(&self) -> Vec<&Rc<ClassElement>> {
+        // Static Semantics: NonConstructorElements
+        // The syntax-directed operation NonConstructorElements takes no arguments and returns a List of ClassElement
+        // Parse Nodes.
+        self.0.non_constructor_elements()
+    }
 }
 
 // ClassElementList[Yield, Await] :
@@ -771,8 +778,8 @@ pub enum IdUsage {
 }
 #[derive(Debug, Clone)]
 pub struct PrivateIdInfo {
-    name: JSString,
-    usage: IdUsage,
+    pub name: JSString,
+    pub usage: IdUsage,
 }
 
 impl ClassElementList {
@@ -931,6 +938,37 @@ impl ClassElementList {
                     if let Some(pn) = ce.prop_name() {
                         list.push(pn);
                     }
+                }
+                list
+            }
+        }
+    }
+
+    pub fn non_constructor_elements(&self) -> Vec<&Rc<ClassElement>> {
+        // Static Semantics: NonConstructorElements
+        // The syntax-directed operation NonConstructorElements takes no arguments and returns a List of ClassElement
+        // Parse Nodes. It is defined piecewise over the following productions:
+        //
+        match self {
+            ClassElementList::Item(item) => {
+                // ClassElementList : ClassElement
+                //  1. If the ClassElementKind of ClassElement is non-constructor-method, then
+                //      a. Return « ClassElement ».
+                //  2. Return a new empty List.
+                match item.class_element_kind() {
+                    Some(CEKind::NonConstructorMethod) => vec![item],
+                    _ => vec![],
+                }
+            }
+            ClassElementList::List(list, item) => {
+                // ClassElementList : ClassElementList ClassElement
+                //  1. Let list be the NonConstructorElements of ClassElementList.
+                //  2. If the ClassElementKind of ClassElement is non-constructor-method, then
+                //      a. Append ClassElement to the end of list.
+                //  3. Return list.
+                let mut list = list.non_constructor_elements();
+                if Some(CEKind::NonConstructorMethod) == item.class_element_kind() {
+                    list.push(item);
                 }
                 list
             }

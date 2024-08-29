@@ -309,7 +309,7 @@ fn number_constructor_as_constructor_02() {
 }
 #[test]
 fn number_constructor_throws() {
-    // ordinary_create_from_contructor throws.
+    // ordinary_create_from_constructor throws.
     // This looks to be difficult to make happen, but I can imagine some class shenanigans that could do it.
     setup_test_agent();
     let number_constructor = intrinsic(IntrinsicId::Number);

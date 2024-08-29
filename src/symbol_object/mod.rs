@@ -199,7 +199,7 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let symbol_constructor = create_builtin_function(
         symbol_constructor_function,
-        true,
+        Some(ConstructorKind::Base),
         0.0,
         PropertyKey::from("Symbol"),
         BUILTIN_FUNCTION_SLOTS,
@@ -214,7 +214,7 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
-                false,
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -280,7 +280,7 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
-                false,
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -323,7 +323,7 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     let descriptor_getter = create_builtin_function(
         symbol_description,
-        false,
+        None,
         0.0,
         PropertyKey::from("description"),
         BUILTIN_FUNCTION_SLOTS,
@@ -340,7 +340,7 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let to_prop_sym = wks(WksId::ToPrimitive);
     let to_primitive_func = create_builtin_function(
         symbol_value_of,
-        false,
+        None,
         1.0,
         PropertyKey::from(to_prop_sym.clone()),
         BUILTIN_FUNCTION_SLOTS,
