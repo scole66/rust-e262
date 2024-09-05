@@ -181,12 +181,10 @@ pub fn next_symbol_id() -> usize {
 }
 
 pub fn push_execution_context(context: ExecutionContext) {
-    println!("EC Pushed");
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut().push(context));
 }
 
 pub fn pop_execution_context() {
-    println!("EC Popped");
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut().pop());
 }
 

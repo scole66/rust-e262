@@ -1655,10 +1655,7 @@ impl CallableObject for BuiltInFunctionObject {
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         push_execution_context(callee_context);
-        println!("Before steps: EC Stack Len: {}", execution_context_stack_len());
         let result = (self.builtin_data.borrow().steps)(&ECMAScriptValue::Undefined, Some(new_target), arguments_list);
-        println!("in BuiltinFunctionObject::construct: result: {result:#?}");
-        println!("After steps: EC Stack Len: {}", execution_context_stack_len());
         pop_execution_context();
 
         ec_push(result.map(NormalCompletion::from));
