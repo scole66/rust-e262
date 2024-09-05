@@ -84,7 +84,7 @@ mod function_declaration {
             assert_eq!(function.source_text, src);
             assert!(function.fields.is_empty());
             assert!(function.private_methods.is_empty());
-            assert!(matches!(function.class_field_initializer_name, None));
+            assert!(function.class_field_initializer_name.is_none());
             assert!(!function.is_class_constructor);
             assert!(function.is_constructor);
 
@@ -1879,7 +1879,7 @@ mod initialize_instance_elements {
                 key: PrivateName::new("test-key"),
                 kind: PrivateElementKind::Method{ value: ECMAScriptValue::from("test-value") }, // not really a method
             };
-            data.private_methods.push(Rc::new(method));
+            data.private_methods.push(method);
             cstr
         }
         => Ok(svec(&["PrivateElement{PN[test-key]: Method(test-value)}"]));
@@ -1895,8 +1895,8 @@ mod initialize_instance_elements {
                 key: PrivateName::new("test-key"),
                 kind: PrivateElementKind::Method{ value: ECMAScriptValue::from("test-value") }, // not really a method
             };
-            data.private_methods.push(Rc::new(method.clone()));
-            data.private_methods.push(Rc::new(method));
+            data.private_methods.push(method.clone());
+            data.private_methods.push(method);
             cstr
         }
         => serr("TypeError: PrivateName already defined");

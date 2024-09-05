@@ -1247,7 +1247,7 @@ pub struct CommonObjectData {
     pub next_spot: usize,
     pub objid: usize,
     pub slots: Vec<InternalSlotName>,
-    pub private_elements: Vec<Rc<PrivateElement>>,
+    pub private_elements: Vec<PrivateElement>,
 }
 
 impl CommonObjectData {
@@ -2680,7 +2680,7 @@ impl Object {
 //      a. Let entry be that PrivateElement.
 //      b. Return entry.
 //  2. Return empty.
-pub fn private_element_find(o: &Object, p: &PrivateName) -> Option<Rc<PrivateElement>> {
+pub fn private_element_find(o: &Object, p: &PrivateName) -> Option<PrivateElement> {
     let cod = o.o.common_object_data().borrow();
     let item = cod.private_elements.iter().find(|&item| item.key == *p);
     item.cloned()
@@ -2700,10 +2700,7 @@ pub fn private_field_add(obj: &Object, p: PrivateName, value: ECMAScriptValue) -
         Some(_) => Err(create_type_error("PrivateName already defined")),
         None => {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(Rc::new(PrivateElement {
-                key: p,
-                kind: PrivateElementKind::Field { value: RefCell::new(value) },
-            }));
+            elements.push(PrivateElement { key: p, kind: PrivateElementKind::Field { value: RefCell::new(value) } });
             Ok(())
         }
     }
@@ -2721,7 +2718,7 @@ pub fn private_field_add(obj: &Object, p: PrivateName, value: ECMAScriptValue) -
 //
 // NOTE: The values for private methods and accessors are shared across instances. This step does not create a new copy
 // of the method or accessor.
-pub fn private_method_or_accessor_add(obj: &Object, method: Rc<PrivateElement>) -> Completion<()> {
+pub fn private_method_or_accessor_add(obj: &Object, method: PrivateElement) -> Completion<()> {
     if private_element_find(obj, &method.key).is_some() {
         Err(create_type_error("PrivateName already defined"))
     } else {
@@ -2732,9 +2729,36 @@ pub fn private_method_or_accessor_add(obj: &Object, method: Rc<PrivateElement>) 
 
 #[allow(unused_variables)]
 pub fn define_field(obj: &Object, field: &ClassFieldDefinitionRecord) -> Completion<()> {
-    // for coverage testing:
-    obj.get(&PropertyKey::from("should_error"))?;
-    todo!()
+    // DefineField ( receiver, fieldRecord )
+    // The abstract operation DefineField takes arguments receiver (an Object) and fieldRecord (a ClassFieldDefinition
+    // Record) and returns either a normal completion containing unused or a throw completion. It performs the following
+    // steps when called:
+    //
+    //  1. Let fieldName be fieldRecord.[[Name]].
+    //  2. Let initializer be fieldRecord.[[Initializer]].
+    //  3. If initializer is not empty, then
+    //      a. Let initValue be ? Call(initializer, receiver).
+    //  4. Else,
+    //      a. Let initValue be undefined.
+    //  5. If fieldName is a Private Name, then
+    //      a. Perform ? PrivateFieldAdd(receiver, fieldName, initValue).
+    //  6. Else,
+    //      a. Assert: fieldName is a property key.
+    //      b. Perform ? CreateDataPropertyOrThrow(receiver, fieldName, initValue).
+    //  7. Return unused.
+    let field_name = &field.name;
+    let initializer = &field.initializer;
+    let init_value = if let Some(initializer) = initializer {
+        call(&ECMAScriptValue::Object(initializer.clone()), &ECMAScriptValue::Object(obj.clone()), &[])?
+    } else {
+        ECMAScriptValue::Undefined
+    };
+    match field_name {
+        ClassName::String(string) => obj.create_data_property_or_throw(string, init_value)?,
+        ClassName::Symbol(symbol) => obj.create_data_property_or_throw(symbol.clone(), init_value)?,
+        ClassName::Private(pn) => private_field_add(obj, pn.clone(), init_value)?,
+    }
+    Ok(())
 }
 
 // PrivateGet ( O, P )

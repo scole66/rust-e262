@@ -1351,28 +1351,6 @@ mod iterator_record {
     }
 }
 
-mod iterator_next {
-    use super::iterator_record::makes_good_ir;
-    use super::*;
-    use test_case::test_case;
-
-    #[test_case(makes_good_ir, Some(ECMAScriptValue::from("Argument")) => Ok((ECMAScriptValue::from("Iterator(This)(Argument)"), ECMAScriptValue::from(false))); "next returns ir")]
-    fn call(
-        make_ir: impl FnOnce() -> IteratorRecord,
-        value: Option<ECMAScriptValue>,
-    ) -> Result<(ECMAScriptValue, ECMAScriptValue), String> {
-        setup_test_agent();
-        let ir = make_ir();
-        super::iterator_next(&ir, value)
-            .map(|val| {
-                let value = val.get(&"value".into()).unwrap();
-                let done = val.get(&"done".into()).unwrap();
-                (value, done)
-            })
-            .map_err(unwind_any_error)
-    }
-}
-
 mod iterator_step {
     use super::*;
     use test_case::test_case;

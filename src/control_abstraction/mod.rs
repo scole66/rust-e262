@@ -1105,10 +1105,6 @@ impl IteratorRecord {
     }
 }
 
-fn iterator_next(iterator_record: &IteratorRecord, value: Option<ECMAScriptValue>) -> Completion<Object> {
-    iterator_record.next(value)
-}
-
 pub fn iterator_complete(iter_result: &Object) -> Completion<bool> {
     // IteratorComplete ( iterResult )
     //

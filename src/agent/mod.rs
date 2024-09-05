@@ -181,10 +181,12 @@ pub fn next_symbol_id() -> usize {
 }
 
 pub fn push_execution_context(context: ExecutionContext) {
+    println!("EC Pushed");
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut().push(context));
 }
 
 pub fn pop_execution_context() {
+    println!("EC Popped");
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut().pop());
 }
 
@@ -724,6 +726,10 @@ pub enum InternalRuntimeError {
     OkThrowOrReturnExpected,
     #[error("parent expected for current lexical environment")]
     NoParentLexicalEnvironment,
+    #[error("PrivateElement accessor expected")]
+    AccessorElementExpected,
+    #[error("PrivateElement improperly constructed")]
+    ImproperPrivateElement,
 }
 mod insn_impl {
     use super::*;
@@ -832,9 +838,9 @@ mod insn_impl {
     fn pop_key() -> anyhow::Result<PropertyKey> {
         PropertyKey::try_from(pop_value()?)
     }
-    fn pop_ref() -> anyhow::Result<Box<Reference>> {
-        pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?.try_into()
-    }
+    //fn pop_ref() -> anyhow::Result<Box<Reference>> {
+    //    pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?.try_into()
+    //}
     fn pop_key_list() -> anyhow::Result<Vec<PropertyKey>> {
         let list_len = pop_usize()?;
         AGENT.with(|agent| {
@@ -1471,6 +1477,13 @@ mod insn_impl {
         let outer_private_environment = current_private_environment();
         let new_private_environment = PrivateEnvironmentRecord::new(outer_private_environment);
         set_private_environment(Some(Rc::new(RefCell::new(new_private_environment))));
+    }
+    pub fn pop_private_env() -> anyhow::Result<()> {
+        // Input: None; Output: None
+        let current_private_environment = current_private_environment().ok_or(InternalRuntimeError::NoPrivateEnv)?;
+        let parent = current_private_environment.borrow().outer_private_environment.clone();
+        set_private_environment(parent);
+        Ok(())
     }
     pub fn create_immutable_lex_binding(strict: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
@@ -2778,14 +2791,20 @@ mod insn_impl {
         push_completion(Ok(NormalCompletion::from(private_name)))
     }
     pub fn evaluate_initialized_class_field_def(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // Input: Operand: function stash
+        // Input: Stack: name homeObject
+        // Output: FieldRecord homeObject
         let info = sfd_operand(chunk)?;
-        let name = pop_classname()?;
+        let name = pop_classname()?.ok_or(InternalRuntimeError::StringExpected)?;
         let home_object = pop_obj()?;
-        let initializer = evaluate_initialized_class_field_definition(info, home_object.clone(), name.clone(), text)?;
+        let initializer =
+            evaluate_initialized_class_field_definition(info, home_object.clone(), Some(name.clone()), text)?;
+
+        let cfdr = ClassFieldDefinitionRecord { name, initializer: Some(initializer) };
+        let completion = NormalCompletion::ClassItem(Box::new(ClassItem::ClassFieldDefinition(cfdr)));
 
         push_value(ECMAScriptValue::Object(home_object)).expect(PUSHABLE);
-        push_completion(Ok(NormalCompletion::from(name))).expect(PUSHABLE);
-        push_value(ECMAScriptValue::Object(initializer)).expect(PUSHABLE);
+        push_completion(Ok(completion)).expect(PUSHABLE);
         Ok(())
     }
     pub fn evaluate_class_static_block_def(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
@@ -3151,7 +3170,6 @@ mod insn_impl {
     pub fn create_default_constructor() -> anyhow::Result<()> {
         // Input: Stack: constructorParent className
         // Output: Stack: constructorFunctionObject
-
         let constructor_parent = pop_value()?.try_into()?;
         let class_name = pop_value()?.try_into()?;
         let realm = current_realm_record();
@@ -3200,13 +3218,174 @@ mod insn_impl {
     pub fn set_derived() -> anyhow::Result<()> {
         // Input Stack: func-object
         // Output Stack: func-object
-        let function_object: Object = pop_value()?.try_into()?;
+        let function_object: Object = pop_obj()?;
         let fobj = function_object.o.to_function_obj().ok_or(InternalRuntimeError::FunctionExpected)?;
         {
             let mut data_ref = fobj.function_data().borrow_mut();
             data_ref.constructor_kind = ConstructorKind::Derived;
         }
         push_value(ECMAScriptValue::Object(function_object)).expect(PUSHABLE);
+        Ok(())
+    }
+
+    pub fn attach_elements(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: Operand: count: the number of elements to process; count can be zero
+        // Input: Stack: FunctionObject element1 element2 ... elementN
+        // Output: Stack: err/FunctionObject
+
+        fn private_element_insert(
+            container: &mut Vec<PrivateElement>,
+            pe: PrivateElement,
+        ) -> Result<(), InternalRuntimeError> {
+            if let Some(element) = container.iter_mut().find(|element| element.key == pe.key) {
+                let (pe_get, pe_set) = match pe.kind {
+                    PrivateElementKind::Field { .. } | PrivateElementKind::Method { .. } => {
+                        return Err(InternalRuntimeError::AccessorElementExpected);
+                    }
+                    PrivateElementKind::Accessor { get, set } => (get, set),
+                };
+                if pe_get.is_some() == pe_set.is_some() {
+                    Err(InternalRuntimeError::ImproperPrivateElement)
+                } else if let PrivateElementKind::Accessor { get, set } = &mut element.kind {
+                    if set.is_none() && pe_set.is_some() {
+                        *set = pe_set;
+                        Ok(())
+                    } else if get.is_none() && pe_get.is_some() {
+                        *get = pe_get;
+                        Ok(())
+                    } else {
+                        Err(InternalRuntimeError::ImproperPrivateElement)
+                    }
+                } else {
+                    Err(InternalRuntimeError::AccessorElementExpected)
+                }
+            } else {
+                container.push(pe);
+                Ok(())
+            }
+        }
+
+        let count = operand(chunk)?;
+        let func_obj = pop_obj()?;
+
+        let mut items = vec![];
+        for _ in 0..count {
+            let item = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
+            items.push(item);
+        }
+
+        let mut instance_private_methods = vec![];
+        let mut static_private_methods = vec![];
+        let mut instance_fields = vec![];
+        let mut static_elements = vec![];
+
+        for item in items.into_iter().rev() {
+            // Item may be a
+            //   * static PrivateElement
+            //   * nonstatic PrivateElement
+            //   * static ClassFieldDefinition
+            //   * nonstatic ClassFieldDefinition
+            //   * ClassStaticBlockDefinition
+            //   * Empty
+            let field: Option<ClassItem> = item.try_into()?;
+            if let Some(field) = field {
+                match field {
+                    ClassItem::StaticPrivateElement(pe) => private_element_insert(&mut static_private_methods, pe)?,
+                    ClassItem::PrivateElement(pe) => private_element_insert(&mut instance_private_methods, pe)?,
+                    ClassItem::StaticClassFieldDefinition(fd) => static_elements.push(StaticElement::from(fd)),
+                    ClassItem::ClassFieldDefinition(fd) => instance_fields.push(fd),
+                    ClassItem::ClassStaticBlockDefinition(bd) => static_elements.push(StaticElement::from(bd)),
+                }
+            }
+        }
+
+        {
+            match func_obj.o.to_function_obj() {
+                Some(func) => {
+                    let mut func_data = func.function_data().borrow_mut();
+                    func_data.private_methods = instance_private_methods;
+                    func_data.fields = instance_fields;
+                }
+                None => match func_obj.o.to_builtin_function_obj() {
+                    Some(builtin) => {
+                        let mut func_data = builtin.builtin_function_data().borrow_mut();
+                        func_data.private_methods = instance_private_methods;
+                        func_data.fields = instance_fields;
+                    }
+                    None => Err(InternalRuntimeError::FunctionExpected)?,
+                },
+            }
+        }
+        for method in static_private_methods {
+            private_method_or_accessor_add(&func_obj, method)
+                .map_err(|_| InternalRuntimeError::ImproperPrivateElement)?;
+        }
+        for element_record in static_elements {
+            let result = match element_record {
+                StaticElement::Field(element_record) => define_field(&func_obj, &element_record),
+                StaticElement::Block(element_record) => super::call(
+                    &ECMAScriptValue::Object(element_record.body_function),
+                    &ECMAScriptValue::Object(func_obj.clone()),
+                    &[],
+                )
+                .map(|_| ()),
+            };
+            if let Err(ac) = result {
+                push_completion(Err(ac)).expect(PUSHABLE);
+                return Ok(());
+            }
+        }
+
+        push_value(ECMAScriptValue::Object(func_obj)).expect(PUSHABLE);
+        Ok(())
+    }
+
+    #[derive(Debug, Clone)]
+    enum StaticElement {
+        Field(ClassFieldDefinitionRecord),
+        Block(ClassStaticBlockDefinitionRecord),
+    }
+    impl From<ClassFieldDefinitionRecord> for StaticElement {
+        fn from(value: ClassFieldDefinitionRecord) -> Self {
+            Self::Field(value)
+        }
+    }
+    impl From<ClassStaticBlockDefinitionRecord> for StaticElement {
+        fn from(value: ClassStaticBlockDefinitionRecord) -> Self {
+            Self::Block(value)
+        }
+    }
+
+    pub fn attach_source_text(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand: string
+        // Input stack: obj
+        // Output stack: obj
+        let src_text = string_operand(chunk)?;
+        let func_obj = pop_obj()?;
+        match func_obj.o.to_function_obj() {
+            Some(func) => {
+                let mut data_ref = func.function_data().borrow_mut();
+                data_ref.source_text = String::from(src_text);
+            }
+            None => match func_obj.o.to_builtin_function_obj() {
+                Some(builtin) => {
+                    let mut data_ref = builtin.builtin_function_data().borrow_mut();
+                    data_ref.source_text = Some(String::from(src_text));
+                }
+                None => Err(InternalRuntimeError::FunctionExpected)?,
+            },
+        }
+        push_value(ECMAScriptValue::Object(func_obj)).expect(PUSHABLE);
+        Ok(())
+    }
+
+    pub fn name_only_field_record() -> anyhow::Result<()> {
+        // Input: Stack: name
+        // Output: Stack: fieldRecord
+        let name = pop_string()?;
+        let cfdr = ClassFieldDefinitionRecord { name: ClassName::from(name), initializer: None };
+        push_completion(Ok(NormalCompletion::ClassItem(Box::new(ClassItem::ClassFieldDefinition(cfdr)))))
+            .expect(PUSHABLE);
         Ok(())
     }
 }
@@ -3252,10 +3431,9 @@ pub async fn execute(
             break;
         }
 
-        let chunk = match AGENT.with(|agent| agent.execution_context_stack.borrow()[index].chunk.clone()) {
-            Some(r) => Ok(r),
-            None => Err(create_type_error("No compiled units!")),
-        }?;
+        let chunk = AGENT
+            .with(|agent| agent.execution_context_stack.borrow()[index].chunk.clone())
+            .expect("A running execution context should have code");
 
         if AGENT.with(|agent| agent.execution_context_stack.borrow()[index].pc) >= chunk.opcodes.len() {
             break;
@@ -3326,6 +3504,7 @@ pub async fn execute(
             Insn::SetAsideLexEnv => insn_impl::set_aside_lex_env().expect(GOODCODE),
             Insn::RestoreLexEnv => insn_impl::restore_lex_env().expect(GOODCODE),
             Insn::PushNewPrivateEnv => insn_impl::push_new_private_env(),
+            Insn::PopPrivateEnv => insn_impl::pop_private_env().expect(GOODCODE),
             Insn::CreateStrictImmutableLexBinding => {
                 insn_impl::create_immutable_lex_binding(true, &chunk).expect(GOODCODE);
             }
@@ -3472,8 +3651,11 @@ pub async fn execute(
             Insn::MakeClassConstructorAndSetName => insn_impl::make_class_constructor_and_set_name().expect(GOODCODE),
             Insn::MakeConstructor => insn_impl::make_constructor().expect(GOODCODE),
             Insn::SetDerived => insn_impl::set_derived().expect(GOODCODE),
+            Insn::AttachElements => insn_impl::attach_elements(&chunk).expect(GOODCODE),
+            Insn::AttachSourceText => insn_impl::attach_source_text(&chunk).expect(GOODCODE),
             Insn::GeneratorStartFromFunction => insn_impl::generator_start_from_function(&text).expect(GOODCODE),
             Insn::Yield => insn_impl::yield_insn(&co).await.expect(GOODCODE),
+            Insn::NameOnlyFieldRecord => insn_impl::name_only_field_record().expect(GOODCODE),
         }
     }
 
@@ -3487,7 +3669,8 @@ pub async fn execute(
                     NormalCompletion::IteratorRecord(_)
                     | NormalCompletion::Environment(..)
                     | NormalCompletion::PrivateName(_)
-                    | NormalCompletion::PrivateElement(_) => unreachable!(),
+                    | NormalCompletion::PrivateElement(_)
+                    | NormalCompletion::ClassItem(_) => unreachable!(),
                 })
             },
         )
@@ -3504,7 +3687,8 @@ fn begin_call_evaluation(
         | NormalCompletion::Empty
         | NormalCompletion::Environment(..)
         | NormalCompletion::PrivateName(_)
-        | NormalCompletion::PrivateElement(_) => {
+        | NormalCompletion::PrivateElement(_)
+        | NormalCompletion::ClassItem(_) => {
             return Err(InternalRuntimeError::ValueOrReferenceExpected);
         }
         NormalCompletion::Value(_) => ECMAScriptValue::Undefined,
@@ -3572,6 +3756,7 @@ fn delete_ref(expr: FullCompletion) -> FullCompletion {
         | NormalCompletion::Empty
         | NormalCompletion::PrivateName(_)
         | NormalCompletion::PrivateElement(_)
+        | NormalCompletion::ClassItem(_)
         | NormalCompletion::Value(_) => Ok(true.into()),
         NormalCompletion::Reference(r) => match *r {
             Reference { base: Base::Unresolvable, .. } => Ok(true.into()),
@@ -3627,26 +3812,6 @@ fn typeof_operator(expr: FullCompletion) -> FullCompletion {
         }
     };
     Ok(NormalCompletion::from(type_string))
-}
-
-impl Agent {
-    fn two_values(&self, index: usize) -> (ECMAScriptValue, ECMAScriptValue) {
-        let (right, left) = {
-            let stack = &mut self.execution_context_stack.borrow_mut()[index].stack;
-            (stack.pop(), stack.pop())
-        };
-        let right: ECMAScriptValue = right
-            .expect("Operation requires an argument")
-            .expect("Right must be a NormalCompletion")
-            .try_into()
-            .expect("Right must be a value");
-        let left: ECMAScriptValue = left
-            .expect("Operation requires two arguments")
-            .expect("Left must be a NormalCompletion")
-            .try_into()
-            .expect("Left must be a value");
-        (left, right)
-    }
 }
 
 fn apply_string_or_numeric_binary_operator(left: ECMAScriptValue, right: ECMAScriptValue, op: BinOp) -> FullCompletion {
@@ -3774,7 +3939,7 @@ fn evaluate_initialized_class_field_definition(
     let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
     let chunk_name = nameify(prod_text, 50);
     let mut compiled = Chunk::new(chunk_name);
-    to_compile.init.as_ref().unwrap().compile(&mut compiled, info.strict, text)?;
+    to_compile.init.as_ref().unwrap().compile(&mut compiled, info.strict, text, CompileMod::AsFunction)?;
     for line in compiled.disassemble() {
         println!("{line}");
     }
@@ -3838,55 +4003,6 @@ fn evaluate_class_static_block_definition(
 
     make_method(body_function.o.to_function_obj().unwrap(), home_object);
     Ok(body_function)
-}
-
-fn define_method(
-    object: Object,
-    function_prototype: Option<Object>,
-    info: &StashedFunctionData,
-    text: &str,
-) -> anyhow::Result<Object> {
-    // Pieces of DefineMethod
-    //  1. Let env be the running execution context's LexicalEnvironment.
-    //  2. Let privateEnv be the running execution context's PrivateEnvironment.
-    //  3. If functionPrototype is present, then
-    //      a. Let prototype be functionPrototype.
-    //  4. Else,
-    //      a. Let prototype be %Function.prototype%.
-    //  5. Let prototype be %Function.prototype%.
-    //  6. Let sourceText be the source text matched by MethodDefinition.
-    //  7. Let closure be OrdinaryFunctionCreate(prototype, sourceText, UniqueFormalParameters, FunctionBody, NON-LEXICAL-THIS, env, privateEnv).
-    //  8. Perform MakeMethod(closure, object).
-    //  9. Return closure.
-    let to_compile: Rc<MethodDefinition> =
-        info.to_compile.clone().try_into().expect("This routine only used with method definitions");
-    let MethodDefinition::NamedFunction(_, _, fb, _) = to_compile.as_ref() else { unreachable!() };
-    let prod_text_loc = to_compile.location().span;
-    let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
-    let chunk_name = nameify(prod_text, 50);
-    let mut compiled = Chunk::new(chunk_name);
-    fb.compile_body(&mut compiled, text, info)?;
-    for line in compiled.disassemble() {
-        println!("{line}");
-    }
-
-    let env = current_lexical_environment().unwrap();
-    let private_env = current_private_environment();
-    let prototype = function_prototype.unwrap_or_else(|| intrinsic(IntrinsicId::FunctionPrototype));
-    let closure = ordinary_function_create(
-        prototype,
-        &info.source_text,
-        info.params.clone(),
-        info.body.clone(),
-        info.this_mode,
-        env,
-        private_env,
-        info.strict,
-        Rc::new(compiled),
-    );
-    make_method(closure.o.to_function_obj().unwrap(), object);
-
-    Ok(closure)
 }
 
 fn define_method_property(

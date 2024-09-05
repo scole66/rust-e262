@@ -2853,18 +2853,18 @@ mod private_element_find {
 
         {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(Rc::new(PrivateElement {
+            elements.push(PrivateElement {
                 key: all_names[0].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) },
-            }));
-            elements.push(Rc::new(PrivateElement {
+            });
+            elements.push(PrivateElement {
                 key: all_names[1].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(2)) },
-            }));
-            elements.push(Rc::new(PrivateElement {
+            });
+            elements.push(PrivateElement {
                 key: all_names[2].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(3)) },
-            }));
+            });
         }
 
         (obj, all_names)
@@ -2909,18 +2909,18 @@ mod private_field_add {
 
         {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(Rc::new(PrivateElement {
+            elements.push(PrivateElement {
                 key: names[0].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) },
-            }));
-            elements.push(Rc::new(PrivateElement {
+            });
+            elements.push(PrivateElement {
                 key: names[1].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(2)) },
-            }));
-            elements.push(Rc::new(PrivateElement {
+            });
+            elements.push(PrivateElement {
                 key: names[2].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(3)) },
-            }));
+            });
         }
 
         (obj, names)
@@ -2968,10 +2968,10 @@ mod private_method_or_accessor_add {
 
         {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(Rc::new(PrivateElement {
+            elements.push(PrivateElement {
                 key: name.clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) },
-            }));
+            });
         }
         (obj, name)
     }
@@ -2981,10 +2981,8 @@ mod private_method_or_accessor_add {
         setup_test_agent();
         let (obj, _) = setup();
         let key = PrivateName::new("orange");
-        let method = Rc::new(PrivateElement {
-            key: key.clone(),
-            kind: PrivateElementKind::Method { value: ECMAScriptValue::from(100) },
-        });
+        let method =
+            PrivateElement { key: key.clone(), kind: PrivateElementKind::Method { value: ECMAScriptValue::from(100) } };
 
         private_method_or_accessor_add(&obj, method).unwrap();
         let x = private_element_find(&obj, &key).map(|pe| match &pe.kind {
@@ -3000,8 +2998,7 @@ mod private_method_or_accessor_add {
     fn replace() {
         setup_test_agent();
         let (obj, key) = setup();
-        let method =
-            Rc::new(PrivateElement { key, kind: PrivateElementKind::Method { value: ECMAScriptValue::from(100) } });
+        let method = PrivateElement { key, kind: PrivateElementKind::Method { value: ECMAScriptValue::from(100) } };
 
         let err = private_method_or_accessor_add(&obj, method).unwrap_err();
         assert_eq!(unwind_type_error(err), "PrivateName already defined");
@@ -3026,7 +3023,7 @@ mod private_get {
             key: method_name.clone(),
             kind: PrivateElementKind::Method { value: ECMAScriptValue::from("METHOD") },
         };
-        private_method_or_accessor_add(&obj, Rc::new(method)).unwrap();
+        private_method_or_accessor_add(&obj, method).unwrap();
         let getter_method = create_builtin_function(
             test_getter,
             None,
@@ -3041,7 +3038,7 @@ mod private_get {
             key: getter_name.clone(),
             kind: PrivateElementKind::Accessor { get: Some(getter_method), set: None },
         };
-        private_method_or_accessor_add(&obj, Rc::new(getter)).unwrap();
+        private_method_or_accessor_add(&obj, getter).unwrap();
         define_property_or_throw(
             &obj,
             PropertyKey::from("result"),
@@ -3056,7 +3053,7 @@ mod private_get {
         .unwrap();
         let nogetter =
             PrivateElement { key: nogetter_name.clone(), kind: PrivateElementKind::Accessor { get: None, set: None } };
-        private_method_or_accessor_add(&obj, Rc::new(nogetter)).unwrap();
+        private_method_or_accessor_add(&obj, nogetter).unwrap();
 
         (obj, field_name, method_name, getter_name, nogetter_name)
     }
@@ -3107,7 +3104,7 @@ mod private_set {
             key: method_name.clone(),
             kind: PrivateElementKind::Method { value: ECMAScriptValue::from("METHOD") },
         };
-        private_method_or_accessor_add(&obj, Rc::new(method)).unwrap();
+        private_method_or_accessor_add(&obj, method).unwrap();
         let getter_method = create_builtin_function(
             test_getter,
             None,
@@ -3133,7 +3130,7 @@ mod private_set {
             key: setter_name.clone(),
             kind: PrivateElementKind::Accessor { get: Some(getter_method), set: Some(setter_method) },
         };
-        private_method_or_accessor_add(&obj, Rc::new(setter)).unwrap();
+        private_method_or_accessor_add(&obj, setter).unwrap();
         define_property_or_throw(
             &obj,
             PropertyKey::from("result"),
@@ -3148,12 +3145,12 @@ mod private_set {
         .unwrap();
         let nosetter =
             PrivateElement { key: nosetter_name.clone(), kind: PrivateElementKind::Accessor { get: None, set: None } };
-        private_method_or_accessor_add(&obj, Rc::new(nosetter)).unwrap();
+        private_method_or_accessor_add(&obj, nosetter).unwrap();
         let broken_setter = PrivateElement {
             key: broken_setter_name.clone(),
             kind: PrivateElementKind::Accessor { get: None, set: Some(intrinsic(IntrinsicId::ThrowTypeError)) },
         };
-        private_method_or_accessor_add(&obj, Rc::new(broken_setter)).unwrap();
+        private_method_or_accessor_add(&obj, broken_setter).unwrap();
 
         (obj, field_name, method_name, setter_name, nosetter_name, broken_setter_name)
     }
@@ -4265,9 +4262,6 @@ mod object {
         #[allow(clippy::unnecessary_wraps)]
         fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec!["one".into(), "two".into(), "three".into()])
-        }
-        fn just_throw(_: &AdaptableObject) -> Completion<PropertyDescriptor> {
-            Err(create_type_error("Test Case Thrower"))
         }
         fn second_kabloom_throws(ao: &AdaptableObject, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
             if *key == PropertyKey::from("kabloom") {

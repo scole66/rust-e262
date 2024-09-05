@@ -60,7 +60,8 @@ impl TryFrom<NormalCompletion> for Option<ClassName> {
             NormalCompletion::Reference(_)
             | NormalCompletion::Environment(_)
             | NormalCompletion::IteratorRecord(_)
-            | NormalCompletion::PrivateElement(_) => Err(anyhow::anyhow!("Not a class name")),
+            | NormalCompletion::PrivateElement(_)
+            | NormalCompletion::ClassItem(_) => Err(anyhow::anyhow!("Not a class name")),
         }
     }
 }
@@ -84,10 +85,47 @@ impl From<Option<ClassName>> for NormalCompletion {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ClassFieldDefinitionRecord {
     pub name: ClassName,
     pub initializer: Option<Object>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassStaticBlockDefinitionRecord {
+    pub body_function: Object,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ClassItem {
+    StaticPrivateElement(PrivateElement),
+    PrivateElement(PrivateElement),
+    StaticClassFieldDefinition(ClassFieldDefinitionRecord),
+    ClassFieldDefinition(ClassFieldDefinitionRecord),
+    ClassStaticBlockDefinition(ClassStaticBlockDefinitionRecord),
+}
+
+impl TryFrom<NormalCompletion> for ClassItem {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::ClassItem(ci) => Ok(*ci),
+            _ => bail!("Not a ClassItem"),
+        }
+    }
+}
+
+impl TryFrom<NormalCompletion> for Option<ClassItem> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::ClassItem(ci) => Ok(Some(*ci)),
+            NormalCompletion::Empty => Ok(None),
+            _ => bail!("Not a ClassItem"),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -610,8 +648,8 @@ pub struct FunctionObjectData {
     strict: bool,
     pub home_object: Option<Object>,
     pub source_text: String,
-    fields: Vec<ClassFieldDefinitionRecord>,
-    private_methods: Vec<Rc<PrivateElement>>,
+    pub fields: Vec<ClassFieldDefinitionRecord>,
+    pub private_methods: Vec<PrivateElement>,
     pub class_field_initializer_name: Option<ClassName>,
     is_class_constructor: bool,
     is_constructor: bool,
@@ -917,14 +955,34 @@ pub fn initialize_instance_elements(this_argument: &Object, constructor: &Object
     //  4. For each element fieldRecord of fields, do
     //      a. Perform ? DefineField(O, fieldRecord).
     //  5. Return unused.
-    let data = constructor.o.to_function_obj().unwrap().function_data().borrow();
-    for method in &data.private_methods {
-        private_method_or_accessor_add(this_argument, method.clone())?;
+    fn work(
+        this_argument: &Object,
+        methods: &Vec<PrivateElement>,
+        fields: &Vec<ClassFieldDefinitionRecord>,
+    ) -> Completion<()> {
+        for method in methods {
+            private_method_or_accessor_add(this_argument, method.clone())?;
+        }
+        for field_record in fields {
+            define_field(this_argument, field_record)?;
+        }
+        Ok(())
     }
-    for field_record in &data.fields {
-        define_field(this_argument, field_record)?;
+    match constructor.o.to_function_obj() {
+        Some(func) => {
+            let data = func.function_data().borrow();
+            work(this_argument, &data.private_methods, &data.fields)
+        }
+        None => match constructor.o.to_builtin_function_obj() {
+            Some(bif) => {
+                let data = bif.builtin_function_data().borrow();
+                work(this_argument, &data.private_methods, &data.fields)
+            }
+            None => {
+                panic!("Function object or Builtin Function object expected");
+            }
+        },
     }
-    Ok(())
 }
 
 impl FunctionInterface for FunctionObject {
@@ -949,7 +1007,7 @@ impl FunctionObject {
         home_object: Option<Object>,
         source_text: &str,
         fields: Vec<ClassFieldDefinitionRecord>,
-        private_methods: Vec<Rc<PrivateElement>>,
+        private_methods: Vec<PrivateElement>,
         class_field_initializer_name: Option<ClassName>,
         is_class_constructor: bool,
         compiled: Rc<Chunk>,
@@ -993,7 +1051,7 @@ impl FunctionObject {
         home_object: Option<Object>,
         source_text: &str,
         fields: Vec<ClassFieldDefinitionRecord>,
-        private_methods: Vec<Rc<PrivateElement>>,
+        private_methods: Vec<PrivateElement>,
         class_field_initializer_name: Option<ClassName>,
         is_class_constructor: bool,
         compiled: Rc<Chunk>,
@@ -1380,7 +1438,8 @@ impl TryFrom<NormalCompletion> for FunctionName {
             | NormalCompletion::Reference(_)
             | NormalCompletion::Environment(_)
             | NormalCompletion::IteratorRecord(_)
-            | NormalCompletion::PrivateElement(_) => bail!("Completion type not valid for FunctionName"),
+            | NormalCompletion::PrivateElement(_)
+            | NormalCompletion::ClassItem(_) => bail!("Completion type not valid for FunctionName"),
         }
     }
 }
@@ -1390,6 +1449,9 @@ pub struct BuiltInFunctionData {
     pub initial_name: Option<FunctionName>,
     pub steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     pub constructor_kind: Option<ConstructorKind>,
+    pub fields: Vec<ClassFieldDefinitionRecord>,
+    pub private_methods: Vec<PrivateElement>,
+    pub source_text: Option<String>,
 }
 
 impl fmt::Debug for BuiltInFunctionData {
@@ -1399,6 +1461,9 @@ impl fmt::Debug for BuiltInFunctionData {
             .field("initial_name", &self.initial_name)
             .field("steps", &"<steps>")
             .field("constructor_kind", &self.constructor_kind)
+            .field("fields", &self.fields)
+            .field("private_methods", &self.private_methods)
+            .field("source_text", &self.source_text)
             .finish()
     }
 }
@@ -1410,7 +1475,15 @@ impl BuiltInFunctionData {
         steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
         constructor_kind: Option<ConstructorKind>,
     ) -> Self {
-        Self { realm, initial_name, steps, constructor_kind }
+        Self {
+            realm,
+            initial_name,
+            steps,
+            constructor_kind,
+            fields: vec![],
+            private_methods: vec![],
+            source_text: None,
+        }
     }
 }
 
@@ -1582,7 +1655,10 @@ impl CallableObject for BuiltInFunctionObject {
         let callee_context =
             ExecutionContext::new(Some(self_object.clone()), self.builtin_data.borrow().realm.clone(), None);
         push_execution_context(callee_context);
+        println!("Before steps: EC Stack Len: {}", execution_context_stack_len());
         let result = (self.builtin_data.borrow().steps)(&ECMAScriptValue::Undefined, Some(new_target), arguments_list);
+        println!("in BuiltinFunctionObject::construct: result: {result:#?}");
+        println!("After steps: EC Stack Len: {}", execution_context_stack_len());
         pop_execution_context();
 
         ec_push(result.map(NormalCompletion::from));
@@ -1932,7 +2008,7 @@ pub fn ordinary_function_create(
         None,
         source_text,
         Vec::<ClassFieldDefinitionRecord>::new(),
-        Vec::<Rc<PrivateElement>>::new(),
+        Vec::<PrivateElement>::new(),
         None,
         false,
         compiled,
@@ -2435,7 +2511,9 @@ fn function_prototype_to_string(
                 Ok(fdata.source_text.clone().into())
             } else if let Some(bif) = obj.o.to_builtin_function_obj() {
                 let bif_data = bif.builtin_function_data().borrow();
-                if let Some(initial_name) = &bif_data.initial_name {
+                if let Some(text) = &bif_data.source_text {
+                    Ok(text.clone().into())
+                } else if let Some(initial_name) = &bif_data.initial_name {
                     Ok(format!("function {initial_name}() {{ [native code] }}").into())
                 } else {
                     Ok("function () { [native code] }".into())

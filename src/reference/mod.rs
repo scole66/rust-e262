@@ -268,7 +268,8 @@ pub fn get_value(v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
         NormalCompletion::IteratorRecord(_)
         | NormalCompletion::Environment(_)
         | NormalCompletion::PrivateName(_)
-        | NormalCompletion::PrivateElement(_) => {
+        | NormalCompletion::PrivateElement(_)
+        | NormalCompletion::ClassItem(_) => {
             panic!("Bad completion type for get_value: {v:?}")
         }
     }
@@ -307,7 +308,8 @@ pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScri
         NormalCompletion::IteratorRecord(_)
         | NormalCompletion::Environment(_)
         | NormalCompletion::PrivateName(_)
-        | NormalCompletion::PrivateElement(_) => {
+        | NormalCompletion::PrivateElement(_)
+        | NormalCompletion::ClassItem(_) => {
             panic!("Bad completion type for put_value: ({v:?})")
         }
         NormalCompletion::Value(_) | NormalCompletion::Empty => Err(create_reference_error("Invalid Reference")),

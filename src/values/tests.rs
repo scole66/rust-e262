@@ -2194,9 +2194,6 @@ mod agent {
     fn string_a() -> ECMAScriptValue {
         ECMAScriptValue::from("A")
     }
-    fn string_b() -> ECMAScriptValue {
-        ECMAScriptValue::from("B")
-    }
     fn string_10() -> ECMAScriptValue {
         "10".into()
     }
@@ -2209,26 +2206,11 @@ mod agent {
     fn symbol_a() -> ECMAScriptValue {
         wks(WksId::ToPrimitive).into()
     }
-    fn symbol_b() -> ECMAScriptValue {
-        wks(WksId::HasInstance).into()
-    }
-    fn object_a() -> ECMAScriptValue {
-        intrinsic(IntrinsicId::FunctionPrototype).into()
-    }
-    fn object_b() -> ECMAScriptValue {
-        intrinsic(IntrinsicId::ObjectPrototype).into()
-    }
     fn number_10() -> ECMAScriptValue {
         10.into()
     }
-    fn number_100() -> ECMAScriptValue {
-        100.into()
-    }
     fn number_zero() -> ECMAScriptValue {
         0.into()
-    }
-    fn number_neg_zero() -> ECMAScriptValue {
-        (-0.0).into()
     }
     fn number_nan() -> ECMAScriptValue {
         f64::NAN.into()
@@ -2241,9 +2223,6 @@ mod agent {
     }
     fn bigint_a() -> ECMAScriptValue {
         BigInt::from(10).into()
-    }
-    fn bigint_b() -> ECMAScriptValue {
-        BigInt::from(-1_097_631).into()
     }
     fn dead_object() -> ECMAScriptValue {
         DeadObject::object().into()

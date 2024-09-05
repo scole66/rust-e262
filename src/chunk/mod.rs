@@ -146,9 +146,10 @@ impl Chunk {
             | Insn::TargetedContinue
             | Insn::TargetedBreak
             | Insn::HandleTargetedBreak
-            | Insn::PrivateIdLookup => {
+            | Insn::PrivateIdLookup
+            | Insn::AttachSourceText => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<24}{} ({})", insn, arg, self.strings[arg]))
+                (2, format!("    {:<24}{} ({})", insn, arg, String::from(&self.strings[arg]).escape_debug()))
             }
             Insn::Float => {
                 let arg = self.opcodes[idx] as usize;
@@ -171,7 +172,8 @@ impl Chunk {
             | Insn::EvaluateInitializedClassFieldDefinition
             | Insn::EvaluateClassStaticBlockDefinition
             | Insn::DefineMethod
-            | Insn::DefineMethodProperty => {
+            | Insn::DefineMethodProperty
+            | Insn::AttachElements => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {insn:<24}{arg}"))
             }
@@ -190,6 +192,7 @@ impl Chunk {
             | Insn::SetAsideLexEnv
             | Insn::RestoreLexEnv
             | Insn::PushNewPrivateEnv
+            | Insn::PopPrivateEnv
             | Insn::CreateDataProperty
             | Insn::SetPrototype
             | Insn::ToPropertyKey
@@ -296,7 +299,8 @@ impl Chunk {
             | Insn::CreateDefaultConstructor
             | Insn::MakeClassConstructorAndSetName
             | Insn::MakeConstructor
-            | Insn::SetDerived => (1, format!("    {insn}")),
+            | Insn::SetDerived
+            | Insn::NameOnlyFieldRecord => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal
