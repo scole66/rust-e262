@@ -2853,18 +2853,18 @@ mod private_element_find {
 
         {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(PrivateElement {
+            elements.push(Rc::new(PrivateElement {
                 key: all_names[0].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) },
-            });
-            elements.push(PrivateElement {
+            }));
+            elements.push(Rc::new(PrivateElement {
                 key: all_names[1].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(2)) },
-            });
-            elements.push(PrivateElement {
+            }));
+            elements.push(Rc::new(PrivateElement {
                 key: all_names[2].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(3)) },
-            });
+            }));
         }
 
         (obj, all_names)
@@ -2909,18 +2909,18 @@ mod private_field_add {
 
         {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(PrivateElement {
+            elements.push(Rc::new(PrivateElement {
                 key: names[0].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) },
-            });
-            elements.push(PrivateElement {
+            }));
+            elements.push(Rc::new(PrivateElement {
                 key: names[1].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(2)) },
-            });
-            elements.push(PrivateElement {
+            }));
+            elements.push(Rc::new(PrivateElement {
                 key: names[2].clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(3)) },
-            });
+            }));
         }
 
         (obj, names)
@@ -2968,10 +2968,10 @@ mod private_method_or_accessor_add {
 
         {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(PrivateElement {
+            elements.push(Rc::new(PrivateElement {
                 key: name.clone(),
                 kind: PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from(1)) },
-            });
+            }));
         }
         (obj, name)
     }
@@ -4899,12 +4899,31 @@ fn ecmascriptvalue_get(make_items: impl FnOnce() -> (ECMAScriptValue, PropertyKe
     v.get(&p).map_err(unwind_any_error).map(|v| v.test_result_string())
 }
 
-#[test_case(|| ordinary_object_create(None), &ClassFieldDefinitionRecord{name: ClassName::String(JSString::from("my_field")), initializer: None} => panics "not yet implemented"; "panics")]
-#[test_case(DeadObject::object, &ClassFieldDefinitionRecord{name: ClassName::String(JSString::from("my_field")), initializer: None} => serr("TypeError: get called on DeadObject"); "fails")]
-fn define_field(make_obj: impl FnOnce() -> Object, fdr: &ClassFieldDefinitionRecord) -> Result<(), String> {
+#[test_case(
+    || ordinary_object_create(None),
+    &ClassFieldDefinitionRecord{name: ClassName::String(JSString::from("my_field")), initializer: None}
+    => Ok((svec(&[]), svec(&["my_field: { undefined wec }"])));
+    "no initializer"
+)]
+#[test_case(
+    DeadObject::object,
+    &ClassFieldDefinitionRecord{name: ClassName::String(JSString::from("my_field")), initializer: None}
+    => serr("TypeError: define_own_property called on DeadObject");
+    "fails"
+)]
+fn define_field(make_obj: impl FnOnce() -> Object, fdr: &ClassFieldDefinitionRecord) -> Result<(Vec<String>, Vec<String>), String> {
     setup_test_agent();
     let obj = make_obj();
-    super::define_field(&obj, fdr).map_err(unwind_any_error)
+    super::define_field(&obj, fdr).map_err(unwind_any_error).map(|()| {
+        let data = obj.o.common_object_data().borrow();
+        (
+            data.private_elements.iter().map(|item| format!("{item}")).collect::<Vec<_>>(),
+            data.properties
+                .iter()
+                .map(|(key, value)| format!("{key}: {:?}", ConcisePropertyDescriptor::from(value)))
+                .collect::<Vec<_>>(),
+        )
+    })
 }
 
 mod property_info {

@@ -38,7 +38,7 @@ pub struct PropertyDescriptor {
     pub spot: usize,
 }
 
-struct ConcisePropertyDescriptor<'a>(&'a PropertyDescriptor);
+pub struct ConcisePropertyDescriptor<'a>(&'a PropertyDescriptor);
 impl<'a> fmt::Debug for ConcisePropertyDescriptor<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{{ ")?;
@@ -1247,7 +1247,7 @@ pub struct CommonObjectData {
     pub next_spot: usize,
     pub objid: usize,
     pub slots: Vec<InternalSlotName>,
-    pub private_elements: Vec<PrivateElement>,
+    pub private_elements: Vec<Rc<PrivateElement>>,
 }
 
 impl CommonObjectData {
@@ -2680,7 +2680,7 @@ impl Object {
 //      a. Let entry be that PrivateElement.
 //      b. Return entry.
 //  2. Return empty.
-pub fn private_element_find(o: &Object, p: &PrivateName) -> Option<PrivateElement> {
+pub fn private_element_find(o: &Object, p: &PrivateName) -> Option<Rc<PrivateElement>> {
     let cod = o.o.common_object_data().borrow();
     let item = cod.private_elements.iter().find(|&item| item.key == *p);
     item.cloned()
@@ -2700,7 +2700,10 @@ pub fn private_field_add(obj: &Object, p: PrivateName, value: ECMAScriptValue) -
         Some(_) => Err(create_type_error("PrivateName already defined")),
         None => {
             let elements = &mut obj.o.common_object_data().borrow_mut().private_elements;
-            elements.push(PrivateElement { key: p, kind: PrivateElementKind::Field { value: RefCell::new(value) } });
+            elements.push(Rc::new(PrivateElement {
+                key: p,
+                kind: PrivateElementKind::Field { value: RefCell::new(value) },
+            }));
             Ok(())
         }
     }
@@ -2722,7 +2725,7 @@ pub fn private_method_or_accessor_add(obj: &Object, method: PrivateElement) -> C
     if private_element_find(obj, &method.key).is_some() {
         Err(create_type_error("PrivateName already defined"))
     } else {
-        obj.o.common_object_data().borrow_mut().private_elements.push(method);
+        obj.o.common_object_data().borrow_mut().private_elements.push(Rc::new(method));
         Ok(())
     }
 }

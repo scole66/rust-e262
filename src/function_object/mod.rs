@@ -85,6 +85,16 @@ impl From<Option<ClassName>> for NormalCompletion {
     }
 }
 
+impl fmt::Display for ClassName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClassName::String(s) => write!(f, "{s}"),
+            ClassName::Symbol(sym) => write!(f, "{sym}"),
+            ClassName::Private(pn) => write!(f, "{pn}"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ClassFieldDefinitionRecord {
     pub name: ClassName,
@@ -124,6 +134,23 @@ impl TryFrom<NormalCompletion> for Option<ClassItem> {
             NormalCompletion::ClassItem(ci) => Ok(Some(*ci)),
             NormalCompletion::Empty => Ok(None),
             _ => bail!("Not a ClassItem"),
+        }
+    }
+}
+
+impl fmt::Display for ClassItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClassItem::StaticPrivateElement(_) => todo!(),
+            ClassItem::PrivateElement(_) => todo!(),
+            ClassItem::StaticClassFieldDefinition(_) => todo!(),
+            ClassItem::ClassFieldDefinition(ClassFieldDefinitionRecord { name, initializer: Some(initializer) }) => {
+                write!(f, "Field({}: {})", name, initializer)
+            }
+            ClassItem::ClassFieldDefinition(ClassFieldDefinitionRecord { name, initializer: None }) => {
+                write!(f, "Field({})", name)
+            }
+            ClassItem::ClassStaticBlockDefinition(_) => todo!(),
         }
     }
 }

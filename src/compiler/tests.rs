@@ -3570,7 +3570,42 @@ mod declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("class bob{}", true => panics "not yet implemented"; "class decl")]
+    #[test_case(
+        "class bob{}", true
+        => svec(&[
+            "STRING 0 (bob)",
+            "PNLE",
+            "CSILB 0 (bob)",
+            "FUNC_PROTO",
+            "OBJ_PROTO",
+            "OBJ_WITH_PROTO",
+            "PNPE",
+            "ROTATEDOWN 3",
+            "DEFAULT_CSTR",
+            "MAKE_CSTR",
+            "DUP",
+            "ROTATEUP 3",
+            "DUP",
+            "ROTATEDOWN 4",
+            "SWAP",
+            "STRING 1 (constructor)",
+            "DEF_METH_PROP 0",
+            "POP",
+            "SWAP",
+            "POP",
+            "DUP",
+            "ILB 0 (bob)",
+            "PLE",
+            "ATTACH_ELEMENTS 0",
+            "PPE",
+            "JUMP_IF_ABRUPT 5",
+            "ATTACH_SOURCE 2 (class bob{})",
+            "DUP",
+            "ILB 0 (bob)",
+            "EMPTY_IF_NOT_ERR"
+            ]);
+        "class decl"
+    )]
     #[test_case("function bob(){}", true => svec(&["EMPTY"]); "hoistable")]
     #[test_case("const a=0;", true => svec(&[
         "STRING 0 (a)",
@@ -11365,17 +11400,15 @@ mod field_definition {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("name", true, &[] => Ok((svec(&["STRING 0 (name)", "EMPTY"]), false)); "infallible; no init")]
+    #[test_case("name", true, &[] => Ok((svec(&["STRING 0 (name)", "NAME_ONLY_FIELD_REC"]), false)); "infallible; no init")]
     #[test_case("[a]", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
         "JUMP_IF_ABRUPT 1",
         "TO_KEY",
-        "JUMP_IF_ABRUPT 3",
-        "EMPTY",
-        "JUMP 2",
-        "UNWIND 1"
+        "JUMP_IF_ABRUPT 1",
+        "NAME_ONLY_FIELD_REC"
     ]), true)); "fallible; no init")]
     #[test_case("a=10", true, &[] => Ok((svec(&["STRING 0 (a)", "EVAL_CLASS_FIELD_DEF 0"]), false)); "with init")]
     #[test_case("[9n]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "name fail")]
@@ -12496,7 +12529,45 @@ mod class_declaration {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("class a {}", true, &[] => panics "not yet implemented"; "todo, still")]
+    #[test_case(
+        "class a {}", true, &[]
+        => Ok((
+            svec(&[
+                "STRING 0 (a)",
+                "PNLE",
+                "CSILB 0 (a)",
+                "FUNC_PROTO",
+                "OBJ_PROTO",
+                "OBJ_WITH_PROTO",
+                "PNPE",
+                "ROTATEDOWN 3",
+                "DEFAULT_CSTR",
+                "MAKE_CSTR",
+                "DUP",
+                "ROTATEUP 3",
+                "DUP",
+                "ROTATEDOWN 4",
+                "SWAP",
+                "STRING 1 (constructor)",
+                "DEF_METH_PROP 0",
+                "POP",
+                "SWAP",
+                "POP",
+                "DUP",
+                "ILB 0 (a)",
+                "PLE",
+                "ATTACH_ELEMENTS 0",
+                "PPE",
+                "JUMP_IF_ABRUPT 5",
+                "ATTACH_SOURCE 2 (class a {})",
+                "DUP",
+                "ILB 0 (a)",
+                "EMPTY_IF_NOT_ERR"
+                ]),
+            true,
+        ));
+        "empty named class"
+    )]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).class_declaration();
         let mut c = complex_filled_chunk("x", what);

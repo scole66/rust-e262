@@ -56,7 +56,7 @@ impl fmt::Display for NormalCompletion {
             NormalCompletion::IteratorRecord(ir) => f.write_str(&ir.concise()),
             NormalCompletion::PrivateName(pn) => write!(f, "{pn}"),
             NormalCompletion::PrivateElement(pe) => write!(f, "{pe}"),
-            NormalCompletion::ClassItem(ci) => write!(f, "{ci:?}"),
+            NormalCompletion::ClassItem(ci) => write!(f, "{ci}"),
         }
     }
 }

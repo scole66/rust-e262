@@ -1866,8 +1866,8 @@ mod initialize_instance_elements {
     #[test_case(
         || ordinary_object_create(None),
         make_working_function_object
-        => Ok(Vec::new());
-        "No private fields/methods"
+        => Ok((Vec::new(), Vec::new()));
+        "No fields/methods"
     )]
     #[test_case(
         || ordinary_object_create(None),
@@ -1882,7 +1882,7 @@ mod initialize_instance_elements {
             data.private_methods.push(method);
             cstr
         }
-        => Ok(svec(&["PrivateElement{PN[test-key]: Method(test-value)}"]));
+        => Ok((svec(&["PrivateElement{PN[test-key]: Method(test-value)}"]), svec(&[])));
         "One private method"
     )]
     #[test_case(
@@ -1912,11 +1912,10 @@ mod initialize_instance_elements {
             data.fields.push(field);
             cstr
         }
-        => panics "not yet implemented";
-        "One private field"
+        => Ok((svec(&[]), svec(&["a_field: { undefined wec }"])));
+        "One field"
     )]
     #[test_case(
-        // This test only works on the "todo" form of define_field. Rewrite this when the todo goes away.
         DeadObject::object,
         || {
             let cstr = make_working_function_object();
@@ -1926,16 +1925,25 @@ mod initialize_instance_elements {
             data.fields.push(field);
             cstr
         }
-        => serr("TypeError: get called on DeadObject");
+        => serr("TypeError: define_own_property called on DeadObject");
         "Field setting fails"
     )]
-    fn f(make_this: impl FnOnce() -> Object, make_cstr: impl FnOnce() -> Object) -> Result<Vec<String>, String> {
+    fn f(
+        make_this: impl FnOnce() -> Object,
+        make_cstr: impl FnOnce() -> Object,
+    ) -> Result<(Vec<String>, Vec<String>), String> {
         setup_test_agent();
         let this = make_this();
         let cstr = make_cstr();
         initialize_instance_elements(&this, &cstr).map_err(unwind_any_error).map(|()| {
             let data = this.o.common_object_data().borrow();
-            data.private_elements.iter().map(|item| format!("{item}")).collect::<Vec<_>>()
+            (
+                data.private_elements.iter().map(|item| format!("{item}")).collect::<Vec<_>>(),
+                data.properties
+                    .iter()
+                    .map(|(key, value)| format!("{key}: {:?}", ConcisePropertyDescriptor::from(value)))
+                    .collect::<Vec<_>>(),
+            )
         })
     }
 }
