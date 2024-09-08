@@ -12,7 +12,7 @@ fn multiplicative_operator_test_01() {
     assert!(matches!(*mo, MultiplicativeOperator::Multiply));
     pretty_check(&*mo, "MultiplicativeOperator: *", &[]);
     concise_check(&*mo, "Punctuator: *", &[]);
-    format!("{mo:?}");
+    assert_ne!(format!("{mo:?}"), "");
 }
 #[test]
 fn multiplicative_operator_test_02() {
@@ -21,7 +21,7 @@ fn multiplicative_operator_test_02() {
     assert!(matches!(*mo, MultiplicativeOperator::Divide));
     pretty_check(&*mo, "MultiplicativeOperator: /", &[]);
     concise_check(&*mo, "Punctuator: /", &[]);
-    format!("{mo:?}");
+    assert_ne!(format!("{mo:?}"), "");
 }
 #[test]
 fn multiplicative_operator_test_03() {
@@ -30,7 +30,7 @@ fn multiplicative_operator_test_03() {
     assert!(matches!(*mo, MultiplicativeOperator::Modulo));
     pretty_check(&*mo, "MultiplicativeOperator: %", &[]);
     concise_check(&*mo, "Punctuator: %", &[]);
-    format!("{mo:?}");
+    assert_ne!(format!("{mo:?}"), "");
 }
 #[test]
 fn multiplicative_operator_test_04() {
@@ -89,7 +89,7 @@ mod multiplicative_expression {
         assert!(matches!(&*me, MultiplicativeExpression::ExponentiationExpression(_)));
         pretty_check(&*me, "MultiplicativeExpression: a", &["ExponentiationExpression: a"]);
         concise_check(&*me, "IdentifierName: a", &[]);
-        format!("{me:?}");
+        assert_ne!(format!("{me:?}"), "");
         assert_eq!(me.is_function_definition(), false);
     }
     #[test]
@@ -107,7 +107,7 @@ mod multiplicative_expression {
             "MultiplicativeExpression: a / b",
             &["IdentifierName: a", "Punctuator: /", "IdentifierName: b"],
         );
-        format!("{me:?}");
+        assert_ne!(format!("{me:?}"), "");
         assert_eq!(me.is_function_definition(), false);
     }
     #[test]
@@ -126,7 +126,7 @@ mod multiplicative_expression {
             "MultiplicativeExpression: a / b",
             &["IdentifierName: a", "Punctuator: /", "IdentifierName: b"],
         );
-        format!("{me:?}");
+        assert_ne!(format!("{me:?}"), "");
     }
     #[test]
     fn parse_03() {

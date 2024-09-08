@@ -2788,7 +2788,11 @@ mod insn_impl {
             .clone();
         push_completion(Ok(NormalCompletion::from(private_name)))
     }
-    pub fn evaluate_initialized_class_field_def(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+    pub fn evaluate_initialized_class_field_def(
+        chunk: &Rc<Chunk>,
+        text: &str,
+        staticness: Static,
+    ) -> anyhow::Result<()> {
         // Input: Operand: function stash
         // Input: Stack: name homeObject
         // Output: FieldRecord homeObject
@@ -2797,9 +2801,13 @@ mod insn_impl {
         let home_object = pop_obj()?;
         let initializer =
             evaluate_initialized_class_field_definition(info, home_object.clone(), Some(name.clone()), text)?;
-
+        let cstr = if staticness == Static::Yes {
+            ClassItem::StaticClassFieldDefinition
+        } else {
+            ClassItem::ClassFieldDefinition
+        };
         let cfdr = ClassFieldDefinitionRecord { name, initializer: Some(initializer) };
-        let completion = NormalCompletion::ClassItem(Box::new(ClassItem::ClassFieldDefinition(cfdr)));
+        let completion = NormalCompletion::ClassItem(Box::new(cstr(cfdr)));
 
         push_value(ECMAScriptValue::Object(home_object)).expect(PUSHABLE);
         push_completion(Ok(completion)).expect(PUSHABLE);
@@ -3377,13 +3385,17 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn name_only_field_record() -> anyhow::Result<()> {
+    pub fn name_only_field_record(staticness: Static) -> anyhow::Result<()> {
         // Input: Stack: name
         // Output: Stack: fieldRecord
         let name = pop_string()?;
         let cfdr = ClassFieldDefinitionRecord { name: ClassName::from(name), initializer: None };
-        push_completion(Ok(NormalCompletion::ClassItem(Box::new(ClassItem::ClassFieldDefinition(cfdr)))))
-            .expect(PUSHABLE);
+        let cstr = if staticness == Static::Yes {
+            ClassItem::StaticClassFieldDefinition
+        } else {
+            ClassItem::ClassFieldDefinition
+        };
+        push_completion(Ok(NormalCompletion::ClassItem(Box::new(cstr(cfdr))))).expect(PUSHABLE);
         Ok(())
     }
 }
@@ -3634,7 +3646,10 @@ pub async fn execute(
             Insn::EnumerateObjectProperties => insn_impl::enumerate_object_properties().expect(GOODCODE),
             Insn::PrivateIdLookup => insn_impl::private_id_lookup(&chunk).expect(GOODCODE),
             Insn::EvaluateInitializedClassFieldDefinition => {
-                insn_impl::evaluate_initialized_class_field_def(&chunk, &text).expect(GOODCODE);
+                insn_impl::evaluate_initialized_class_field_def(&chunk, &text, Static::No).expect(GOODCODE);
+            }
+            Insn::EvaluateInitializedClassStaticFieldDefinition => {
+                insn_impl::evaluate_initialized_class_field_def(&chunk, &text, Static::Yes).expect(GOODCODE);
             }
             Insn::EvaluateClassStaticBlockDefinition => {
                 insn_impl::evaluate_class_static_block_def(&chunk, &text).expect(GOODCODE);
@@ -3653,7 +3668,8 @@ pub async fn execute(
             Insn::AttachSourceText => insn_impl::attach_source_text(&chunk).expect(GOODCODE),
             Insn::GeneratorStartFromFunction => insn_impl::generator_start_from_function(&text).expect(GOODCODE),
             Insn::Yield => insn_impl::yield_insn(&co).await.expect(GOODCODE),
-            Insn::NameOnlyFieldRecord => insn_impl::name_only_field_record().expect(GOODCODE),
+            Insn::NameOnlyFieldRecord => insn_impl::name_only_field_record(Static::No).expect(GOODCODE),
+            Insn::NameOnlyStaticFieldRecord => insn_impl::name_only_field_record(Static::Yes).expect(GOODCODE),
         }
     }
 

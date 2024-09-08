@@ -16,7 +16,7 @@ mod additive_expression {
         assert!(matches!(&*ae, AdditiveExpression::MultiplicativeExpression(_)));
         pretty_check(&*ae, "AdditiveExpression: a", &["MultiplicativeExpression: a"]);
         concise_check(&*ae, "IdentifierName: a", &[]);
-        format!("{ae:?}");
+        assert_ne!(format!("{ae:?}"), "");
         assert_eq!(ae.is_function_definition(), false);
     }
     #[test]
@@ -26,7 +26,7 @@ mod additive_expression {
         assert!(matches!(&*ae, AdditiveExpression::Add(..)));
         pretty_check(&*ae, "AdditiveExpression: a + b", &["AdditiveExpression: a", "MultiplicativeExpression: b"]);
         concise_check(&*ae, "AdditiveExpression: a + b", &["IdentifierName: a", "Punctuator: +", "IdentifierName: b"]);
-        format!("{ae:?}");
+        assert_ne!(format!("{ae:?}"), "");
         assert_eq!(ae.is_function_definition(), false);
     }
     #[test]
@@ -36,7 +36,7 @@ mod additive_expression {
         assert!(matches!(&*ae, AdditiveExpression::Subtract(..)));
         pretty_check(&*ae, "AdditiveExpression: a - b", &["AdditiveExpression: a", "MultiplicativeExpression: b"]);
         concise_check(&*ae, "AdditiveExpression: a - b", &["IdentifierName: a", "Punctuator: -", "IdentifierName: b"]);
-        format!("{ae:?}");
+        assert_ne!(format!("{ae:?}"), "");
         assert_eq!(ae.is_function_definition(), false);
     }
     #[test]
@@ -46,7 +46,7 @@ mod additive_expression {
         assert!(matches!(&*ae, AdditiveExpression::MultiplicativeExpression(..)));
         pretty_check(&*ae, "AdditiveExpression: a", &["MultiplicativeExpression: a"]);
         concise_check(&*ae, "IdentifierName: a", &[]);
-        format!("{ae:?}");
+        assert_ne!(format!("{ae:?}"), "");
         assert_eq!(ae.is_function_definition(), false);
     }
     #[test]

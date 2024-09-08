@@ -45,7 +45,7 @@ fn method_definition_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn method_definition_test_02() {
@@ -71,7 +71,7 @@ fn method_definition_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn method_definition_test_03() {
@@ -98,7 +98,7 @@ fn method_definition_test_03() {
             "Punctuator: }",
         ],
     );
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn method_definition_test_04() {
@@ -125,7 +125,7 @@ fn method_definition_test_04() {
             "Punctuator: }",
         ],
     );
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn method_definition_test_05() {
@@ -152,7 +152,7 @@ fn method_definition_test_05() {
             "Punctuator: }",
         ],
     );
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn method_definition_test_06() {
@@ -180,7 +180,7 @@ fn method_definition_test_06() {
             "Punctuator: }",
         ],
     );
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn method_definition_test_errs_01() {
@@ -656,7 +656,7 @@ mod property_set_parameter_list {
         chk_scan(&scanner, 1);
         pretty_check(&*pn, "PropertySetParameterList: a", &["FormalParameter: a"]);
         concise_check(&*pn, "IdentifierName: a", &[]);
-        format!("{pn:?}");
+        assert_ne!(format!("{pn:?}"), "");
     }
 
     #[test]

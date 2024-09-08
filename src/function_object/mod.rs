@@ -143,12 +143,20 @@ impl fmt::Display for ClassItem {
         match self {
             ClassItem::StaticPrivateElement(_) => todo!(),
             ClassItem::PrivateElement(_) => todo!(),
-            ClassItem::StaticClassFieldDefinition(_) => todo!(),
+            ClassItem::StaticClassFieldDefinition(ClassFieldDefinitionRecord {
+                name,
+                initializer: Some(initializer),
+            }) => {
+                write!(f, "Static Field({name}: {initializer})")
+            }
+            ClassItem::StaticClassFieldDefinition(ClassFieldDefinitionRecord { name, initializer: None }) => {
+                write!(f, "Static Field({name})")
+            }
             ClassItem::ClassFieldDefinition(ClassFieldDefinitionRecord { name, initializer: Some(initializer) }) => {
-                write!(f, "Field({}: {})", name, initializer)
+                write!(f, "Field({name}: {initializer})")
             }
             ClassItem::ClassFieldDefinition(ClassFieldDefinitionRecord { name, initializer: None }) => {
-                write!(f, "Field({})", name)
+                write!(f, "Field({name})")
             }
             ClassItem::ClassStaticBlockDefinition(_) => todo!(),
         }

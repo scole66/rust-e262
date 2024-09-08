@@ -15,7 +15,7 @@ fn lexical_declaration_test_01() {
     chk_scan(&scanner, 6);
     pretty_check(&*node, "LexicalDeclaration: let a ;", &["LetOrConst: let", "BindingList: a"]);
     concise_check(&*node, "LexicalDeclaration: let a ;", &["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn lexical_declaration_test_02() {
@@ -28,7 +28,7 @@ fn lexical_declaration_test_02() {
         "LexicalDeclaration: const a = 0 ;",
         &["Keyword: const", "LexicalBinding: a = 0", "Punctuator: ;"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn lexical_declaration_test_cache_01() {
@@ -44,7 +44,7 @@ fn lexical_declaration_test_asi_01() {
     chk_scan(&scanner, 5);
     pretty_check(&*node, "LexicalDeclaration: let a ;", &["LetOrConst: let", "BindingList: a"]);
     concise_check(&*node, "LexicalDeclaration: let a ;", &["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn lexical_declaration_test_err_01() {
@@ -201,7 +201,7 @@ fn binding_list_test_01() {
     assert!(matches!(&*node, BindingList::Item(..)));
     pretty_check(&*node, "BindingList: a", &["LexicalBinding: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -212,7 +212,7 @@ fn binding_list_test_02() {
     assert!(matches!(&*node, BindingList::List(..)));
     pretty_check(&*node, "BindingList: a , b", &["BindingList: a", "LexicalBinding: b"]);
     concise_check(&*node, "BindingList: a , b", &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -296,7 +296,7 @@ fn lexical_binding_test_01() {
     assert!(matches!(&*node, LexicalBinding::Identifier(_, None)));
     pretty_check(&*node, "LexicalBinding: a", &["BindingIdentifier: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -307,7 +307,7 @@ fn lexical_binding_test_02() {
     assert!(matches!(&*node, LexicalBinding::Identifier(_, Some(_))));
     pretty_check(&*node, "LexicalBinding: a = 0", &["BindingIdentifier: a", "Initializer: = 0"]);
     concise_check(&*node, "LexicalBinding: a = 0", &["IdentifierName: a", "Initializer: = 0"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -318,7 +318,7 @@ fn lexical_binding_test_03() {
     assert!(matches!(&*node, LexicalBinding::Pattern(..)));
     pretty_check(&*node, "LexicalBinding: { a } = b", &["BindingPattern: { a }", "Initializer: = b"]);
     concise_check(&*node, "LexicalBinding: { a } = b", &["ObjectBindingPattern: { a }", "Initializer: = b"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -428,7 +428,7 @@ fn variable_statement_test_01() {
     chk_scan(&scanner, 6);
     pretty_check(&*node, "VariableStatement: var a ;", &["VariableDeclarationList: a"]);
     concise_check(&*node, "VariableStatement: var a ;", &["Keyword: var", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -438,7 +438,7 @@ fn variable_statement_test_asi_01() {
     chk_scan(&scanner, 5);
     pretty_check(&*node, "VariableStatement: var a ;", &["VariableDeclarationList: a"]);
     concise_check(&*node, "VariableStatement: var a ;", &["Keyword: var", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -520,7 +520,7 @@ fn variable_declaration_list_test_01() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "VariableDeclarationList: a", &["VariableDeclaration: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -535,7 +535,7 @@ fn variable_declaration_list_test_02() {
         "VariableDeclarationList: a , b",
         &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -653,7 +653,7 @@ fn variable_declaration_test_01() {
     assert!(matches!(&*node, VariableDeclaration::Identifier(_, None)));
     pretty_check(&*node, "VariableDeclaration: a", &["BindingIdentifier: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -664,7 +664,7 @@ fn variable_declaration_test_02() {
     assert!(matches!(&*node, VariableDeclaration::Identifier(_, Some(_))));
     pretty_check(&*node, "VariableDeclaration: a = b", &["BindingIdentifier: a", "Initializer: = b"]);
     concise_check(&*node, "VariableDeclaration: a = b", &["IdentifierName: a", "Initializer: = b"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -676,7 +676,7 @@ fn variable_declaration_test_03() {
     assert!(matches!(&*node, VariableDeclaration::Pattern(..)));
     pretty_check(&*node, "VariableDeclaration: { a } = b", &["BindingPattern: { a }", "Initializer: = b"]);
     concise_check(&*node, "VariableDeclaration: { a } = b", &["ObjectBindingPattern: { a }", "Initializer: = b"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -788,7 +788,7 @@ fn binding_pattern_test_01() {
     assert!(matches!(&*node, BindingPattern::Object(..)));
     pretty_check(&*node, "BindingPattern: { a }", &["ObjectBindingPattern: { a }"]);
     concise_check(&*node, "ObjectBindingPattern: { a }", &["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -799,7 +799,7 @@ fn binding_pattern_test_02() {
     assert!(matches!(&*node, BindingPattern::Array(..)));
     pretty_check(&*node, "BindingPattern: [ a ]", &["ArrayBindingPattern: [ a ]"]);
     concise_check(&*node, "ArrayBindingPattern: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -900,7 +900,7 @@ fn object_binding_pattern_test_01() {
     assert!(matches!(&*node, ObjectBindingPattern::Empty { .. }));
     pretty_check(&*node, "ObjectBindingPattern: { }", &[]);
     concise_check(&*node, "ObjectBindingPattern: { }", &["Punctuator: {", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -915,7 +915,7 @@ fn object_binding_pattern_test_02() {
         "ObjectBindingPattern: { ... a }",
         &["Punctuator: {", "BindingRestProperty: ... a", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -926,7 +926,7 @@ fn object_binding_pattern_test_03() {
     assert!(matches!(&*node, ObjectBindingPattern::ListOnly { .. }));
     pretty_check(&*node, "ObjectBindingPattern: { a }", &["BindingPropertyList: a"]);
     concise_check(&*node, "ObjectBindingPattern: { a }", &["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -945,7 +945,7 @@ fn object_binding_pattern_test_04() {
         "ObjectBindingPattern: { a , ... b }",
         &["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "BindingRestProperty: ... b", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -960,7 +960,7 @@ fn object_binding_pattern_test_05() {
         "ObjectBindingPattern: { a , }",
         &["Punctuator: {", "IdentifierName: a", "Punctuator: ,", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1133,7 +1133,7 @@ fn array_binding_pattern_test_01() {
     assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: None, bre: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ ]", &[]);
     concise_check(&*node, "ArrayBindingPattern: [ ]", &["Punctuator: [", "Punctuator: ]"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1144,7 +1144,7 @@ fn array_binding_pattern_test_02() {
     assert!(matches!(&*node, ArrayBindingPattern::RestOnly { elision: Some(_), bre: None, .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ , ]", &["Elisions: ,"]);
     concise_check(&*node, "ArrayBindingPattern: [ , ]", &["Punctuator: [", "Elisions: ,", "Punctuator: ]"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1159,7 +1159,7 @@ fn array_binding_pattern_test_03() {
         "ArrayBindingPattern: [ ... a ]",
         &["Punctuator: [", "BindingRestElement: ... a", "Punctuator: ]"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1174,7 +1174,7 @@ fn array_binding_pattern_test_04() {
         "ArrayBindingPattern: [ , ... a ]",
         &["Punctuator: [", "Elisions: ,", "BindingRestElement: ... a", "Punctuator: ]"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1185,7 +1185,7 @@ fn array_binding_pattern_test_05() {
     assert!(matches!(&*node, ArrayBindingPattern::ListOnly { .. }));
     pretty_check(&*node, "ArrayBindingPattern: [ a ]", &["BindingElementList: a"]);
     concise_check(&*node, "ArrayBindingPattern: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1200,7 +1200,7 @@ fn array_binding_pattern_test_06() {
         "ArrayBindingPattern: [ a , ]",
         &["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Punctuator: ]"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1215,7 +1215,7 @@ fn array_binding_pattern_test_07() {
         "ArrayBindingPattern: [ a , , ]",
         &["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "Elisions: ,", "Punctuator: ]"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1230,7 +1230,7 @@ fn array_binding_pattern_test_08() {
         "ArrayBindingPattern: [ a , ... b ]",
         &["Punctuator: [", "IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... b", "Punctuator: ]"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1256,7 +1256,7 @@ fn array_binding_pattern_test_09() {
             "Punctuator: ]",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1536,7 +1536,7 @@ fn binding_rest_property_test_01() {
     chk_scan(&scanner, 4);
     pretty_check(&*node, "BindingRestProperty: ... b", &["BindingIdentifier: b"]);
     concise_check(&*node, "BindingRestProperty: ... b", &["Punctuator: ...", "IdentifierName: b"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1595,7 +1595,7 @@ fn binding_property_list_test_01() {
     assert!(matches!(&*node, BindingPropertyList::Item(..)));
     pretty_check(&*node, "BindingPropertyList: a", &["BindingProperty: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1606,7 +1606,7 @@ fn binding_property_list_test_02() {
     assert!(matches!(&*node, BindingPropertyList::List(..)));
     pretty_check(&*node, "BindingPropertyList: a , b", &["BindingPropertyList: a", "BindingProperty: b"]);
     concise_check(&*node, "BindingPropertyList: a , b", &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1617,7 +1617,7 @@ fn binding_property_list_test_03() {
     assert!(matches!(&*node, BindingPropertyList::Item(..)));
     pretty_check(&*node, "BindingPropertyList: a", &["BindingProperty: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1718,7 +1718,7 @@ fn binding_element_list_test_01() {
     assert!(matches!(&*node, BindingElementList::Item(..)));
     pretty_check(&*node, "BindingElementList: a", &["BindingElisionElement: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1729,7 +1729,7 @@ fn binding_element_list_test_02() {
     assert!(matches!(&*node, BindingElementList::Item(..)));
     pretty_check(&*node, "BindingElementList: a", &["BindingElisionElement: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1740,7 +1740,7 @@ fn binding_element_list_test_03() {
     assert!(matches!(&*node, BindingElementList::List(..)));
     pretty_check(&*node, "BindingElementList: a , b", &["BindingElementList: a", "BindingElisionElement: b"]);
     concise_check(&*node, "BindingElementList: a , b", &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1841,7 +1841,7 @@ fn binding_elision_element_test_01() {
     assert!(matches!(&*node, BindingElisionElement::Element(None, _)));
     pretty_check(&*node, "BindingElisionElement: a", &["BindingElement: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1852,7 +1852,7 @@ fn binding_elision_element_test_02() {
     assert!(matches!(&*node, BindingElisionElement::Element(Some(_), _)));
     pretty_check(&*node, "BindingElisionElement: , a", &["Elisions: ,", "BindingElement: a"]);
     concise_check(&*node, "BindingElisionElement: , a", &["Elisions: ,", "IdentifierName: a"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1939,7 +1939,7 @@ fn binding_property_test_01() {
     assert!(matches!(&*node, BindingProperty::Single(..)));
     pretty_check(&*node, "BindingProperty: a", &["SingleNameBinding: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1950,7 +1950,7 @@ fn binding_property_test_02() {
     assert!(matches!(&*node, BindingProperty::Property(..)));
     pretty_check(&*node, "BindingProperty: a : b", &["PropertyName: a", "BindingElement: b"]);
     concise_check(&*node, "BindingProperty: a : b", &["IdentifierName: a", "Punctuator: :", "IdentifierName: b"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -1961,7 +1961,7 @@ fn binding_property_test_03() {
     assert!(matches!(&*node, BindingProperty::Single(..)));
     pretty_check(&*node, "BindingProperty: a", &["SingleNameBinding: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -2062,7 +2062,7 @@ fn binding_element_test_01() {
     assert!(matches!(&*node, BindingElement::Single(..)));
     pretty_check(&*node, "BindingElement: a", &["SingleNameBinding: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -2073,7 +2073,7 @@ fn binding_element_test_02() {
     assert!(matches!(&*node, BindingElement::Pattern(_, None)));
     pretty_check(&*node, "BindingElement: { a }", &["BindingPattern: { a }"]);
     concise_check(&*node, "ObjectBindingPattern: { a }", &["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -2084,7 +2084,7 @@ fn binding_element_test_03() {
     assert!(matches!(&*node, BindingElement::Pattern(_, Some(_))));
     pretty_check(&*node, "BindingElement: { a } = n", &["BindingPattern: { a }", "Initializer: = n"]);
     concise_check(&*node, "BindingElement: { a } = n", &["ObjectBindingPattern: { a }", "Initializer: = n"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -2226,7 +2226,7 @@ fn single_name_binding_test_01() {
     assert!(matches!(&*node, SingleNameBinding::Id(_, None)));
     pretty_check(&*node, "SingleNameBinding: a", &["BindingIdentifier: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -2237,7 +2237,7 @@ fn single_name_binding_test_02() {
     assert!(matches!(&*node, SingleNameBinding::Id(_, Some(_))));
     pretty_check(&*node, "SingleNameBinding: a = 0", &["BindingIdentifier: a", "Initializer: = 0"]);
     concise_check(&*node, "SingleNameBinding: a = 0", &["IdentifierName: a", "Initializer: = 0"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -2341,7 +2341,7 @@ fn binding_rest_element_test_01() {
     assert!(matches!(&*node, BindingRestElement::Identifier(..)));
     pretty_check(&*node, "BindingRestElement: ... a", &["BindingIdentifier: a"]);
     concise_check(&*node, "BindingRestElement: ... a", &["Punctuator: ...", "IdentifierName: a"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }
@@ -2352,7 +2352,7 @@ fn binding_rest_element_test_02() {
     assert!(matches!(&*node, BindingRestElement::Pattern(..)));
     pretty_check(&*node, "BindingRestElement: ... { a }", &["BindingPattern: { a }"]);
     concise_check(&*node, "BindingRestElement: ... { a }", &["Punctuator: ...", "ObjectBindingPattern: { a }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     pretty_error_validate(&*node);
     concise_error_validate(&*node);
 }

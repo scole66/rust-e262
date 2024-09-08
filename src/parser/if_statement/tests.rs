@@ -17,7 +17,7 @@ fn if_statement_test_01() {
         "IfStatement: if ( true ) { a ; }",
         &["Keyword: if", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { a ; }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn if_statement_test_02() {
@@ -42,7 +42,7 @@ fn if_statement_test_02() {
             "Block: { b ; }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn if_statement_test_err_01() {

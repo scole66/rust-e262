@@ -170,6 +170,7 @@ impl Chunk {
             | Insn::InstantiateGeneratorFunctionExpression
             | Insn::InstantiateOrdinaryFunctionExpression
             | Insn::EvaluateInitializedClassFieldDefinition
+            | Insn::EvaluateInitializedClassStaticFieldDefinition
             | Insn::EvaluateClassStaticBlockDefinition
             | Insn::DefineMethod
             | Insn::DefineMethodProperty
@@ -300,7 +301,8 @@ impl Chunk {
             | Insn::MakeClassConstructorAndSetName
             | Insn::MakeConstructor
             | Insn::SetDerived
-            | Insn::NameOnlyFieldRecord => (1, format!("    {insn}")),
+            | Insn::NameOnlyFieldRecord
+            | Insn::NameOnlyStaticFieldRecord => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal

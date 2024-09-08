@@ -15,7 +15,7 @@ mod throw_statement {
         chk_scan(&scanner, 8);
         pretty_check(&*node, "ThrowStatement: throw 0 ;", &["Expression: 0"]);
         concise_check(&*node, "ThrowStatement: throw 0 ;", &["Keyword: throw", "Numeric: 0", "Punctuator: ;"]);
-        format!("{node:?}");
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test]
     fn errs() {

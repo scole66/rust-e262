@@ -29,7 +29,7 @@ fn async_generator_method_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_generator_method_test_025() {
@@ -252,7 +252,7 @@ fn async_generator_declaration_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -283,7 +283,7 @@ fn async_generator_declaration_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -606,7 +606,7 @@ fn async_generator_expression_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -632,7 +632,7 @@ fn async_generator_expression_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -840,7 +840,7 @@ fn async_generator_body_test_01() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "AsyncGeneratorBody: yield 1 ;", &["FunctionBody: yield 1 ;"]);
     concise_check(&*node, "ExpressionStatement: yield 1 ;", &["YieldExpression: yield 1", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_generator_body_test_cache_01() {

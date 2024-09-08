@@ -20,7 +20,7 @@ fn async_arrow_function_test_01() {
         "AsyncArrowFunction: async a => a",
         &["Keyword: async", "IdentifierName: a", "Punctuator: =>", "IdentifierName: a"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_arrow_function_test_02() {
@@ -38,7 +38,7 @@ fn async_arrow_function_test_02() {
         "AsyncArrowFunction: async ( a , b ) => a + b",
         &["AsyncArrowHead: async ( a , b )", "Punctuator: =>", "AdditiveExpression: a + b"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_arrow_function_test_err_01() {
@@ -280,7 +280,7 @@ fn async_concise_body_test_01() {
     assert!(matches!(&*node, AsyncConciseBody::Expression(..)));
     pretty_check(&*node, "AsyncConciseBody: a", &["ExpressionBody: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_concise_body_test_02() {
@@ -289,7 +289,7 @@ fn async_concise_body_test_02() {
     assert!(matches!(&*node, AsyncConciseBody::Function(..)));
     pretty_check(&*node, "AsyncConciseBody: { a ; }", &["AsyncFunctionBody: a ;"]);
     concise_check(&*node, "AsyncConciseBody: { a ; }", &["Punctuator: {", "ExpressionStatement: a ;", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_concise_body_test_err_01() {
@@ -379,7 +379,7 @@ fn async_arrow_binding_identifier_test_01() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "AsyncArrowBindingIdentifier: a", &["BindingIdentifier: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_arrow_binding_identifier_test_err_01() {
@@ -426,7 +426,7 @@ fn cceaaah_test_01() {
         "CoverCallExpressionAndAsyncArrowHead: a ( 10 )",
         &["IdentifierName: a", "Arguments: ( 10 )"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn cceaaah_test_cache_01() {
@@ -503,7 +503,7 @@ fn async_arrow_head_test_01() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "AsyncArrowHead: async ( a )", &["ArrowFormalParameters: ( a )"]);
     concise_check(&*node, "AsyncArrowHead: async ( a )", &["Keyword: async", "ArrowFormalParameters: ( a )"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_arrow_head_test_err_01() {

@@ -4911,7 +4911,10 @@ fn ecmascriptvalue_get(make_items: impl FnOnce() -> (ECMAScriptValue, PropertyKe
     => serr("TypeError: define_own_property called on DeadObject");
     "fails"
 )]
-fn define_field(make_obj: impl FnOnce() -> Object, fdr: &ClassFieldDefinitionRecord) -> Result<(Vec<String>, Vec<String>), String> {
+fn define_field(
+    make_obj: impl FnOnce() -> Object,
+    fdr: &ClassFieldDefinitionRecord,
+) -> Result<(Vec<String>, Vec<String>), String> {
     setup_test_agent();
     let obj = make_obj();
     super::define_field(&obj, fdr).map_err(unwind_any_error).map(|()| {

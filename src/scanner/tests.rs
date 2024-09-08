@@ -1709,7 +1709,7 @@ fn scan_token_err() {
 
 #[test]
 fn number_style_debug() {
-    format!("{:?}", NumberStyle::BigHex);
+    assert_ne!(format!("{:?}", NumberStyle::BigHex), "");
 }
 #[test]
 fn number_style_clone() {

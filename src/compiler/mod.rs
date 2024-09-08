@@ -178,6 +178,7 @@ pub enum Insn {
     EnumerateObjectProperties,
     PrivateIdLookup,
     EvaluateInitializedClassFieldDefinition,
+    EvaluateInitializedClassStaticFieldDefinition,
     EvaluateClassStaticBlockDefinition,
     DefineMethod,
     SetFunctionName,
@@ -192,6 +193,7 @@ pub enum Insn {
     AttachElements,
     AttachSourceText,
     NameOnlyFieldRecord,
+    NameOnlyStaticFieldRecord,
 }
 
 impl fmt::Display for Insn {
@@ -359,6 +361,7 @@ impl fmt::Display for Insn {
             Insn::EnumerateObjectProperties => "ENUM_PROPS",
             Insn::PrivateIdLookup => "PRIV_ID_LOOKUP",
             Insn::EvaluateInitializedClassFieldDefinition => "EVAL_CLASS_FIELD_DEF",
+            Insn::EvaluateInitializedClassStaticFieldDefinition => "EVAL_CLS_STC_FLD_DEF",
             Insn::EvaluateClassStaticBlockDefinition => "EVAL_CLASS_SBLK_DEF",
             Insn::DefineMethod => "DEFINE_METHOD",
             Insn::SetFunctionName => "SET_FUNC_NAME",
@@ -373,6 +376,7 @@ impl fmt::Display for Insn {
             Insn::AttachElements => "ATTACH_ELEMENTS",
             Insn::AttachSourceText => "ATTACH_SOURCE",
             Insn::NameOnlyFieldRecord => "NAME_ONLY_FIELD_REC",
+            Insn::NameOnlyStaticFieldRecord => "NAME_ONLY_STATIC_FIELD",
         })
     }
 }
@@ -10133,17 +10137,21 @@ impl ClassElement {
             ClassElement::Standard { method } | ClassElement::Static { method, .. } => {
                 todo!()
             }
-            ClassElement::Field { field, .. } | ClassElement::StaticField { field, .. } => {
+            ClassElement::Field { field, .. } => {
                 // ClassElement :
                 //      FieldDefinition ;
+                //  1. Return ? ClassFieldDefinitionEvaluation of FieldDefinition with argument object.
+                // start:                                               obj
+                //   <method.class_field_definition_eval(is_static)>    elem/err obj
+                field.class_field_definition_evaluation(chunk, strict, text, Static::No)
+            }
+            ClassElement::StaticField { field, .. } => {
+                // ClassElement :
                 //      static FieldDefinition ;
                 //  1. Return ? ClassFieldDefinitionEvaluation of FieldDefinition with argument object.
-
-                // start:                                    obj
-                //   <method.class_field_definition_eval>    elem/err obj
-
-                let status = field.class_field_definition_evaluation(chunk, strict, text)?;
-                Ok(status)
+                // start:                                               obj
+                //   <method.class_field_definition_eval(is_static)>    elem/err obj
+                field.class_field_definition_evaluation(chunk, strict, text, Static::Yes)
             }
             ClassElement::StaticBlock { block } => todo!(),
             ClassElement::Empty { .. } => {
@@ -10186,12 +10194,19 @@ impl ClassElementName {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum Static {
+    No,
+    Yes,
+}
+
 impl FieldDefinition {
     fn class_field_definition_evaluation(
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
+        staticness: Static,
     ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: ClassFieldDefinitionEvaluation
         // The syntax-directed operation ClassFieldDefinitionEvaluation takes argument homeObject (an Object) and
@@ -10242,9 +10257,18 @@ impl FieldDefinition {
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let func_id = chunk.add_to_func_stash(info)?;
-                chunk.op_plus_arg(Insn::EvaluateInitializedClassFieldDefinition, func_id);
+                let opcode = if staticness == Static::Yes {
+                    Insn::EvaluateInitializedClassStaticFieldDefinition
+                } else {
+                    Insn::EvaluateInitializedClassFieldDefinition
+                };
+                chunk.op_plus_arg(opcode, func_id);
             }
-            None => chunk.op(Insn::NameOnlyFieldRecord),
+            None => chunk.op(if staticness == Static::Yes {
+                Insn::NameOnlyStaticFieldRecord
+            } else {
+                Insn::NameOnlyFieldRecord
+            }),
         }
         if let Some(exit) = exit {
             chunk.fixup(exit).expect("jump too short to fail");

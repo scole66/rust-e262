@@ -11421,12 +11421,14 @@ mod field_definition {
         let node = Maker::new(src).field_definition();
         let mut c = complex_filled_chunk("x", what);
 
-        node.class_field_definition_evaluation(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
-            (
-                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
-                flags.maybe_abrupt(),
-            )
-        })
+        node.class_field_definition_evaluation(&mut c, strict, src, Static::No).map_err(|e| e.to_string()).map(
+            |flags| {
+                (
+                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                    flags.maybe_abrupt(),
+                )
+            },
+        )
     }
 }
 
