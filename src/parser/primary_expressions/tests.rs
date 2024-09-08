@@ -729,7 +729,7 @@ fn literal_test_bigint() {
     ));
     pretty_check(&*lit, "Literal: 7173", &[]);
     concise_check(&*lit, "Numeric: 7173", &[]);
-    format!("{lit:?}");
+    assert_ne!(format!("{lit:?}"), "");
 }
 #[test]
 fn literal_test_string() {
@@ -891,7 +891,7 @@ fn elision_test_pprint() {
     let (e2, _) = check(Elisions::parse(&mut newparser(",,,,,,"), Scanner::new()));
     pretty_check(&*e2, "Elisions: , , , , , ,", &[]);
     concise_check(&*e2, "Elisions: , , , , , ,", &[]);
-    format!("{e1:?}");
+    assert_ne!(format!("{e1:?}"), "");
 }
 #[test]
 fn elision_test_prettyerrors_1() {
@@ -948,7 +948,7 @@ fn spread_element_test_pretty() {
     let (se, _) = check(SpreadElement::parse(&mut newparser("...1"), Scanner::new(), false, false));
     pretty_check(&*se, "SpreadElement: ... 1", &["AssignmentExpression: 1"]);
     concise_check(&*se, "SpreadElement: ... 1", &["Punctuator: ...", "Numeric: 1"]);
-    format!("{se:?}");
+    assert_ne!(format!("{se:?}"), "");
 }
 #[test]
 fn spread_element_test_prettyerrors_1() {
@@ -1022,7 +1022,7 @@ fn element_list_test_02() {
     assert!(matches!(*el, ElementList::AssignmentExpression { elision: None, .. }));
     pretty_check(&*el, "ElementList: 3", &["AssignmentExpression: 3"]);
     concise_check(&*el, "Numeric: 3", &[]);
-    format!("{:?}", *el);
+    assert_ne!(format!("{:?}", *el), "");
 }
 #[test]
 fn element_list_test_03() {
@@ -1404,7 +1404,7 @@ fn array_literal_test_01() {
     ));
     pretty_check(&*al, "ArrayLiteral: [ ]", &[]);
     concise_check(&*al, "ArrayLiteral: [ ]", &["Punctuator: [", "Punctuator: ]"]);
-    format!("{:?}", &*al);
+    assert_ne!(format!("{:?}", &*al), "");
 }
 #[test]
 fn array_literal_test_02() {
@@ -1672,7 +1672,7 @@ fn initializer_test_01() {
     ));
     pretty_check(&*izer, "Initializer: = a", &["AssignmentExpression: a"]);
     concise_check(&*izer, "Initializer: = a", &["Punctuator: =", "IdentifierName: a"]);
-    format!("{:?}", *izer);
+    assert_ne!(format!("{:?}", *izer), "");
 }
 #[test]
 fn initializer_test_prettyerrors_1() {
@@ -1764,7 +1764,7 @@ fn cover_initialized_name_test_01() {
     assert!(matches!(&*cin, CoverInitializedName::InitializedName(_, _)));
     pretty_check(&*cin, "CoverInitializedName: a = b", &["IdentifierReference: a", "Initializer: = b"]);
     concise_check(&*cin, "CoverInitializedName: a = b", &["IdentifierName: a", "Initializer: = b"]);
-    format!("{:?}", *cin);
+    assert_ne!(format!("{:?}", *cin), "");
 }
 #[test]
 fn cover_initialized_name_test_prettyerrors_1() {
@@ -1851,7 +1851,7 @@ fn computed_property_name_test_01() {
     ));
     pretty_check(&*cpn, "ComputedPropertyName: [ a ]", &["AssignmentExpression: a"]);
     concise_check(&*cpn, "ComputedPropertyName: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
-    format!("{:?}", &*cpn);
+    assert_ne!(format!("{:?}", &*cpn), "");
 }
 #[test]
 fn computed_property_name_test_prettyerrors_1() {
@@ -1933,7 +1933,7 @@ fn literal_property_name_test_01() {
     ));
     pretty_check(&*lpn, "LiteralPropertyName: b", &[]);
     concise_check(&*lpn, "IdentifierName: b", &[]);
-    format!("{:?}", *lpn);
+    assert_ne!(format!("{:?}", *lpn), "");
 }
 #[test]
 fn literal_property_name_test_02() {
@@ -2050,7 +2050,7 @@ fn property_name_test_01() {
     assert!(matches!(&*pn, PropertyName::LiteralPropertyName(_)));
     pretty_check(&*pn, "PropertyName: a", &["LiteralPropertyName: a"]);
     concise_check(&*pn, "IdentifierName: a", &[]);
-    format!("{:?}", *pn);
+    assert_ne!(format!("{:?}", *pn), "");
 }
 #[test]
 fn property_name_test_02() {
@@ -2059,7 +2059,7 @@ fn property_name_test_02() {
     assert!(matches!(&*pn, PropertyName::ComputedPropertyName(_)));
     pretty_check(&*pn, "PropertyName: [ a ]", &["ComputedPropertyName: [ a ]"]);
     concise_check(&*pn, "ComputedPropertyName: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
-    format!("{:?}", *pn);
+    assert_ne!(format!("{:?}", *pn), "");
 }
 #[test]
 fn property_name_test_prettyerrors_1() {
@@ -2180,7 +2180,7 @@ fn property_definition_test_01() {
     assert!(matches!(&*pd, PropertyDefinition::IdentifierReference(_)));
     pretty_check(&*pd, "PropertyDefinition: a", &["IdentifierReference: a"]);
     concise_check(&*pd, "IdentifierName: a", &[]);
-    format!("{:?}", *pd);
+    assert_ne!(format!("{:?}", *pd), "");
 }
 #[test]
 fn property_definition_test_02() {
@@ -2448,7 +2448,7 @@ fn property_definition_list_test_01() {
     assert!(matches!(&*pdl, PropertyDefinitionList::OneDef(_)));
     pretty_check(&*pdl, "PropertyDefinitionList: a", &["PropertyDefinition: a"]);
     concise_check(&*pdl, "IdentifierName: a", &[]);
-    format!("{:?}", *pdl);
+    assert_ne!(format!("{:?}", *pdl), "");
 }
 #[test]
 fn property_definition_list_test_02() {
@@ -2589,7 +2589,7 @@ fn object_literal_test_01() {
     ));
     pretty_check(&*ol, "ObjectLiteral: { }", &[]);
     concise_check(&*ol, "ObjectLiteral: { }", &["Punctuator: {", "Punctuator: }"]);
-    format!("{:?}", *ol);
+    assert_ne!(format!("{:?}", *ol), "");
 }
 #[test]
 fn object_literal_test_02() {
@@ -2759,7 +2759,7 @@ fn parenthesized_expression_test_01() {
     );
     pretty_check(&*pe, "ParenthesizedExpression: ( a )", &["Expression: a"]);
     concise_check(&*pe, "ParenthesizedExpression: ( a )", &["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
-    format!("{pe:?}");
+    assert_ne!(format!("{pe:?}"), "");
     assert_eq!(pe.is_function_definition(), false);
 }
 #[test]
@@ -2871,7 +2871,7 @@ fn template_middle_list_test_01() {
     ));
     pretty_check(&*tml, "TemplateMiddleList: }a${ 0", &["Expression: 0"]);
     concise_check(&*tml, "TemplateMiddleList: }a${ 0", &["TemplateMiddle: }a${", "Numeric: 0"]);
-    format!("{tml:?}");
+    assert_ne!(format!("{tml:?}"), "");
 }
 #[test]
 fn template_middle_list_test_02() {
@@ -2886,7 +2886,7 @@ fn template_middle_list_test_02() {
         "TemplateMiddleList: }${ a }${ b",
         &["TemplateMiddleList: }${ a", "TemplateMiddle: }${", "IdentifierName: b"],
     );
-    format!("{tml:?}");
+    assert_ne!(format!("{tml:?}"), "");
 }
 #[test]
 fn template_middle_list_test_03() {
@@ -2911,7 +2911,7 @@ fn template_middle_list_test_04() {
     assert!(matches!(&*tml, TemplateMiddleList::ListHead { .. }));
     pretty_check(&*tml, "TemplateMiddleList: }${ a", &["Expression: a"]);
     concise_check(&*tml, "TemplateMiddleList: }${ a", &["TemplateMiddle: }${", "IdentifierName: a"]);
-    format!("{tml:?}");
+    assert_ne!(format!("{tml:?}"), "");
 }
 #[test]
 fn template_middle_list_test_prettyerrors_1() {
@@ -3024,7 +3024,7 @@ fn template_spans_test_01() {
     assert!(matches!(&*ts, TemplateSpans::Tail { .. }));
     pretty_check(&*ts, "TemplateSpans: }done`", &[]);
     concise_check(&*ts, "TemplateTail: }done`", &[]);
-    format!("{ts:?}");
+    assert_ne!(format!("{ts:?}"), "");
 }
 #[test]
 fn template_spans_test_02() {
@@ -3033,7 +3033,7 @@ fn template_spans_test_02() {
     assert!(matches!(&*ts, TemplateSpans::List { .. }));
     pretty_check(&*ts, "TemplateSpans: }${ a }done`", &["TemplateMiddleList: }${ a"]);
     concise_check(&*ts, "TemplateSpans: }${ a }done`", &["TemplateMiddleList: }${ a", "TemplateTail: }done`"]);
-    format!("{ts:?}");
+    assert_ne!(format!("{ts:?}"), "");
 }
 #[test]
 fn template_spans_test_03() {
@@ -3151,7 +3151,7 @@ fn substitution_template_test_01() {
         "SubstitutionTemplate: `${ a }`",
         &["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"],
     );
-    format!("{st:?}");
+    assert_ne!(format!("{st:?}"), "");
 }
 #[test]
 fn substitution_template_test_02() {
@@ -3269,7 +3269,7 @@ fn template_literal_test_01() {
     }
     pretty_check(&*tl, "TemplateLiteral: `rust`", &[]);
     concise_check(&*tl, "NoSubTemplate: `rust`", &[]);
-    format!("{tl:?}");
+    assert_ne!(format!("{tl:?}"), "");
 }
 #[test]
 fn template_literal_test_02() {
@@ -3282,7 +3282,7 @@ fn template_literal_test_02() {
         "SubstitutionTemplate: `${ a }`",
         &["TemplateHead: `${", "IdentifierName: a", "TemplateTail: }`"],
     );
-    format!("{tl:?}");
+    assert_ne!(format!("{tl:?}"), "");
 }
 #[test]
 fn template_literal_test_03() {
@@ -3441,7 +3441,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             "CoverParenthesizedExpressionAndArrowParameterList: ( )",
             &["Punctuator: (", "Punctuator: )"],
         );
-        format!("{node:?}");
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test]
     fn test_02() {
@@ -3463,7 +3463,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in [ 1 , 2 , 3 ] )",
             &["Punctuator: (", "RelationalExpression: 8 in [ 1 , 2 , 3 ]", "Punctuator: )"],
         );
-        format!("{node:?}");
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test]
     fn test_03() {
@@ -3485,7 +3485,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             "CoverParenthesizedExpressionAndArrowParameterList: ( 8 in a , )",
             &["Punctuator: (", "RelationalExpression: 8 in a", "Punctuator: ,", "Punctuator: )"],
         );
-        format!("{node:?}");
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test]
     fn test_04() {
@@ -3503,7 +3503,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             "CoverParenthesizedExpressionAndArrowParameterList: ( ... a )",
             &["Punctuator: (", "Punctuator: ...", "IdentifierName: a", "Punctuator: )"],
         );
-        format!("{node:?}");
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test]
     fn test_05() {
@@ -3525,7 +3525,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             "CoverParenthesizedExpressionAndArrowParameterList: ( ... { } )",
             &["Punctuator: (", "Punctuator: ...", "ObjectBindingPattern: { }", "Punctuator: )"],
         );
-        format!("{node:?}");
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test]
     fn test_06() {
@@ -3554,7 +3554,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
                 "Punctuator: )",
             ],
         );
-        format!("{node:?}");
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test]
     fn test_07() {
@@ -3583,7 +3583,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
                 "Punctuator: )",
             ],
         );
-        format!("{node:?}");
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test]
     fn test_08() {

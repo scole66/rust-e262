@@ -12,7 +12,7 @@ fn member_expression_test_primary_expression() {
     chk_scan(&scanner, 1);
     assert!(matches!(&*me, MemberExpression::PrimaryExpression(_)));
     // Excersize the Debug formatter, for code coverage
-    format!("{me:?}");
+    assert_ne!(format!("{me:?}"), "");
     pretty_check(&*me, "MemberExpression: a", &["PrimaryExpression: a"]);
     concise_check(&*me, "IdentifierName: a", &[]);
     assert_eq!(me.is_function_definition(), false);
@@ -23,7 +23,7 @@ fn member_expression_test_meta_property() {
     chk_scan(&scanner, 10);
     assert!(matches!(&*me, MemberExpression::MetaProperty(_)));
     // Excersize the Debug formatter, for code coverage
-    format!("{me:?}");
+    assert_ne!(format!("{me:?}"), "");
     pretty_check(&*me, "MemberExpression: new . target", &["MetaProperty: new . target"]);
     concise_check(&*me, "MetaProperty: new . target", &["Keyword: new", "Punctuator: .", "Keyword: target"]);
     assert_eq!(me.is_function_definition(), false);
@@ -34,7 +34,7 @@ fn member_expression_test_super_property() {
     chk_scan(&scanner, 9);
     assert!(matches!(&*me, MemberExpression::SuperProperty(_)));
     // Excersize the Debug formatter, for code coverage
-    format!("{me:?}");
+    assert_ne!(format!("{me:?}"), "");
     pretty_check(&*me, "MemberExpression: super . ior", &["SuperProperty: super . ior"]);
     concise_check(&*me, "SuperProperty: super . ior", &["Keyword: super", "Punctuator: .", "IdentifierName: ior"]);
     assert_eq!(me.is_function_definition(), false);
@@ -46,7 +46,7 @@ fn member_expression_test_new_me_args() {
     chk_scan(&scanner, 27);
     assert!(matches!(&*me, MemberExpression::NewArguments(..)));
     // Excersize the Debug formatter, for code coverage
-    format!("{me:?}");
+    assert_ne!(format!("{me:?}"), "");
     pretty_check(
         &*me,
         "MemberExpression: new shoes ( 'red' , 'leather' )",
@@ -65,7 +65,7 @@ fn member_expression_test_me_expression() {
     chk_scan(&scanner, 7);
     assert!(matches!(&*me, MemberExpression::Expression(..)));
     // Excersize the Debug formatter, for code coverage
-    format!("{me:?}");
+    assert_ne!(format!("{me:?}"), "");
     pretty_check(&*me, "MemberExpression: bill [ a ]", &["MemberExpression: bill", "Expression: a"]);
     concise_check(
         &*me,
@@ -80,7 +80,7 @@ fn member_expression_test_me_ident() {
     chk_scan(&scanner, 10);
     assert!(matches!(&*me, MemberExpression::IdentifierName(..)));
     // Excersize the Debug formatter, for code coverage
-    format!("{me:?}");
+    assert_ne!(format!("{me:?}"), "");
     pretty_check(&*me, "MemberExpression: alice . name", &["MemberExpression: alice"]);
     concise_check(
         &*me,
@@ -95,7 +95,7 @@ fn member_expression_test_me_private() {
     chk_scan(&scanner, 11);
     assert!(matches!(&*me, MemberExpression::PrivateId(..)));
     // Excersize the Debug formatter, for code coverage
-    format!("{me:?}");
+    assert_ne!(format!("{me:?}"), "");
     pretty_check(&*me, "MemberExpression: alice . #name", &["MemberExpression: alice"]);
     concise_check(
         &*me,
@@ -110,7 +110,7 @@ fn member_expression_test_me_template() {
     chk_scan(&scanner, 11);
     assert!(matches!(&*me, MemberExpression::TemplateLiteral(..)));
     // Excersize the Debug formatter, for code coverage
-    format!("{me:?}");
+    assert_ne!(format!("{me:?}"), "");
     pretty_check(&*me, "MemberExpression: alice `${ a }`", &["MemberExpression: alice", "TemplateLiteral: `${ a }`"]);
     concise_check(
         &*me,
@@ -517,7 +517,7 @@ fn super_property_test_expression() {
     chk_scan(&scanner, 8);
     assert!(matches!(*sp, SuperProperty::Expression { .. }));
     // Excersize the Debug formatter, for code coverage
-    format!("{sp:?}");
+    assert_ne!(format!("{sp:?}"), "");
     pretty_check(&*sp, "SuperProperty: super [ a ]", &["Expression: a"]);
     concise_check(
         &*sp,
@@ -531,7 +531,7 @@ fn super_property_test_ident() {
     chk_scan(&scanner, 9);
     assert!(matches!(*sp, SuperProperty::IdentifierName { .. }));
     // Excersize the Debug formatter, for code coverage
-    format!("{sp:?}");
+    assert_ne!(format!("{sp:?}"), "");
     pretty_check(&*sp, "SuperProperty: super . bob", &[]);
     concise_check(&*sp, "SuperProperty: super . bob", &["Keyword: super", "Punctuator: .", "IdentifierName: bob"]);
 }
@@ -645,7 +645,7 @@ fn meta_property_test_newtarget() {
     let (mp, scanner) = check(MetaProperty::parse(&mut newparser("new.target"), Scanner::new()));
     chk_scan(&scanner, 10);
     assert!(matches!(*mp, MetaProperty::NewTarget { .. }));
-    format!("{mp:?}");
+    assert_ne!(format!("{mp:?}"), "");
     pretty_check(&*mp, "MetaProperty: new . target", &[]);
     concise_check(&*mp, "MetaProperty: new . target", &["Keyword: new", "Punctuator: .", "Keyword: target"]);
 }
@@ -655,7 +655,7 @@ fn meta_property_test_importmeta(goal: ParseGoal) -> Option<ParseGoal> {
     let (mp, scanner) = check(MetaProperty::parse(&mut Parser::new("import.meta", false, goal), Scanner::new()));
     chk_scan(&scanner, 11);
     assert!(matches!(*mp, MetaProperty::ImportMeta { .. }));
-    format!("{mp:?}");
+    assert_ne!(format!("{mp:?}"), "");
     pretty_check(&*mp, "MetaProperty: import . meta", &[]);
     concise_check(&*mp, "MetaProperty: import . meta", &["Keyword: import", "Punctuator: .", "Keyword: meta"]);
     match *mp {
@@ -742,7 +742,7 @@ fn arguments_test_onlyparens() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("()"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
     assert!(matches!(*args, Arguments::Empty { .. }));
-    format!("{args:?}");
+    assert_ne!(format!("{args:?}"), "");
     pretty_check(&*args, "Arguments: ( )", &[]);
     concise_check(&*args, "Arguments: ( )", &["Punctuator: (", "Punctuator: )"]);
 }
@@ -751,7 +751,7 @@ fn arguments_test_trailing_comma() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("(a,)"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(*args, Arguments::ArgumentListComma(..)));
-    format!("{args:?}");
+    assert_ne!(format!("{args:?}"), "");
     pretty_check(&*args, "Arguments: ( a , )", &["ArgumentList: a"]);
     concise_check(
         &*args,
@@ -764,7 +764,7 @@ fn arguments_test_arglist() {
     let (args, scanner) = check(Arguments::parse(&mut newparser("(a,b)"), Scanner::new(), false, false));
     chk_scan(&scanner, 5);
     assert!(matches!(*args, Arguments::ArgumentList(..)));
-    format!("{args:?}");
+    assert_ne!(format!("{args:?}"), "");
     pretty_check(&*args, "Arguments: ( a , b )", &["ArgumentList: a , b"]);
     concise_check(&*args, "Arguments: ( a , b )", &["Punctuator: (", "ArgumentList: a , b", "Punctuator: )"]);
 }
@@ -892,7 +892,7 @@ fn argument_list_test_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(*al, ArgumentList::FallThru(_)));
-    format!("{al:?}");
+    assert_ne!(format!("{al:?}"), "");
     pretty_check(&*al, "ArgumentList: aba", &["AssignmentExpression: aba"]);
     concise_check(&*al, "IdentifierName: aba", &[]);
 }
@@ -901,7 +901,7 @@ fn argument_list_test_dots_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("...aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(*al, ArgumentList::Dots(_)));
-    format!("{al:?}");
+    assert_ne!(format!("{al:?}"), "");
     pretty_check(&*al, "ArgumentList: ... aba", &["AssignmentExpression: aba"]);
     concise_check(&*al, "ArgumentList: ... aba", &["Punctuator: ...", "IdentifierName: aba"]);
 }
@@ -910,7 +910,7 @@ fn argument_list_test_al_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(*al, ArgumentList::ArgumentList(..)));
-    format!("{al:?}");
+    assert_ne!(format!("{al:?}"), "");
     pretty_check(&*al, "ArgumentList: ab , aba", &["ArgumentList: ab", "AssignmentExpression: aba"]);
     concise_check(&*al, "ArgumentList: ab , aba", &["IdentifierName: ab", "Punctuator: ,", "IdentifierName: aba"]);
 }
@@ -919,7 +919,7 @@ fn argument_list_test_al_dots_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,...aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
     assert!(matches!(*al, ArgumentList::ArgumentListDots(..)));
-    format!("{al:?}");
+    assert_ne!(format!("{al:?}"), "");
     pretty_check(&*al, "ArgumentList: ab , ... aba", &["ArgumentList: ab", "AssignmentExpression: aba"]);
     concise_check(
         &*al,
@@ -1110,7 +1110,7 @@ mod new_expression {
         let (ne, scanner) = check(NewExpression::parse(&mut newparser("true"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*ne, NewExpression::MemberExpression(_)));
-        format!("{ne:?}");
+        assert_ne!(format!("{ne:?}"), "");
         pretty_check(&*ne, "NewExpression: true", &["MemberExpression: true"]);
         concise_check(&*ne, "Keyword: true", &[]);
         assert_eq!(ne.is_function_definition(), false);
@@ -1120,7 +1120,7 @@ mod new_expression {
         let (ne, scanner) = check(NewExpression::parse(&mut newparser("new bob"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(*ne, NewExpression::NewExpression(..)));
-        format!("{ne:?}");
+        assert_ne!(format!("{ne:?}"), "");
         pretty_check(&*ne, "NewExpression: new bob", &["NewExpression: bob"]);
         concise_check(&*ne, "NewExpression: new bob", &["Keyword: new", "IdentifierName: bob"]);
         assert_eq!(ne.is_function_definition(), false);
@@ -1130,7 +1130,7 @@ mod new_expression {
         let (ne, scanner) = check(NewExpression::parse(&mut newparser("new bob()"), Scanner::new(), false, false));
         chk_scan(&scanner, 9);
         assert!(matches!(*ne, NewExpression::MemberExpression(_)));
-        format!("{ne:?}");
+        assert_ne!(format!("{ne:?}"), "");
         pretty_check(&*ne, "NewExpression: new bob ( )", &["MemberExpression: new bob ( )"]);
         concise_check(
             &*ne,
@@ -1291,7 +1291,7 @@ mod call_member_expression {
     fn me_args() {
         let (cme, scanner) = check(CallMemberExpression::parse(&mut newparser("a()"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
-        format!("{cme:?}");
+        assert_ne!(format!("{cme:?}"), "");
         pretty_check(&*cme, "CallMemberExpression: a ( )", &["MemberExpression: a", "Arguments: ( )"]);
         concise_check(&*cme, "CallMemberExpression: a ( )", &["IdentifierName: a", "Arguments: ( )"]);
     }
@@ -1385,7 +1385,7 @@ mod super_call {
         let (sc, scanner) = check(SuperCall::parse(&mut newparser("super()"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(*sc.arguments, Arguments::Empty { .. }));
-        format!("{sc:?}");
+        assert_ne!(format!("{sc:?}"), "");
         pretty_check(&*sc, "SuperCall: super ( )", &["Arguments: ( )"]);
         concise_check(&*sc, "SuperCall: super ( )", &["Keyword: super", "Arguments: ( )"]);
     }
@@ -1455,7 +1455,7 @@ mod import_call {
     fn ae() {
         let (ic, scanner) = check(ImportCall::parse(&mut newparser("import(bob)"), Scanner::new(), false, false));
         chk_scan(&scanner, 11);
-        format!("{ic:?}");
+        assert_ne!(format!("{ic:?}"), "");
         pretty_check(&*ic, "ImportCall: import ( bob )", &["AssignmentExpression: bob"]);
         concise_check(
             &*ic,
@@ -1541,7 +1541,7 @@ mod call_expression {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("a()"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ce, CallExpression::CallMemberExpression(_)));
-        format!("{ce:?}");
+        assert_ne!(format!("{ce:?}"), "");
         pretty_check(&*ce, "CallExpression: a ( )", &["CallMemberExpression: a ( )"]);
         concise_check(&*ce, "CallMemberExpression: a ( )", &["IdentifierName: a", "Arguments: ( )"]);
     }
@@ -1550,7 +1550,7 @@ mod call_expression {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("super()"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(*ce, CallExpression::SuperCall(_)));
-        format!("{ce:?}");
+        assert_ne!(format!("{ce:?}"), "");
         pretty_check(&*ce, "CallExpression: super ( )", &["SuperCall: super ( )"]);
         concise_check(&*ce, "SuperCall: super ( )", &["Keyword: super", "Arguments: ( )"]);
     }
@@ -1559,7 +1559,7 @@ mod call_expression {
         let (ce, scanner) = check(CallExpression::parse(&mut newparser("import(pop)"), Scanner::new(), false, false));
         chk_scan(&scanner, 11);
         assert!(matches!(*ce, CallExpression::ImportCall(_)));
-        format!("{ce:?}");
+        assert_ne!(format!("{ce:?}"), "");
         pretty_check(&*ce, "CallExpression: import ( pop )", &["ImportCall: import ( pop )"]);
         concise_check(
             &*ce,
@@ -1573,7 +1573,7 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(20)"), Scanner::new(), false, false));
         chk_scan(&scanner, 23);
         assert!(matches!(*ce, CallExpression::CallExpressionArguments(..)));
-        format!("{ce:?}");
+        assert_ne!(format!("{ce:?}"), "");
         pretty_check(
             &*ce,
             "CallExpression: blue ( pop ) ( snap ) ( 10 ) ( 20 )",
@@ -1591,7 +1591,7 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(++)"), Scanner::new(), false, false));
         chk_scan(&scanner, 19);
         assert!(matches!(*ce, CallExpression::CallExpressionArguments(..)));
-        format!("{ce:?}");
+        assert_ne!(format!("{ce:?}"), "");
     }
     #[test]
     fn ce_exp() {
@@ -1599,7 +1599,7 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop)[snap]"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
         assert!(matches!(*ce, CallExpression::CallExpressionExpression(..)));
-        format!("{ce:?}");
+        assert_ne!(format!("{ce:?}"), "");
         pretty_check(
             &*ce,
             "CallExpression: blue ( pop ) [ snap ]",
@@ -1617,7 +1617,7 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop).snap"), Scanner::new(), false, false));
         chk_scan(&scanner, 14);
         assert!(matches!(*ce, CallExpression::CallExpressionIdentifierName(..)));
-        format!("{ce:?}");
+        assert_ne!(format!("{ce:?}"), "");
         pretty_check(&*ce, "CallExpression: blue ( pop ) . snap", &["CallExpression: blue ( pop )"]);
         concise_check(
             &*ce,
@@ -1631,7 +1631,7 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop).#snap"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
         assert!(matches!(*ce, CallExpression::CallExpressionPrivateId(..)));
-        format!("{ce:?}");
+        assert_ne!(format!("{ce:?}"), "");
         pretty_check(&*ce, "CallExpression: blue ( pop ) . #snap", &["CallExpression: blue ( pop )"]);
         concise_check(
             &*ce,
@@ -1645,7 +1645,7 @@ mod call_expression {
             check(CallExpression::parse(&mut newparser("blue(pop)`snap`"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
         assert!(matches!(*ce, CallExpression::CallExpressionTemplateLiteral(..)));
-        format!("{ce:?}");
+        assert_ne!(format!("{ce:?}"), "");
         pretty_check(
             &*ce,
             "CallExpression: blue ( pop ) `snap`",
@@ -1974,7 +1974,7 @@ mod optional_expression {
         let (lhs, scanner) = check(OptionalExpression::parse(&mut newparser("a?.b"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*lhs, OptionalExpression::Member(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalExpression: a ?. b", &["MemberExpression: a", "OptionalChain: ?. b"]);
         concise_check(&*lhs, "OptionalExpression: a ?. b", &["IdentifierName: a", "OptionalChain: ?. b"]);
     }
@@ -1983,7 +1983,7 @@ mod optional_expression {
         let (lhs, scanner) = check(OptionalExpression::parse(&mut newparser("a()?.b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(*lhs, OptionalExpression::Call(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalExpression: a ( ) ?. b", &["CallExpression: a ( )", "OptionalChain: ?. b"]);
         concise_check(&*lhs, "OptionalExpression: a ( ) ?. b", &["CallMemberExpression: a ( )", "OptionalChain: ?. b"]);
     }
@@ -1992,7 +1992,7 @@ mod optional_expression {
         let (lhs, scanner) = check(OptionalExpression::parse(&mut newparser("a?.b?.c"), Scanner::new(), false, false));
         chk_scan(&scanner, 7);
         assert!(matches!(*lhs, OptionalExpression::Opt(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalExpression: a ?. b ?. c", &["OptionalExpression: a ?. b", "OptionalChain: ?. c"]);
         concise_check(&*lhs, "OptionalExpression: a ?. b ?. c", &["OptionalExpression: a ?. b", "OptionalChain: ?. c"]);
     }
@@ -2175,7 +2175,7 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.()"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*lhs, OptionalChain::Args(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalChain: ?. ( )", &["Arguments: ( )"]);
         concise_check(&*lhs, "OptionalChain: ?. ( )", &["Punctuator: ?.", "Arguments: ( )"]);
     }
@@ -2184,7 +2184,7 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.[1 in a]"), Scanner::new(), false, false));
         chk_scan(&scanner, 10);
         assert!(matches!(*lhs, OptionalChain::Exp(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalChain: ?. [ 1 in a ]", &["Expression: 1 in a"]);
         concise_check(
             &*lhs,
@@ -2197,7 +2197,7 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*lhs, OptionalChain::Ident(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalChain: ?. a", &["IdentifierName: a"]);
         concise_check(&*lhs, "OptionalChain: ?. a", &["Punctuator: ?.", "IdentifierName: a"]);
     }
@@ -2206,7 +2206,7 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.`a`"), Scanner::new(), false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(*lhs, OptionalChain::Template(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalChain: ?. `a`", &["TemplateLiteral: `a`"]);
         concise_check(&*lhs, "OptionalChain: ?. `a`", &["Punctuator: ?.", "NoSubTemplate: `a`"]);
     }
@@ -2215,7 +2215,7 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a()"), Scanner::new(), false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(*lhs, OptionalChain::PlusArgs(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalChain: ?. a ( )", &["OptionalChain: ?. a", "Arguments: ( )"]);
         concise_check(&*lhs, "OptionalChain: ?. a ( )", &["OptionalChain: ?. a", "Arguments: ( )"]);
     }
@@ -2224,7 +2224,7 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a[0 in b]"), Scanner::new(), false, false));
         chk_scan(&scanner, 11);
         assert!(matches!(*lhs, OptionalChain::PlusExp(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalChain: ?. a [ 0 in b ]", &["OptionalChain: ?. a", "Expression: 0 in b"]);
         concise_check(
             &*lhs,
@@ -2237,7 +2237,7 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a.b"), Scanner::new(), false, false));
         chk_scan(&scanner, 5);
         assert!(matches!(*lhs, OptionalChain::PlusIdent(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalChain: ?. a . b", &["OptionalChain: ?. a", "IdentifierName: b"]);
         concise_check(&*lhs, "OptionalChain: ?. a . b", &["OptionalChain: ?. a", "Punctuator: .", "IdentifierName: b"]);
     }
@@ -2246,7 +2246,7 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a`b`"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(*lhs, OptionalChain::PlusTemplate(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalChain: ?. a `b`", &["OptionalChain: ?. a", "TemplateLiteral: `b`"]);
         concise_check(&*lhs, "OptionalChain: ?. a `b`", &["OptionalChain: ?. a", "NoSubTemplate: `b`"]);
     }
@@ -2255,7 +2255,7 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.#a"), Scanner::new(), false, false));
         chk_scan(&scanner, 4);
         assert!(matches!(*lhs, OptionalChain::PrivateId(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalChain: ?. #a", &["PrivateIdentifier: #a"]);
         concise_check(&*lhs, "OptionalChain: ?. #a", &["Punctuator: ?.", "PrivateIdentifier: #a"]);
     }
@@ -2264,7 +2264,7 @@ mod optional_chain {
         let (lhs, scanner) = check(OptionalChain::parse(&mut newparser("?.a.#b"), Scanner::new(), false, false));
         chk_scan(&scanner, 6);
         assert!(matches!(*lhs, OptionalChain::PlusPrivateId(..)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "OptionalChain: ?. a . #b", &["OptionalChain: ?. a", "PrivateIdentifier: #b"]);
         concise_check(
             &*lhs,
@@ -2637,7 +2637,7 @@ mod left_hand_side_expression {
         let (lhs, scanner) = check(LeftHandSideExpression::parse(&mut newparser("a"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(*lhs, LeftHandSideExpression::New(_)));
-        format!("{lhs:?}");
+        assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "LeftHandSideExpression: a", &["NewExpression: a"]);
         concise_check(&*lhs, "IdentifierName: a", &[]);
         assert_eq!(lhs.is_function_definition(), false);

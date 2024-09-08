@@ -13,7 +13,7 @@ mod debugger_statement {
         chk_scan(&scanner, 9);
         pretty_check(&*se, "DebuggerStatement: debugger ;", &[]);
         concise_check(&*se, "DebuggerStatement: debugger ;", &["Keyword: debugger", "Punctuator: ;"]);
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
     }
     #[test]
     fn asi_01() {
@@ -21,7 +21,7 @@ mod debugger_statement {
         chk_scan(&scanner, 8);
         pretty_check(&*se, "DebuggerStatement: debugger ;", &[]);
         concise_check(&*se, "DebuggerStatement: debugger ;", &["Keyword: debugger", "Punctuator: ;"]);
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
     }
     #[test]
     fn err_01() {

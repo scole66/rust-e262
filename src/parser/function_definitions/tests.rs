@@ -39,7 +39,7 @@ fn function_declaration_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn function_declaration_test_02() {
@@ -52,7 +52,7 @@ fn function_declaration_test_02() {
         "FunctionDeclaration: function ( z ) { }",
         &["Keyword: function", "Punctuator: (", "IdentifierName: z", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn function_declaration_test_err_01() {
@@ -279,7 +279,7 @@ fn function_expression_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -292,7 +292,7 @@ fn function_expression_test_02() {
         "FunctionExpression: function ( z ) { }",
         &["Keyword: function", "Punctuator: (", "IdentifierName: z", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -409,7 +409,7 @@ fn function_body_test_01() {
     chk_scan(&scanner, 0);
     pretty_check(&*node, "FunctionBody: ", &["FunctionStatementList: "]);
     concise_check(&*node, "", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn function_body_test_prettyerrors_1() {
@@ -519,7 +519,7 @@ fn function_statement_list_test_01() {
     chk_scan(&scanner, 0);
     pretty_check(&*node, "FunctionStatementList: ", &[]);
     concise_check(&*node, "", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn function_statement_list_test_prettyerrors_1() {

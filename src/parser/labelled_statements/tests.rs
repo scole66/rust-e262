@@ -17,7 +17,7 @@ fn labelled_statement_test_01() {
         "LabelledStatement: blue : orange ;",
         &["IdentifierName: blue", "Punctuator: :", "ExpressionStatement: orange ;"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn labelled_statement_test_err_01() {
@@ -196,7 +196,7 @@ fn labelled_item_test_01() {
     chk_scan(&scanner, 7);
     pretty_check(&*node, "LabelledItem: orange ;", &["Statement: orange ;"]);
     concise_check(&*node, "ExpressionStatement: orange ;", &["IdentifierName: orange", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn labelled_item_test_02() {
@@ -209,7 +209,7 @@ fn labelled_item_test_02() {
         "FunctionDeclaration: function a ( ) { }",
         &["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn labelled_item_test_err_01() {

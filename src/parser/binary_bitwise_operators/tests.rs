@@ -16,7 +16,7 @@ mod bitwise_and_expression {
         assert!(matches!(&*pn, BitwiseANDExpression::EqualityExpression(_)));
         pretty_check(&*pn, "BitwiseANDExpression: a", &["EqualityExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", &[]);
-        format!("{pn:?}");
+        assert_ne!(format!("{pn:?}"), "");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -31,7 +31,7 @@ mod bitwise_and_expression {
             "BitwiseANDExpression: a & b",
             &["IdentifierName: a", "Punctuator: &", "IdentifierName: b"],
         );
-        format!("{pn:?}");
+        assert_ne!(format!("{pn:?}"), "");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -42,7 +42,7 @@ mod bitwise_and_expression {
         assert!(matches!(&*pn, BitwiseANDExpression::EqualityExpression(_)));
         pretty_check(&*pn, "BitwiseANDExpression: a", &["EqualityExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", &[]);
-        format!("{pn:?}");
+        assert_ne!(format!("{pn:?}"), "");
         assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
@@ -174,7 +174,7 @@ fn bitwise_xor_expression_test_01() {
     assert!(matches!(&*pn, BitwiseXORExpression::BitwiseANDExpression(_)));
     pretty_check(&*pn, "BitwiseXORExpression: a", &["BitwiseANDExpression: a"]);
     concise_check(&*pn, "IdentifierName: a", &[]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
     assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
@@ -184,7 +184,7 @@ fn bitwise_xor_expression_test_02() {
     assert!(matches!(&*pn, BitwiseXORExpression::BitwiseXOR(_, _)));
     pretty_check(&*pn, "BitwiseXORExpression: a ^ b", &["BitwiseXORExpression: a", "BitwiseANDExpression: b"]);
     concise_check(&*pn, "BitwiseXORExpression: a ^ b", &["IdentifierName: a", "Punctuator: ^", "IdentifierName: b"]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
     assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
@@ -194,7 +194,7 @@ fn bitwise_xor_expression_test_03() {
     assert!(matches!(&*pn, BitwiseXORExpression::BitwiseANDExpression(_)));
     pretty_check(&*pn, "BitwiseXORExpression: a", &["BitwiseANDExpression: a"]);
     concise_check(&*pn, "IdentifierName: a", &[]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
     assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
@@ -325,7 +325,7 @@ fn bitwise_or_expression_test_01() {
     assert!(matches!(&*pn, BitwiseORExpression::BitwiseXORExpression(_)));
     pretty_check(&*pn, "BitwiseORExpression: a", &["BitwiseXORExpression: a"]);
     concise_check(&*pn, "IdentifierName: a", &[]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
     assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
@@ -335,7 +335,7 @@ fn bitwise_or_expression_test_02() {
     assert!(matches!(&*pn, BitwiseORExpression::BitwiseOR(_, _)));
     pretty_check(&*pn, "BitwiseORExpression: a | b", &["BitwiseORExpression: a", "BitwiseXORExpression: b"]);
     concise_check(&*pn, "BitwiseORExpression: a | b", &["IdentifierName: a", "Punctuator: |", "IdentifierName: b"]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
     assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
@@ -345,7 +345,7 @@ fn bitwise_or_expression_test_03() {
     assert!(matches!(&*pn, BitwiseORExpression::BitwiseXORExpression(_)));
     pretty_check(&*pn, "BitwiseORExpression: a", &["BitwiseXORExpression: a"]);
     concise_check(&*pn, "IdentifierName: a", &[]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
     assert_eq!(pn.is_function_definition(), false);
 }
 #[test]

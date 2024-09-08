@@ -20,7 +20,7 @@ fn switch_statement_test_01() {
         "SwitchStatement: switch ( 0 ) { default : 0 ; }",
         &["Keyword: switch", "Punctuator: (", "Numeric: 0", "Punctuator: )", "CaseBlock: { default : 0 ; }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn switch_statement_test_err() {
@@ -151,7 +151,7 @@ fn case_block_test_01() {
     chk_scan(&scanner, 2);
     pretty_check(&*node, "CaseBlock: { }", &[]);
     concise_check(&*node, "CaseBlock: { }", &["Punctuator: {", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn case_block_test_02() {
@@ -159,7 +159,7 @@ fn case_block_test_02() {
     chk_scan(&scanner, 10);
     pretty_check(&*node, "CaseBlock: { case 0 : ; }", &["CaseClauses: case 0 : ;"]);
     concise_check(&*node, "CaseBlock: { case 0 : ; }", &["Punctuator: {", "CaseClause: case 0 : ;", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn case_block_test_03() {
@@ -171,7 +171,7 @@ fn case_block_test_03() {
         "CaseBlock: { default : ; }",
         &["Punctuator: {", "DefaultClause: default : ;", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn case_block_test_04() {
@@ -188,7 +188,7 @@ fn case_block_test_04() {
         "CaseBlock: { case 0 : ; default : ; }",
         &["Punctuator: {", "CaseClause: case 0 : ;", "DefaultClause: default : ;", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn case_block_test_05() {
@@ -205,7 +205,7 @@ fn case_block_test_05() {
         "CaseBlock: { default : ; case 0 : ; }",
         &["Punctuator: {", "DefaultClause: default : ;", "CaseClause: case 0 : ;", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn case_block_test_06() {
@@ -228,7 +228,7 @@ fn case_block_test_06() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn case_block_test_errs() {
@@ -452,7 +452,7 @@ fn case_clauses_test_01() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "CaseClauses: case 0 : ;", &["CaseClause: case 0 : ;"]);
     concise_check(&*node, "CaseClause: case 0 : ;", &["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn case_clauses_test_02() {
@@ -461,7 +461,7 @@ fn case_clauses_test_02() {
     chk_scan(&scanner, 16);
     pretty_check(&*node, "CaseClauses: case 0 : ; case 1 : ;", &["CaseClauses: case 0 : ;", "CaseClause: case 1 : ;"]);
     concise_check(&*node, "CaseClauses: case 0 : ; case 1 : ;", &["CaseClause: case 0 : ;", "CaseClause: case 1 : ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn case_clauses_test_errs() {
@@ -599,7 +599,7 @@ fn case_clause_test_01() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "CaseClause: case 0 : ;", &["Expression: 0", "StatementList: ;"]);
     concise_check(&*node, "CaseClause: case 0 : ;", &["Keyword: case", "Numeric: 0", "Punctuator: :", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn case_clause_test_02() {
@@ -607,7 +607,7 @@ fn case_clause_test_02() {
     chk_scan(&scanner, 7);
     pretty_check(&*node, "CaseClause: case 0 :", &["Expression: 0"]);
     concise_check(&*node, "CaseClause: case 0 :", &["Keyword: case", "Numeric: 0", "Punctuator: :"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn case_clause_test_errs() {
@@ -739,7 +739,7 @@ fn default_clause_test_01() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "DefaultClause: default : ;", &["StatementList: ;"]);
     concise_check(&*node, "DefaultClause: default : ;", &["Keyword: default", "Punctuator: :", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn default_clause_test_02() {
@@ -747,7 +747,7 @@ fn default_clause_test_02() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "DefaultClause: default :", &[]);
     concise_check(&*node, "DefaultClause: default :", &["Keyword: default", "Punctuator: :"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn default_clause_test_errs() {

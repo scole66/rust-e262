@@ -14,7 +14,7 @@ mod update_expression {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("78"), Scanner::new(), false, false));
         chk_scan(&scanner, 2);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: 78", &["LeftHandSideExpression: 78"]);
         concise_check(&*ue, "Numeric: 78", &[]);
         assert!(!ue.is_function_definition());
@@ -24,7 +24,7 @@ mod update_expression {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("(x=>x*2)"), Scanner::new(), false, false));
         chk_scan(&scanner, 8);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: ( x => x * 2 )", &["LeftHandSideExpression: ( x => x * 2 )"]);
         concise_check(
             &*ue,
@@ -38,7 +38,7 @@ mod update_expression {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("x"), Scanner::new(), false, false));
         chk_scan(&scanner, 1);
         assert!(matches!(*ue, UpdateExpression::LeftHandSideExpression(_)));
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: x", &["LeftHandSideExpression: x"]);
         concise_check(&*ue, "IdentifierName: x", &[]);
         assert!(!ue.is_function_definition());
@@ -48,7 +48,7 @@ mod update_expression {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("++a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PreIncrement { .. }));
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: ++ a", &["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: ++ a", &["Punctuator: ++", "IdentifierName: a"]);
         assert!(!ue.is_function_definition());
@@ -58,7 +58,7 @@ mod update_expression {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("--a"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PreDecrement { .. }));
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: -- a", &["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: -- a", &["Punctuator: --", "IdentifierName: a"]);
         assert!(!ue.is_function_definition());
@@ -68,7 +68,7 @@ mod update_expression {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a++"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PostIncrement { .. }));
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: a ++", &["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a ++", &["IdentifierName: a", "Punctuator: ++"]);
         assert!(!ue.is_function_definition());
@@ -78,7 +78,7 @@ mod update_expression {
         let (ue, scanner) = check(UpdateExpression::parse(&mut newparser("a--"), Scanner::new(), false, false));
         chk_scan(&scanner, 3);
         assert!(matches!(*ue, UpdateExpression::PostDecrement { .. }));
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: a --", &["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a --", &["IdentifierName: a", "Punctuator: --"]);
         assert!(!ue.is_function_definition());
