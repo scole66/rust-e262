@@ -20,7 +20,7 @@ fn generator_method_test_01() {
         "GeneratorMethod: * a ( ) { }",
         &["Punctuator: *", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn generator_method_test_02() {
@@ -194,7 +194,7 @@ fn generator_declaration_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn generator_declaration_test_02() {
@@ -207,7 +207,7 @@ fn generator_declaration_test_02() {
         "GeneratorDeclaration: function * ( ) { }",
         &["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn generator_declaration_test_03() {
@@ -459,7 +459,7 @@ fn generator_expression_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -472,7 +472,7 @@ fn generator_expression_test_02() {
         "GeneratorExpression: function * ( ) { }",
         &["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -625,7 +625,7 @@ fn generator_body_test_01() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "GeneratorBody: yield 1 ;", &["FunctionBody: yield 1 ;"]);
     concise_check(&*node, "ExpressionStatement: yield 1 ;", &["YieldExpression: yield 1", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn generator_body_test_prettyerrors_1() {
@@ -715,7 +715,7 @@ fn yield_expression_test_01() {
     assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", &[]);
     concise_check(&*pn, "Keyword: yield", &[]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn yield_expression_test_02() {
@@ -724,7 +724,7 @@ fn yield_expression_test_02() {
     assert!(matches!(&*pn, YieldExpression::Expression { .. }));
     pretty_check(&*pn, "YieldExpression: yield 5", &["AssignmentExpression: 5"]);
     concise_check(&*pn, "YieldExpression: yield 5", &["Keyword: yield", "Numeric: 5"]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn yield_expression_test_03() {
@@ -733,7 +733,7 @@ fn yield_expression_test_03() {
     assert!(matches!(&*pn, YieldExpression::From { .. }));
     pretty_check(&*pn, "YieldExpression: yield * 5", &["AssignmentExpression: 5"]);
     concise_check(&*pn, "YieldExpression: yield * 5", &["Keyword: yield", "Punctuator: *", "Numeric: 5"]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn yield_expression_test_04() {
@@ -742,7 +742,7 @@ fn yield_expression_test_04() {
     assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", &[]);
     concise_check(&*pn, "Keyword: yield", &[]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn yield_expression_test_05() {
@@ -751,7 +751,7 @@ fn yield_expression_test_05() {
     assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", &[]);
     concise_check(&*pn, "Keyword: yield", &[]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn yield_expression_test_06() {
@@ -760,7 +760,7 @@ fn yield_expression_test_06() {
     assert!(matches!(&*pn, YieldExpression::Simple { .. }));
     pretty_check(&*pn, "YieldExpression: yield", &[]);
     concise_check(&*pn, "Keyword: yield", &[]);
-    format!("{pn:?}");
+    assert_ne!(format!("{pn:?}"), "");
 }
 #[test]
 fn yield_expression_test_07() {

@@ -8,7 +8,7 @@ fn split_message(msg: &str) -> Vec<String> {
     let first = line_iter.next().unwrap();
     lines.push(String::from(first));
     for line in line_iter {
-        if Some(0) == line.find(|c| c == '└' || c == '├') {
+        if Some(0) == line.find(['└', '├']) {
             // swallow the first 4 chars:
             let mut ch_iter = line.chars();
             for _ in 0..4 {
@@ -41,7 +41,7 @@ fn check_message(msg: &str, selfstring: &str, childstrings: &[&str]) {
 
     let mut expected_iter = childstrings.iter();
     for line in line_iter {
-        if let Some(0) = line.find(|c| c == '└' || c == '├') {
+        if let Some(0) = line.find(['└', '├']) {
             println!("Checking child line {line:?}");
             let expected = expected_iter.next().expect("Too many child strings");
             println!("Against the expected line {expected:?}");

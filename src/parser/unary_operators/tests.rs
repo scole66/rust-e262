@@ -17,7 +17,7 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: 900", &["UpdateExpression: 900"]);
         concise_check(&*ue, "Numeric: 900", &[]);
         assert!(!ue.is_function_definition());
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
     fn delete() {
@@ -27,7 +27,7 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: delete bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: delete bob", &["Keyword: delete", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
     fn void() {
@@ -37,7 +37,7 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: void bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: void bob", &["Keyword: void", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
     fn r#typeof() {
@@ -47,7 +47,7 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: typeof bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: typeof bob", &["Keyword: typeof", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
     fn numberify() {
@@ -57,7 +57,7 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: + bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: + bob", &["Punctuator: +", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
     fn negate() {
@@ -67,7 +67,7 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: - bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: - bob", &["Punctuator: -", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
     fn complement() {
@@ -77,7 +77,7 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: ~ bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ~ bob", &["Punctuator: ~", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
     fn not() {
@@ -87,7 +87,7 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: ! bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ! bob", &["Punctuator: !", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
     fn await_bob() {
@@ -97,7 +97,7 @@ mod unary_expression {
         pretty_check(&*ue, "UnaryExpression: await bob", &["AwaitExpression: await bob"]);
         concise_check(&*ue, "AwaitExpression: await bob", &["Keyword: await", "IdentifierName: bob"]);
         assert!(!ue.is_function_definition());
-        format!("{ue:?}");
+        assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
     fn nomatch() {

@@ -25,7 +25,7 @@ fn class_declaration_test_01() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "ClassDeclaration: class a { }", &["BindingIdentifier: a", "ClassTail: { }"]);
     concise_check(&*node, "ClassDeclaration: class a { }", &["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_declaration_test_02() {
@@ -34,7 +34,7 @@ fn class_declaration_test_02() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "ClassDeclaration: class { }", &["ClassTail: { }"]);
     concise_check(&*node, "ClassDeclaration: class { }", &["Keyword: class", "ClassTail: { }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_declaration_test_err_01() {
@@ -173,7 +173,7 @@ fn class_expression_test_01() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "ClassExpression: class a { }", &["BindingIdentifier: a", "ClassTail: { }"]);
     concise_check(&*node, "ClassExpression: class a { }", &["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -182,7 +182,7 @@ fn class_expression_test_02() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "ClassExpression: class { }", &["ClassTail: { }"]);
     concise_check(&*node, "ClassExpression: class { }", &["Keyword: class", "ClassTail: { }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -279,7 +279,7 @@ fn class_tail_test_01() {
     chk_scan(&scanner, 2);
     pretty_check(&*node, "ClassTail: { }", &[]);
     concise_check(&*node, "ClassTail: { }", &["Punctuator: {", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_tail_test_02() {
@@ -287,7 +287,7 @@ fn class_tail_test_02() {
     chk_scan(&scanner, 3);
     pretty_check(&*node, "ClassTail: { ; }", &["ClassBody: ;"]);
     concise_check(&*node, "ClassTail: { ; }", &["Punctuator: {", "Punctuator: ;", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_tail_test_03() {
@@ -295,7 +295,7 @@ fn class_tail_test_03() {
     chk_scan(&scanner, 13);
     pretty_check(&*node, "ClassTail: extends a { }", &["ClassHeritage: extends a"]);
     concise_check(&*node, "ClassTail: extends a { }", &["ClassHeritage: extends a", "Punctuator: {", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_tail_test_04() {
@@ -307,7 +307,7 @@ fn class_tail_test_04() {
         "ClassTail: extends a { ; }",
         &["ClassHeritage: extends a", "Punctuator: {", "Punctuator: ;", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_tail_test_err_01() {
@@ -465,7 +465,7 @@ fn class_heritage_test_01() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "ClassHeritage: extends a", &["LeftHandSideExpression: a"]);
     concise_check(&*node, "ClassHeritage: extends a", &["Keyword: extends", "IdentifierName: a"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_heritage_test_err_01() {
@@ -538,7 +538,7 @@ fn class_body_test_01() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "ClassBody: ;", &["ClassElementList: ;"]);
     concise_check(&*node, "Punctuator: ;", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_body_test_err_01() {
@@ -681,7 +681,7 @@ fn class_element_list_test_01() {
         "MethodDefinition: a ( ) { }",
         &["IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_element_list_test_02() {
@@ -698,7 +698,7 @@ fn class_element_list_test_02() {
         "ClassElementList: a ( ) { } ; b ( a ) { a ; }",
         &["ClassElementList: a ( ) { } ;", "MethodDefinition: b ( a ) { a ; }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn class_element_list_test_err_01() {

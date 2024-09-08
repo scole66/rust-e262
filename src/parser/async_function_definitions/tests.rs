@@ -36,7 +36,7 @@ fn async_function_declaration_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_function_declaration_test_02() {
@@ -67,7 +67,7 @@ fn async_function_declaration_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_function_declaration_test_err_01() {
@@ -330,7 +330,7 @@ fn async_function_expression_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -359,7 +359,7 @@ fn async_function_expression_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
     assert!(node.is_function_definition());
 }
 #[test]
@@ -542,7 +542,7 @@ fn async_method_test_01() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_method_test_err_01() {
@@ -696,7 +696,7 @@ fn async_function_body_test_01() {
     chk_scan(&scanner, 10);
     pretty_check(&*node, "AsyncFunctionBody: yield = 3 ;", &["FunctionBody: yield = 3 ;"]);
     concise_check(&*node, "ExpressionStatement: yield = 3 ;", &["AssignmentExpression: yield = 3", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_function_body_test_02() {
@@ -704,7 +704,7 @@ fn async_function_body_test_02() {
     chk_scan(&scanner, 0);
     pretty_check(&*node, "AsyncFunctionBody: ", &["FunctionBody: "]);
     concise_check(&*node, "", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn async_function_body_test_cache_01() {
@@ -798,7 +798,7 @@ fn await_expression_test_01() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "AwaitExpression: await a ( )", &["UnaryExpression: a ( )"]);
     concise_check(&*node, "AwaitExpression: await a ( )", &["Keyword: await", "CallMemberExpression: a ( )"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn await_expression_test_err_01() {

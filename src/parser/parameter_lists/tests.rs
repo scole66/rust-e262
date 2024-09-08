@@ -14,7 +14,7 @@ fn unique_formal_parameters_test_01() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "UniqueFormalParameters: a", &["FormalParameters: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn unique_formal_parameters_test_prettyerrors_1() {
@@ -105,7 +105,7 @@ fn formal_parameters_test_01() {
     chk_scan(&scanner, 0);
     pretty_check(&*node, "FormalParameters: ", &[]);
     concise_check(&*node, "", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn formal_parameters_test_02() {
@@ -113,7 +113,7 @@ fn formal_parameters_test_02() {
     chk_scan(&scanner, 4);
     pretty_check(&*node, "FormalParameters: ... a", &["FunctionRestParameter: ... a"]);
     concise_check(&*node, "BindingRestElement: ... a", &["Punctuator: ...", "IdentifierName: a"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn formal_parameters_test_03() {
@@ -121,7 +121,7 @@ fn formal_parameters_test_03() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "FormalParameters: a", &["FormalParameterList: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn formal_parameters_test_04() {
@@ -129,7 +129,7 @@ fn formal_parameters_test_04() {
     chk_scan(&scanner, 2);
     pretty_check(&*node, "FormalParameters: a ,", &["FormalParameterList: a"]);
     concise_check(&*node, "FormalParameters: a ,", &["IdentifierName: a", "Punctuator: ,"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn formal_parameters_test_05() {
@@ -141,7 +141,7 @@ fn formal_parameters_test_05() {
         "FormalParameters: a , ... a",
         &["IdentifierName: a", "Punctuator: ,", "BindingRestElement: ... a"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn formal_parameters_test_prettyerrors_1() {
@@ -370,7 +370,7 @@ fn formal_parameter_list_test_01() {
     chk_scan(&scanner, 6);
     pretty_check(&*node, "FormalParameterList: formal", &["FormalParameter: formal"]);
     concise_check(&*node, "IdentifierName: formal", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn formal_parameter_list_test_02() {
@@ -387,7 +387,7 @@ fn formal_parameter_list_test_02() {
         "FormalParameterList: formal , playful",
         &["IdentifierName: formal", "Punctuator: ,", "IdentifierName: playful"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn formal_parameter_list_test_err_01() {
@@ -534,7 +534,7 @@ fn function_rest_parameter_test_01() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "FunctionRestParameter: ... formal", &["BindingRestElement: ... formal"]);
     concise_check(&*node, "BindingRestElement: ... formal", &["Punctuator: ...", "IdentifierName: formal"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn function_rest_parameter_test_err_01() {
@@ -614,7 +614,7 @@ mod formal_parameter {
         chk_scan(&scanner, 6);
         pretty_check(&*node, "FormalParameter: formal", &["BindingElement: formal"]);
         concise_check(&*node, "IdentifierName: formal", &[]);
-        format!("{node:?}");
+        assert_ne!(format!("{node:?}"), "");
     }
     #[test]
     fn formal_parameter_test_err_01() {

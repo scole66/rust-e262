@@ -12,7 +12,7 @@ fn arrow_function_test_01() {
     chk_scan(&scanner, 4);
     pretty_check(&*node, "ArrowFunction: a => a", &["ArrowParameters: a", "ConciseBody: a"]);
     concise_check(&*node, "ArrowFunction: a => a", &["IdentifierName: a", "Punctuator: =>", "IdentifierName: a"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn arrow_function_test_02() {
@@ -152,7 +152,7 @@ fn arrow_parameters_test_01() {
     assert!(matches!(&*node, ArrowParameters::Identifier(..)));
     pretty_check(&*node, "ArrowParameters: a", &["BindingIdentifier: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn arrow_parameters_test_02() {
@@ -162,7 +162,7 @@ fn arrow_parameters_test_02() {
     assert!(matches!(&*node, ArrowParameters::Formals(..)));
     pretty_check(&*node, "ArrowParameters: ( a )", &["ArrowFormalParameters: ( a )"]);
     concise_check(&*node, "ArrowFormalParameters: ( a )", &["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn arrow_parameters_test_err_01() {
@@ -295,7 +295,7 @@ fn concise_body_test_01() {
     assert!(matches!(&*node, ConciseBody::Expression(..)));
     pretty_check(&*node, "ConciseBody: a", &["ExpressionBody: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn concise_body_test_02() {
@@ -305,7 +305,7 @@ fn concise_body_test_02() {
     assert!(matches!(&*node, ConciseBody::Function { .. }));
     pretty_check(&*node, "ConciseBody: { q ; }", &["FunctionBody: q ;"]);
     concise_check(&*node, "ConciseBody: { q ; }", &["Punctuator: {", "ExpressionStatement: q ;", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn concise_body_test_err_01() {
@@ -430,7 +430,7 @@ fn expression_body_test_01() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "ExpressionBody: a", &["AssignmentExpression: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn expression_body_test_cache_01() {
@@ -510,7 +510,7 @@ fn arrow_formal_parameters_test_01() {
         "ArrowFormalParameters: ( a , b )",
         &["Punctuator: (", "FormalParameterList: a , b", "Punctuator: )"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn arrow_formal_parameters_test_cache_01() {

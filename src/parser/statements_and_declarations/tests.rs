@@ -12,7 +12,7 @@ fn statement_test_01() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "Statement: { a = 0 ; }", &["BlockStatement: { a = 0 ; }"]);
     concise_check(&*node, "Block: { a = 0 ; }", &["Punctuator: {", "ExpressionStatement: a = 0 ;", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_02() {
@@ -24,7 +24,7 @@ fn statement_test_02() {
         "VariableStatement: var a = 0 ;",
         &["Keyword: var", "VariableDeclaration: a = 0", "Punctuator: ;"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_03() {
@@ -32,7 +32,7 @@ fn statement_test_03() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "Statement: ;", &["EmptyStatement: ;"]);
     concise_check(&*node, "Punctuator: ;", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_04() {
@@ -40,7 +40,7 @@ fn statement_test_04() {
     chk_scan(&scanner, 4);
     pretty_check(&*node, "Statement: a ( ) ;", &["ExpressionStatement: a ( ) ;"]);
     concise_check(&*node, "ExpressionStatement: a ( ) ;", &["CallMemberExpression: a ( )", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_05() {
@@ -52,7 +52,7 @@ fn statement_test_05() {
         "IfStatement: if ( a ) { }",
         &["Keyword: if", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "Block: { }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_06() {
@@ -64,7 +64,7 @@ fn statement_test_06() {
         "SwitchStatement: switch ( a ) { }",
         &["Keyword: switch", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "CaseBlock: { }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_07() {
@@ -72,7 +72,7 @@ fn statement_test_07() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "Statement: continue ;", &["ContinueStatement: continue ;"]);
     concise_check(&*node, "ContinueStatement: continue ;", &["Keyword: continue", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_08() {
@@ -80,7 +80,7 @@ fn statement_test_08() {
     chk_scan(&scanner, 6);
     pretty_check(&*node, "Statement: break ;", &["BreakStatement: break ;"]);
     concise_check(&*node, "BreakStatement: break ;", &["Keyword: break", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_09() {
@@ -88,7 +88,7 @@ fn statement_test_09() {
     chk_scan(&scanner, 7);
     pretty_check(&*node, "Statement: return ;", &["ReturnStatement: return ;"]);
     concise_check(&*node, "ReturnStatement: return ;", &["Keyword: return", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_10() {
@@ -100,7 +100,7 @@ fn statement_test_10() {
         "WithStatement: with ( a ) b ;",
         &["Keyword: with", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "ExpressionStatement: b ;"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_11() {
@@ -112,7 +112,7 @@ fn statement_test_11() {
         "LabelledStatement: a : b ;",
         &["IdentifierName: a", "Punctuator: :", "ExpressionStatement: b ;"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_12() {
@@ -120,7 +120,7 @@ fn statement_test_12() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "Statement: throw a ;", &["ThrowStatement: throw a ;"]);
     concise_check(&*node, "ThrowStatement: throw a ;", &["Keyword: throw", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_13() {
@@ -129,7 +129,7 @@ fn statement_test_13() {
     chk_scan(&scanner, 15);
     pretty_check(&*node, "Statement: try { } catch { }", &["TryStatement: try { } catch { }"]);
     concise_check(&*node, "TryStatement: try { } catch { }", &["Keyword: try", "Block: { }", "Catch: catch { }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_14() {
@@ -137,7 +137,7 @@ fn statement_test_14() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "Statement: debugger ;", &["DebuggerStatement: debugger ;"]);
     concise_check(&*node, "DebuggerStatement: debugger ;", &["Keyword: debugger", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn statement_test_err_01() {
@@ -705,7 +705,7 @@ fn declaration_test_01() {
         "FunctionDeclaration: function a ( ) { }",
         &["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn declaration_test_02() {
@@ -713,7 +713,7 @@ fn declaration_test_02() {
     chk_scan(&scanner, 9);
     pretty_check(&*node, "Declaration: class a { }", &["ClassDeclaration: class a { }"]);
     concise_check(&*node, "ClassDeclaration: class a { }", &["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn declaration_test_03() {
@@ -721,7 +721,7 @@ fn declaration_test_03() {
     chk_scan(&scanner, 6);
     pretty_check(&*node, "Declaration: let a ;", &["LexicalDeclaration: let a ;"]);
     concise_check(&*node, "LexicalDeclaration: let a ;", &["Keyword: let", "IdentifierName: a", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn declaration_test_err_01() {
@@ -851,7 +851,7 @@ fn hoistable_declaration_test_01() {
         "FunctionDeclaration: function a ( ) { }",
         &["Keyword: function", "IdentifierName: a", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn hoistable_declaration_test_02() {
@@ -872,7 +872,7 @@ fn hoistable_declaration_test_02() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn hoistable_declaration_test_03() {
@@ -897,7 +897,7 @@ fn hoistable_declaration_test_03() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn hoistable_declaration_test_04() {
@@ -928,7 +928,7 @@ fn hoistable_declaration_test_04() {
             "Punctuator: }",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn hoistable_declaration_test_err_01() {
@@ -1072,7 +1072,7 @@ fn breakable_statement_test_01() {
         "WhileStatement: while ( a ) ;",
         &["Keyword: while", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "Punctuator: ;"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn breakable_statement_test_02() {
@@ -1085,7 +1085,7 @@ fn breakable_statement_test_02() {
         "SwitchStatement: switch ( a ) { }",
         &["Keyword: switch", "Punctuator: (", "IdentifierName: a", "Punctuator: )", "CaseBlock: { }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn breable_statement_test_err_01() {

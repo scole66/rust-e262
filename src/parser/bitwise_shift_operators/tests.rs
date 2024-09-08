@@ -13,7 +13,7 @@ fn shift_expression_test_01() {
     assert!(matches!(&*se, ShiftExpression::AdditiveExpression(_)));
     pretty_check(&*se, "ShiftExpression: a", &["AdditiveExpression: a"]);
     concise_check(&*se, "IdentifierName: a", &[]);
-    format!("{se:?}");
+    assert_ne!(format!("{se:?}"), "");
     assert_eq!(se.is_function_definition(), false);
 }
 #[test]
@@ -23,7 +23,7 @@ fn shift_expression_test_02() {
     assert!(matches!(&*se, ShiftExpression::LeftShift(_, _)));
     pretty_check(&*se, "ShiftExpression: a << b", &["ShiftExpression: a", "AdditiveExpression: b"]);
     concise_check(&*se, "ShiftExpression: a << b", &["IdentifierName: a", "Punctuator: <<", "IdentifierName: b"]);
-    format!("{se:?}");
+    assert_ne!(format!("{se:?}"), "");
     assert_eq!(se.is_function_definition(), false);
 }
 #[test]
@@ -33,7 +33,7 @@ fn shift_expression_test_03() {
     assert!(matches!(&*se, ShiftExpression::SignedRightShift(_, _)));
     pretty_check(&*se, "ShiftExpression: a >> b", &["ShiftExpression: a", "AdditiveExpression: b"]);
     concise_check(&*se, "ShiftExpression: a >> b", &["IdentifierName: a", "Punctuator: >>", "IdentifierName: b"]);
-    format!("{se:?}");
+    assert_ne!(format!("{se:?}"), "");
     assert_eq!(se.is_function_definition(), false);
 }
 #[test]
@@ -43,7 +43,7 @@ fn shift_expression_test_04() {
     assert!(matches!(&*se, ShiftExpression::UnsignedRightShift(_, _)));
     pretty_check(&*se, "ShiftExpression: a >>> b", &["ShiftExpression: a", "AdditiveExpression: b"]);
     concise_check(&*se, "ShiftExpression: a >>> b", &["IdentifierName: a", "Punctuator: >>>", "IdentifierName: b"]);
-    format!("{se:?}");
+    assert_ne!(format!("{se:?}"), "");
     assert_eq!(se.is_function_definition(), false);
 }
 #[test]

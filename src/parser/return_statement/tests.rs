@@ -12,7 +12,7 @@ fn return_statement_test_01() {
     chk_scan(&scanner, 7);
     pretty_check(&*node, "ReturnStatement: return ;", &[]);
     concise_check(&*node, "ReturnStatement: return ;", &["Keyword: return", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn return_statement_test_02() {
@@ -20,7 +20,7 @@ fn return_statement_test_02() {
     chk_scan(&scanner, 12);
     pretty_check(&*node, "ReturnStatement: return null ;", &["Expression: null"]);
     concise_check(&*node, "ReturnStatement: return null ;", &["Keyword: return", "Keyword: null", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn return_statement_test_asi_01() {
@@ -28,7 +28,7 @@ fn return_statement_test_asi_01() {
     chk_scan(&scanner, 6);
     pretty_check(&*node, "ReturnStatement: return ;", &[]);
     concise_check(&*node, "ReturnStatement: return ;", &["Keyword: return", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn return_statement_test_asi_02() {
@@ -36,7 +36,7 @@ fn return_statement_test_asi_02() {
     chk_scan(&scanner, 11);
     pretty_check(&*node, "ReturnStatement: return null ;", &["Expression: null"]);
     concise_check(&*node, "ReturnStatement: return null ;", &["Keyword: return", "Keyword: null", "Punctuator: ;"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn return_statement_test_err_01() {
