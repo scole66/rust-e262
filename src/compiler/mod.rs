@@ -816,6 +816,9 @@ impl NameableProduction {
         text: &str,
         id: Option<NameLoc>,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        // Runtime Semantics: NamedEvaluation
+        // The syntax-directed operation NamedEvaluation takes argument name (a property key or a Private Name) and
+        // returns either a normal completion containing a function object or an abrupt completion.
         match self {
             NameableProduction::Function(child) => {
                 child.compile_named_evaluation(chunk, strict, text, child.clone(), id).map(CompilerStatusFlags::from)
@@ -825,7 +828,10 @@ impl NameableProduction {
             }
             NameableProduction::AsyncFunction(_) => todo!(),
             NameableProduction::AsyncGenerator(_) => todo!(),
-            NameableProduction::Class(_) => todo!(),
+            NameableProduction::Class(class_expression) => {
+                let name = id.expect("named class expressions should have a name");
+                class_expression.named_evaluation(chunk, strict, text, name).map(CompilerStatusFlags::from)
+            }
             NameableProduction::Arrow(child) => {
                 child.compile_named_evaluation(chunk, strict, text, child.clone(), id).map(CompilerStatusFlags::from)
             }
@@ -9786,6 +9792,42 @@ impl ClassDeclaration {
                 Ok(AbruptResult::Maybe)
             }
         }
+    }
+}
+
+impl ClassExpression {
+    fn named_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+        name: NameLoc,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: NamedEvaluation
+        // The syntax-directed operation NamedEvaluation takes argument name (a property key or a Private Name) and
+        // returns either a normal completion containing a function object or an abrupt completion.
+        //
+        // ClassExpression : class ClassTail
+        //  1. Let value be ? ClassDefinitionEvaluation of ClassTail with arguments undefined and name.
+        //  2. Set value.[[SourceText]] to the source text matched by ClassExpression.
+        //  3. Return value.
+
+        // start:                                                  name?
+        //   <tail.class_definition_evaluation(undefined, name)>   err/F
+        //   JUMP_IF_ABRUPT exit                                   F
+        //   ATTACH_SOURCE <text>                                  F
+        // exit:
+
+        let status = self.tail.class_definition_evaluation(chunk, strict, text, None, name)?;
+        let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        let source_loc = self.location().span;
+        let source_text = &text[source_loc.starting_index..source_loc.starting_index + source_loc.length];
+        let source_idx = chunk.add_to_string_pool(JSString::from(source_text))?;
+        chunk.op_plus_arg(Insn::AttachSourceText, source_idx);
+        if let Some(exit) = exit {
+            chunk.fixup(exit).expect("Jump too short to fail");
+        }
+        Ok(status)
     }
 }
 
