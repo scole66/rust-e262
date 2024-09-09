@@ -515,7 +515,39 @@ mod nameable_production {
     #[test_case("function *(){}", true => Ok((svec(&["STRING 0 (my_function_name)", "FUNC_GENE 0"]), true, false)); "generator exprsesion")]
     #[test_case("async function(){}", true => panics "not yet implemented"; "async function expression")]
     #[test_case("async function*(){}", true => panics "not yet implemented"; "async generator expression")]
-    #[test_case("class {}", true => panics "not yet implemented"; "class expression")]
+    #[test_case(
+        "class {}", true
+        => Ok((
+            svec(&[
+                "STRING 0 (my_function_name)",
+                "PNLE",
+                "FUNC_PROTO",
+                "OBJ_PROTO",
+                "OBJ_WITH_PROTO",
+                "PNPE",
+                "ROTATEDOWN 3",
+                "DEFAULT_CSTR",
+                "MAKE_CSTR_PROTO",
+                "DUP",
+                "ROTATEUP 3",
+                "DUP",
+                "ROTATEDOWN 4",
+                "SWAP",
+                "STRING 1 (constructor)",
+                "DEF_METH_PROP 0",
+                "POP",
+                "SWAP",
+                "POP",
+                "PLE",
+                "ATTACH_ELEMENTS 0",
+                "PPE",
+                "ATTACH_SOURCE 2 (class {})"
+            ]),
+            false,
+            false
+        ));
+        "class expression"
+    )]
     #[test_case("(x => x)", true => Ok((svec(&["STRING 0 (my_function_name)", "FUNC_IAE 0"]), true, false)); "arrow function")]
     #[test_case("(async x => x)", true => panics "not yet implemented"; "async arrow function")]
     fn compile_named_evaluation(src: &str, strict: bool) -> Result<(Vec<String>, bool, bool), String> {

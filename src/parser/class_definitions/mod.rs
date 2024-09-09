@@ -168,8 +168,8 @@ impl ClassDeclaration {
 //      class BindingIdentifier[?Yield, ?Await]opt ClassTail[?Yield, ?Await]
 #[derive(Debug)]
 pub struct ClassExpression {
-    ident: Option<Rc<BindingIdentifier>>,
-    tail: Rc<ClassTail>,
+    pub ident: Option<Rc<BindingIdentifier>>,
+    pub tail: Rc<ClassTail>,
     location: Location,
 }
 
