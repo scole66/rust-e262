@@ -10245,9 +10245,8 @@ impl ClassTail {
 }
 
 impl ClassHeritage {
-    #[expect(unused_variables)]
-    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
-        todo!()
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        self.exp.compile(chunk, strict, text)
     }
 }
 

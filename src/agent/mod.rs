@@ -3243,10 +3243,17 @@ mod insn_impl {
         // Input Stack: func-object
         // Output Stack: func-object
         let function_object: Object = pop_obj()?;
-        let fobj = function_object.o.to_function_obj().ok_or(InternalRuntimeError::FunctionExpected)?;
-        {
-            let mut data_ref = fobj.function_data().borrow_mut();
-            data_ref.constructor_kind = ConstructorKind::Derived;
+        match function_object.o.to_function_obj() {
+            Some(fobj) => {
+                let mut data_ref = fobj.function_data().borrow_mut();
+                data_ref.constructor_kind = ConstructorKind::Derived;
+            }
+            None => {
+                let builtin =
+                    function_object.o.to_builtin_function_obj().ok_or(InternalRuntimeError::FunctionExpected)?;
+                let mut data_ref = builtin.builtin_function_data().borrow_mut();
+                data_ref.constructor_kind = Some(ConstructorKind::Derived);
+            }
         }
         push_value(ECMAScriptValue::Object(function_object)).expect(PUSHABLE);
         Ok(())
