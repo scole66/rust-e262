@@ -3221,6 +3221,17 @@ mod insn_impl {
         Ok(())
     }
 
+    pub fn make_constructor_with_proto() -> anyhow::Result<()> {
+        // Input Stack: func-object proto
+        // Output Stack: func-object proto
+        let function_object = pop_obj()?;
+        let proto = pop_obj()?;
+        super::make_constructor(&function_object, Some((false, proto.clone())));
+        push_value(ECMAScriptValue::Object(proto)).expect(PUSHABLE);
+        push_value(ECMAScriptValue::Object(function_object)).expect(PUSHABLE);
+        Ok(())
+    }
+
     pub fn set_derived() -> anyhow::Result<()> {
         // Input Stack: func-object
         // Output Stack: func-object
@@ -3396,6 +3407,18 @@ mod insn_impl {
             ClassItem::ClassFieldDefinition
         };
         push_completion(Ok(NormalCompletion::ClassItem(Box::new(cstr(cfdr))))).expect(PUSHABLE);
+        Ok(())
+    }
+
+    pub fn make_private_reference(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand : string index
+        // Input: Stack: baseValue
+        // Output: Stack: privateReference
+
+        let name = string_operand(chunk)?;
+        let base = pop_value()?;
+        let reference = super::make_private_reference(base, name)?;
+        push_completion(Ok(NormalCompletion::from(reference))).expect(PUSHABLE);
         Ok(())
     }
 }
@@ -3663,6 +3686,7 @@ pub async fn execute(
             Insn::CreateDefaultConstructor => insn_impl::create_default_constructor().expect(GOODCODE),
             Insn::MakeClassConstructorAndSetName => insn_impl::make_class_constructor_and_set_name().expect(GOODCODE),
             Insn::MakeConstructor => insn_impl::make_constructor().expect(GOODCODE),
+            Insn::MakeConstructorWithProto => insn_impl::make_constructor_with_proto().expect(GOODCODE),
             Insn::SetDerived => insn_impl::set_derived().expect(GOODCODE),
             Insn::AttachElements => insn_impl::attach_elements(&chunk).expect(GOODCODE),
             Insn::AttachSourceText => insn_impl::attach_source_text(&chunk).expect(GOODCODE),
@@ -3670,6 +3694,7 @@ pub async fn execute(
             Insn::Yield => insn_impl::yield_insn(&co).await.expect(GOODCODE),
             Insn::NameOnlyFieldRecord => insn_impl::name_only_field_record(Static::No).expect(GOODCODE),
             Insn::NameOnlyStaticFieldRecord => insn_impl::name_only_field_record(Static::Yes).expect(GOODCODE),
+            Insn::MakePrivateReference => insn_impl::make_private_reference(&chunk).expect(GOODCODE),
         }
     }
 

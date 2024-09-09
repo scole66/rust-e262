@@ -1173,7 +1173,15 @@ mod member_expression {
         "POP",
         "CONSTRUCT"
     ]), true, false)); "new-args")]
-    #[test_case("a.#pid", true, None => panics "not yet implemented"; "private")]
+    #[test_case(
+        "a.#pid", true, None
+        => Ok((
+            svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "PRIVATE_REF 1 (#pid)"]),
+            true,
+            true,
+        ));
+        "private"
+    )]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
         let node = Maker::new(src).member_expression();
         let mut c =
@@ -3582,7 +3590,7 @@ mod declaration {
             "PNPE",
             "ROTATEDOWN 3",
             "DEFAULT_CSTR",
-            "MAKE_CSTR",
+            "MAKE_CSTR_PROTO",
             "DUP",
             "ROTATEUP 3",
             "DUP",
@@ -12542,7 +12550,7 @@ mod class_declaration {
                 "PNPE",
                 "ROTATEDOWN 3",
                 "DEFAULT_CSTR",
-                "MAKE_CSTR",
+                "MAKE_CSTR_PROTO",
                 "DUP",
                 "ROTATEUP 3",
                 "DUP",

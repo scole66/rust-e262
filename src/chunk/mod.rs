@@ -147,7 +147,8 @@ impl Chunk {
             | Insn::TargetedBreak
             | Insn::HandleTargetedBreak
             | Insn::PrivateIdLookup
-            | Insn::AttachSourceText => {
+            | Insn::AttachSourceText
+            | Insn::MakePrivateReference => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {:<24}{} ({})", insn, arg, String::from(&self.strings[arg]).escape_debug()))
             }
@@ -300,6 +301,7 @@ impl Chunk {
             | Insn::CreateDefaultConstructor
             | Insn::MakeClassConstructorAndSetName
             | Insn::MakeConstructor
+            | Insn::MakeConstructorWithProto
             | Insn::SetDerived
             | Insn::NameOnlyFieldRecord
             | Insn::NameOnlyStaticFieldRecord => (1, format!("    {insn}")),

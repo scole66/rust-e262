@@ -1,4 +1,3 @@
-//#![expect(dead_code)]
 #![expect(clippy::bool_assert_comparison)]
 #![expect(clippy::enum_variant_names)]
 #![expect(clippy::similar_names)]

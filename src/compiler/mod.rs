@@ -187,11 +187,13 @@ pub enum Insn {
     CreateDefaultConstructor,
     MakeClassConstructorAndSetName,
     MakeConstructor,
+    MakeConstructorWithProto,
     SetDerived,
     AttachElements,
     AttachSourceText,
     NameOnlyFieldRecord,
     NameOnlyStaticFieldRecord,
+    MakePrivateReference,
 }
 
 impl fmt::Display for Insn {
@@ -370,11 +372,13 @@ impl fmt::Display for Insn {
             Insn::CreateDefaultConstructor => "DEFAULT_CSTR",
             Insn::MakeClassConstructorAndSetName => "MAKE_CC_SN",
             Insn::MakeConstructor => "MAKE_CSTR",
+            Insn::MakeConstructorWithProto => "MAKE_CSTR_PROTO",
             Insn::SetDerived => "SET_DERIVED",
             Insn::AttachElements => "ATTACH_ELEMENTS",
             Insn::AttachSourceText => "ATTACH_SOURCE",
             Insn::NameOnlyFieldRecord => "NAME_ONLY_FIELD_REC",
             Insn::NameOnlyStaticFieldRecord => "NAME_ONLY_STATIC_FIELD",
+            Insn::MakePrivateReference => "PRIVATE_REF",
         })
     }
 }
@@ -2075,7 +2079,39 @@ impl MemberExpression {
             MemberExpression::NewArguments(me, args, ..) => {
                 compile_new_evaluator(chunk, strict, text, &ConstructExpr::Member(me.clone()), Some(args.clone()))
             }
-            MemberExpression::PrivateId(..) => todo!(),
+            MemberExpression::PrivateId(me, id, ..) => {
+                // MemberExpression : MemberExpression . PrivateIdentifier
+                //  1. Let baseReference be ? Evaluation of MemberExpression.
+                //  2. Let baseValue be ? GetValue(baseReference).
+                //  3. Let fieldNameString be the StringValue of PrivateIdentifier.
+                //  4. Return MakePrivateReference(baseValue, fieldNameString).
+
+                // start:
+                //   <memberexpression>                err/baseReference
+                //   GET_VALUE                         err/baseValue
+                //   JUMP_IF_ABRUPT exit               baseValue
+                //   MAKE_PRIV_REF fieldName           ref
+                // exit:
+
+                let status = me.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let exit = if status.maybe_abrupt() || status.maybe_ref() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+                let idx = chunk.add_to_string_pool(id.string_value.clone())?;
+                chunk.op_plus_arg(Insn::MakePrivateReference, idx);
+                let maybe_abrupt = if let Some(exit) = exit {
+                    chunk.fixup(exit).expect("Jump too short to fail");
+                    true
+                } else {
+                    false
+                };
+                Ok(CompilerStatusFlags::new().abrupt(maybe_abrupt).reference(true))
+            }
         }
     }
 }
@@ -9930,7 +9966,7 @@ impl ClassTail {
         //    POP                             F className proto
         //    MAKE_CC_SN                      F proto
         // ---
-        //    MAKE_CSTR                       F proto
+        //    MAKE_CSTR_WITH_PROTO            F proto
         // --- if ClassHeritage exists ---
         //    SET_DERIVED                     F proto
         // ---
@@ -10032,7 +10068,7 @@ impl ClassTail {
                 chunk.op(Insn::MakeClassConstructorAndSetName);
             }
         }
-        chunk.op(Insn::MakeConstructor);
+        chunk.op(Insn::MakeConstructorWithProto);
         if self.heritage.is_some() {
             chunk.op(Insn::SetDerived);
         }
@@ -10133,11 +10169,12 @@ impl ClassElement {
         // PrivateElement, or unused, or an abrupt completion. It is defined piecewise over the following productions:
 
         match self {
-            ClassElement::Standard { method } |ClassElement::Static { method, .. }=> {
+            ClassElement::Standard { method } | ClassElement::Static { method, .. } => {
                 // ClassElement :
                 //      MethodDefinition
                 //      static MethodDefinition
                 //  1. Return ? MethodDefinitionEvaluation of MethodDefinition with arguments object and false.
+                chunk.op(Insn::Dup);
                 method.method_definition_evaluation(false, chunk, strict, text).map(AbruptResult::from)
             }
             ClassElement::Field { field, .. } => {
@@ -10164,13 +10201,6 @@ impl ClassElement {
                 Ok(AbruptResult::Never)
             }
         }
-        //
-        //
-        // ClassElement :
-        //      MethodDefinition
-        //      static MethodDefinition
-        //  1. Return ? MethodDefinitionEvaluation of MethodDefinition with arguments object and false.
-        //
         // ClassElement : ClassStaticBlock
         //  1. Return the ClassStaticBlockDefinitionEvaluation of ClassStaticBlock with argument object.
     }
