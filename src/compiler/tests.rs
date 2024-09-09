@@ -430,18 +430,6 @@ mod never_abrupt_ref_result {
     }
 
     #[test]
-    fn maybe_ref() {
-        let item = NeverAbruptRefResult {};
-        assert!(!item.maybe_ref());
-    }
-
-    #[test]
-    fn maybe_abrupt() {
-        let item = NeverAbruptRefResult {};
-        assert!(!item.maybe_abrupt());
-    }
-
-    #[test]
     #[allow(clippy::clone_on_copy)]
     fn clone() {
         let item = NeverAbruptRefResult {};

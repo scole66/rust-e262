@@ -527,16 +527,6 @@ impl From<NeverAbruptRefResult> for CompilerStatusFlags {
         Self::new()
     }
 }
-impl NeverAbruptRefResult {
-    #[allow(clippy::unused_self)]
-    fn maybe_abrupt(self) -> bool {
-        false
-    }
-    #[allow(clippy::unused_self)]
-    fn maybe_ref(self) -> bool {
-        false
-    }
-}
 
 #[derive(Debug)]
 pub enum NameableProduction {
