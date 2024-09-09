@@ -10126,7 +10126,7 @@ impl ClassElement {
             | ClassElement::Empty { .. } => unreachable!(),
         }
     }
-    #[allow(unused_variables)]
+    #[expect(unused_variables)]
     fn class_element_evaluation(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: ClassElementEvaluation
         // The syntax-directed operation ClassElementEvaluation takes argument object (an Object) and returns either a
@@ -10134,8 +10134,12 @@ impl ClassElement {
         // PrivateElement, or unused, or an abrupt completion. It is defined piecewise over the following productions:
 
         match self {
-            ClassElement::Standard { method } | ClassElement::Static { method, .. } => {
-                todo!()
+            ClassElement::Standard { method } |ClassElement::Static { method, .. }=> {
+                // ClassElement :
+                //      MethodDefinition
+                //      static MethodDefinition
+                //  1. Return ? MethodDefinitionEvaluation of MethodDefinition with arguments object and false.
+                method.method_definition_evaluation(false, chunk, strict, text).map(AbruptResult::from)
             }
             ClassElement::Field { field, .. } => {
                 // ClassElement :
