@@ -769,7 +769,35 @@ mod primary_expression {
             "TRUE"
         ]); "literal")]
         #[test_case("({})", true => svec(&["OBJECT"]); "object literal")]
-        #[test_case("class {}", true => panics "not yet implemented"; "class expression")]
+        #[test_case(
+            "class {}", true
+            => svec(&[
+                "STRING 0 ()",
+                "PNLE",
+                "FUNC_PROTO",
+                "OBJ_PROTO",
+                "OBJ_WITH_PROTO",
+                "PNPE",
+                "ROTATEDOWN 3",
+                "DEFAULT_CSTR",
+                "MAKE_CSTR_PROTO",
+                "DUP",
+                "ROTATEUP 3",
+                "DUP",
+                "ROTATEDOWN 4",
+                "SWAP",
+                "STRING 1 (constructor)",
+                "DEF_METH_PROP 0",
+                "POP",
+                "SWAP",
+                "POP",
+                "PLE",
+                "ATTACH_ELEMENTS 0",
+                "PPE",
+                "ATTACH_SOURCE 2 (class {})"
+            ]);
+            "class expression"
+        )]
         #[test_case("[]", true => svec(&["ARRAY"]); "array literal")]
         #[test_case("``", true => svec(&["STRING 0 ()"]); "template literal")]
         #[test_case("function a(){}", true => svec(&["STRING 0 (a)", "FUNC_IOFE 0"]); "function expression")]

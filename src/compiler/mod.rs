@@ -958,7 +958,7 @@ impl PrimaryExpression {
             PrimaryExpression::Function { node } => {
                 node.compile(chunk, strict, text, node.clone()).map(CompilerStatusFlags::from)
             }
-            PrimaryExpression::Class { node } => todo!(),
+            PrimaryExpression::Class { node } => node.compile(chunk, strict, text).map(CompilerStatusFlags::from),
             PrimaryExpression::Generator { node } => node.compile(chunk, strict, text).map(CompilerStatusFlags::from),
             PrimaryExpression::AsyncFunction { node } => todo!(),
             PrimaryExpression::AsyncGenerator { node } => todo!(),
@@ -9828,6 +9828,66 @@ impl ClassExpression {
             chunk.fixup(exit).expect("Jump too short to fail");
         }
         Ok(status)
+    }
+
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+        match &self.ident {
+            Some(binding_id) => {
+                // ClassExpression : class BindingIdentifier ClassTail
+                //  1. Let className be the StringValue of BindingIdentifier.
+                //  2. Let value be ? ClassDefinitionEvaluation of ClassTail with arguments className and className.
+                //  3. Set value.[[SourceText]] to the source text matched by ClassExpression.
+                //  4. Return value.
+
+                // start:
+                //   <tail.class_definition_evaluation(binding_id, binding_id)>     err/F
+                //   JUMP_IF_ABRUPT exit                                            F
+                //   ATTACH_SOURCE <text>                                           F
+                // exit:
+                let binding_id = chunk.add_to_string_pool(binding_id.string_value())?;
+                let status = self.tail.class_definition_evaluation(
+                    chunk,
+                    strict,
+                    text,
+                    Some(binding_id),
+                    NameLoc::Index(binding_id),
+                )?;
+                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let source_loc = self.location().span;
+                let source_text = &text[source_loc.starting_index..source_loc.starting_index + source_loc.length];
+                let source_idx = chunk.add_to_string_pool(JSString::from(source_text))?;
+                chunk.op_plus_arg(Insn::AttachSourceText, source_idx);
+                if let Some(exit) = exit {
+                    chunk.fixup(exit).expect("Jump too short to fail");
+                }
+                Ok(status)
+            }
+            None => {
+                // ClassExpression : class ClassTail
+                //  1. Let value be ? ClassDefinitionEvaluation of ClassTail with arguments undefined and "".
+                //  2. Set value.[[SourceText]] to the source text matched by ClassExpression.
+                //  3. Return value.
+
+                // start:
+                //   <tail.class_definition_evaluation(undefined, "")>     err/F
+                //   JUMP_IF_ABRUPT exit                                   F
+                //   ATTACH_SOURCE <text>                                  F
+                // exit:
+
+                let emptystr = chunk.add_to_string_pool(JSString::from(""))?;
+                let status =
+                    self.tail.class_definition_evaluation(chunk, strict, text, None, NameLoc::Index(emptystr))?;
+                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let source_loc = self.location().span;
+                let source_text = &text[source_loc.starting_index..source_loc.starting_index + source_loc.length];
+                let source_idx = chunk.add_to_string_pool(JSString::from(source_text))?;
+                chunk.op_plus_arg(Insn::AttachSourceText, source_idx);
+                if let Some(exit) = exit {
+                    chunk.fixup(exit).expect("Jump too short to fail");
+                }
+                Ok(status)
+            }
+        }
     }
 }
 
