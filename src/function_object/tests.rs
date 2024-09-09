@@ -177,7 +177,7 @@ mod this_lexicality {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let l1 = ThisLexicality::LexicalThis;
         let l2 = l1.clone();
@@ -202,7 +202,7 @@ mod constructor_kind {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let l1 = ConstructorKind::Derived;
         let l2 = l1.clone();
@@ -1301,7 +1301,7 @@ mod built_in_function_object {
     use super::*;
     use test_case::test_case;
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }

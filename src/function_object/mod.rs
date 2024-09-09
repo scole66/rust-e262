@@ -924,7 +924,7 @@ impl FunctionInterface for FunctionObject {
 }
 
 impl FunctionObject {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         prototype: Option<Object>,
         environment: Rc<dyn EnvironmentRecord>,
@@ -968,7 +968,7 @@ impl FunctionObject {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn object(
         prototype: Option<Object>,
         environment: Rc<dyn EnvironmentRecord>,
@@ -1618,7 +1618,7 @@ impl CallableObject for BuiltInFunctionObject {
 //
 // Each built-in function defined in this specification is created by calling the CreateBuiltinFunction abstract
 // operation.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn create_builtin_function(
     behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     is_constructor: bool,
@@ -1814,7 +1814,7 @@ impl GeneratorDeclaration {
 }
 
 impl AsyncFunctionDeclaration {
-    #[allow(unused_variables, clippy::needless_pass_by_value)]
+    #[expect(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
         &self,
 
@@ -1829,7 +1829,7 @@ impl AsyncFunctionDeclaration {
 }
 
 impl AsyncGeneratorDeclaration {
-    #[allow(unused_variables, clippy::needless_pass_by_value)]
+    #[expect(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
         &self,
 
@@ -1846,7 +1846,7 @@ impl AsyncGeneratorDeclaration {
 /// Create a ECMAScript Function Object, as though from source code
 ///
 /// See [OrdinaryFunctionCreate](https://tc39.es/ecma262/#sec-ordinaryfunctioncreate) from ECMA-262.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn ordinary_function_create(
     function_prototype: Object,
     source_text: &str,

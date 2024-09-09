@@ -703,7 +703,7 @@ fn array_of(
     todo!()
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn array_species(
     this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,

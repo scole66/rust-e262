@@ -58,7 +58,7 @@ mod proxy_object {
 
     // Behaviors
     fn fn_returning_null() -> Object {
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn behavior(
             _this_value: &ECMAScriptValue,
             _new_target: Option<&Object>,
@@ -69,7 +69,7 @@ mod proxy_object {
         cbf(behavior)
     }
     fn fn_returning_string() -> Object {
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn behavior(
             _this_value: &ECMAScriptValue,
             _new_target: Option<&Object>,
@@ -80,7 +80,7 @@ mod proxy_object {
         cbf(behavior)
     }
     fn fn_returning_alternate_object() -> Object {
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn behavior(
             _this_value: &ECMAScriptValue,
             _new_target: Option<&Object>,
@@ -94,7 +94,7 @@ mod proxy_object {
         cbf(behavior)
     }
     fn fn_returning_target_proto() -> Object {
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn behavior(
             _this_value: &ECMAScriptValue,
             _new_target: Option<&Object>,
@@ -240,14 +240,14 @@ mod proxy_object {
         use test_case::test_case;
 
         // SetPrototypeOf argument makers
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn proto_with_name() -> Option<Object> {
             let proto = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value("proto-in-argument");
             define_property_or_throw(&proto, "test_prop", ppd).unwrap();
             Some(proto)
         }
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn proto_is_intrinsic() -> Option<Object> {
             Some(intrinsic(IntrinsicId::ObjectPrototype))
         }
@@ -273,7 +273,7 @@ mod proxy_object {
         }
 
         fn fn_checks_arg_returns_true() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -285,7 +285,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_checks_arg_returns_false() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -381,7 +381,7 @@ mod proxy_object {
 
         // Handler behaviors
         fn fn_returns_false() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -396,7 +396,7 @@ mod proxy_object {
         }
 
         fn fn_returns_false_no_checks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _: Option<&Object>,
@@ -482,7 +482,7 @@ mod proxy_object {
 
         // Handler behaviors
         fn fn_returns_false() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -497,7 +497,7 @@ mod proxy_object {
         }
 
         fn fn_returns_true() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -511,7 +511,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_true_no_checks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -604,7 +604,7 @@ mod proxy_object {
 
         // Handler behaviors
         fn fn_new_value() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -623,7 +623,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_new_value_no_checks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -641,7 +641,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_invalid_pd() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -661,7 +661,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_string() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -676,7 +676,7 @@ mod proxy_object {
             cbf(|_, _, _| Ok(ECMAScriptValue::Undefined))
         }
         fn fn_returns_undef() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -690,7 +690,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_nonconfig() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -709,7 +709,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_nonconfig_nonwrite() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -934,7 +934,7 @@ mod proxy_object {
 
         // Handler behaviors
         fn fn_returns_true() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -958,7 +958,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_true_no_checks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 _this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -969,7 +969,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_false() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -989,7 +989,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_true_without_setting() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -1208,7 +1208,7 @@ mod proxy_object {
         use test_case::test_case;
 
         fn fn_only_watches() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -1225,7 +1225,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_false() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -1238,7 +1238,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_false_no_checks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(ECMAScriptValue::from(false))
             }
@@ -1400,7 +1400,7 @@ mod proxy_object {
         use test_case::test_case;
 
         fn fn_only_watches() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _new_target: Option<&Object>,
@@ -1418,21 +1418,21 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_undefined_no_checks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(ECMAScriptValue::Undefined)
             }
             cbf(behavior)
         }
         fn fn_returns_val_no_checks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(ECMAScriptValue::from(100))
             }
             cbf(behavior)
         }
         fn fn_returns_val() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _: Option<&Object>,
@@ -1510,7 +1510,7 @@ mod proxy_object {
             ProxyObject::object(Some((target, handler)))
         }
 
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn alternate_receiver() -> Option<Object> {
             let alt = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new()
@@ -1612,14 +1612,14 @@ mod proxy_object {
 
         // Behaviors
         fn fn_returns_true_without_checks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(true.into())
             }
             cbf(behavior)
         }
         fn fn_returns_true() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behaviour(
                 this_value: &ECMAScriptValue,
                 _: Option<&Object>,
@@ -1632,7 +1632,7 @@ mod proxy_object {
             cbf(behaviour)
         }
         fn fn_returns_false() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behaviour(
                 this_value: &ECMAScriptValue,
                 _: Option<&Object>,
@@ -1661,7 +1661,7 @@ mod proxy_object {
             target
         }
 
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn alternate_receiver() -> Option<Object> {
             let alt = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new()
@@ -1825,14 +1825,14 @@ mod proxy_object {
 
         // Behaviors
         fn fn_returns_true_without_checks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(true.into())
             }
             cbf(behavior)
         }
         fn fn_returns_false() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _: Option<&Object>,
@@ -1845,7 +1845,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_returns_true() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _: Option<&Object>,
@@ -2012,28 +2012,28 @@ mod proxy_object {
 
         // Behaviors
         fn fn_returns_invalid_pks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(create_array_from_list(&[ECMAScriptValue::Null, ECMAScriptValue::from("blue")]).into())
             }
             cbf(behavior)
         }
         fn fn_returns_duplicate_pks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(create_array_from_list(&[ECMAScriptValue::from("blue"), ECMAScriptValue::from("blue")]).into())
             }
             cbf(behavior)
         }
         fn fn_returns_empty_no_checks() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(array_create(0, None).expect("creation works").into())
             }
             cbf(behavior)
         }
         fn fn_returns_test_marker_plus_more() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
                 Ok(create_array_from_list(&[
                     ECMAScriptValue::from("test_marker"),
@@ -2045,7 +2045,7 @@ mod proxy_object {
             cbf(behavior)
         }
         fn fn_recording_list() -> Object {
-            #[allow(clippy::unnecessary_wraps)]
+            #[expect(clippy::unnecessary_wraps)]
             fn behavior(
                 this_value: &ECMAScriptValue,
                 _: Option<&Object>,

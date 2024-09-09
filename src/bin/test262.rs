@@ -54,7 +54,7 @@ struct Source {
     source: String,
     mark: Marker,
 }
-#[allow(dead_code)]
+#[expect(dead_code)]
 #[derive(Debug)]
 struct TestInfo {
     source: Vec<Source>,

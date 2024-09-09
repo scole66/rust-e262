@@ -8,11 +8,11 @@ use test_case::test_case;
 fn v(items: &[(&str, IdUsage)]) -> Vec<(String, IdUsage)> {
     items.iter().map(|&(s, u)| (String::from(s), u)).collect::<Vec<_>>()
 }
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn s(s: &str, u: IdUsage) -> Option<(String, IdUsage)> {
     Some((String::from(s), u))
 }
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn ss(s: &str) -> Option<String> {
     Some(s.to_string())
 }
@@ -648,7 +648,7 @@ mod id_usage {
 
     #[test_case(IdUsage::Public => IdUsage::Public; "works")]
     fn clone(item: IdUsage) -> IdUsage {
-        #[allow(clippy::clone_on_copy)]
+        #[expect(clippy::clone_on_copy)]
         item.clone()
     }
 }
@@ -664,7 +664,6 @@ mod private_id_info {
 
     #[test_case(&PrivateIdInfo { name: JSString::from("travis"), usage: IdUsage::Setter } => ("travis".to_string(), IdUsage::Setter); "clone")]
     fn clone(item: &PrivateIdInfo) -> (String, IdUsage) {
-        #[allow(clippy::redundant_clone)]
         let c = item.clone();
         (String::from(c.name), c.usage)
     }

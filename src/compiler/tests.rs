@@ -1,4 +1,4 @@
-#![allow(clippy::clone_on_copy)]
+#![expect(clippy::clone_on_copy)]
 
 use super::*;
 use crate::parser::testhelp::*;
@@ -199,7 +199,7 @@ mod insn {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let insn = Insn::String;
         let i2 = insn.clone();
@@ -224,7 +224,7 @@ mod compiler_status_flags {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let csf1 = CompilerStatusFlags { can_be_abrupt: AbruptResult::Never, can_be_reference: RefResult::Maybe };
         let csf2 = csf1.clone();
@@ -379,7 +379,7 @@ mod always_abrupt_result {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = AlwaysAbruptResult {};
         let cloned = item.clone();
@@ -408,7 +408,7 @@ mod always_ref_result {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = AlwaysRefResult {};
         let cloned = item.clone();
@@ -425,7 +425,7 @@ mod always_abrupt_ref_result {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = AlwaysAbruptRefResult {};
         let cloned = item.clone();
@@ -454,7 +454,7 @@ mod never_abrupt_ref_result {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = NeverAbruptRefResult {};
         let cloned = item.clone();
@@ -8070,7 +8070,6 @@ mod env_usage {
     }
 
     #[test_case(EnvUsage::UsePutValue => EnvUsage::UsePutValue)]
-    #[allow(clippy::clone_on_copy)]
     fn clone(a: EnvUsage) -> EnvUsage {
         a.clone()
     }
@@ -8092,7 +8091,6 @@ mod arg_list_size_hint {
     }
 
     #[test_case(ArgListSizeHint { fixed_len: 2, has_variable: false } => ArgListSizeHint { fixed_len: 2, has_variable: false })]
-    #[allow(clippy::clone_on_copy)]
     fn clone(a: ArgListSizeHint) -> ArgListSizeHint {
         a.clone()
     }
@@ -8858,7 +8856,7 @@ mod iteration_kind {
     use super::*;
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = IterationKind::Enumerate;
         let copy = item.clone();
@@ -10220,7 +10218,7 @@ mod destructuring_assignment_target {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 mod for_in_of_statement {
     use super::*;
     use test_case::test_case;
@@ -12584,7 +12582,7 @@ mod name_loc {
     use super::*;
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = NameLoc::OnStack;
         let copy = item.clone();

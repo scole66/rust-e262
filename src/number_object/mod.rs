@@ -435,7 +435,7 @@ fn number_constructor_function(
 //      1. If Type(number) is not Number, return false.
 //      2. If number is NaN, +∞𝔽, or -∞𝔽, return false.
 //      3. Otherwise, return true.
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn number_is_finite(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -454,7 +454,7 @@ fn number_is_finite(
 // When Number.isInteger is called with one argument number, the following steps are taken:
 //
 //      1. Return ! IsIntegralNumber(number).
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn number_is_integer(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -475,7 +475,7 @@ fn number_is_integer(
 //
 // NOTE     This function differs from the global isNaN function (19.2.3) in that it does not convert its argument to a
 //          Number before determining whether it is NaN.
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn number_is_nan(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -496,7 +496,7 @@ fn number_is_nan(
 //      1. If ! IsIntegralNumber(number) is true, then
 //          a. If abs(ℝ(number)) ≤ 2**53 - 1, return true.
 //      2. Return false.
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn number_is_safe_integer(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -951,9 +951,9 @@ fn double_exponent(dbl: f64) -> i32 {
     }
 }
 
-#[allow(clippy::float_cmp)]
-#[allow(unused_assignments)] // Remove this when the Condition B panic is removed
-#[allow(unreachable_code)] // Remove this when the Condition B panic is removed
+#[expect(clippy::float_cmp)]
+#[expect(unused_assignments)] // Remove this when the Condition B panic is removed
+#[expect(unreachable_code)] // Remove this when the Condition B panic is removed
 pub fn double_to_radix_string(val: f64, radix: u32) -> String {
     const KBUFFERSIZE: usize = 2200;
 
@@ -1003,7 +1003,7 @@ pub fn double_to_radix_string(val: f64, radix: u32) -> String {
             );
             if (fraction > 0.5 || (fraction == 0.5 && digit & 1 != 0)) && fraction + delta > 1.0 {
                 // We need to back trace already written digits in case of carry-over.
-                #[allow(clippy::never_loop)]
+                #[expect(clippy::never_loop)]
                 loop {
                     fraction_cursor -= 1;
                     if fraction_cursor == KBUFFERSIZE / 2 {

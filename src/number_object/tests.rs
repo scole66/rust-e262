@@ -14,7 +14,7 @@ fn number_object_debug() {
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn number_object_object() {
     setup_test_agent();
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
@@ -25,7 +25,7 @@ fn number_object_object() {
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn create_number_object_01() {
     setup_test_agent();
     let no = Object::from(100.0);
@@ -273,7 +273,7 @@ fn number_constructor_called_as_function_04() {
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn number_constructor_as_constructor_01() {
     // No arguments:
     //   > new Number()
@@ -290,7 +290,7 @@ fn number_constructor_as_constructor_01() {
     }
 }
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn number_constructor_as_constructor_02() {
     // Argument needing conversion:
     //   > new Number("0xbadfade")
@@ -453,7 +453,7 @@ fn number_is_safe_integer_one_arg() {
     let is_safe_integer = number_constructor.get(&PropertyKey::from("isSafeInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     for (arg, expected) in [
         (f64::INFINITY, false),
         (f64::NAN, false),
@@ -476,7 +476,7 @@ fn number_is_safe_integer_one_arg() {
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn this_number_value_01() {
     // called with number object
     setup_test_agent();
@@ -487,7 +487,7 @@ fn this_number_value_01() {
     assert_eq!(result, 123.0);
 }
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn this_number_value_02() {
     // called with number value
     setup_test_agent();
@@ -956,7 +956,7 @@ fn double_exponent_test() {
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn next_double_test() {
     // Infinity -> Infinity
     assert_eq!(next_double(f64::INFINITY), f64::INFINITY);

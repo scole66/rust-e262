@@ -1078,7 +1078,7 @@ mod key_value_kind {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = KeyValueKind::Key;
         let other = item.clone();
@@ -1345,7 +1345,7 @@ mod array_prototype_map {
     }
 
     fn identity() -> Object {
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn behavior(
             _: &ECMAScriptValue,
             _: Option<&Object>,
@@ -1368,7 +1368,7 @@ mod array_prototype_map {
     }
 
     fn dead_constructor() -> Object {
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
             Ok(DeadObject::object().into())
         }

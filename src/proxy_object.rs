@@ -1077,7 +1077,7 @@ fn proxy_revocable(
     //  6. Perform ! CreateDataPropertyOrThrow(result, "proxy", proxy).
     //  7. Perform ! CreateDataPropertyOrThrow(result, "revoke", revoker).
     //  8. Return result.
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn revoker_closure(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         let f = active_function_object().expect("A function should be running.");
         let f = f.o.to_builtin_function_with_revocable_proxy_slot().expect("This should be a revokable proxy");
