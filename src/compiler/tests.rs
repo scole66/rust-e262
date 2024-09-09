@@ -8070,7 +8070,6 @@ mod env_usage {
     }
 
     #[test_case(EnvUsage::UsePutValue => EnvUsage::UsePutValue)]
-    #[expect(clippy::clone_on_copy)]
     fn clone(a: EnvUsage) -> EnvUsage {
         a.clone()
     }
@@ -8092,7 +8091,6 @@ mod arg_list_size_hint {
     }
 
     #[test_case(ArgListSizeHint { fixed_len: 2, has_variable: false } => ArgListSizeHint { fixed_len: 2, has_variable: false })]
-    #[expect(clippy::clone_on_copy)]
     fn clone(a: ArgListSizeHint) -> ArgListSizeHint {
         a.clone()
     }

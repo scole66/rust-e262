@@ -2,7 +2,6 @@
 #![expect(clippy::bool_assert_comparison)]
 #![expect(clippy::enum_variant_names)]
 #![expect(clippy::similar_names)]
-#![expect(clippy::wildcard_imports)]
 #![expect(clippy::must_use_candidate)]
 #![expect(clippy::too_many_lines)]
 #![expect(clippy::missing_panics_doc)]

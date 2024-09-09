@@ -664,7 +664,6 @@ mod private_id_info {
 
     #[test_case(&PrivateIdInfo { name: JSString::from("travis"), usage: IdUsage::Setter } => ("travis".to_string(), IdUsage::Setter); "clone")]
     fn clone(item: &PrivateIdInfo) -> (String, IdUsage) {
-        #[expect(clippy::redundant_clone)]
         let c = item.clone();
         (String::from(c.name), c.usage)
     }

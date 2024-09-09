@@ -14,7 +14,6 @@ mod base {
     #[test_case(&Base::Unresolvable => Base::Unresolvable; "unresolvable")]
     #[test_case(&Base::Value(ECMAScriptValue::from("regurgitate")) => Base::Value(ECMAScriptValue::from("regurgitate")); "value")]
     fn clone(b: &Base) -> Base {
-        #[expect(clippy::redundant_clone)]
         b.clone()
     }
 
@@ -87,7 +86,6 @@ mod referenced_name {
 
     #[test_case(&ReferencedName::from("popsicle") => ReferencedName::from("popsicle"); "string")]
     fn clone(rn: &ReferencedName) -> ReferencedName {
-        #[expect(clippy::redundant_clone)]
         rn.clone()
     }
 

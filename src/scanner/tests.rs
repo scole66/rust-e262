@@ -1773,7 +1773,6 @@ mod scanner {
         assert_eq!(s1 != s3, true);
     }
     #[test]
-    #[expect(clippy::eq_op)]
     fn ordering() {
         let line10col50 = Scanner { line: 10, column: 50, start_idx: 33 };
         let line1col1 = Scanner { line: 1, column: 1, start_idx: 0 };
