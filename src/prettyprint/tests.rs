@@ -5,7 +5,7 @@ fn token_type_debug() {
     assert_ne!(format!("{:?}", TokenType::Numeric), "");
 }
 #[test]
-#[allow(clippy::clone_on_copy)]
+#[expect(clippy::clone_on_copy)]
 fn token_type_clone() {
     let t1 = TokenType::Numeric;
     let t2 = t1.clone();
@@ -31,7 +31,7 @@ fn token_type_display() {
 }
 
 #[test]
-#[allow(clippy::clone_on_copy)]
+#[expect(clippy::clone_on_copy)]
 fn spot_clone() {
     let s1 = Spot::Final;
     let s2 = s1.clone();

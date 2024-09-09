@@ -86,7 +86,7 @@ fn intrinsic_id_hash() {
     }
 }
 #[test]
-#[allow(clippy::clone_on_copy)]
+#[expect(clippy::clone_on_copy)]
 fn intrinsic_id_clone() {
     let id1 = IntrinsicId::Object;
     let id2 = id1.clone();

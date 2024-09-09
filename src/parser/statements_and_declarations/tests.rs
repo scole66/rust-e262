@@ -613,7 +613,7 @@ mod hoistable_decl_part {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let hdp = HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){'hdp';}").function_declaration());
         let my_copy = hdp.clone();

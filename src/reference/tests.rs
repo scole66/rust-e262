@@ -14,12 +14,12 @@ mod base {
     #[test_case(&Base::Unresolvable => Base::Unresolvable; "unresolvable")]
     #[test_case(&Base::Value(ECMAScriptValue::from("regurgitate")) => Base::Value(ECMAScriptValue::from("regurgitate")); "value")]
     fn clone(b: &Base) -> Base {
-        #[allow(clippy::redundant_clone)]
+        #[expect(clippy::redundant_clone)]
         b.clone()
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone_with_environment() {
         let env = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
         let base = Base::Environment(env);
@@ -87,7 +87,7 @@ mod referenced_name {
 
     #[test_case(&ReferencedName::from("popsicle") => ReferencedName::from("popsicle"); "string")]
     fn clone(rn: &ReferencedName) -> ReferencedName {
-        #[allow(clippy::redundant_clone)]
+        #[expect(clippy::redundant_clone)]
         rn.clone()
     }
 
@@ -257,7 +257,7 @@ mod reference {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let r = Reference {
             base: Base::Unresolvable,
@@ -270,7 +270,7 @@ mod reference {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn eq() {
         let r1 = Reference {
             base: Base::Unresolvable,

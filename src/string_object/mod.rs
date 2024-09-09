@@ -260,7 +260,7 @@ impl StringObject {
             (index != 0.0 || index.signum() != -1.0).then_some(())?;
             let string = &self.string_data;
             let len = string.len();
-            #[allow(clippy::cast_precision_loss)]
+            #[expect(clippy::cast_precision_loss)]
             (index >= 0.0 && index < len as f64).then_some(())?;
             let idx = to_usize(index).expect("index should be a valid integer");
             let value = JSString::from(&string.as_slice()[idx..=idx]);
@@ -621,7 +621,7 @@ fn string_prototype_index_of(
     let pos = position.to_integer_or_infinity()?;
     let len = s.len();
     let max = to_f64(len).expect("len should fit within a float");
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     let start = to_usize(pos.clamp(0.0, max)).expect("start should be within the string's length, which fits a usize");
     Ok(s.index_of(&search_str, start).into())
 }

@@ -67,7 +67,7 @@ fn equality_test_01() {
 }
 
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn clone_test() {
     let s1 = JSString::from("crocodile");
     let s2 = s1.clone();
@@ -198,7 +198,7 @@ fn is_empty(s: &str) -> bool {
     JSString::from(s).is_empty()
 }
 
-#[allow(clippy::cmp_owned)]
+#[expect(clippy::cmp_owned)]
 mod lt {
     use super::*;
     use test_case::test_case;

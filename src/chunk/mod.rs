@@ -99,7 +99,7 @@ impl Chunk {
         self.opcodes.len() - 1
     }
 
-    #[allow(clippy::cast_sign_loss)]
+    #[expect(clippy::cast_sign_loss)]
     pub fn op_jump_back(&mut self, opcode: Insn, location: usize) -> anyhow::Result<()> {
         self.opcodes.push(opcode.into());
         let delta = isize::try_from(location).expect("a hope and a prayer")
@@ -110,7 +110,7 @@ impl Chunk {
         Ok(())
     }
 
-    #[allow(clippy::cast_sign_loss)]
+    #[expect(clippy::cast_sign_loss)]
     pub fn fixup(&mut self, mark: usize) -> anyhow::Result<()> {
         let len = self.opcodes.len();
         if mark >= len {
@@ -125,7 +125,7 @@ impl Chunk {
         self.opcodes.len()
     }
 
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(clippy::cast_possible_wrap)]
     pub fn insn_repr_at(&self, starting_idx: usize) -> (usize, String) {
         let mut idx = starting_idx;
         let insn = Insn::try_from(self.opcodes[idx]).unwrap();

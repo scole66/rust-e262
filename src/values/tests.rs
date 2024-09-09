@@ -92,7 +92,7 @@ mod ecmascript_value {
     use test_case::test_case;
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let v1 = ECMAScriptValue::Undefined;
         let v2 = v1.clone();
@@ -616,7 +616,7 @@ mod ecmascript_value {
         assert!(result.is_nan());
     }
     #[test]
-    #[allow(clippy::float_cmp)]
+    #[expect(clippy::float_cmp)]
     fn to_number_02() {
         setup_test_agent();
         let input = ECMAScriptValue::Null;
@@ -625,7 +625,7 @@ mod ecmascript_value {
         assert_eq!(result, 0.0);
     }
     #[test]
-    #[allow(clippy::float_cmp)]
+    #[expect(clippy::float_cmp)]
     fn to_number_03() {
         setup_test_agent();
         let input = ECMAScriptValue::from(true);
@@ -634,7 +634,7 @@ mod ecmascript_value {
         assert_eq!(result, 1.0);
     }
     #[test]
-    #[allow(clippy::float_cmp)]
+    #[expect(clippy::float_cmp)]
     fn to_number_04() {
         setup_test_agent();
         let input = ECMAScriptValue::from(false);
@@ -643,7 +643,7 @@ mod ecmascript_value {
         assert_eq!(result, 0.0);
     }
     #[test]
-    #[allow(clippy::float_cmp)]
+    #[expect(clippy::float_cmp)]
     fn to_number_05() {
         setup_test_agent();
         let input = ECMAScriptValue::from(37.6);
@@ -660,7 +660,7 @@ mod ecmascript_value {
         assert!(result.is_nan());
     }
     #[test]
-    #[allow(clippy::float_cmp)]
+    #[expect(clippy::float_cmp)]
     fn to_number_07() {
         setup_test_agent();
         let testcases = [
@@ -778,7 +778,7 @@ fn symbol_display_empty() {
     assert_eq!(format!("{symbol}"), "Symbol()");
 }
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn symbol_clone() {
     setup_test_agent();
     let s1 = wks(WksId::ToPrimitive);
@@ -786,7 +786,7 @@ fn symbol_clone() {
     assert_eq!(s1, s2);
 }
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn symbol_hash() {
     setup_test_agent();
     let s1 = wks(WksId::ToPrimitive);
@@ -807,7 +807,7 @@ fn symbol_hash() {
     assert_ne!(calculate_hash(&f2, &s1), calculate_hash(&f2, &s3));
 }
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn symbol_new() {
     setup_test_agent();
     let s1 = Symbol::new(Some(JSString::from("Symbol #1")));
@@ -833,7 +833,7 @@ fn symbol_internals_debug() {
     assert_ne!(format!("{:?}", SymbolInternals { id: 10, description: Some(JSString::from("description")) }), "");
 }
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn symbol_internals_clone() {
     let si1 = SymbolInternals { id: 10, description: Some(JSString::from("description")) };
     let si2 = si1.clone();
@@ -846,7 +846,7 @@ mod pn {
     use ahash::AHasher;
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn derived_stuff() {
         let pn = PN(());
         let b = pn; // Copy
@@ -886,7 +886,7 @@ mod private_name {
         assert_eq!(pn1 == pn2, false);
     }
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let pn1 = PrivateName::new("a");
         let pn2 = pn1.clone();
@@ -918,7 +918,7 @@ mod private_element_kind {
         assert_ne!(format!("{pek:?}"), "");
     }
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let pek = PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("a")) };
         let pek2 = pek.clone();
@@ -1122,7 +1122,7 @@ mod property_key {
         assert_eq!(format!("{}", PropertyKey::from(sym)), "Symbol(Symbol.hasInstance)");
     }
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let pk1 = PropertyKey::from("a");
         let pk2 = pk1.clone();
@@ -1314,7 +1314,7 @@ fn to_numeric_04() {
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn to_integer_or_infinity_01() {
     setup_test_agent();
     let testcases = &[
@@ -1391,7 +1391,7 @@ fn to_string_09() {
     let result = to_string(ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn tostring_symbol(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1448,7 +1448,7 @@ fn to_object_03() {
     assert_eq!(*boolean_obj.boolean_data(), test_value);
 }
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn to_object_04() {
     setup_test_agent();
     let test_value = 1337.0;
@@ -1498,7 +1498,7 @@ fn to_object_08() {
 // * object value & object string -> type error
 
 // non-object number
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn faux_makes_number(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1507,7 +1507,7 @@ fn faux_makes_number(
     Ok(ECMAScriptValue::from(123_456))
 }
 // non-object string
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn faux_makes_string(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1516,7 +1516,7 @@ fn faux_makes_string(
     Ok(ECMAScriptValue::from("test result"))
 }
 // object value
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn faux_makes_obj(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1783,7 +1783,7 @@ fn to_primitive_prefer_number() {
     let result = to_primitive(test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test result"));
 }
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn exotic_to_prim(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1847,7 +1847,7 @@ fn to_primitive_uses_exotics() {
     let result = to_primitive(test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw string"));
 }
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn exotic_returns_object(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -2005,7 +2005,7 @@ mod array_index {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = ArrayIndex(10);
         let duplicate = item.clone();
@@ -2248,7 +2248,7 @@ mod agent {
     fn dead_object() -> ECMAScriptValue {
         DeadObject::object().into()
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn returns_10(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(10.into())
     }
@@ -2321,7 +2321,7 @@ mod value_kind {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = ValueKind::Number;
         let duplicate = item.clone();
@@ -2346,7 +2346,7 @@ mod conversion_hint {
     use super::*;
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = ConversionHint::Number;
         let duplicate = item.clone();

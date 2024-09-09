@@ -491,7 +491,7 @@ impl ObjectInterface for AdaptableObject {
 }
 
 #[derive(Default)]
-#[allow(clippy::struct_field_names)]
+#[expect(clippy::struct_field_names)]
 pub struct AdaptableMethods {
     pub get_prototype_of_override: Option<GetPrototypeOfFunction>,
     pub set_prototype_of_override: Option<SetPrototypeOfFunction>,
@@ -594,17 +594,17 @@ pub fn serr<T>(msg: &str) -> Result<T, String> {
     Err(msg.to_string())
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 pub fn sok<T>(msg: &str) -> Result<String, T> {
     Ok(msg.to_string())
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 pub fn ssok<T>(msg: &str) -> Result<Option<String>, T> {
     Ok(Some(msg.to_string()))
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
     Ok(val.into())
 }

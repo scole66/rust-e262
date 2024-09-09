@@ -1,5 +1,3 @@
-#![allow(non_upper_case_globals)]
-
 use super::*;
 use ahash::AHashSet;
 use anyhow::anyhow;
@@ -419,7 +417,7 @@ impl AbruptResult {
     fn maybe_abrupt(self) -> bool {
         self == AbruptResult::Maybe
     }
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     fn maybe_ref(self) -> bool {
         false
     }
@@ -470,11 +468,11 @@ impl From<AlwaysAbruptResult> for CompilerStatusFlags {
     }
 }
 impl AlwaysAbruptResult {
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     fn maybe_abrupt(self) -> bool {
         true
     }
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     fn maybe_ref(self) -> bool {
         false
     }
@@ -504,11 +502,11 @@ impl From<NeverAbruptRefResult> for CompilerStatusFlags {
     }
 }
 impl NeverAbruptRefResult {
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     fn maybe_abrupt(self) -> bool {
         false
     }
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     fn maybe_ref(self) -> bool {
         false
     }
@@ -907,7 +905,7 @@ impl PrimaryExpression {
     ///
     /// References from ECMA-262:
     /// * [Evaluation of the `this` keyword](https://tc39.es/ecma262/#sec-this-keyword-runtime-semantics-evaluation)
-    #[allow(unused_variables)]
+    #[expect(unused_variables)]
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             PrimaryExpression::IdentifierReference { node: id } => {
@@ -1083,7 +1081,7 @@ impl Elisions {
         // exit:
 
         assert!(self.count < 1 << 53);
-        #[allow(clippy::cast_precision_loss)]
+        #[expect(clippy::cast_precision_loss)]
         let count = self.count as f64; // loss of accuracy for large values.
         let count_index = chunk.add_to_float_pool(count)?;
         let length_index = chunk.add_to_string_pool(JSString::from("length"))?;
@@ -1152,7 +1150,7 @@ impl Elisions {
         //   IDAE_ELISION              ir/err
 
         assert!(self.count < 1 << 53);
-        #[allow(clippy::cast_precision_loss)]
+        #[expect(clippy::cast_precision_loss)]
         let count_val = self.count as f64; // loss of accuracy for large values.
         let count = chunk.add_to_float_pool(count_val)?;
         // have to store count on the stack, as it can easily overflow the u16 that is an instruction parameter
@@ -5653,7 +5651,7 @@ impl DoWhileStatement {
 }
 
 impl ForStatement {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn compile_for_body(
         chunk: &mut Chunk,
         strict: bool,
@@ -6144,7 +6142,7 @@ impl ForInOfStatement {
         Ok(status)
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn for_in_of_body_evaluation(
         chunk: &mut Chunk,
         strict: bool,
@@ -9636,7 +9634,7 @@ impl FunctionStatementList {
 }
 
 impl ClassDeclaration {
-    #[allow(unused_variables)]
+    #[expect(unused_variables)]
     fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: Evaluation
         // ClassDeclaration : class BindingIdentifier ClassTail

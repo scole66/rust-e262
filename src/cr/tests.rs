@@ -65,7 +65,7 @@ mod normal_completion {
     #[test_case(&NormalCompletion::Value(ECMAScriptValue::from("alice")) => NormalCompletion::Value(ECMAScriptValue::from("alice")); "value")]
     #[test_case(&NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))) => NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))); "reference")]
     fn clone(orig: &NormalCompletion) -> NormalCompletion {
-        #[allow(clippy::redundant_clone)]
+        #[expect(clippy::redundant_clone)]
         orig.clone()
     }
 

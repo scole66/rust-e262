@@ -1,16 +1,16 @@
-#![allow(dead_code)]
-#![allow(clippy::bool_assert_comparison)]
-#![allow(clippy::enum_variant_names)]
-#![allow(clippy::similar_names)]
-#![allow(clippy::wildcard_imports)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::too_many_lines)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::single_match_else)]
-#![allow(clippy::float_cmp)]
-#![allow(clippy::module_name_repetitions)]
-#![allow(clippy::doc_markdown)]
+#![expect(dead_code)]
+#![expect(clippy::bool_assert_comparison)]
+#![expect(clippy::enum_variant_names)]
+#![expect(clippy::similar_names)]
+#![expect(clippy::wildcard_imports)]
+#![expect(clippy::must_use_candidate)]
+#![expect(clippy::too_many_lines)]
+#![expect(clippy::missing_panics_doc)]
+#![expect(clippy::missing_errors_doc)]
+#![expect(clippy::single_match_else)]
+#![expect(clippy::float_cmp)]
+#![expect(clippy::module_name_repetitions)]
+#![expect(clippy::doc_markdown)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 
@@ -184,5 +184,5 @@ fn main() {
 }
 
 #[cfg(test)]
-#[allow(hidden_glob_reexports)]
+#[expect(hidden_glob_reexports)]
 mod tests;

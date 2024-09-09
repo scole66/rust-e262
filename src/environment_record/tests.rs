@@ -26,7 +26,7 @@ mod removability {
         assert_eq!(Removability::from(false), Removability::Permanent);
     }
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let r1 = Removability::Deletable;
         let r2 = r1.clone();
@@ -58,7 +58,7 @@ mod strictness {
         assert_eq!(Strictness::from(false), Strictness::Sloppy);
     }
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let s1 = Strictness::Sloppy;
         let s2 = s1.clone();
@@ -116,7 +116,7 @@ mod mutability {
         }
     }
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let m1 = Mutability::Immutable(Strictness::Sloppy);
         let m2 = m1.clone();
@@ -990,7 +990,7 @@ mod binding_status {
         }
     }
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let bs1 = BindingStatus::Lexical;
         let bs2 = bs1.clone();

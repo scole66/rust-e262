@@ -467,7 +467,7 @@ fn ospo_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> bool {
         return false;
     }
     let mut p = val.clone();
-    #[allow(clippy::assigning_clones)] // clippy is actually _wrong_ here.
+    #[expect(clippy::assigning_clones)] // clippy is actually _wrong_ here.
     while let Some(pp) = p {
         if pp.o.id() == obj.id() {
             return false;
@@ -2731,7 +2731,7 @@ pub fn private_method_or_accessor_add(obj: &Object, method: Rc<PrivateElement>) 
     }
 }
 
-#[allow(unused_variables)]
+#[expect(unused_variables)]
 pub fn define_field(obj: &Object, field: &ClassFieldDefinitionRecord) -> Completion<()> {
     // for coverage testing:
     obj.get(&PropertyKey::from("should_error"))?;
