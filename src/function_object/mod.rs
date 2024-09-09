@@ -158,7 +158,9 @@ impl fmt::Display for ClassItem {
             ClassItem::ClassFieldDefinition(ClassFieldDefinitionRecord { name, initializer: None }) => {
                 write!(f, "Field({name})")
             }
-            ClassItem::ClassStaticBlockDefinition(_) => todo!(),
+            ClassItem::ClassStaticBlockDefinition(ClassStaticBlockDefinitionRecord { body_function }) => {
+                write!(f, "Block({body_function})")
+            }
         }
     }
 }

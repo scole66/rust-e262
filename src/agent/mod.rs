@@ -2814,12 +2814,19 @@ mod insn_impl {
         Ok(())
     }
     pub fn evaluate_class_static_block_def(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // This does the runtime parts of ClassStaticBlockDefinitionEvaluation
+        // Input Operand: sfd_index
+        // Input Stack: homeObject
+        // Output Stack: block homeObject
         let info = sfd_operand(chunk)?;
         let home_object = pop_obj()?;
         let block_body = evaluate_class_static_block_definition(info, home_object.clone(), text)?;
+        let block = Box::new(ClassItem::ClassStaticBlockDefinition(ClassStaticBlockDefinitionRecord {
+            body_function: block_body,
+        }));
 
         push_value(ECMAScriptValue::Object(home_object)).expect(PUSHABLE);
-        push_value(ECMAScriptValue::Object(block_body)).expect(PUSHABLE);
+        push_completion(Ok(NormalCompletion::ClassItem(block))).expect(PUSHABLE);
         Ok(())
     }
     pub fn define_method(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {

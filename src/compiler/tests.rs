@@ -11471,8 +11471,9 @@ mod class_static_block_body {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("", true, &[] => Ok((svec(&["UNDEFINED"]), false)); "empty")]
+    #[test_case("", true, &[] => Ok((svec(&["FINISH_ARGS", "UNDEFINED", "END_FUNCTION"]), true)); "empty")]
     #[test_case("this.item = 3;", true, &[] => Ok((svec(&[
+        "FINISH_ARGS",
         "THIS",
         "JUMP_IF_ABRUPT 3",
         "STRING 0 (item)",
@@ -11481,7 +11482,8 @@ mod class_static_block_body {
         "FLOAT 0 (3)",
         "POP2_PUSH3",
         "PUT_VALUE",
-        "UPDATE_EMPTY"
+        "UPDATE_EMPTY",
+        "END_FUNCTION"
     ]), true)); "slist")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).class_static_block_body();

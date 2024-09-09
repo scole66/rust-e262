@@ -10160,7 +10160,7 @@ impl ClassElement {
             | ClassElement::Empty { .. } => unreachable!(),
         }
     }
-    #[expect(unused_variables)]
+
     fn class_element_evaluation(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: ClassElementEvaluation
         // The syntax-directed operation ClassElementEvaluation takes argument object (an Object) and returns either a
@@ -10192,7 +10192,13 @@ impl ClassElement {
                 //   <method.class_field_definition_eval(is_static)>    elem/err obj
                 field.class_field_definition_evaluation(chunk, strict, text, Static::Yes)
             }
-            ClassElement::StaticBlock { block } => todo!(),
+            ClassElement::StaticBlock { block } => {
+                // ClassElement : ClassStaticBlock
+                //  1. Return the ClassStaticBlockDefinitionEvaluation of ClassStaticBlock with argument object.
+                // start:                                               obj
+                //   <block.class_static_block_definition_evaluation>   elem/err obj
+                block.class_static_block_definition_evaluation(chunk, strict).map(AbruptResult::from)
+            }
             ClassElement::Empty { .. } => {
                 // ClassElement : ;
                 //  1. Return unused.
@@ -10200,8 +10206,6 @@ impl ClassElement {
                 Ok(AbruptResult::Never)
             }
         }
-        // ClassElement : ClassStaticBlock
-        //  1. Return the ClassStaticBlockDefinitionEvaluation of ClassStaticBlock with argument object.
     }
 }
 
@@ -10332,6 +10336,9 @@ impl ClassStaticBlock {
         //  7. Return the ClassStaticBlockDefinition Record { [[BodyFunction]]: bodyFunction }.
         //
         // NOTE: The function bodyFunction is never directly accessible to ECMAScript code.
+        //
+        // start:                                          obj
+        //   EVAL_CSBD(code)                               err/elem obj
         let info = StashedFunctionData {
             source_text: String::new(),
             params: Rc::new(FormalParameters::Empty(Location::default())).into(),
@@ -10348,7 +10355,10 @@ impl ClassStaticBlock {
 
 impl ClassStaticBlockBody {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
-        self.0.compile(chunk, strict, text)
+        chunk.op(Insn::FinishArgs);
+        self.0.compile(chunk, strict, text)?;
+        chunk.op(Insn::EndFunction);
+        Ok(AbruptResult::Maybe)
     }
 }
 
