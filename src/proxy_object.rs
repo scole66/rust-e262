@@ -991,7 +991,7 @@ pub fn provision_proxy_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     let proxy_constructor = create_builtin_function(
         proxy_constructor_function,
-        true,
+        Some(ConstructorKind::Base),
         2_f64,
         PropertyKey::from("Proxy"),
         BUILTIN_FUNCTION_SLOTS,
@@ -1007,7 +1007,7 @@ pub fn provision_proxy_intrinsic(realm: &Rc<RefCell<Realm>>) {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
-                false,
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -1122,11 +1122,11 @@ impl BuiltinFunctionWithRevokableProxySlot {
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
         steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
-        is_constructor: bool,
+        constructor_kind: Option<ConstructorKind>,
         revokable_proxy: Option<Object>,
     ) -> Self {
         Self {
-            func: BuiltInFunctionObject::new(prototype, extensible, realm, initial_name, steps, is_constructor),
+            func: BuiltInFunctionObject::new(prototype, extensible, realm, initial_name, steps, constructor_kind),
             revokable_proxy: RefCell::new(revokable_proxy),
         }
     }
@@ -1137,11 +1137,11 @@ impl BuiltinFunctionWithRevokableProxySlot {
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
         steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
-        is_constructor: bool,
+        constructor_kind: Option<ConstructorKind>,
         revokable_proxy: Option<Object>,
     ) -> Object {
         Object {
-            o: Rc::new(Self::new(prototype, extensible, realm, initial_name, steps, is_constructor, revokable_proxy)),
+            o: Rc::new(Self::new(prototype, extensible, realm, initial_name, steps, constructor_kind, revokable_proxy)),
         }
     }
 
@@ -1153,7 +1153,7 @@ impl BuiltinFunctionWithRevokableProxySlot {
     ) -> Object {
         let realm_to_use = current_realm_record().unwrap();
         let prototype_to_use = realm_to_use.borrow().intrinsics.function_prototype.clone();
-        let func = Self::object(Some(prototype_to_use), true, realm_to_use, None, behavior, false, Some(proxy));
+        let func = Self::object(Some(prototype_to_use), true, realm_to_use, None, behavior, None, Some(proxy));
         set_function_length(&func, length);
         set_function_name(&func, FunctionName::from(name), None);
         func

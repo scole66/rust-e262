@@ -368,7 +368,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let array_constructor = create_builtin_function(
         array_constructor_function,
-        true,
+        Some(ConstructorKind::Base),
         1.0,
         PropertyKey::from("Array"),
         BUILTIN_FUNCTION_SLOTS,
@@ -383,7 +383,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
-                false,
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -409,7 +409,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let species_sym = wks(WksId::Species);
     let species_fcn = create_builtin_function(
         array_species,
-        false,
+        None,
         0.0,
         species_sym.clone().into(),
         BUILTIN_FUNCTION_SLOTS,
@@ -456,7 +456,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
-                false,
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -573,7 +573,7 @@ pub fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 $steps,
-                false,
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,

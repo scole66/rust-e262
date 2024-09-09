@@ -590,6 +590,8 @@ mod put_value {
         put_value(Ok(NormalCompletion::from(reference)), Ok(value.clone())).unwrap();
 
         let from_private = private_get(&normal_object, &pn).unwrap();
+        println!("Expected value {value:#?}");
+        println!("Observed value {from_private:#?}");
         assert_eq!(from_private, value);
     }
 

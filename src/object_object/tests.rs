@@ -79,7 +79,7 @@ mod prototype {
             let to_primitive_method =
                 create_builtin_function(
                     behavior,
-                    false,
+                    None,
                     0.0,
                     "f".into(),
                     BUILTIN_FUNCTION_SLOTS,
@@ -192,7 +192,7 @@ mod prototype {
             let to_primitive_method =
                 create_builtin_function(
                     behavior,
-                    false,
+                    None,
                     0.0,
                     "f".into(),
                     BUILTIN_FUNCTION_SLOTS,
@@ -632,7 +632,7 @@ mod constructor {
             let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let tostring_func = create_builtin_function(
                 faux_errors,
-                false,
+                None,
                 0.0,
                 "toString".into(),
                 BUILTIN_FUNCTION_SLOTS,

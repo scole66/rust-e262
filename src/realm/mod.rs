@@ -468,7 +468,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     // %Function.prototype%
     let function_prototype = create_builtin_function(
         do_nothing,
-        false,
+        None,
         0_f64,
         PropertyKey::from(""),
         BUILTIN_FUNCTION_SLOTS,
@@ -510,7 +510,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
         ( $intrinsicid:ident, $name:expr, $length:expr ) => {
             let function_object = create_builtin_function(
                 $intrinsicid,
-                false,
+                None,
                 f64::from($length),
                 PropertyKey::from($name),
                 BUILTIN_FUNCTION_SLOTS,
@@ -592,7 +592,7 @@ fn create_throw_type_error_builtin(realm: Rc<RefCell<Realm>>) -> Object {
     let function_proto = realm.borrow().intrinsics.get(IntrinsicId::FunctionPrototype);
     let fcn = create_builtin_function(
         throw_type_error,
-        false,
+        None,
         0_f64,
         PropertyKey::from(""),
         BUILTIN_FUNCTION_SLOTS,
@@ -738,7 +738,7 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                             true,
                             this_env_rec.has_super_binding(),
                             fo.constructor_kind == ConstructorKind::Derived,
-                            fo.class_field_initializer_name != ClassName::Empty,
+                            fo.class_field_initializer_name.is_some(),
                         )
                     } else {
                         (false, false, false, false)

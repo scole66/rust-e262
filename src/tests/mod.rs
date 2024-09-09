@@ -100,6 +100,7 @@ pub fn unwind_type_error(completion: AbruptCompletion) -> String {
     unwind_error("TypeError", completion)
 }
 
+#[expect(dead_code)]
 pub fn unwind_syntax_error(completion: AbruptCompletion) -> String {
     unwind_error("SyntaxError", completion)
 }
@@ -112,6 +113,7 @@ pub fn unwind_reference_error(completion: AbruptCompletion) -> String {
     unwind_error("ReferenceError", completion)
 }
 
+#[expect(dead_code)]
 pub fn unwind_reference_error_object(err: &Object) -> String {
     unwind_error_object("ReferenceError", err)
 }
@@ -120,6 +122,7 @@ pub fn unwind_range_error(completion: AbruptCompletion) -> String {
     unwind_error("RangeError", completion)
 }
 
+#[expect(dead_code)]
 pub fn unwind_range_error_object(err: &Object) -> String {
     unwind_error_object("RangeError", err)
 }
@@ -548,7 +551,7 @@ pub fn make_toprimitive_throw_obj() -> Object {
     let key = PropertyKey::from(to_prim_sym);
     let fcn = create_builtin_function(
         faux_errors,
-        false,
+        None,
         0_f64,
         "[Symbol toPrimitive]".into(),
         BUILTIN_FUNCTION_SLOTS,

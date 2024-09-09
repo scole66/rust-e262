@@ -832,7 +832,7 @@ mod get_iterator_from_method {
     fn dead_func() -> ECMAScriptValue {
         ECMAScriptValue::from(create_builtin_function(
             create_dead_object,
-            false,
+            None,
             0.0,
             "makedead".into(),
             &[],
@@ -877,7 +877,7 @@ mod get_iterator_from_method {
         Ok(obj.into())
     }
     fn silly_iterator_method_object() -> ECMAScriptValue {
-        let obj = create_builtin_function(silly_iterator, false, 0.0, "silly_iterator".into(), &[], None, None, None);
+        let obj = create_builtin_function(silly_iterator, None, 0.0, "silly_iterator".into(), &[], None, None, None);
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -969,7 +969,7 @@ mod get_iterator {
         Ok(obj.into())
     }
     fn silly_iterator_method_object() -> ECMAScriptValue {
-        let obj = create_builtin_function(silly_iterator, false, 0.0, "silly_iterator".into(), &[], None, None, None);
+        let obj = create_builtin_function(silly_iterator, None, 0.0, "silly_iterator".into(), &[], None, None, None);
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -1075,7 +1075,7 @@ mod iterator_record {
         )
         .unwrap();
         let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
-        let next = create_builtin_function(behavior, false, 1.0, "next".into(), &[], None, Some(function_proto), None);
+        let next = create_builtin_function(behavior, None, 1.0, "next".into(), &[], None, Some(function_proto), None);
         define_property_or_throw(
             &next,
             "sentinel",
@@ -1126,7 +1126,7 @@ mod iterator_record {
             IRKind::NextReturnsNonObject => iterator_bad_next,
             IRKind::NextReturnsObject => iterator_ok_next,
         };
-        let obj = create_builtin_function(func, false, 0.0, "silly_iterator".into(), &[], None, None, None);
+        let obj = create_builtin_function(func, None, 0.0, "silly_iterator".into(), &[], None, None, None);
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -1221,7 +1221,7 @@ mod iterator_record {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let obj = ordinary_object_create(Some(iter_proto));
         let next_method =
-            create_builtin_function(next_returns_broken_iter_result, false, 0.0, "next".into(), &[], None, None, None);
+            create_builtin_function(next_returns_broken_iter_result, None, 0.0, "next".into(), &[], None, None, None);
         obj.create_data_property_or_throw("next", next_method).unwrap();
         obj
     }
@@ -1281,9 +1281,9 @@ mod iterator_record {
         let iterator = ordinary_object_create(Some(iter_proto));
         let tracking_array = array_create(0, None).unwrap();
         iterator.create_data_property_or_throw("tracker", tracking_array).unwrap();
-        let next = create_builtin_function(tracking_next, false, 1.0, "next".into(), &[], None, None, None);
+        let next = create_builtin_function(tracking_next, None, 1.0, "next".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("next", next).unwrap();
-        let ireturn = create_builtin_function(tracking_return, false, 1.0, "return".into(), &[], None, None, None);
+        let ireturn = create_builtin_function(tracking_return, None, 1.0, "return".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("return", ireturn).unwrap();
         iterator
     }
@@ -1299,7 +1299,7 @@ mod iterator_record {
     fn create_iterator_with_broken_return() -> Object {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let iterator = ordinary_object_create(Some(iter_proto));
-        let ireturn = create_builtin_function(invalid_return, false, 1.0, "return".into(), &[], None, None, None);
+        let ireturn = create_builtin_function(invalid_return, None, 1.0, "return".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("return", ireturn).unwrap();
         iterator
     }
@@ -1348,28 +1348,6 @@ mod iterator_record {
         setup_test_agent();
         let ir = make_ir();
         ir.concise()
-    }
-}
-
-mod iterator_next {
-    use super::iterator_record::makes_good_ir;
-    use super::*;
-    use test_case::test_case;
-
-    #[test_case(makes_good_ir, Some(ECMAScriptValue::from("Argument")) => Ok((ECMAScriptValue::from("Iterator(This)(Argument)"), ECMAScriptValue::from(false))); "next returns ir")]
-    fn call(
-        make_ir: impl FnOnce() -> IteratorRecord,
-        value: Option<ECMAScriptValue>,
-    ) -> Result<(ECMAScriptValue, ECMAScriptValue), String> {
-        setup_test_agent();
-        let ir = make_ir();
-        super::iterator_next(&ir, value)
-            .map(|val| {
-                let value = val.get(&"value".into()).unwrap();
-                let done = val.get(&"done".into()).unwrap();
-                (value, done)
-            })
-            .map_err(unwind_any_error)
     }
 }
 

@@ -1,4 +1,3 @@
-#![expect(dead_code)]
 #![expect(clippy::bool_assert_comparison)]
 #![expect(clippy::enum_variant_names)]
 #![expect(clippy::similar_names)]
@@ -84,6 +83,7 @@ use std::io::{self, Write};
 use std::rc::Rc;
 
 #[derive(Debug)]
+#[expect(dead_code)]
 struct VM {
     // Holds the state for the virtual machine. Anything shared between agents winds up here.
     symbols: Rc<RefCell<SymbolRegistry>>,

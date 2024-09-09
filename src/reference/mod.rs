@@ -268,7 +268,8 @@ pub fn get_value(v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
         NormalCompletion::IteratorRecord(_)
         | NormalCompletion::Environment(_)
         | NormalCompletion::PrivateName(_)
-        | NormalCompletion::PrivateElement(_) => {
+        | NormalCompletion::PrivateElement(_)
+        | NormalCompletion::ClassItem(_) => {
             panic!("Bad completion type for get_value: {v:?}")
         }
     }
@@ -307,7 +308,8 @@ pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScri
         NormalCompletion::IteratorRecord(_)
         | NormalCompletion::Environment(_)
         | NormalCompletion::PrivateName(_)
-        | NormalCompletion::PrivateElement(_) => {
+        | NormalCompletion::PrivateElement(_)
+        | NormalCompletion::ClassItem(_) => {
             panic!("Bad completion type for put_value: ({v:?})")
         }
         NormalCompletion::Value(_) | NormalCompletion::Empty => Err(create_reference_error("Invalid Reference")),
@@ -368,6 +370,26 @@ pub fn initialize_referenced_binding(
         },
         _ => unreachable!(),
     }
+}
+
+pub fn make_private_reference(base_value: ECMAScriptValue, private_identifier: &JSString) -> anyhow::Result<Reference> {
+    // MakePrivateReference ( baseValue, privateIdentifier )
+    // The abstract operation MakePrivateReference takes arguments baseValue (an ECMAScript language value) and
+    // privateIdentifier (a String) and returns a Reference Record. It performs the following steps when called:
+    //
+    //  1. Let privateEnv be the running execution context's PrivateEnvironment.
+    //  2. Assert: privateEnv is not null.
+    //  3. Let privateName be ResolvePrivateIdentifier(privateEnv, privateIdentifier).
+    //  4. Return the Reference Record { [[Base]]: baseValue, [[ReferencedName]]: privateName, [[Strict]]: true,
+    //     [[ThisValue]]: empty }.
+    let private_env = current_private_environment().ok_or(InternalRuntimeError::NoPrivateEnv)?;
+    let pn = private_env.borrow().resolve_private_identifier(private_identifier);
+    Ok(Reference {
+        base: Base::Value(base_value),
+        referenced_name: ReferencedName::PrivateName(pn),
+        strict: true,
+        this_value: None,
+    })
 }
 
 #[cfg(test)]

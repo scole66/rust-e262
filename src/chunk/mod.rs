@@ -142,12 +142,15 @@ impl Chunk {
             | Insn::GetLexBinding
             | Insn::InitializeVarBinding
             | Insn::SetMutableVarBinding
+            | Insn::CreatePrivateNameIfMissing
             | Insn::TargetedContinue
             | Insn::TargetedBreak
             | Insn::HandleTargetedBreak
-            | Insn::PrivateIdLookup => {
+            | Insn::PrivateIdLookup
+            | Insn::AttachSourceText
+            | Insn::MakePrivateReference => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<24}{} ({})", insn, arg, self.strings[arg]))
+                (2, format!("    {:<24}{} ({})", insn, arg, String::from(&self.strings[arg]).escape_debug()))
             }
             Insn::Float => {
                 let arg = self.opcodes[idx] as usize;
@@ -168,9 +171,11 @@ impl Chunk {
             | Insn::InstantiateGeneratorFunctionExpression
             | Insn::InstantiateOrdinaryFunctionExpression
             | Insn::EvaluateInitializedClassFieldDefinition
+            | Insn::EvaluateInitializedClassStaticFieldDefinition
             | Insn::EvaluateClassStaticBlockDefinition
             | Insn::DefineMethod
-            | Insn::DefineMethodProperty => {
+            | Insn::DefineMethodProperty
+            | Insn::AttachElements => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {insn:<24}{arg}"))
             }
@@ -186,6 +191,10 @@ impl Chunk {
             | Insn::PushNewVarEnvFromLex
             | Insn::PushNewLexEnvFromVar
             | Insn::SetLexEnvToVarEnv
+            | Insn::SetAsideLexEnv
+            | Insn::RestoreLexEnv
+            | Insn::PushNewPrivateEnv
+            | Insn::PopPrivateEnv
             | Insn::CreateDataProperty
             | Insn::SetPrototype
             | Insn::ToPropertyKey
@@ -202,6 +211,7 @@ impl Chunk {
             | Insn::GetValue
             | Insn::PutValue
             | Insn::FunctionPrototype
+            | Insn::ObjectPrototype
             | Insn::Call
             | Insn::StrictCall
             | Insn::EndFunction
@@ -267,6 +277,7 @@ impl Chunk {
             | Insn::RequireConstructor
             | Insn::Construct
             | Insn::Object
+            | Insn::ObjectWithProto
             | Insn::Array
             | Insn::IteratorAccumulate
             | Insn::IterateArguments
@@ -284,8 +295,16 @@ impl Chunk {
             | Insn::EnumerateObjectProperties
             | Insn::ListToArray
             | Insn::SetFunctionName
+            | Insn::GetParentsFromSuperclass
             | Insn::GeneratorStartFromFunction
-            | Insn::Yield => (1, format!("    {insn}")),
+            | Insn::Yield
+            | Insn::CreateDefaultConstructor
+            | Insn::MakeClassConstructorAndSetName
+            | Insn::MakeConstructor
+            | Insn::MakeConstructorWithProto
+            | Insn::SetDerived
+            | Insn::NameOnlyFieldRecord
+            | Insn::NameOnlyStaticFieldRecord => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal

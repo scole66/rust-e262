@@ -479,23 +479,6 @@ mod agent {
         String::from(super::wks(id).description().unwrap())
     }
 
-    #[test]
-    fn two_values() {
-        setup_test_agent();
-        AGENT.with(|agent| {
-            let index = agent.execution_context_stack.borrow().len() - 1;
-            agent.execution_context_stack.borrow_mut()[index]
-                .stack
-                .push(Ok(NormalCompletion::from(ECMAScriptValue::Null)));
-            agent.execution_context_stack.borrow_mut()[index]
-                .stack
-                .push(Ok(NormalCompletion::from(ECMAScriptValue::from("test"))));
-            let (left, right) = agent.two_values(index);
-            assert_eq!(left, ECMAScriptValue::Null);
-            assert_eq!(right, ECMAScriptValue::from("test"));
-        });
-    }
-
     fn no_primitive_val() -> ECMAScriptValue {
         make_test_obj_uncallable().into()
     }
@@ -774,7 +757,7 @@ fn faux_class() -> ECMAScriptValue {
     let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
     let has_instance = create_builtin_function(
         test_has_instance,
-        false,
+        None,
         1_f64,
         PropertyKey::from("[Symbol.hasInstance]"),
         BUILTIN_FUNCTION_SLOTS,
@@ -1469,7 +1452,7 @@ mod begin_call_evaluation {
     fn good_func() -> ECMAScriptValue {
         ECMAScriptValue::from(create_builtin_function(
             test_reporter,
-            false,
+            None,
             2.0,
             "test_reporter".into(),
             &[],
@@ -1713,7 +1696,7 @@ mod evaluate_initialized_class_field_definition {
         let fd = Maker::new(src).field_definition();
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
         let home = ordinary_object_create(Some(proto));
-        let name = ClassName::from("class_name");
+        let name = Some(ClassName::from("class_name"));
         let info = StashedFunctionData {
             source_text: String::new(),
             params: Rc::new(FormalParameters::Empty(Location::default())).into(),
@@ -1726,7 +1709,7 @@ mod evaluate_initialized_class_field_definition {
         let obj = evaluate_initialized_class_field_definition(&info, home.clone(), name, src).unwrap();
 
         let fdata = obj.o.to_function_obj().unwrap().function_data().borrow();
-        assert_eq!(fdata.class_field_initializer_name, ClassName::from("class_name"));
+        assert_eq!(fdata.class_field_initializer_name, Some(ClassName::from("class_name")));
         assert_eq!(fdata.home_object.as_ref().unwrap().o.id(), home.o.id());
     }
 
@@ -1741,7 +1724,7 @@ mod evaluate_initialized_class_field_definition {
         let fd = Maker::new(src).field_definition();
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
         let home = ordinary_object_create(Some(proto));
-        let name = ClassName::from("class_name");
+        let name = Some(ClassName::from("class_name"));
         let info = StashedFunctionData {
             source_text: String::new(),
             params: Rc::new(FormalParameters::Empty(Location::default())).into(),
@@ -1836,77 +1819,6 @@ mod define_method_property {
                 }
             }
         }
-    }
-}
-
-mod define_method {
-    use super::*;
-    use test_case::test_case;
-
-    fn ordinary() -> Object {
-        ordinary_object_create(None)
-    }
-    fn std_data() -> (StashedFunctionData, String) {
-        let source = String::from("bob() {}");
-        let md = Maker::new(&source).method_definition();
-        let MethodDefinition::NamedFunction(_name, params, body, _) = md.as_ref() else { panic!() };
-        let data = StashedFunctionData {
-            source_text: source.clone(),
-            params: ParamSource::from(params.clone()),
-            body: BodySource::from(body.clone()),
-            to_compile: FunctionSource::from(md.clone()),
-            strict: false,
-            this_mode: ThisLexicality::NonLexicalThis,
-        };
-        (data, source)
-    }
-    fn fcn_too_big() -> (StashedFunctionData, String) {
-        let source = String::from("bob() {while (true) {@@@;}}");
-        let md = Maker::new(&source).method_definition();
-        let MethodDefinition::NamedFunction(_name, params, body, _) = md.as_ref() else { panic!() };
-        let data = StashedFunctionData {
-            source_text: source.clone(),
-            params: ParamSource::from(params.clone()),
-            body: BodySource::from(body.clone()),
-            to_compile: FunctionSource::from(md.clone()),
-            strict: false,
-            this_mode: ThisLexicality::NonLexicalThis,
-        };
-        (data, source)
-    }
-    fn not_named_method() -> (StashedFunctionData, String) {
-        let source = String::from("get bob() {}");
-        let md = Maker::new(&source).method_definition();
-        let MethodDefinition::Getter(_name, body, _) = md.as_ref() else { panic!() };
-        let data = StashedFunctionData {
-            source_text: source.clone(),
-            params: ParamSource::from(Maker::new("").unique_formal_parameters()),
-            body: BodySource::from(body.clone()),
-            to_compile: FunctionSource::from(md.clone()),
-            strict: false,
-            this_mode: ThisLexicality::NonLexicalThis,
-        };
-        (data, source)
-    }
-
-    #[test_case(ordinary, || None, std_data => sok("length:0"); "typical")]
-    #[test_case(ordinary, || None, fcn_too_big => serr("out of range integral type conversion attempted"); "function compilation fails")]
-    #[test_case(ordinary, || None, not_named_method => panics "entered unreachable code"; "reach the unreachable")]
-    fn f(
-        make_object: impl FnOnce() -> Object,
-        make_proto: impl FnOnce() -> Option<Object>,
-        make_info: impl FnOnce() -> (StashedFunctionData, String),
-    ) -> Result<String, String> {
-        setup_test_agent();
-        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
-        set_lexical_environment(Some(env));
-
-        let object = make_object();
-        let prototype = make_proto();
-        let (info, src) = make_info();
-        define_method(object, prototype, &info, &src)
-            .map_err(|e| e.to_string())
-            .map(|obj| ECMAScriptValue::from(obj).test_result_string())
     }
 }
 

@@ -1405,7 +1405,7 @@ fn to_string_10() {
     setup_test_agent();
     let obj = ordinary_object_create(None);
     let badtostring =
-        create_builtin_function(tostring_symbol, false, 0_f64, PropertyKey::from("toString"), &[], None, None, None);
+        create_builtin_function(tostring_symbol, None, 0_f64, PropertyKey::from("toString"), &[], None, None, None);
     obj.create_data_property("toString", badtostring).unwrap();
 
     let result = to_string(ECMAScriptValue::from(obj)).unwrap_err();
@@ -1549,7 +1549,7 @@ fn make_test_obj(valueof: FauxKind, tostring: FauxKind) -> Object {
         let key = PropertyKey::from(name);
         let fcn = create_builtin_function(
             steps,
-            false,
+            None,
             length,
             key.clone(),
             BUILTIN_FUNCTION_SLOTS,
@@ -1601,7 +1601,7 @@ pub fn make_tostring_getter_error() -> Object {
     let key = PropertyKey::from("valueOf");
     let fcn = create_builtin_function(
         faux_makes_number,
-        false,
+        None,
         0_f64,
         key.clone(),
         BUILTIN_FUNCTION_SLOTS,
@@ -1625,7 +1625,7 @@ pub fn make_tostring_getter_error() -> Object {
     let key = PropertyKey::from("toString");
     let tostring_getter = create_builtin_function(
         faux_errors,
-        false,
+        None,
         0_f64,
         key.clone(),
         BUILTIN_FUNCTION_SLOTS,
@@ -1812,7 +1812,7 @@ fn make_toprimitive_obj(
     let key = PropertyKey::from(wks(WksId::ToPrimitive));
     let fcn = create_builtin_function(
         steps,
-        false,
+        None,
         1_f64,
         key.clone(),
         BUILTIN_FUNCTION_SLOTS,
@@ -1893,7 +1893,7 @@ fn to_primitive_exotic_getter_throws() {
     let key = PropertyKey::from(wks(WksId::ToPrimitive));
     let toprim_getter = create_builtin_function(
         faux_errors,
-        false,
+        None,
         0_f64,
         key.clone(),
         BUILTIN_FUNCTION_SLOTS,
@@ -2194,9 +2194,6 @@ mod agent {
     fn string_a() -> ECMAScriptValue {
         ECMAScriptValue::from("A")
     }
-    fn string_b() -> ECMAScriptValue {
-        ECMAScriptValue::from("B")
-    }
     fn string_10() -> ECMAScriptValue {
         "10".into()
     }
@@ -2209,26 +2206,11 @@ mod agent {
     fn symbol_a() -> ECMAScriptValue {
         wks(WksId::ToPrimitive).into()
     }
-    fn symbol_b() -> ECMAScriptValue {
-        wks(WksId::HasInstance).into()
-    }
-    fn object_a() -> ECMAScriptValue {
-        intrinsic(IntrinsicId::FunctionPrototype).into()
-    }
-    fn object_b() -> ECMAScriptValue {
-        intrinsic(IntrinsicId::ObjectPrototype).into()
-    }
     fn number_10() -> ECMAScriptValue {
         10.into()
     }
-    fn number_100() -> ECMAScriptValue {
-        100.into()
-    }
     fn number_zero() -> ECMAScriptValue {
         0.into()
-    }
-    fn number_neg_zero() -> ECMAScriptValue {
-        (-0.0).into()
     }
     fn number_nan() -> ECMAScriptValue {
         f64::NAN.into()
@@ -2241,9 +2223,6 @@ mod agent {
     }
     fn bigint_a() -> ECMAScriptValue {
         BigInt::from(10).into()
-    }
-    fn bigint_b() -> ECMAScriptValue {
-        BigInt::from(-1_097_631).into()
     }
     fn dead_object() -> ECMAScriptValue {
         DeadObject::object().into()
@@ -2260,7 +2239,7 @@ mod agent {
         let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
         let to_prim_func = create_builtin_function(
             returns_10,
-            false,
+            None,
             0_f64,
             to_primitive.clone().into(),
             BUILTIN_FUNCTION_SLOTS,

@@ -463,7 +463,7 @@ fn error_constructor_function_03() {
 
 #[test]
 fn error_constructor_throws() {
-    // ordinary_create_from_contructor throws.
+    // ordinary_create_from_constructor throws.
     // This looks to be difficult to make happen, but I can imagine some class shenanigans that could do it.
     setup_test_agent();
     let error_constructor = intrinsic(IntrinsicId::Error);

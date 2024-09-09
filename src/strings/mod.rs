@@ -154,6 +154,7 @@ impl std::cmp::PartialEq<&str> for JSString {
 //  1. Assert: lead is a leading surrogate and trail is a trailing surrogate.
 //  2. Let cp be (lead - 0xD800) × 0x400 + (trail - 0xDC00) + 0x10000.
 //  3. Return the code point cp.
+#[allow(dead_code)]
 fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
     let cp: u32 = u32::from(lead - 0xD800) * 0x400 + u32::from(trail - 0xDC00) + 0x10000;
     cp
@@ -179,11 +180,13 @@ fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
 //  9. Set cp to ! UTF16SurrogatePairToCodePoint(first, second).
 //  10. Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 2, [[IsUnpairedSurrogate]]: false }.
 #[derive(PartialEq, Eq)]
+#[allow(dead_code)]
 struct CodePointAtResult {
     code_point: u32,
     code_unit_count: u8,
     is_unpaired_surrogate: bool,
 }
+#[allow(dead_code)]
 fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
     let size = string.len();
     let first = string[position];
@@ -218,6 +221,7 @@ fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
 //      c. Set position to position + cp.[[CodeUnitCount]].
 //  5. Return codePoints.
 impl JSString {
+    #[allow(dead_code)]
     fn to_code_points(&self) -> Vec<u32> {
         // Note that this happily glosses over encoding errors. Storing in a Vec<u32> for now.
         let size = self.len();
