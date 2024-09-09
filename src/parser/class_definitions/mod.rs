@@ -459,7 +459,7 @@ impl ClassTail {
 //      extends LeftHandSideExpression[?Yield, ?Await]
 #[derive(Debug)]
 pub struct ClassHeritage {
-    exp: Rc<LeftHandSideExpression>,
+    pub exp: Rc<LeftHandSideExpression>,
     location: Location,
 }
 
