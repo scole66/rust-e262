@@ -2201,7 +2201,7 @@ fn for_in_of_statement_test_contains_duplicate_labels() {
     for_in_of_cdl_check("for await(let a of b){t:;}");
 }
 
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)]
 mod for_in_of_statement {
     use super::*;
     use test_case::test_case;

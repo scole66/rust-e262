@@ -28,7 +28,7 @@ fn data_property_eq() {
     }
 }
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn data_property_clone() {
     let p1 = DataProperty { value: ECMAScriptValue::from("blue"), writable: true };
     let p2 = p1.clone();
@@ -61,7 +61,7 @@ fn accessor_property_eq() {
     }
 }
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn accessor_property_clone() {
     let p1 = AccessorProperty { get: ECMAScriptValue::from(10), set: ECMAScriptValue::from("a") };
     let p2 = p1.clone();
@@ -97,7 +97,7 @@ fn property_kind_eq() {
     }
 }
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn property_kind_clone() {
     let pk1 = PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: true });
     let pk2 = pk1.clone();
@@ -171,7 +171,7 @@ mod property_descriptor {
         }
     }
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let p1 = PropertyDescriptor {
             property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(true), writable: false }),
@@ -496,7 +496,7 @@ mod potential_property_descriptor {
         }
     }
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let ppd1 = PotentialPropertyDescriptor {
             value: Some(ECMAScriptValue::from(true)),
@@ -753,7 +753,7 @@ mod ordinary_set_prototype_of {
     use super::*;
     use test_case::test_case;
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -899,7 +899,7 @@ mod ordinary_prevent_extensions {
     use super::*;
     use test_case::test_case;
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -998,7 +998,7 @@ mod ordinary_define_own_property {
     use super::*;
     use test_case::test_case;
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -1329,7 +1329,7 @@ impl Default for Stage {
         Self::Data
     }
 }
-#[allow(clippy::struct_excessive_bools)]
+#[expect(clippy::struct_excessive_bools)]
 #[derive(Default)]
 struct VAPDIter {
     value: u8,
@@ -1679,7 +1679,7 @@ mod ordinary_has_property {
     use super::*;
     use test_case::test_case;
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -1816,7 +1816,7 @@ mod ordinary_get {
         let key = PropertyKey::from("test_key");
         (obj, key, ECMAScriptValue::Undefined)
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn steps(
         this_value: &ECMAScriptValue,
         _: Option<&Object>,
@@ -1966,7 +1966,7 @@ mod ordinary_set {
     use super::*;
     use test_case::test_case;
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -2363,7 +2363,7 @@ mod ordinary_delete {
     use super::*;
     use test_case::test_case;
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -2485,7 +2485,7 @@ mod ordinary_own_property_keys {
     use super::*;
     use test_case::test_case;
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn steps(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -3487,7 +3487,7 @@ mod enumerable_own_property_names {
         obj.create_data_property_or_throw("one", 1.0).unwrap();
         obj
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
@@ -3590,7 +3590,7 @@ mod set_integrity_level {
         obj.create_data_property_or_throw("one", 1.0).unwrap();
         obj
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
@@ -3772,7 +3772,7 @@ mod internal_slot_name {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let a = InternalSlotName::Extensible;
         let b = a.clone();
@@ -4259,7 +4259,7 @@ mod object {
         use super::*;
         use test_case::test_case;
 
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec!["one".into(), "two".into(), "three".into()])
         }
@@ -4401,7 +4401,7 @@ mod test_integrity_level {
         obj.o.prevent_extensions().unwrap();
         obj
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }

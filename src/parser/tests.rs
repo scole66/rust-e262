@@ -1,4 +1,4 @@
-#![allow(clippy::clone_on_copy)]
+#![expect(clippy::clone_on_copy)]
 use super::*;
 use crate::testhelp::*;
 use crate::tests::*;
@@ -121,7 +121,7 @@ mod pe_code {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let code_a = PECode::TryBlockError;
         let code_b = code_a.clone();
@@ -880,7 +880,7 @@ mod parse_error {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let e1 = ParseError::new(PECode::Generic, 1);
         let e2 = ParseError::new(PECode::OneOfKeywordExpected(vec![Keyword::For, Keyword::Const]), 1);
@@ -1057,7 +1057,7 @@ mod await_allowed {
     use test_case::test_case;
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = AwaitAllowed::Yes;
         let duplicate = item.clone();
@@ -1088,7 +1088,7 @@ mod yield_allowed {
     use test_case::test_case;
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = YieldAllowed::Yes;
         let duplicate = item.clone();

@@ -185,7 +185,7 @@ mod let_or_const {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = LetOrConst::Let;
         let duplicate = item.clone();

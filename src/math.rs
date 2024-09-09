@@ -489,7 +489,7 @@ fn math_floor(
     Ok(args.next_arg().to_number()?.floor().into())
 }
 
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 fn math_fround(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -751,7 +751,7 @@ fn math_pow(
     Ok(exponentiate(base, exponent).into())
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn math_random(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,

@@ -83,7 +83,7 @@ pub fn ssome(item: &str) -> Option<String> {
 /// Tagged       | `false`
 /// In           | `true`
 /// Default      | `true`
-#[allow(clippy::struct_excessive_bools)]
+#[expect(clippy::struct_excessive_bools)]
 pub struct Maker<'a> {
     source: &'a str,
     yield_flag: bool,

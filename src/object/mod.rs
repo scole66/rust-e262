@@ -467,7 +467,7 @@ fn ospo_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> bool {
         return false;
     }
     let mut p = val.clone();
-    #[allow(clippy::assigning_clones)] // clippy is actually _wrong_ here.
+    #[expect(clippy::assigning_clones)] // clippy is actually _wrong_ here.
     while let Some(pp) = p {
         if pp.o.id() == obj.id() {
             return false;
@@ -2730,7 +2730,6 @@ pub fn private_method_or_accessor_add(obj: &Object, method: PrivateElement) -> C
     }
 }
 
-#[allow(unused_variables)]
 pub fn define_field(obj: &Object, field: &ClassFieldDefinitionRecord) -> Completion<()> {
     // DefineField ( receiver, fieldRecord )
     // The abstract operation DefineField takes arguments receiver (an Object) and fieldRecord (a ClassFieldDefinition

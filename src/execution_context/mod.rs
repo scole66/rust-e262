@@ -93,7 +93,7 @@ impl std::fmt::Debug for ExecutionContext {
 }
 
 impl ExecutionContext {
-    #[allow(unused_variables)]
+    #[expect(unused_variables)]
     pub fn new(function: Option<Object>, realm: Rc<RefCell<Realm>>, script_or_module: Option<ScriptOrModule>) -> Self {
         let chunk = match &script_or_module {
             None => None,

@@ -1044,7 +1044,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(clippy::cast_possible_wrap)]
     pub fn jump_if_abrupt(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any completion (NOT CONSUMED)
         // Output: nothing
@@ -1055,7 +1055,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(clippy::cast_possible_wrap)]
     pub fn jump_if_normal(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any completion (NOT CONSUMED)
         // Output: nothing
@@ -1066,7 +1066,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(clippy::cast_possible_wrap)]
     pub fn jump_referencing_bool(bool_match: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
         // Output: nothing
@@ -1078,7 +1078,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(clippy::cast_possible_wrap)]
     pub fn jump_taking_bool(bool_match: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any value
         // Output: nothing
@@ -1090,7 +1090,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(clippy::cast_possible_wrap)]
     pub fn jump_nullishness(nullish: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
         // Output: nothing
@@ -1102,7 +1102,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(clippy::cast_possible_wrap)]
     pub fn jump_undefness(undef: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
         // Output: nothing
@@ -1114,7 +1114,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(clippy::cast_possible_wrap)]
     pub fn jump_throwyness(throw: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
         // Output: nothing
@@ -1126,7 +1126,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(clippy::cast_possible_wrap)]
     pub fn jump(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: nothing
         // Output: nothing
@@ -1780,7 +1780,7 @@ mod insn_impl {
         let len_b = pop_usize()?;
         let new_len = len_a + len_b;
         assert!(new_len < 1 << 53);
-        #[allow(clippy::cast_precision_loss)]
+        #[expect(clippy::cast_precision_loss)]
         push_completion(Ok((new_len as f64).into())).expect(PUSHABLE);
         Ok(())
     }
