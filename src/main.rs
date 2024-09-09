@@ -83,7 +83,7 @@ use std::io::{self, Write};
 use std::rc::Rc;
 
 #[derive(Debug)]
-#[allow(dead_code)]
+#[expect(dead_code)]
 struct VM {
     // Holds the state for the virtual machine. Anything shared between agents winds up here.
     symbols: Rc<RefCell<SymbolRegistry>>,

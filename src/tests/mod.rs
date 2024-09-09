@@ -100,7 +100,7 @@ pub fn unwind_type_error(completion: AbruptCompletion) -> String {
     unwind_error("TypeError", completion)
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 pub fn unwind_syntax_error(completion: AbruptCompletion) -> String {
     unwind_error("SyntaxError", completion)
 }
@@ -113,7 +113,7 @@ pub fn unwind_reference_error(completion: AbruptCompletion) -> String {
     unwind_error("ReferenceError", completion)
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 pub fn unwind_reference_error_object(err: &Object) -> String {
     unwind_error_object("ReferenceError", err)
 }
@@ -122,7 +122,7 @@ pub fn unwind_range_error(completion: AbruptCompletion) -> String {
     unwind_error("RangeError", completion)
 }
 
-#[allow(dead_code)]
+#[expect(dead_code)]
 pub fn unwind_range_error_object(err: &Object) -> String {
     unwind_error_object("RangeError", err)
 }

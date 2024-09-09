@@ -430,7 +430,7 @@ mod never_abrupt_ref_result {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = NeverAbruptRefResult {};
         let cloned = item.clone();

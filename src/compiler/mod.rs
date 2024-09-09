@@ -6027,7 +6027,7 @@ impl ForStatement {
 }
 
 #[derive(Copy, Clone)]
-#[allow(dead_code)] // AsyncIterate will come
+#[allow(dead_code)]  // AsyncIterate will come
 enum IterationKind {
     Enumerate,
     Iterate,
@@ -9708,7 +9708,6 @@ impl FunctionStatementList {
 }
 
 impl ClassDeclaration {
-    #[allow(unused_variables)]
     fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: Evaluation
         // ClassDeclaration : class BindingIdentifier ClassTail
@@ -10144,7 +10143,7 @@ impl ClassTail {
 }
 
 impl ClassHeritage {
-    #[allow(unused_variables)]
+    #[expect(unused_variables)]
     fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         todo!()
     }
