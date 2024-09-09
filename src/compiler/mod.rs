@@ -6027,7 +6027,7 @@ impl ForStatement {
 }
 
 #[derive(Copy, Clone)]
-#[allow(dead_code)]  // AsyncIterate will come
+#[allow(dead_code)] // AsyncIterate will come
 enum IterationKind {
     Enumerate,
     Iterate,
