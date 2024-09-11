@@ -12577,7 +12577,7 @@ mod method_definition {
         "get a(){}", true, &[], false => Ok(svec(&["STRING 0 (a)", "DEF_GETTER 0 hidden"])); "getter, not enumerable"
     )]
     #[test_case("set a(b){}", true, &[], true => Ok(svec(&["STRING 0 (a)", "DEF_SETTER 0 enumerable"])); "setter")]
-    #[test_case("*a(){}", true, &[], true => panics "not yet implemented"; "generator")]
+    #[test_case("*a(){}", true, &[], true => Ok(svec(&["STRING 0 (a)", "GEN_METHOD 0 enumerable"])); "generator")]
     #[test_case("async a(){}", true, &[], true => panics "not yet implemented"; "async function")]
     #[test_case("async *a(){}", true, &[], true => panics "not yet implemented"; "async generator")]
     fn method_definition_evaluation(
