@@ -123,6 +123,7 @@ pub enum Insn {
     InstantiateGeneratorFunctionExpression,
     InstantiateOrdinaryFunctionObject,
     InstantiateGeneratorFunctionObject,
+    InstantiateGeneratorMethod,
     GeneratorStartFromFunction,
     Yield,
     LeftShift,
@@ -308,6 +309,7 @@ impl fmt::Display for Insn {
             Insn::InstantiateGeneratorFunctionExpression => "FUNC_GENE",
             Insn::InstantiateOrdinaryFunctionObject => "FUNC_OBJ",
             Insn::InstantiateGeneratorFunctionObject => "FUNC_GENO",
+            Insn::InstantiateGeneratorMethod => "GEN_METHOD",
             Insn::GeneratorStartFromFunction => "GEN_START",
             Insn::Yield => "YIELD",
             Insn::LeftShift => "LSH",
@@ -9690,17 +9692,6 @@ impl FunctionBody {
     }
 }
 
-impl GeneratorBody {
-    pub fn compile_body(
-        &self,
-        chunk: &mut Chunk,
-        text: &str,
-        info: &StashedFunctionData,
-    ) -> anyhow::Result<AbruptResult> {
-        self.0.compile_body(chunk, text, info)
-    }
-}
-
 impl FunctionStatementList {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         match self {
@@ -10605,7 +10596,7 @@ impl MethodDefinition {
 
                 Ok(AlwaysAbruptResult)
             }
-            MethodDefinition::Generator(_) => todo!(),
+            MethodDefinition::Generator(gen) => gen.method_definition_evaluation(enumerable, chunk, strict, text),
             MethodDefinition::Async(_) => todo!(),
             MethodDefinition::AsyncGenerator(_) => todo!(),
             MethodDefinition::Getter(name, body, location) => {
@@ -10837,6 +10828,68 @@ impl GeneratorDeclaration {
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_two_args(Insn::InstantiateGeneratorFunctionObject, name_id, func_id);
+        Ok(AlwaysAbruptResult)
+    }
+}
+
+impl GeneratorMethod {
+    fn method_definition_evaluation(
+        self: &Rc<Self>,
+        enumerable: bool,
+        chunk: &mut Chunk,
+        strict: bool,
+        text: &str,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: MethodDefinitionEvaluation
+        // The syntax-directed operation MethodDefinitionEvaluation takes arguments object (an Object) and enumerable (a
+        // Boolean) and returns either a normal completion containing either a PrivateElement or unused, or an abrupt
+        // completion.
+        //
+        // GeneratorMethod : * ClassElementName ( UniqueFormalParameters ) { GeneratorBody }
+        //  1. Let propKey be ? Evaluation of ClassElementName.
+        //  2. Let env be the running execution context's LexicalEnvironment.
+        //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+        //  4. Let sourceText be the source text matched by GeneratorMethod.
+        //  5. Let closure be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, UniqueFormalParameters,
+        //     GeneratorBody, non-lexical-this, env, privateEnv).
+        //  6. Perform MakeMethod(closure, object).
+        //  7. Perform SetFunctionName(closure, propKey).
+        //  8. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
+        //  9. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: prototype,
+        //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+        //  10. Return ? DefineMethodProperty(object, propKey, closure, enumerable).
+
+        // start:                             obj
+        //   <cen.evaluate>                   err/name obj
+        //   JUMP_IF_ABRUPT unwind_1          name obj
+        //   GEN_METHOD(enumerable)           err/empty/private_element
+        //   JUMP exit
+        // unwind_1:
+        //   UNWIND 1
+        // exit:
+
+        let name_status = self.name.compile(chunk, strict, text)?;
+        let unwind = if name_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        let span = self.location().span;
+        let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
+        let params = ParamSource::from(Rc::clone(&self.params));
+        let body = BodySource::from(Rc::clone(&self.body));
+        let function_data = StashedFunctionData {
+            source_text,
+            params,
+            body,
+            strict,
+            to_compile: FunctionSource::from(self.clone()),
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+        let func_id = chunk.add_to_func_stash(function_data)?;
+        chunk.op_plus_two_args(Insn::InstantiateGeneratorMethod, func_id, u16::from(enumerable));
+        if let Some(unwind) = unwind {
+            let exit = chunk.op_jump(Insn::Jump);
+            chunk.fixup(unwind).expect("jump too short to fail");
+            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.fixup(exit).expect("jump too short to fail");
+        }
         Ok(AlwaysAbruptResult)
     }
 }

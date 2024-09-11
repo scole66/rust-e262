@@ -497,6 +497,7 @@ pub enum FunctionSource {
     ClassStaticBlock(Rc<ClassStaticBlock>),
     FunctionDeclaration(Rc<FunctionDeclaration>),
     GeneratorDeclaration(Rc<GeneratorDeclaration>),
+    GeneratorMethod(Rc<GeneratorMethod>),
 }
 
 impl fmt::Display for FunctionSource {
@@ -514,6 +515,7 @@ impl fmt::Display for FunctionSource {
             FunctionSource::ClassStaticBlock(node) => node.fmt(f),
             FunctionSource::FunctionDeclaration(node) => node.fmt(f),
             FunctionSource::GeneratorDeclaration(node) => node.fmt(f),
+            FunctionSource::GeneratorMethod(node) => node.fmt(f),
         }
     }
 }
@@ -533,6 +535,7 @@ impl PartialEq for FunctionSource {
             (Self::ClassStaticBlock(l0), Self::ClassStaticBlock(r0)) => Rc::ptr_eq(l0, r0),
             (Self::FunctionDeclaration(l0), Self::FunctionDeclaration(r0)) => Rc::ptr_eq(l0, r0),
             (Self::GeneratorDeclaration(l0), Self::GeneratorDeclaration(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::GeneratorMethod(l0), Self::GeneratorMethod(r0)) => Rc::ptr_eq(l0, r0),
             (
                 Self::FunctionExpression(_)
                 | Self::GeneratorExpression(_)
@@ -545,7 +548,8 @@ impl PartialEq for FunctionSource {
                 | Self::FieldDefinition(_)
                 | Self::ClassStaticBlock(_)
                 | Self::FunctionDeclaration(_)
-                | Self::GeneratorDeclaration(_),
+                | Self::GeneratorDeclaration(_)
+                | Self::GeneratorMethod(_),
                 _,
             ) => false,
         }
@@ -589,6 +593,11 @@ impl From<Rc<MethodDefinition>> for FunctionSource {
 impl From<Rc<GeneratorDeclaration>> for FunctionSource {
     fn from(value: Rc<GeneratorDeclaration>) -> Self {
         Self::GeneratorDeclaration(value)
+    }
+}
+impl From<Rc<GeneratorMethod>> for FunctionSource {
+    fn from(value: Rc<GeneratorMethod>) -> Self {
+        Self::GeneratorMethod(value)
     }
 }
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
@@ -638,6 +647,16 @@ impl TryFrom<FunctionSource> for Rc<GeneratorDeclaration> {
         match value {
             FunctionSource::GeneratorDeclaration(fd) => Ok(fd),
             _ => bail!("GeneratorDeclaration expected"),
+        }
+    }
+}
+impl TryFrom<FunctionSource> for Rc<GeneratorMethod> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::GeneratorMethod(gm) => Ok(gm),
+            _ => bail!("GeneratorMethod expected"),
         }
     }
 }
@@ -2405,7 +2424,7 @@ pub fn create_dynamic_function(
     };
     let compilation_status = match &body {
         BodySource::Function(fb) => fb.compile_body(&mut compiled, &source_text, &function_data),
-        BodySource::Generator(gb) => gb.compile_body(&mut compiled, &source_text, &function_data),
+        BodySource::Generator(gb) => gb.evaluate_generator_body(&mut compiled, &source_text, &function_data),
         BodySource::AsyncFunction(_) => todo!(),
         BodySource::AsyncGenerator(_) => todo!(),
         _ => unreachable!(),

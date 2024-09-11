@@ -2150,7 +2150,7 @@ mod insn_impl {
             info.to_compile.clone().try_into().context("finding function compilation source")?;
         let chunk_name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(chunk_name);
-        let compilation_status = to_compile.body.compile_body(&mut compiled, text, info);
+        let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, text, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
             let _ = pop_completion()?;
@@ -2186,6 +2186,80 @@ mod insn_impl {
         )
         .expect("defining properties on an algorithmically generated object should work");
         push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+    pub fn instantiate_generator_method(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
+        // Input: Operand: function chunk id
+        // Input: Operand: enumerable boolean
+        // Input: Stack: propKey object
+        // Output: empty/private_element
+
+        // From MethodDefinitionEvaluation for GeneratorMethod
+        //  2. Let env be the running execution context's LexicalEnvironment.
+        //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+        //  4. Let sourceText be the source text matched by GeneratorMethod.
+        //  5. Let closure be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, UniqueFormalParameters,
+        //     GeneratorBody, non-lexical-this, env, privateEnv).
+        //  6. Perform MakeMethod(closure, object).
+        //  7. Perform SetFunctionName(closure, propKey).
+        //  8. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
+        //  9. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: prototype,
+        //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+        //  10. Return ? DefineMethodProperty(object, propKey, closure, enumerable).
+
+        let info = sfd_operand(chunk)?;
+        let enumerable = operand(chunk)? != 0;
+        let prop_key = pop_key()?;
+        let object = pop_obj()?;
+
+        let to_compile: Rc<GeneratorMethod> =
+            info.to_compile.clone().try_into().context("finding generator method compilation source")?;
+        let chunk_name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(chunk_name);
+        let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, text, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        for line in compiled.disassemble() {
+            println!("{line}");
+        }
+
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let priv_env = current_private_environment();
+        let generator_function_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototype);
+
+        let closure = ordinary_function_create(
+            generator_function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+
+        make_method(
+            closure.o.to_function_obj().expect("a closure we just created should be a function object"),
+            object.clone(),
+        );
+        super::set_function_name(&closure, FunctionName::from(prop_key.clone()), None);
+        let generator_function_prototype_prototype: Object =
+            intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
+        let prototype = ordinary_object_create(Some(generator_function_prototype_prototype));
+        define_property_or_throw(
+            &closure,
+            "prototype",
+            PotentialPropertyDescriptor::new().value(prototype).writable(true).enumerable(false).configurable(false),
+        )
+        .expect("defining properties on an algorithmically generated object should work");
+
+        let result = super::define_method_property(&object, FunctionName::from(prop_key), closure, enumerable);
+
+        push_completion(Ok(NormalCompletion::from(result))).expect(PUSHABLE);
         Ok(())
     }
     pub fn throw() -> anyhow::Result<()> {
@@ -3639,6 +3713,7 @@ pub async fn execute(
             Insn::InstantiateGeneratorFunctionObject => {
                 insn_impl::instantiate_generator_function_object(&chunk, &text).expect(GOODCODE);
             }
+            Insn::InstantiateGeneratorMethod => insn_impl::instantiate_generator_method(&chunk, &text).expect(GOODCODE),
             Insn::LeftShift => insn_impl::binary_operation(BinOp::LeftShift).expect(GOODCODE),
             Insn::SignedRightShift => insn_impl::binary_operation(BinOp::SignedRightShift).expect(GOODCODE),
             Insn::UnsignedRightShift => insn_impl::binary_operation(BinOp::UnsignedRightShift).expect(GOODCODE),
