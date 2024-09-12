@@ -728,6 +728,10 @@ pub enum InternalRuntimeError {
     AccessorElementExpected,
     #[error("PrivateElement improperly constructed")]
     ImproperPrivateElement,
+    #[error("function environment expected")]
+    FunctionEnvironmentExpected,
+    #[error("[[GetPrototypeOf]] failed when the spec says it shouldn't")]
+    GetPrototypeOfFailed,
 }
 mod insn_impl {
     use super::*;
@@ -3509,6 +3513,30 @@ mod insn_impl {
         push_completion(Ok(NormalCompletion::from(reference))).expect(PUSHABLE);
         Ok(())
     }
+
+    pub fn get_new_target() -> anyhow::Result<()> {
+        // Input: nothing
+        // Output: Stack: newTarget
+        push_value(ECMAScriptValue::from(super::get_new_target()?))
+    }
+
+    pub fn get_super_constructor() -> anyhow::Result<()> {
+        // Input: nothing
+        // Output Stack: func
+        push_value(super::get_super_constructor()?)
+    }
+
+    pub fn constructor_check() -> anyhow::Result<()> {
+        // Input: value
+        // Output: err/value
+        let value = pop_value()?;
+        if value.is_constructor() {
+            push_value(value).expect(PUSHABLE);
+        } else {
+            push_completion(Err(create_type_error("constructor required"))).expect(PUSHABLE);
+        }
+        Ok(())
+    }
 }
 
 pub fn execute_synchronously(text: &str) -> Completion<ECMAScriptValue> {
@@ -3784,6 +3812,9 @@ pub async fn execute(
             Insn::NameOnlyFieldRecord => insn_impl::name_only_field_record(Static::No).expect(GOODCODE),
             Insn::NameOnlyStaticFieldRecord => insn_impl::name_only_field_record(Static::Yes).expect(GOODCODE),
             Insn::MakePrivateReference => insn_impl::make_private_reference(&chunk).expect(GOODCODE),
+            Insn::GetNewTarget => insn_impl::get_new_target().expect(GOODCODE),
+            Insn::GetSuperConstructor => insn_impl::get_super_constructor().expect(GOODCODE),
+            Insn::ConstructorCheck => insn_impl::constructor_check().expect(GOODCODE),
         }
     }
 

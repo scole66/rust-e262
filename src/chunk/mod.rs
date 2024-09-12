@@ -304,7 +304,10 @@ impl Chunk {
             | Insn::MakeConstructorWithProto
             | Insn::SetDerived
             | Insn::NameOnlyFieldRecord
-            | Insn::NameOnlyStaticFieldRecord => (1, format!("    {insn}")),
+            | Insn::NameOnlyStaticFieldRecord
+            | Insn::GetNewTarget
+            | Insn::GetSuperConstructor
+            | Insn::ConstructorCheck => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal

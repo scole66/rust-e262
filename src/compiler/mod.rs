@@ -195,6 +195,9 @@ pub enum Insn {
     NameOnlyFieldRecord,
     NameOnlyStaticFieldRecord,
     MakePrivateReference,
+    GetNewTarget,
+    GetSuperConstructor,
+    ConstructorCheck,
 }
 
 impl fmt::Display for Insn {
@@ -381,6 +384,9 @@ impl fmt::Display for Insn {
             Insn::NameOnlyFieldRecord => "NAME_ONLY_FIELD_REC",
             Insn::NameOnlyStaticFieldRecord => "NAME_ONLY_STATIC_FIELD",
             Insn::MakePrivateReference => "PRIVATE_REF",
+            Insn::GetNewTarget => "GET_NEW_TARGET",
+            Insn::GetSuperConstructor => "GET_SUPER_CSTR",
+            Insn::ConstructorCheck => "CSTR_CHECK",
         })
     }
 }
@@ -11007,6 +11013,15 @@ impl SuperCall {
         // unwind_2:
         //   UNWIND 2
         // exit:
+        chunk.op(Insn::GetNewTarget);
+        chunk.op(Insn::GetSuperConstructor);
+        let args_status = self.arguments.argument_list_evaluation(chunk, strict, text)?;
+        let unwind2 = if args_status.maybe_abrupt() {
+            Some(chunk.op_jump(Insn::JumpIfAbrupt))
+        } else {
+            None
+        };
+        
         todo!()
     }
 }
