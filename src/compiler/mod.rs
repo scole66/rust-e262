@@ -11016,13 +11016,27 @@ impl SuperCall {
         chunk.op(Insn::GetNewTarget);
         chunk.op(Insn::GetSuperConstructor);
         let args_status = self.arguments.argument_list_evaluation(chunk, strict, text)?;
-        let unwind2 = if args_status.maybe_abrupt() {
-            Some(chunk.op_jump(Insn::JumpIfAbrupt))
-        } else {
-            None
-        };
-        
-        todo!()
+        let unwind2 = if args_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        chunk.op_plus_arg(Insn::RotateListDown, 2);
+        chunk.op(Insn::ConstructorCheck);
+        let unwind1 = chunk.op_jump(Insn::JumpIfAbrupt);
+        chunk.op(Insn::Swap);
+        chunk.op_plus_arg(Insn::RotateListUp, 2);
+        chunk.op(Insn::Construct);
+        let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+        chunk.op(Insn::BindThisAndInit);
+        let exit2 = chunk.op_jump(Insn::Jump);
+        chunk.fixup(unwind1).expect("jump too short to fail");
+        chunk.op(Insn::UnwindList);
+        chunk.op_plus_arg(Insn::Unwind, 1);
+        if let Some(unwind) = unwind2 {
+            let exit3 = chunk.op_jump(Insn::Jump);
+            chunk.fixup(unwind).expect("jump too short to fail");
+            chunk.op_plus_arg(Insn::Unwind, 2);
+            chunk.fixup(exit3).expect("jump in range");
+        }
+        chunk.fixup(exit2).expect("jump in range");
+        chunk.fixup(exit).expect("jump in range");
     }
 }
 

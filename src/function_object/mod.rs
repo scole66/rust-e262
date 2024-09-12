@@ -2640,7 +2640,7 @@ pub fn get_super_constructor() -> Result<ECMAScriptValue, InternalRuntimeError> 
     // GetSuperConstructor ( )
     // The abstract operation GetSuperConstructor takes no arguments and returns an ECMAScript language value. It
     // performs the following steps when called:
-    // 
+    //
     // 1. Let envRec be GetThisEnvironment().
     // 2. Assert: envRec is a Function Environment Record.
     // 3. Let activeFunction be envRec.[[FunctionObject]].
@@ -2650,7 +2650,8 @@ pub fn get_super_constructor() -> Result<ECMAScriptValue, InternalRuntimeError> 
     let env_rec = get_this_environment();
     let fer: &FunctionEnvironmentRecord = TryFrom::try_from(&env_rec)?;
     let active_function = fer.get_function_object().ok_or(InternalRuntimeError::FunctionExpected)?;
-    let super_constructor = active_function.o.get_prototype_of().map_err(|_| InternalRuntimeError::GetPrototypeOfFailed)?;
+    let super_constructor =
+        active_function.o.get_prototype_of().map_err(|_| InternalRuntimeError::GetPrototypeOfFailed)?;
     let result = ECMAScriptValue::from(super_constructor);
     Ok(result)
 }
