@@ -165,6 +165,8 @@ impl Chunk {
             | Insn::RotateUp
             | Insn::RotateDown
             | Insn::RotateDownList
+            | Insn::RotateListDown
+            | Insn::RotateListUp
             | Insn::PopOutList
             | Insn::InstantiateIdFreeFunctionExpression
             | Insn::InstantiateArrowFunctionExpression
@@ -307,7 +309,8 @@ impl Chunk {
             | Insn::NameOnlyStaticFieldRecord
             | Insn::GetNewTarget
             | Insn::GetSuperConstructor
-            | Insn::ConstructorCheck => (1, format!("    {insn}")),
+            | Insn::ConstructorCheck
+            | Insn::BindThisAndInit => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal

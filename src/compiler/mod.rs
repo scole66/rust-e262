@@ -58,6 +58,8 @@ pub enum Insn {
     RotateUp,
     RotateDown,
     RotateDownList,
+    RotateListDown,
+    RotateListUp,
     Unwind,
     UnwindList,
     UnwindIfAbrupt,
@@ -198,6 +200,7 @@ pub enum Insn {
     GetNewTarget,
     GetSuperConstructor,
     ConstructorCheck,
+    BindThisAndInit,
 }
 
 impl fmt::Display for Insn {
@@ -247,6 +250,8 @@ impl fmt::Display for Insn {
             Insn::RotateUp => "ROTATEUP",
             Insn::RotateDown => "ROTATEDOWN",
             Insn::RotateDownList => "ROTATEDOWN_LIST",
+            Insn::RotateListDown => "ROTATE_LIST_DOWN",
+            Insn::RotateListUp => "ROTATE_LIST_UP",
             Insn::Unwind => "UNWIND",
             Insn::UnwindList => "UNWIND_LIST",
             Insn::UnwindIfAbrupt => "UNWIND_IF_ABRUPT",
@@ -387,6 +392,7 @@ impl fmt::Display for Insn {
             Insn::GetNewTarget => "GET_NEW_TARGET",
             Insn::GetSuperConstructor => "GET_SUPER_CSTR",
             Insn::ConstructorCheck => "CSTR_CHECK",
+            Insn::BindThisAndInit => "BIND_THIS_AND_INIT",
         })
     }
 }
@@ -10976,8 +10982,7 @@ impl GeneratorBody {
 }
 
 impl SuperCall {
-    #[expect(unused_variables)]
-    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
         // SuperCall : super Arguments
         //  1. Let newTarget be GetNewTarget().
         //  2. Assert: newTarget is an Object.
@@ -11007,8 +11012,8 @@ impl SuperCall {
         //   BIND_THIS_AND_INIT                    err/result    // steps 7-11.
         //   JUMP exit
         // unwind_1_plus_list:
-        //   UNWIND_LIST
         //   UNWIND 1
+        //   UNWIND_LIST
         //   JUMP exit
         // unwind_2:
         //   UNWIND 2
@@ -11024,11 +11029,12 @@ impl SuperCall {
         chunk.op_plus_arg(Insn::RotateListUp, 2);
         chunk.op(Insn::Construct);
         let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+
         chunk.op(Insn::BindThisAndInit);
         let exit2 = chunk.op_jump(Insn::Jump);
         chunk.fixup(unwind1).expect("jump too short to fail");
-        chunk.op(Insn::UnwindList);
         chunk.op_plus_arg(Insn::Unwind, 1);
+        chunk.op(Insn::UnwindList);
         if let Some(unwind) = unwind2 {
             let exit3 = chunk.op_jump(Insn::Jump);
             chunk.fixup(unwind).expect("jump too short to fail");
@@ -11037,6 +11043,7 @@ impl SuperCall {
         }
         chunk.fixup(exit2).expect("jump in range");
         chunk.fixup(exit).expect("jump in range");
+        Ok(AlwaysAbruptResult)
     }
 }
 
