@@ -314,12 +314,12 @@ mod normal_completion {
     fn make_regex_validator(regex: &str) -> impl Fn(String) + '_ {
         move |actual: String| {
             let re = Regex::new(regex).unwrap();
-            assert!(re.is_match(&actual));
+            assert!(re.is_match(&actual), "expected {actual:?} to match {regex}");
         }
     }
 
     #[test_case(|| NormalCompletion::from(create_list_iterator_record(vec![]))
-            => using make_regex_validator(r"^IR\(iter: <Object [0-9]+>; next: <Object [0-9]+>; unfinished\)$")
+            => using make_regex_validator(r"^IR\(iter: <Object [0-9]+>; next: <%GeneratorFunctionPrototypePrototypeNext%>; unfinished\)$")
             ; "iterator record")]
     #[test_case(|| {
             let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();

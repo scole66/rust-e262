@@ -10045,7 +10045,7 @@ impl ClassTail {
         //    OBJ_PROTO                       protoParent constructorParent className
         // --- else ---
         //    <ClassHeritage>                 err/superclassRef className
-        //    SALE                            classEnv superclassRef className
+        //    SALE                            classEnv err/superclassRef className
         //    SWAP                            err/superclassRef classEnv className
         //    GPFS                            err/(protoParent constructorParent) classEnv className
         //    JUMP_ABRUPT unwind2             protoParent constructorParent classEnv className
@@ -10065,7 +10065,6 @@ impl ClassTail {
         // --- else ---                       proto constructorParent className
         //    DUP                             proto proto constructorParent className
         //    ROTATE_DN 4                     proto constructorParent className proto
-        //    SWAP                            constructorParent proto className proto
         //    constructor.<define_method>     key F className proto
         //    POP                             F className proto
         //    MAKE_CC_SN                      F proto
@@ -10166,7 +10165,6 @@ impl ClassTail {
             Some(element) => {
                 chunk.op(Insn::Dup);
                 chunk.op_plus_arg(Insn::RotateDown, 4);
-                chunk.op(Insn::Swap);
                 element.define_method(chunk, strict, text)?;
                 chunk.op(Insn::Pop);
                 chunk.op(Insn::MakeClassConstructorAndSetName);

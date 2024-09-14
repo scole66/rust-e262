@@ -1315,7 +1315,30 @@ mod call_expression {
         "FLOAT 0 (0)",
         "CALL"
     ]), true, false)); "call-expression; non-strict")]
-    #[test_case("super()", true, &[] => panics "not yet implemented"; "super call")]
+    #[test_case(
+        "super()", true, &[]
+        => Ok((
+            svec(&[
+                "GET_NEW_TARGET",
+                "GET_SUPER_CSTR",
+                "FLOAT 0 (0)",
+                "ROTATE_LIST_DOWN 2",
+                "CSTR_CHECK",
+                "JUMP_IF_ABRUPT 9",
+                "SWAP",
+                "ROTATE_LIST_UP 2",
+                "CONSTRUCT",
+                "JUMP_IF_ABRUPT 6",
+                "BIND_THIS_AND_INIT",
+                "JUMP 3",
+                "UNWIND 1",
+                "UNWIND_LIST"
+            ]),
+            true,
+            false
+        ));
+        "super call"
+    )]
     #[test_case("import(a)", true, &[] => panics "not yet implemented"; "import call")]
     #[test_case("a()()", true, &[] => Ok((svec(&[
         "STRING 0 (a)",
