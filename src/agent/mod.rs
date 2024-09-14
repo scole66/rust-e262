@@ -732,6 +732,8 @@ pub enum InternalRuntimeError {
     FunctionEnvironmentExpected,
     #[error("[[GetPrototypeOf]] failed when the spec says it shouldn't")]
     GetPrototypeOfFailed,
+    #[error("String, Symbol, or PrivateName expected")]
+    ClassNameExpected,
 }
 mod insn_impl {
     use super::*;
@@ -3527,10 +3529,10 @@ mod insn_impl {
     }
 
     pub fn name_only_field_record(staticness: Static) -> anyhow::Result<()> {
-        // Input: Stack: name
+        // Input: Stack: name (which is a string, symbol, or private name)
         // Output: Stack: fieldRecord
-        let name = pop_string()?;
-        let cfdr = ClassFieldDefinitionRecord { name: ClassName::from(name), initializer: None };
+        let name = pop_classname()?.ok_or(InternalRuntimeError::ClassNameExpected)?;
+        let cfdr = ClassFieldDefinitionRecord { name, initializer: None };
         let cstr = if staticness == Static::Yes {
             ClassItem::StaticClassFieldDefinition
         } else {
