@@ -320,7 +320,6 @@ impl Intrinsics {
         }
         .clone()
     }
-    #[cfg(test)]
     pub fn which(&self, intrinsic: &Object) -> Option<IntrinsicId> {
         match intrinsic {
             o if o == &self.array => Some(IntrinsicId::Array),

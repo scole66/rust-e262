@@ -728,6 +728,10 @@ pub enum InternalRuntimeError {
     AccessorElementExpected,
     #[error("PrivateElement improperly constructed")]
     ImproperPrivateElement,
+    #[error("function environment expected")]
+    FunctionEnvironmentExpected,
+    #[error("[[GetPrototypeOf]] failed when the spec says it shouldn't")]
+    GetPrototypeOfFailed,
 }
 mod insn_impl {
     use super::*;
@@ -1241,6 +1245,44 @@ mod insn_impl {
             let len = stack.len();
             if list_len + amt + 2 <= len {
                 stack[len - list_len - amt - 2..len].rotate_right(1);
+                Ok(())
+            } else {
+                Err(InternalRuntimeError::EmptyStack.into())
+            }
+        })
+    }
+    pub fn rotate_list_down(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: Operand N
+        // Input: Stack: LIST item1 item2 ... itemN
+        // Output Stack: item1 item2 ... itemN LIST
+        let amt = operand(chunk)? as usize;
+        let list_len = usize_at(0)?;
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let len = stack.len();
+            if list_len + 1 + amt <= len {
+                stack[len - list_len - amt - 1..len].rotate_left(amt);
+                Ok(())
+            } else {
+                Err(InternalRuntimeError::EmptyStack.into())
+            }
+        })
+    }
+    pub fn rotate_list_up(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: Operand: N
+        // Input: Stack: item1 item2 ... itemN LIST
+        // Output Stack: LIST item1 item2 ... itemN
+        let amt = operand(chunk)? as usize;
+        let list_len = usize_at(amt)?;
+        AGENT.with(|agent| {
+            let mut ec_stack_ref = agent.execution_context_stack.borrow_mut();
+            let ec = ec_stack_ref.last_mut().ok_or(InternalRuntimeError::NoContext)?;
+            let stack = &mut ec.stack;
+            let len = stack.len();
+            if list_len + 1 + amt <= len {
+                stack[len - list_len - amt - 1..len].rotate_right(amt);
                 Ok(())
             } else {
                 Err(InternalRuntimeError::EmptyStack.into())
@@ -3509,6 +3551,57 @@ mod insn_impl {
         push_completion(Ok(NormalCompletion::from(reference))).expect(PUSHABLE);
         Ok(())
     }
+
+    pub fn get_new_target() -> anyhow::Result<()> {
+        // Input: nothing
+        // Output: Stack: newTarget
+        push_value(ECMAScriptValue::from(super::get_new_target()?))
+    }
+
+    pub fn get_super_constructor() -> anyhow::Result<()> {
+        // Input: nothing
+        // Output Stack: func
+        push_value(super::get_super_constructor()?)
+    }
+
+    pub fn constructor_check() -> anyhow::Result<()> {
+        // Input: value
+        // Output: err/value
+        let value = pop_value()?;
+        if value.is_constructor() {
+            push_value(value).expect(PUSHABLE);
+        } else {
+            push_completion(Err(create_type_error("constructor required"))).expect(PUSHABLE);
+        }
+        Ok(())
+    }
+
+    pub fn bind_this_and_init() -> anyhow::Result<()> {
+        //  7. Let thisER be GetThisEnvironment().
+        //  8. Perform ? thisER.BindThisValue(result).
+        //  9. Let F be thisER.[[FunctionObject]].
+        //  10. Assert: F is an ECMAScript function object.
+        //  11. Perform ? InitializeInstanceElements(result, F).
+        //  12. Return result.
+
+        // Input Stack: result
+        // Output Stack: err/result
+
+        let result = pop_value()?;
+        let this_er = get_this_environment();
+        let bind_status = this_er.bind_this_value(result.clone());
+        let init_status = match bind_status {
+            Ok(_val) => {
+                let f = this_er.get_function_object().ok_or(InternalRuntimeError::FunctionExpected)?;
+                let this_argument = Object::try_from(result.clone())?;
+                initialize_instance_elements(&this_argument, &f)
+            }
+            Err(err) => Err(err),
+        };
+        let to_push = init_status.map(|()| NormalCompletion::from(result));
+        push_completion(to_push).expect(PUSHABLE);
+        Ok(())
+    }
 }
 
 pub fn execute_synchronously(text: &str) -> Completion<ECMAScriptValue> {
@@ -3606,6 +3699,8 @@ pub async fn execute(
             Insn::RotateUp => insn_impl::rotate_up(&chunk).expect(GOODCODE),
             Insn::RotateDown => insn_impl::rotate_down(&chunk).expect(GOODCODE),
             Insn::RotateDownList => insn_impl::rotate_down_list(&chunk).expect(GOODCODE),
+            Insn::RotateListDown => insn_impl::rotate_list_down(&chunk).expect(GOODCODE),
+            Insn::RotateListUp => insn_impl::rotate_list_up(&chunk).expect(GOODCODE),
             Insn::Ref => insn_impl::make_ref(false).expect(GOODCODE),
             Insn::StrictRef => insn_impl::make_ref(true).expect(GOODCODE),
             Insn::Pop => insn_impl::pop().expect(GOODCODE),
@@ -3784,6 +3879,10 @@ pub async fn execute(
             Insn::NameOnlyFieldRecord => insn_impl::name_only_field_record(Static::No).expect(GOODCODE),
             Insn::NameOnlyStaticFieldRecord => insn_impl::name_only_field_record(Static::Yes).expect(GOODCODE),
             Insn::MakePrivateReference => insn_impl::make_private_reference(&chunk).expect(GOODCODE),
+            Insn::GetNewTarget => insn_impl::get_new_target().expect(GOODCODE),
+            Insn::GetSuperConstructor => insn_impl::get_super_constructor().expect(GOODCODE),
+            Insn::ConstructorCheck => insn_impl::constructor_check().expect(GOODCODE),
+            Insn::BindThisAndInit => insn_impl::bind_this_and_init().expect(GOODCODE),
         }
     }
 

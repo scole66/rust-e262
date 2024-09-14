@@ -1134,7 +1134,7 @@ mod function_environment_record {
     }
 
     #[test_case(make_lexical => panics "lexical functions never have a this binding"; "lexical")]
-    #[test_case(make_uninit_this => serr("ReferenceError: This binding uninitialized"); "uninitialized")]
+    #[test_case(make_uninit_this => serr("ReferenceError: Must call super constructor in derived class before accessing 'this' or returning from derived constructor"); "uninitialized")]
     #[test_case(make_init_this => Ok("sentinel".to_string()); "initialized")]
     fn get_this_binding(fer_maker: impl FnOnce() -> FunctionEnvironmentRecord) -> Result<String, String> {
         setup_test_agent();

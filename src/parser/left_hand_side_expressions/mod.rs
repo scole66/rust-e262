@@ -1416,7 +1416,7 @@ impl CallMemberExpression {
 //      super Arguments[?Yield, ?Await]
 #[derive(Debug)]
 pub struct SuperCall {
-    arguments: Rc<Arguments>,
+    pub arguments: Rc<Arguments>,
     location: Location,
 }
 

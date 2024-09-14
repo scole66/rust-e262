@@ -642,7 +642,7 @@ fn reflect_set_prototype_of(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) ->
         if let Some(obj) = target {
             let target_proto = obj.o.get_prototype_of().unwrap();
             let proto_descriptor = if let Some(proto) = &target_proto {
-                let id = which_intrinsic(proto);
+                let id = proto.which_intrinsic();
                 if let Some(which) = id {
                     format!("{which:?}")
                 } else {

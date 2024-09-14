@@ -743,7 +743,7 @@ mod ecmascript_value {
     fn as_constructor(make_input: impl FnOnce() -> ECMAScriptValue) -> Option<IntrinsicId> {
         setup_test_agent();
         let inp = make_input();
-        inp.as_constructor().and_then(which_intrinsic)
+        inp.as_constructor().and_then(Object::which_intrinsic)
     }
 
     #[test_case(|| ECMAScriptValue::from(10.0) => Ok(10); "in range")]

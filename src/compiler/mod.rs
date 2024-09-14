@@ -58,6 +58,8 @@ pub enum Insn {
     RotateUp,
     RotateDown,
     RotateDownList,
+    RotateListDown,
+    RotateListUp,
     Unwind,
     UnwindList,
     UnwindIfAbrupt,
@@ -195,6 +197,10 @@ pub enum Insn {
     NameOnlyFieldRecord,
     NameOnlyStaticFieldRecord,
     MakePrivateReference,
+    GetNewTarget,
+    GetSuperConstructor,
+    ConstructorCheck,
+    BindThisAndInit,
 }
 
 impl fmt::Display for Insn {
@@ -244,6 +250,8 @@ impl fmt::Display for Insn {
             Insn::RotateUp => "ROTATEUP",
             Insn::RotateDown => "ROTATEDOWN",
             Insn::RotateDownList => "ROTATEDOWN_LIST",
+            Insn::RotateListDown => "ROTATE_LIST_DOWN",
+            Insn::RotateListUp => "ROTATE_LIST_UP",
             Insn::Unwind => "UNWIND",
             Insn::UnwindList => "UNWIND_LIST",
             Insn::UnwindIfAbrupt => "UNWIND_IF_ABRUPT",
@@ -381,6 +389,10 @@ impl fmt::Display for Insn {
             Insn::NameOnlyFieldRecord => "NAME_ONLY_FIELD_REC",
             Insn::NameOnlyStaticFieldRecord => "NAME_ONLY_STATIC_FIELD",
             Insn::MakePrivateReference => "PRIVATE_REF",
+            Insn::GetNewTarget => "GET_NEW_TARGET",
+            Insn::GetSuperConstructor => "GET_SUPER_CSTR",
+            Insn::ConstructorCheck => "CSTR_CHECK",
+            Insn::BindThisAndInit => "BIND_THIS_AND_INIT",
         })
     }
 }
@@ -2245,7 +2257,7 @@ impl CallExpression {
             CallExpression::CallMemberExpression(cme) => {
                 cme.compile(chunk, strict, text).map(CompilerStatusFlags::from)
             }
-            CallExpression::SuperCall(_) => todo!(),
+            CallExpression::SuperCall(sc) => sc.compile(chunk, strict, text).map(CompilerStatusFlags::from),
             CallExpression::ImportCall(_) => todo!(),
             CallExpression::CallExpressionArguments(ce, args) => {
                 // CallExpression : CallExpression Arguments
@@ -10033,7 +10045,7 @@ impl ClassTail {
         //    OBJ_PROTO                       protoParent constructorParent className
         // --- else ---
         //    <ClassHeritage>                 err/superclassRef className
-        //    SALE                            classEnv superclassRef className
+        //    SALE                            classEnv err/superclassRef className
         //    SWAP                            err/superclassRef classEnv className
         //    GPFS                            err/(protoParent constructorParent) classEnv className
         //    JUMP_ABRUPT unwind2             protoParent constructorParent classEnv className
@@ -10053,7 +10065,6 @@ impl ClassTail {
         // --- else ---                       proto constructorParent className
         //    DUP                             proto proto constructorParent className
         //    ROTATE_DN 4                     proto constructorParent className proto
-        //    SWAP                            constructorParent proto className proto
         //    constructor.<define_method>     key F className proto
         //    POP                             F className proto
         //    MAKE_CC_SN                      F proto
@@ -10154,7 +10165,6 @@ impl ClassTail {
             Some(element) => {
                 chunk.op(Insn::Dup);
                 chunk.op_plus_arg(Insn::RotateDown, 4);
-                chunk.op(Insn::Swap);
                 element.define_method(chunk, strict, text)?;
                 chunk.op(Insn::Pop);
                 chunk.op(Insn::MakeClassConstructorAndSetName);
@@ -10966,6 +10976,72 @@ impl GeneratorBody {
         }
 
         Ok(AbruptResult::Maybe)
+    }
+}
+
+impl SuperCall {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
+        // SuperCall : super Arguments
+        //  1. Let newTarget be GetNewTarget().
+        //  2. Assert: newTarget is an Object.
+        //  3. Let func be GetSuperConstructor().
+        //  4. Let argList be ? ArgumentListEvaluation of Arguments.
+        //  5. If IsConstructor(func) is false, throw a TypeError exception.
+        //  6. Let result be ? Construct(func, argList, newTarget).
+        //  7. Let thisER be GetThisEnvironment().
+        //  8. Perform ? thisER.BindThisValue(result).
+        //  9. Let F be thisER.[[FunctionObject]].
+        //  10. Assert: F is an ECMAScript function object.
+        //  11. Perform ? InitializeInstanceElements(result, F).
+        //  12. Return result.
+
+        // start:
+        //   GET_NEW_TARGET                        newTarget
+        //   GET_SUPER_CSTR                        func newTarget
+        //   <arguments.argument_list_evaluation>  err/(N arg(n-1) ... arg(0)) func newTarget
+        //   JUMP_IF_ABRUPT unwind_2               N arg(n-1) ... arg(0) func newTarget
+        //   ROTATE_LIST_DN 2                      func newTarget N arg(n-1) ... arg(0)
+        //   CSTR_CHECK                            err/func newTarget N arg(n-1) ... arg(0)
+        //   JUMP_IF_ABRUPT unwind_1_plus_list     func newTarget N arg(n-1) ... arg(0)
+        //   SWAP                                  newTarget func N arg(n-1) ... arg(0)
+        //   ROTATE_LIST_UP 2                      N arg(n-1) ... arg(0) newTarget func
+        //   CONSTRUCT                             err/result
+        //   JUMP_IF_ABRUPT exit                   result
+        //   BIND_THIS_AND_INIT                    err/result    // steps 7-11.
+        //   JUMP exit
+        // unwind_1_plus_list:
+        //   UNWIND 1
+        //   UNWIND_LIST
+        //   JUMP exit
+        // unwind_2:
+        //   UNWIND 2
+        // exit:
+        chunk.op(Insn::GetNewTarget);
+        chunk.op(Insn::GetSuperConstructor);
+        let args_status = self.arguments.argument_list_evaluation(chunk, strict, text)?;
+        let unwind2 = if args_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        chunk.op_plus_arg(Insn::RotateListDown, 2);
+        chunk.op(Insn::ConstructorCheck);
+        let unwind1 = chunk.op_jump(Insn::JumpIfAbrupt);
+        chunk.op(Insn::Swap);
+        chunk.op_plus_arg(Insn::RotateListUp, 2);
+        chunk.op(Insn::Construct);
+        let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+
+        chunk.op(Insn::BindThisAndInit);
+        let exit2 = chunk.op_jump(Insn::Jump);
+        chunk.fixup(unwind1).expect("jump too short to fail");
+        chunk.op_plus_arg(Insn::Unwind, 1);
+        chunk.op(Insn::UnwindList);
+        if let Some(unwind) = unwind2 {
+            let exit3 = chunk.op_jump(Insn::Jump);
+            chunk.fixup(unwind).expect("jump too short to fail");
+            chunk.op_plus_arg(Insn::Unwind, 2);
+            chunk.fixup(exit3).expect("jump in range");
+        }
+        chunk.fixup(exit2).expect("jump in range");
+        chunk.fixup(exit).expect("jump in range");
+        Ok(AlwaysAbruptResult)
     }
 }
 

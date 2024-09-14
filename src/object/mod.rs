@@ -1516,7 +1516,16 @@ impl Object {
         OrdinaryObject::object(prototype, extensible)
     }
     pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<Object {}>", self.o.id())
+        match self.which_intrinsic() {
+            None => write!(f, "<Object {}>", self.o.id()),
+            Some(int) => write!(f, "<%{int:?}%>"),
+        }
+    }
+
+    pub fn which_intrinsic(&self) -> Option<IntrinsicId> {
+        let realm_ref = current_realm_record()?;
+        let realm = realm_ref.borrow();
+        realm.intrinsics.which(self)
     }
 
     // IsArray ( argument )

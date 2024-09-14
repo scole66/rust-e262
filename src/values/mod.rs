@@ -128,6 +128,14 @@ impl From<Object> for ECMAScriptValue {
         Self::Object(source)
     }
 }
+impl From<Option<Object>> for ECMAScriptValue {
+    fn from(source: Option<Object>) -> Self {
+        match source {
+            Some(obj) => Self::Object(obj),
+            None => Self::Null,
+        }
+    }
+}
 
 impl From<&JSString> for ECMAScriptValue {
     fn from(source: &JSString) -> Self {
