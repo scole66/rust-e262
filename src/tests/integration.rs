@@ -743,7 +743,48 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("const C = class {}; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}`" => Ok(ECMAScriptValue::from("true, true")); "class expression: empty")]
 #[test_case("let C = ({cls: class{}}).cls; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}`" => Ok(ECMAScriptValue::from("true, true")); "class object literal: empty")]
 #[test_case("class C extends Boolean {}; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}, ${Object.getPrototypeOf(C) === Boolean}`" => Ok(ECMAScriptValue::from("true, true, true")); "class extends: empty")]
-
+#[test_case("class C extends @@~ {}" => serr("During compilation: [SyntaxError: @@~ token detected. aborting compilation.]"); "ClassHeritage compile fails")]
+#[test_case(
+    "class C {
+        constructor(val) {
+            this.value = val;
+        }
+    };
+    const c = new C('sentinel');
+    c.value
+    "
+    => Ok(ECMAScriptValue::from("sentinel"));
+    "class: has constructor function (no heritage)"
+)]
+#[test_case(
+    "
+    class C {
+        #left;
+        #right;
+        constructor(left, right) {
+            this.#left = left;
+            this.#right = right;
+        }
+        build() {
+            return `${this.#left} ~~~ ${this.#right}`;
+        }
+    }
+    const c = new C('fire', 'truck');
+    c.build()
+    "
+    => Ok(ECMAScriptValue::from("fire ~~~ truck"));
+    "class: constructor plus private elements"
+)]
+#[test_case(
+    "
+    class C {
+        constructor(left, right = @@~) {
+        }
+    }
+    "
+    => serr("Thrown: TypeError: @@~ token detected. aborting compilation.");
+    "class: constructor define-method throws"
+)]
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {

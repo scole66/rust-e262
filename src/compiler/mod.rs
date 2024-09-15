@@ -982,7 +982,7 @@ impl PrimaryExpression {
 }
 
 #[cfg(test)]
-fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) {
+fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) -> anyhow::Result<NeverAbruptRefResult> {
     match *ch {
         DebugKind::Char('@') => {
             // Break future jumps (by adding enough instructions that the offsets don't fit in an i16)
@@ -1034,11 +1034,18 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) {
             chunk.bigints.resize(65536, Rc::new(BigInt::from(97_687_897_890_734_187_890_106_587_314_876_543_219_u128)));
             chunk.op(Insn::False);
         }
+        DebugKind::Char('~') => {
+            // Be a compiler error
+            anyhow::bail!("@@~ token detected. aborting compilation.")
+        }
         DebugKind::Char(_) => (),
     }
+    Ok(NeverAbruptRefResult)
 }
 #[cfg(not(test))]
-fn compile_debug_lit(_: &mut Chunk, _: &DebugKind) {}
+fn compile_debug_lit(_: &mut Chunk, _: &DebugKind) -> anyhow::Result<NeverAbruptRefResult> {
+    Ok(NeverAbruptRefResult)
+}
 
 impl Literal {
     /// Generate the code for Literal
@@ -1078,7 +1085,7 @@ impl Literal {
                 }
             }
             Literal::DebugLiteral { val: ch, .. } => {
-                compile_debug_lit(chunk, ch);
+                compile_debug_lit(chunk, ch)?;
             }
         }
         Ok(NeverAbruptRefResult)
@@ -10065,7 +10072,8 @@ impl ClassTail {
         // --- else ---                       proto constructorParent className
         //    DUP                             proto proto constructorParent className
         //    ROTATE_DN 4                     proto constructorParent className proto
-        //    constructor.<define_method>     key F className proto
+        //    constructor.<define_method>     err/(key F) className proto
+        //    JUMP_IF_ABRUPT fix_envs_and_exit
         //    POP                             F className proto
         //    MAKE_CC_SN                      F proto
         // ---
@@ -10157,6 +10165,8 @@ impl ClassTail {
             None
         };
 
+        let mut fix_envs_and_exit = vec![];
+
         match constructor {
             None => {
                 chunk.op_plus_arg(Insn::RotateDown, 3);
@@ -10166,6 +10176,7 @@ impl ClassTail {
                 chunk.op(Insn::Dup);
                 chunk.op_plus_arg(Insn::RotateDown, 4);
                 element.define_method(chunk, strict, text)?;
+                fix_envs_and_exit.push(chunk.op_jump(Insn::JumpIfAbrupt));
                 chunk.op(Insn::Pop);
                 chunk.op(Insn::MakeClassConstructorAndSetName);
             }
@@ -10214,7 +10225,7 @@ impl ClassTail {
         chunk.op_plus_arg(Insn::AttachElements, count);
         chunk.op(Insn::PopPrivateEnv);
 
-        let elements_can_throw = if jump_targets.is_empty() {
+        let elements_can_throw = if jump_targets.is_empty() && fix_envs_and_exit.is_empty() {
             if let Some(unwind_backref) = unwind_2 {
                 chunk.fixup(unwind_backref)?;
                 chunk.op_plus_arg(Insn::UnwindIfAbrupt, 2);
@@ -10222,7 +10233,6 @@ impl ClassTail {
             false
         } else {
             let exit = chunk.op_jump(Insn::Jump);
-            let mut fix_envs_and_exit = vec![];
             for (count, target) in jump_targets {
                 chunk.fixup(target)?;
                 chunk.op_plus_arg(Insn::Unwind, count);
