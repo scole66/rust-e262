@@ -738,6 +738,12 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("let bo = new Boolean(); bo.prop = 10; delete bo.prop; Object.hasOwnProperty(bo, 'prop')" => Ok(ECMAScriptValue::from(false)); "BooleanObject::delete coverage")]
 #[test_case("Number.prototype.valueOf.call(new Boolean())" => serr("Thrown: TypeError: Number method called with non-number receiver"); "BooleanObject::to_number_obj coverage")]
 #[test_case("String.prototype.valueOf.call(new Boolean())" => serr("Thrown: TypeError: String.prototype.valueOf requires that 'this' be a String"); "BooleanObject::to_string_obj coverage")]
+// Class Stuff
+#[test_case("class C {}; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}`" => Ok(ECMAScriptValue::from("true, true")); "class: empty")]
+#[test_case("const C = class {}; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}`" => Ok(ECMAScriptValue::from("true, true")); "class expression: empty")]
+#[test_case("let C = ({cls: class{}}).cls; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}`" => Ok(ECMAScriptValue::from("true, true")); "class object literal: empty")]
+#[test_case("class C extends Boolean {}; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}, ${Object.getPrototypeOf(C) === Boolean}`" => Ok(ECMAScriptValue::from("true, true, true")); "class extends: empty")]
+
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {
