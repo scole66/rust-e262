@@ -743,7 +743,7 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("const C = class {}; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}`" => Ok(ECMAScriptValue::from("true, true")); "class expression: empty")]
 #[test_case("let C = ({cls: class{}}).cls; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}`" => Ok(ECMAScriptValue::from("true, true")); "class object literal: empty")]
 #[test_case("class C extends Boolean {}; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}, ${Object.getPrototypeOf(C) === Boolean}`" => Ok(ECMAScriptValue::from("true, true, true")); "class extends: empty")]
-#[test_case("class C extends @@~ {}" => serr("During compilation: [SyntaxError: @@~ token detected. aborting compilation.]"); "ClassHeritage compile fails")]
+#[test_case("class C extends @@~ {}" => serr("During compilation: [SyntaxError: @@~ token detected. aborting compilation.]"); "class: ClassHeritage compile fails")]
 #[test_case(
     "class C {
         constructor(val) {
@@ -785,6 +785,50 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => serr("Thrown: TypeError: @@~ token detected. aborting compilation.");
     "class: constructor define-method throws"
 )]
+#[test_case(
+    "
+    class C {
+        static [@@~];
+    }
+    "
+    => serr("During compilation: [SyntaxError: @@~ token detected. aborting compilation.]");
+    "class: class element compile fails"
+)]
+#[test_case(
+    "
+    class C extends String {
+        constructor(a, b) {
+            super(a);
+            this.other = b;
+        }
+        build() {
+            return this + this.other;
+        }
+    };
+    const ss = new C('one', 'two');
+    ss.build()
+    "
+    => Ok(ECMAScriptValue::from("onetwo"));
+    "class: heritage + fields"
+)]
+#[test_case(
+    "
+    class C extends String {
+        constructor(a, b) {
+            super(a);
+            this.other = b;
+        }
+        build() {
+            return @@~;
+        }
+    };
+    const ss = new C('one', 'two');
+    ss.build()
+    "
+    => serr("Thrown: TypeError: @@~ token detected. aborting compilation.");
+    "class: method compile fails"
+)]
+
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {
