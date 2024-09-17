@@ -199,7 +199,7 @@ pub fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //    * has a [[Prototype]] internal slot whose value is %Function.prototype%.
 
     let error_constructor = create_builtin_function(
-        error_constructor_function,
+        Box::new(error_constructor_function),
         Some(ConstructorKind::Base),
         1_f64,
         PropertyKey::from("Error"),
@@ -268,7 +268,7 @@ pub fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
+                Box::new($steps),
                 None,
                 $length,
                 key.clone(),
@@ -381,7 +381,7 @@ fn provision_native_error_intrinsics(
     //    * has a "name" property whose value is the String value "NativeError".
 
     let native_error_constructor = create_builtin_function(
-        native_error_constructor_function,
+        Box::new(native_error_constructor_function),
         Some(ConstructorKind::Base),
         1_f64,
         PropertyKey::from(name),

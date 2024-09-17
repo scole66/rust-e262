@@ -266,7 +266,7 @@ fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completi
     "standard function object"
 )]
 #[test_case(
-    || BuiltInFunctionObject::object(None, true, current_realm_record().unwrap(), None, do_nothing, None)
+    || BuiltInFunctionObject::object(None, true, current_realm_record().unwrap(), None, Box::new(do_nothing), None)
     => sok("function () { [native code] }");
     "built-in without InitialName"
 )]
@@ -1306,7 +1306,7 @@ mod built_in_function_object {
         Ok(ECMAScriptValue::Undefined)
     }
     fn make() -> Object {
-        let o = create_builtin_function(behavior, None, 0.0, PropertyKey::from("f"), &[], None, None, None);
+        let o = create_builtin_function(Box::new(behavior), None, 0.0, PropertyKey::from("f"), &[], None, None, None);
         let proto = o.o.get_prototype_of().unwrap().unwrap();
         proto.set("proto_sentinel", true, true).unwrap();
         o

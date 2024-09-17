@@ -40,7 +40,7 @@ mod proxy_object {
         behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     ) -> Object {
         create_builtin_function(
-            behavior,
+            Box::new(behavior),
             None,
             0.0,
             "f".into(),

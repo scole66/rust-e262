@@ -19,7 +19,7 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let bigint_constructor = create_builtin_function(
-        bigint_constructor_function,
+        Box::new(bigint_constructor_function),
         Some(ConstructorKind::Base),
         1.0,
         PropertyKey::from("BigInt"),
@@ -33,7 +33,7 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
+                Box::new($steps),
                 None,
                 f64::from($length),
                 key.clone(),
@@ -83,7 +83,7 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
+                Box::new($steps),
                 None,
                 f64::from($length),
                 key.clone(),

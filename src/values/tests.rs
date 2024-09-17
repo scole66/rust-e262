@@ -1404,8 +1404,16 @@ fn tostring_symbol(
 fn to_string_10() {
     setup_test_agent();
     let obj = ordinary_object_create(None);
-    let badtostring =
-        create_builtin_function(tostring_symbol, None, 0_f64, PropertyKey::from("toString"), &[], None, None, None);
+    let badtostring = create_builtin_function(
+        Box::new(tostring_symbol),
+        None,
+        0_f64,
+        PropertyKey::from("toString"),
+        &[],
+        None,
+        None,
+        None,
+    );
     obj.create_data_property("toString", badtostring).unwrap();
 
     let result = to_string(ECMAScriptValue::from(obj)).unwrap_err();
@@ -1548,7 +1556,7 @@ fn make_test_obj(valueof: FauxKind, tostring: FauxKind) -> Object {
     let connect = |name, length, steps| {
         let key = PropertyKey::from(name);
         let fcn = create_builtin_function(
-            steps,
+            Box::new(steps),
             None,
             length,
             key.clone(),
@@ -1600,7 +1608,7 @@ pub fn make_tostring_getter_error() -> Object {
     let target = ordinary_object_create(Some(object_prototype));
     let key = PropertyKey::from("valueOf");
     let fcn = create_builtin_function(
-        faux_makes_number,
+        Box::new(faux_makes_number),
         None,
         0_f64,
         key.clone(),
@@ -1624,7 +1632,7 @@ pub fn make_tostring_getter_error() -> Object {
 
     let key = PropertyKey::from("toString");
     let tostring_getter = create_builtin_function(
-        faux_errors,
+        Box::new(faux_errors),
         None,
         0_f64,
         key.clone(),
@@ -1811,7 +1819,7 @@ fn make_toprimitive_obj(
     let target = ordinary_object_create(Some(object_prototype));
     let key = PropertyKey::from(wks(WksId::ToPrimitive));
     let fcn = create_builtin_function(
-        steps,
+        Box::new(steps),
         None,
         1_f64,
         key.clone(),
@@ -1892,7 +1900,7 @@ fn to_primitive_exotic_getter_throws() {
     let target = ordinary_object_create(Some(object_prototype));
     let key = PropertyKey::from(wks(WksId::ToPrimitive));
     let toprim_getter = create_builtin_function(
-        faux_errors,
+        Box::new(faux_errors),
         None,
         0_f64,
         key.clone(),
@@ -2238,7 +2246,7 @@ mod agent {
         let realm = current_realm_record();
         let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
         let to_prim_func = create_builtin_function(
-            returns_10,
+            Box::new(returns_10),
             None,
             0_f64,
             to_primitive.clone().into(),

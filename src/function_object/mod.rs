@@ -1500,10 +1500,12 @@ impl TryFrom<NormalCompletion> for FunctionName {
     }
 }
 
+pub type BuiltInFcn = Box<dyn Fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>>;
+
 pub struct BuiltInFunctionData {
     pub realm: Rc<RefCell<Realm>>,
     pub initial_name: Option<FunctionName>,
-    pub steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    pub steps: BuiltInFcn,
     pub constructor_kind: Option<ConstructorKind>,
     pub fields: Vec<ClassFieldDefinitionRecord>,
     pub private_methods: Vec<PrivateElement>,
@@ -1528,7 +1530,7 @@ impl BuiltInFunctionData {
     pub fn new(
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: BuiltInFcn,
         constructor_kind: Option<ConstructorKind>,
     ) -> Self {
         Self {
@@ -1567,7 +1569,7 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: BuiltInFcn,
         constructor_kind: Option<ConstructorKind>,
     ) -> Self {
         Self {
@@ -1581,7 +1583,7 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: BuiltInFcn,
         constructor_kind: Option<ConstructorKind>,
     ) -> Object {
         Object { o: Rc::new(Self::new(prototype, extensible, realm, initial_name, steps, constructor_kind)) }
@@ -1760,7 +1762,7 @@ impl CallableObject for BuiltInFunctionObject {
 // operation.
 #[expect(clippy::too_many_arguments)]
 pub fn create_builtin_function(
-    behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+    behavior: BuiltInFcn,
     constructor_kind: Option<ConstructorKind>,
     length: f64,
     name: PropertyKey,
@@ -2202,7 +2204,7 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     // * has a "length" property whose value is 1𝔽.
     let function_constructor = create_builtin_function(
-        function_constructor_function,
+        Box::new(function_constructor_function),
         Some(ConstructorKind::Base),
         1.0,
         PropertyKey::from("Function"),
@@ -2230,7 +2232,7 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
+                Box::new($steps),
                 None,
                 f64::from($length),
                 key.clone(),
@@ -2266,7 +2268,7 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
     define_property_or_throw(&function_prototype, "constructor", ppd).unwrap();
 
     let has_instance = create_builtin_function(
-        function_prototype_has_instance,
+        Box::new(function_prototype_has_instance),
         None,
         1.0,
         "[Symbol.hasInstance]".into(),
