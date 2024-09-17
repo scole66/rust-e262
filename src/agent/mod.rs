@@ -4481,7 +4481,9 @@ pub fn parse_script(source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<Scri
         Err(errs) => Err(errs),
         Ok(script) => {
             let mut chunk = Chunk::new("top level script");
-            script.compile(&mut chunk, false, source_text).unwrap();
+            script
+                .compile(&mut chunk, false, source_text)
+                .map_err(|err| vec![create_syntax_error_object(format!("{err}"), None)])?;
             for line in chunk.disassemble() {
                 println!("{line}");
             }
