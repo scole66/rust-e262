@@ -2407,8 +2407,33 @@ mod insn_impl {
         Ok(())
         // Stack at exit: AObj N arg[N-1] ... arg[0] ...
     }
+    fn make_arg_getter(name: JSString) -> anyhow::Result<Object> {
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let closure =
+            move |_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| env.get_binding_value(&name, false);
+        let getter =
+            create_builtin_function(Box::new(closure), None, 0.0, PropertyKey::from(""), &[], None, None, None);
+        Ok(getter)
+    }
+    fn make_arg_setter(name: JSString) -> anyhow::Result<Object> {
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let closure =
+            move |_: &ECMAScriptValue, _: Option<&Object>, args: &[ECMAScriptValue]| -> Completion<ECMAScriptValue> {
+                let mut args = FuncArgs::from(args);
+                let value = args.next_arg();
+                env.set_mutable_binding(name.clone(), value, false).map(|()| ECMAScriptValue::Undefined)
+            };
+        let setter =
+            create_builtin_function(Box::new(closure), None, 1.0, PropertyKey::from(""), &[], None, None, None);
+        Ok(setter)
+    }
     pub fn create_mapped_arguments_object() -> anyhow::Result<()> {
-        // Stack should have n arg[n-1] arg[n-2] ... arg[0] func ...
+        // Input: N name(n-1) ... name(0) M arg(m-1) ... arg(0) func
+        // Output Obj M arg(m-1) ... arg(0) func
+        let num_names = pop_usize()?;
+        // Note that this arg_names vector is reversed. (It's [ name(n-1) .. name(0) ].)
+        let arg_names = (0..num_names).map(|_| pop_string()).collect::<Result<Vec<_>, _>>()?;
+
         let length = peek_usize(0)?;
         let arguments = peek_list(1, length)?;
 
@@ -2428,6 +2453,24 @@ mod insn_impl {
             PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
         )
         .expect("ArgumentObject won't throw");
+
+        let mut mapped_names = vec![];
+        for (idx, name) in arg_names.into_iter().enumerate() {
+            let index = num_names - idx - 1;
+            if !mapped_names.contains(&name) {
+                mapped_names.push(name.clone());
+                if index < length {
+                    let g = make_arg_getter(name.clone())?;
+                    let p = make_arg_setter(name)?;
+                    ao.o.define_own_property(
+                        PropertyKey::from(index),
+                        PotentialPropertyDescriptor::new().set(p).get(g).enumerable(false).configurable(true),
+                    )
+                    .expect("spec objects should never fail");
+                }
+            }
+        }
+
         let iterator = wks(WksId::Iterator);
         let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
         define_property_or_throw(
@@ -3311,7 +3354,7 @@ mod insn_impl {
         // b. Let F be CreateBuiltinFunction(defaultConstructor, 0, className, « [[ConstructorKind]],
         //    [[SourceText]] », the current Realm Record, constructorParent).
         let f = create_builtin_function(
-            default_constructor,
+            Box::new(default_constructor),
             Some(ConstructorKind::Base),
             0.0,
             class_name,
@@ -4962,7 +5005,7 @@ pub fn provision_for_in_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
+                Box::new($steps),
                 None,
                 $length,
                 key.clone(),

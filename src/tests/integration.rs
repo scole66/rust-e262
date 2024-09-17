@@ -868,6 +868,20 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("(function([...x]=['test']){return x[0];})()" => Ok(ECMAScriptValue::from("test")); "destructuring rest failure")]
 // 6/13/2024: prototype chain for generator expressions
 #[test_case("Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Object.getPrototypeOf((function*(){})())),Symbol.toStringTag)?.value" => Ok(ECMAScriptValue::from("Generator")); "prototype chain for generator expressions")]
+// 9/15/2024: arguments object not working?
+#[test_case(
+    "
+    function foo(a)
+    {
+      a = 1;
+      return arguments[0];
+    }
+
+    foo(10)
+    "
+    => Ok(ECMAScriptValue::from(1));
+    "arguments object (mapped)"
+)]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

@@ -466,7 +466,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     realm_rec.borrow_mut().intrinsics.object_prototype = object_prototype.clone();
     // %Function.prototype%
     let function_prototype = create_builtin_function(
-        do_nothing,
+        Box::new(do_nothing),
         None,
         0_f64,
         PropertyKey::from(""),
@@ -508,7 +508,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     macro_rules! intrinsic_function {
         ( $intrinsicid:ident, $name:expr, $length:expr ) => {
             let function_object = create_builtin_function(
-                $intrinsicid,
+                Box::new($intrinsicid),
                 None,
                 f64::from($length),
                 PropertyKey::from($name),
@@ -590,7 +590,7 @@ pub fn throw_type_error(
 fn create_throw_type_error_builtin(realm: Rc<RefCell<Realm>>) -> Object {
     let function_proto = realm.borrow().intrinsics.get(IntrinsicId::FunctionPrototype);
     let fcn = create_builtin_function(
-        throw_type_error,
+        Box::new(throw_type_error),
         None,
         0_f64,
         PropertyKey::from(""),

@@ -619,15 +619,21 @@ mod agent {
         use super::*;
         use test_case::test_case;
 
-        #[test_case(&[]; "empty")]
-        #[test_case(&[10.into(), 20.into()]; "multiple")]
-        fn normal(values: &[ECMAScriptValue]) {
+        #[test_case(&[], &[]; "empty")]
+        #[test_case(&["x", "y"], &[10.into(), 20.into()]; "multiple")]
+        fn normal(names: &[&str], values: &[ECMAScriptValue]) {
             setup_test_agent();
             let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
-            let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "create_mapped_arguments_object test"));
-            super::set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
+            let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "create_mapped_arguments_object test"))
+                as Rc<dyn EnvironmentRecord>;
+            super::set_lexical_environment(Some(lexenv.clone()));
 
             let func_obj = ordinary_object_create(None);
+
+            for (idx, name) in names.iter().enumerate() {
+                let value = values.get(idx).cloned().unwrap_or(ECMAScriptValue::Undefined);
+                lexenv.set_mutable_binding(JSString::from(*name), value, false).unwrap();
+            }
 
             let num_values = values.len();
             let index = AGENT.with(|agent| {
@@ -639,6 +645,11 @@ mod agent {
                     stack.push(Ok(value.clone().into()));
                 }
                 stack.push(Ok(num_values.into()));
+                let num_names = names.len();
+                for name in names.iter().map(|s| JSString::from(*s)) {
+                    stack.push(Ok(name.into()));
+                }
+                stack.push(Ok(num_names.into()));
                 index
             });
 
@@ -756,7 +767,7 @@ fn faux_class() -> ECMAScriptValue {
     let realm = current_realm_record();
     let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
     let has_instance = create_builtin_function(
-        test_has_instance,
+        Box::new(test_has_instance),
         None,
         1_f64,
         PropertyKey::from("[Symbol.hasInstance]"),
@@ -1451,7 +1462,7 @@ mod begin_call_evaluation {
 
     fn good_func() -> ECMAScriptValue {
         ECMAScriptValue::from(create_builtin_function(
-            test_reporter,
+            Box::new(test_reporter),
             None,
             2.0,
             "test_reporter".into(),

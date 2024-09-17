@@ -78,7 +78,7 @@ mod prototype {
             let obj = ordinary_object_create(None);
             let to_primitive_method =
                 create_builtin_function(
-                    behavior,
+                    Box::new(behavior),
                     None,
                     0.0,
                     "f".into(),
@@ -191,7 +191,7 @@ mod prototype {
             let obj = ordinary_object_create(None);
             let to_primitive_method =
                 create_builtin_function(
-                    behavior,
+                    Box::new(behavior),
                     None,
                     0.0,
                     "f".into(),
@@ -631,7 +631,7 @@ mod constructor {
         fn make_bad_property_key() -> ECMAScriptValue {
             let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let tostring_func = create_builtin_function(
-                faux_errors,
+                Box::new(faux_errors),
                 None,
                 0.0,
                 "toString".into(),

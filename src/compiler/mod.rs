@@ -7790,8 +7790,9 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
         chunk.op(Insn::PushNewLexEnv);
     }
 
-    for param_name in &parameter_names {
-        let sidx = chunk.add_to_string_pool(param_name.clone())?;
+    let param_name_indexes =
+        parameter_names.iter().map(|name| chunk.add_to_string_pool(name.clone())).collect::<Result<Vec<_>, _>>()?;
+    for sidx in param_name_indexes.iter().copied() {
         chunk.op_plus_arg(
             if has_duplicates {
                 Insn::CreateInitializedPermanentMutableLexIfMissing
@@ -7807,6 +7808,12 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
         if strict || !simple_parameter_list {
             chunk.op(Insn::CreateUnmappedArguments);
         } else {
+            // Store all the boundnames someplace. On the stack, maybe? In a new list operand? @@@
+            for sidx in param_name_indexes.iter().copied() {
+                chunk.op_plus_arg(Insn::String, sidx);
+            }
+            let idx = chunk.add_to_float_pool(to_f64(param_name_indexes.len())?)?;
+            chunk.op_plus_arg(Insn::Float, idx);
             chunk.op(Insn::CreateMappedArguments);
         }
         let args_idx = chunk.add_to_string_pool("arguments".into())?;

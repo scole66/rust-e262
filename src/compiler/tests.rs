@@ -6259,7 +6259,7 @@ mod compile_fdi {
     }
 
     #[test_case(|s| function("function a(){}", s), true, &[] => Ok((svec(&["CUA", "CNSILB 0 (arguments)", "ILB 0 (arguments)", "FINISH_ARGS"]), false)); "simplest/strict")]
-    #[test_case(|s| function("function a(){}", s), false, &[] => Ok((svec(&["CMA", "CPMLB 0 (arguments)", "ILB 0 (arguments)", "FINISH_ARGS", "PNLE"]), false)); "simplest/non-strict")]
+    #[test_case(|s| function("function a(){}", s), false, &[] => Ok((svec(&["FLOAT 0 (0)", "CMA", "CPMLB 0 (arguments)", "ILB 0 (arguments)", "FINISH_ARGS", "PNLE"]), false)); "simplest/non-strict")]
     #[test_case(|s| function("function a(x){ function one() { return 1; } function two() { return 2; } function one() { return 42; } }", s), true, &[] => Ok((svec(&[
         "CPMLBM 0 (x)",
         "CUA",
@@ -6375,7 +6375,7 @@ mod compile_fdi {
     ]), false)); "var instantiation")]
     #[test_case(|s| function("function a(x=0){var a, x; var a;}", s), false, &[(Fillable::String, 2)] => serr("Out of room for strings in this compilation unit"); "string table full (var binding)")]
     #[test_case(|s| function("function a(){let x; const y=1;}", s), false, &[] => Ok((svec(&[
-        "CMA", "CPMLB 0 (arguments)", "ILB 0 (arguments)", "FINISH_ARGS", "PNLE", "CPMLB 1 (x)", "CSILB 2 (y)"
+        "FLOAT 0 (0)", "CMA", "CPMLB 0 (arguments)", "ILB 0 (arguments)", "FINISH_ARGS", "PNLE", "CPMLB 1 (x)", "CSILB 2 (y)"
     ]), false)); "lexical instantiation")]
     #[test_case(|s| function("function a(){let x; const y=1;}", s), false, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "string table full (lexical instantiation)")]
     #[test_case(|s| function("function a(){function b(){}}", s), false, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "function table full (function initialization)")]
@@ -7188,6 +7188,8 @@ mod function_body {
     ]), false)); "typical/simple params/strict")]
     #[test_case("function a(q){}", false, &[] => Ok((svec(&[
         "CPMLBM 0 (q)",
+        "STRING 0 (q)",
+        "FLOAT 0 (1)",
         "CMA",
         "CPMLB 1 (arguments)",
         "ILB 1 (arguments)",
