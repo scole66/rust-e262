@@ -268,7 +268,7 @@ mod array_object {
             let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
             let obj = ordinary_object_create(Some(object_proto));
             let value_of = create_builtin_function(
-                value_just_once,
+                Box::new(value_just_once),
                 None,
                 0.0,
                 "valueOf".into(),
@@ -559,7 +559,7 @@ mod array_species_create {
         let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
         let obj = super::super::array_create(0, Some(proto)).unwrap();
         let constructor_getter = create_builtin_function(
-            faux_errors,
+            Box::new(faux_errors),
             None,
             0.0,
             "constructor".into(),
@@ -802,7 +802,7 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
         let handler = ordinary_object_create(None);
         let get_replacement =
             create_builtin_function(
-                behavior,
+                Box::new(behavior),
                 None,
                 0.0,
                 "f".into(),
@@ -850,7 +850,7 @@ fn array_species(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<String, 
         let handler = ordinary_object_create(None);
         let set_replacement =
             create_builtin_function(
-                behavior,
+                Box::new(behavior),
                 None,
                 0.0,
                 "f".into(),
@@ -929,7 +929,7 @@ fn array_prototype_pop(make_this: impl FnOnce() -> ECMAScriptValue) -> Result<(S
         let handler = ordinary_object_create(None);
         let set_replacement =
             create_builtin_function(
-                behavior,
+                Box::new(behavior),
                 None,
                 0.0,
                 "f".into(),
@@ -1206,8 +1206,16 @@ mod array_iterator {
         let array = make_array();
 
         let iter_obj = super::create_array_iterator(array, kind);
-        let thrower =
-            create_builtin_function(throwing_next, None, 0.0, "next".into(), BUILTIN_FUNCTION_SLOTS, None, None, None);
+        let thrower = create_builtin_function(
+            Box::new(throwing_next),
+            None,
+            0.0,
+            "next".into(),
+            BUILTIN_FUNCTION_SLOTS,
+            None,
+            None,
+            None,
+        );
         iter_obj.set("next", thrower, true).map_err(unwind_any_error)?;
         let ir = get_iterator(&ECMAScriptValue::from(iter_obj), IteratorKind::Sync).map_err(unwind_any_error)?;
         let mut result = vec![];
@@ -1356,7 +1364,7 @@ mod array_prototype_map {
             Ok(item)
         }
         create_builtin_function(
-            behavior,
+            Box::new(behavior),
             None,
             1.0,
             "clbk".into(),
@@ -1373,7 +1381,7 @@ mod array_prototype_map {
             Ok(DeadObject::object().into())
         }
         create_builtin_function(
-            behavior,
+            Box::new(behavior),
             Some(ConstructorKind::Derived),
             0.0,
             "Dead".into(),
@@ -1417,7 +1425,7 @@ mod array_prototype_map {
                 .configurable(true);
             define_property_or_throw(&this_obj, "traversed_marker", ppd).unwrap();
             let callback = create_builtin_function(
-                behavior,
+                Box::new(behavior),
                 None,
                 3.0,
                 "clbk".into(),

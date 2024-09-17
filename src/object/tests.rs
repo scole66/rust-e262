@@ -856,7 +856,7 @@ mod ordinary_set_prototype_of {
         "using ForInIteratorObject"
     )]
     #[test_case(
-        || (BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, steps, None), None)
+        || (BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, Box::new(steps), None), None)
         => (true, None);
         "using BuiltInFunctionObject"
     )]
@@ -942,7 +942,7 @@ mod ordinary_prevent_extensions {
         Rc::new(Chunk::new("test"))
     ) => (true, false); "with FunctionObject")]
     #[test_case(
-        || BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, steps, None)
+        || BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, Box::new(steps), None)
         => (true, false);
         "with BuiltInFunctionObject"
     )]
@@ -1096,7 +1096,7 @@ mod ordinary_define_own_property {
         "using ErrorObject"
     )]
     #[test_case(
-        || BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, steps, None),
+        || BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, Box::new(steps), None),
         || PropertyKey::from("pk"),
         || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
         => Ok((true, ssome("value:99,writable:true,enumerable:true,configurable:true")));
@@ -1739,7 +1739,7 @@ mod ordinary_has_property {
     #[test_case(|| setup(BooleanObject::new(None, false)) => Ok(true); "using BooleanObject")]
     #[test_case(|| setup(SymbolObject::new(None, wks(WksId::ToStringTag))) => Ok(true); "using SymbolObject")]
     #[test_case(
-        || setup(BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, steps, None))
+        || setup(BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, Box::new(steps), None))
         => Ok(true);
         "using BuiltInFunctionObject"
     )]
@@ -1830,7 +1830,7 @@ mod ordinary_get {
         behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     ) -> Object {
         create_builtin_function(
-            behavior,
+            Box::new(behavior),
             None,
             0.0,
             "f".into(),
@@ -1995,7 +1995,7 @@ mod ordinary_set {
         "simple set"
     )]
     #[test_case(
-        || setup(BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, steps, None))
+        || setup(BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, Box::new(steps), None))
         => Ok((true, "undefined".to_string()));
         "BuiltInFunctionObject argument"
     )]
@@ -2179,8 +2179,16 @@ fn ordinary_set_with_own_descriptor_06() {
     let value = ECMAScriptValue::Undefined;
     let receiver = ECMAScriptValue::from(obj.clone());
     obj.create_data_property("result", "sentinel value").unwrap();
-    let getter =
-        create_builtin_function(test_getter, None, 0_f64, key.clone(), &[], None, None, Some(JSString::from("get")));
+    let getter = create_builtin_function(
+        Box::new(test_getter),
+        None,
+        0_f64,
+        key.clone(),
+        &[],
+        None,
+        None,
+        Some(JSString::from("get")),
+    );
     let accessor_prop = PotentialPropertyDescriptor {
         get: Some(ECMAScriptValue::from(getter)),
         enumerable: Some(true),
@@ -2297,8 +2305,16 @@ fn ordinary_set_with_own_descriptor_10() {
     let value = ECMAScriptValue::from("test sentinel");
     let receiver = ECMAScriptValue::from(obj.clone());
     obj.create_data_property("result", "initial value").unwrap();
-    let setter =
-        create_builtin_function(test_setter, None, 1_f64, key.clone(), &[], None, None, Some(JSString::from("set")));
+    let setter = create_builtin_function(
+        Box::new(test_setter),
+        None,
+        1_f64,
+        key.clone(),
+        &[],
+        None,
+        None,
+        Some(JSString::from("set")),
+    );
     let accessor_prop = PropertyDescriptor {
         property: PropertyKind::Accessor(AccessorProperty {
             get: ECMAScriptValue::Undefined,
@@ -2430,7 +2446,7 @@ mod ordinary_delete {
         "with AdaptableObject"
     )]
     #[test_case(
-        || BuiltInFunctionObject::new(None, false, current_realm_record().unwrap(), None, steps, None), "key"
+        || BuiltInFunctionObject::new(None, false, current_realm_record().unwrap(), None, Box::new(steps), None), "key"
         => Ok((true, String::new()));
         "with BuiltInFunctionObject"
     )]
@@ -2522,7 +2538,7 @@ mod ordinary_own_property_keys {
     #[test_case(|| ArgumentsObject::new(None, None) => svec(&[]); "ArgumentsObject")]
     #[test_case(|| ErrorObject::new(None) => svec(&[]); "ErrorObject")]
     #[test_case(
-        || BuiltInFunctionObject::new(None, false, current_realm_record().unwrap(), None, steps, None)
+        || BuiltInFunctionObject::new(None, false, current_realm_record().unwrap(), None, Box::new(steps), None)
         => svec(&[]);
         "BuiltinFunctionObject")]
     #[test_case(|| OrdinaryObject::new(None, true) => svec(&[]); "OrdinaryObject")]
@@ -3025,7 +3041,7 @@ mod private_get {
         };
         private_method_or_accessor_add(&obj, method).unwrap();
         let getter_method = create_builtin_function(
-            test_getter,
+            Box::new(test_getter),
             None,
             0_f64,
             PropertyKey::from("getter"),
@@ -3106,7 +3122,7 @@ mod private_set {
         };
         private_method_or_accessor_add(&obj, method).unwrap();
         let getter_method = create_builtin_function(
-            test_getter,
+            Box::new(test_getter),
             None,
             0_f64,
             PropertyKey::from("$state"),
@@ -3116,7 +3132,7 @@ mod private_set {
             Some(JSString::from("get")),
         );
         let setter_method = create_builtin_function(
-            test_setter,
+            Box::new(test_setter),
             None,
             1_f64,
             PropertyKey::from("$state"),
@@ -3332,7 +3348,7 @@ mod to_property_descriptor {
         let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
         let key = PropertyKey::from(name);
         let getter = create_builtin_function(
-            faux_errors,
+            Box::new(faux_errors),
             None,
             0_f64,
             key.clone(),
@@ -3674,7 +3690,7 @@ mod ordinary_has_instance {
         let realm = current_realm_record();
         let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
         create_builtin_function(
-            throw_type_error,
+            Box::new(throw_type_error),
             Some(ConstructorKind::Base),
             0_f64,
             PropertyKey::from("TestConstructor"),
@@ -5175,7 +5191,7 @@ mod get_prototype_from_constructor {
         behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     ) -> Object {
         create_builtin_function(
-            behavior,
+            Box::new(behavior),
             None,
             0.0,
             "f".into(),

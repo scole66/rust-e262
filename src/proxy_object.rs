@@ -990,7 +990,7 @@ pub fn provision_proxy_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //    that requires initialization.
 
     let proxy_constructor = create_builtin_function(
-        proxy_constructor_function,
+        Box::new(proxy_constructor_function),
         Some(ConstructorKind::Base),
         2_f64,
         PropertyKey::from("Proxy"),
@@ -1006,7 +1006,7 @@ pub fn provision_proxy_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
+                Box::new($steps),
                 None,
                 $length,
                 key.clone(),
@@ -1093,8 +1093,12 @@ fn proxy_revocable(
     let target = args.next_arg();
     let handler = args.next_arg();
     let proxy = to_object(proxy_create(target, handler)?).expect("Proxy should already be an object");
-    let revoker =
-        BuiltinFunctionWithRevokableProxySlot::create(revoker_closure, 0.0, PropertyKey::from(""), proxy.clone());
+    let revoker = BuiltinFunctionWithRevokableProxySlot::create(
+        Box::new(revoker_closure),
+        0.0,
+        PropertyKey::from(""),
+        proxy.clone(),
+    );
     let result = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
     result.create_data_property_or_throw("proxy", proxy)?;
     result.create_data_property_or_throw("revoke", revoker)?;
@@ -1121,7 +1125,7 @@ impl BuiltinFunctionWithRevokableProxySlot {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: BuiltInFcn,
         constructor_kind: Option<ConstructorKind>,
         revokable_proxy: Option<Object>,
     ) -> Self {
@@ -1136,7 +1140,7 @@ impl BuiltinFunctionWithRevokableProxySlot {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
+        steps: BuiltInFcn,
         constructor_kind: Option<ConstructorKind>,
         revokable_proxy: Option<Object>,
     ) -> Object {
@@ -1145,12 +1149,7 @@ impl BuiltinFunctionWithRevokableProxySlot {
         }
     }
 
-    pub fn create(
-        behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
-        length: f64,
-        name: PropertyKey,
-        proxy: Object,
-    ) -> Object {
+    pub fn create(behavior: BuiltInFcn, length: f64, name: PropertyKey, proxy: Object) -> Object {
         let realm_to_use = current_realm_record().unwrap();
         let prototype_to_use = realm_to_use.borrow().intrinsics.function_prototype.clone();
         let func = Self::object(Some(prototype_to_use), true, realm_to_use, None, behavior, None, Some(proxy));

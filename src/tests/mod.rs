@@ -550,7 +550,7 @@ pub fn make_toprimitive_throw_obj() -> Object {
     let to_prim_sym = wks(WksId::ToPrimitive);
     let key = PropertyKey::from(to_prim_sym);
     let fcn = create_builtin_function(
-        faux_errors,
+        Box::new(faux_errors),
         None,
         0_f64,
         "[Symbol toPrimitive]".into(),

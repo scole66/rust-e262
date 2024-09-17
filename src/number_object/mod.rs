@@ -178,7 +178,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //
     //      * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let number_constructor = create_builtin_function(
-        number_constructor_function,
+        Box::new(number_constructor_function),
         Some(ConstructorKind::Base),
         1_f64,
         PropertyKey::from("Number"),
@@ -193,7 +193,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
+                Box::new($steps),
                 None,
                 $length,
                 key.clone(),
@@ -342,7 +342,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
+                Box::new($steps),
                 None,
                 $length,
                 key.clone(),
