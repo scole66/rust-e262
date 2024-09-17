@@ -828,7 +828,6 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => serr("Thrown: TypeError: @@~ token detected. aborting compilation.");
     "class: method compile fails"
 )]
-
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {
