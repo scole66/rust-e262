@@ -885,18 +885,25 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case(
     "
     class C {
-        *#method(a) {
-            yield a;
-        }
-        get method() {
-            return this.#method;
-        }
+        *#method(a) { yield a; }
+        get method() { return this.#method; }
     };
-    const c = new C();
-    c.method(789).next().value
+    (new C()).method(789).next().value
     "
     => Ok(ECMAScriptValue::from(789));
     "class: generator method with private name"
+)]
+// 9/19/2024: static methods not attached correctly
+#[test_case(
+    "
+    class C {
+      static #item(a) { return a; }
+      static get item() { return this.#item; }
+    }
+    C.item(982)
+    "
+    => Ok(ECMAScriptValue::from(982));
+    "class: static method with private name not attached correctly"
 )]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();

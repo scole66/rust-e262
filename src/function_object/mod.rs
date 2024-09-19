@@ -143,7 +143,9 @@ impl TryFrom<NormalCompletion> for Option<ClassItem> {
 impl fmt::Display for ClassItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ClassItem::StaticPrivateElement(_) => todo!(),
+            ClassItem::StaticPrivateElement(pe) => {
+                write!(f, "Static({pe})")
+            }
             ClassItem::PrivateElement(_) => todo!(),
             ClassItem::StaticClassFieldDefinition(ClassFieldDefinitionRecord {
                 name,

@@ -310,7 +310,8 @@ impl Chunk {
             | Insn::GetNewTarget
             | Insn::GetSuperConstructor
             | Insn::ConstructorCheck
-            | Insn::BindThisAndInit => (1, format!("    {insn}")),
+            | Insn::BindThisAndInit
+            | Insn::StaticClassItem => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal

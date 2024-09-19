@@ -3647,6 +3647,43 @@ mod insn_impl {
         push_completion(to_push).expect(PUSHABLE);
         Ok(())
     }
+
+    pub fn static_class_item() -> anyhow::Result<()> {
+        // Take what's on top of the stack and transform it to a static class item
+
+        // Input: empty/classitem/privatelement/err
+        // output: empty/classitem/err
+
+        let completion = pop_completion()?;
+        match completion {
+            Ok(nc) => {
+                let item: Option<ClassItem> = nc.try_into()?;
+                match item {
+                    None => {
+                        push_completion(Ok(NormalCompletion::Empty)).expect(PUSHABLE);
+                    }
+                    Some(ci) => {
+                        let transformed = match ci {
+                            ClassItem::StaticPrivateElement(..)
+                            | ClassItem::ClassStaticBlockDefinition(..)
+                            | ClassItem::StaticClassFieldDefinition(..) => ci,
+                            ClassItem::PrivateElement(private_element) => {
+                                ClassItem::StaticPrivateElement(private_element)
+                            }
+                            ClassItem::ClassFieldDefinition(class_field_definition_record) => {
+                                ClassItem::StaticClassFieldDefinition(class_field_definition_record)
+                            }
+                        };
+                        push_completion(Ok(NormalCompletion::ClassItem(Box::new(transformed)))).expect(PUSHABLE);
+                    }
+                }
+            }
+            Err(err) => {
+                push_completion(Err(err)).expect(PUSHABLE);
+            }
+        }
+        Ok(())
+    }
 }
 
 pub fn execute_synchronously(text: &str) -> Completion<ECMAScriptValue> {
@@ -3928,6 +3965,7 @@ pub async fn execute(
             Insn::GetSuperConstructor => insn_impl::get_super_constructor().expect(GOODCODE),
             Insn::ConstructorCheck => insn_impl::constructor_check().expect(GOODCODE),
             Insn::BindThisAndInit => insn_impl::bind_this_and_init().expect(GOODCODE),
+            Insn::StaticClassItem => insn_impl::static_class_item().expect(GOODCODE),
         }
     }
 
