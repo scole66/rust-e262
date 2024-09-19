@@ -201,6 +201,7 @@ pub enum Insn {
     GetSuperConstructor,
     ConstructorCheck,
     BindThisAndInit,
+    StaticClassItem,
 }
 
 impl fmt::Display for Insn {
@@ -393,6 +394,7 @@ impl fmt::Display for Insn {
             Insn::GetSuperConstructor => "GET_SUPER_CSTR",
             Insn::ConstructorCheck => "CSTR_CHECK",
             Insn::BindThisAndInit => "BIND_THIS_AND_INIT",
+            Insn::StaticClassItem => "STATIC_ITEM",
         })
     }
 }
@@ -10287,13 +10289,23 @@ impl ClassElement {
         // PrivateElement, or unused, or an abrupt completion. It is defined piecewise over the following productions:
 
         match self {
-            ClassElement::Standard { method } | ClassElement::Static { method, .. } => {
+            ClassElement::Standard { method } => {
                 // ClassElement :
                 //      MethodDefinition
                 //      static MethodDefinition
                 //  1. Return ? MethodDefinitionEvaluation of MethodDefinition with arguments object and false.
                 chunk.op(Insn::Dup);
                 method.method_definition_evaluation(false, chunk, strict, text).map(AbruptResult::from)
+            }
+            ClassElement::Static { method, .. } => {
+                // ClassElement :
+                //      MethodDefinition
+                //      static MethodDefinition
+                //  1. Return ? MethodDefinitionEvaluation of MethodDefinition with arguments object and false.
+                chunk.op(Insn::Dup);
+                method.method_definition_evaluation(false, chunk, strict, text)?;
+                chunk.op(Insn::StaticClassItem);
+                Ok(AbruptResult::Maybe)
             }
             ClassElement::Field { field, .. } => {
                 // ClassElement :
