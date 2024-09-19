@@ -2253,7 +2253,7 @@ mod insn_impl {
 
         let info = sfd_operand(chunk)?;
         let enumerable = operand(chunk)? != 0;
-        let prop_key = pop_key()?;
+        let prop_key = pop_classname()?.ok_or(InternalRuntimeError::ClassNameExpected)?;
         let object = pop_obj()?;
 
         let to_compile: Rc<GeneratorMethod> =
