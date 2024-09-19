@@ -304,5 +304,43 @@ impl From<Rc<BigInt>> for JSString {
     }
 }
 
+impl JSString {
+    pub fn string_index_of(&self, search_value: &JSString, from_index: usize) -> Option<usize> {
+        // StringIndexOf ( string, searchValue, fromIndex )
+        // The abstract operation StringIndexOf takes arguments string (a String), searchValue (a String), and
+        // fromIndex (a non-negative integer) and returns a non-negative integer or not-found. It performs the
+        // following steps when called:
+        //
+        //  1. Let len be the length of string.
+        //  2. If searchValue is the empty String and fromIndex ≤ len, return fromIndex.
+        //  3. Let searchLen be the length of searchValue.
+        //  4. For each integer i such that fromIndex ≤ i ≤ len - searchLen, in ascending order, do
+        //      a. Let candidate be the substring of string from i to i + searchLen.
+        //      b. If candidate is searchValue, return i.
+        //  5. Return not-found.
+        //
+        // Note 1 | If searchValue is the empty String and fromIndex ≤ the length of string, this algorithm
+        //        | returns fromIndex. The empty String is effectively found at every position within a
+        //        | string, including after the last code unit.
+        //
+        // Note 2 | This algorithm always returns not-found if fromIndex + the length of searchValue > the
+        //        | length of string.
+        let len = self.len();
+        if search_value.is_empty() && from_index <= len {
+            return Some(from_index);
+        }
+        let search_len = search_value.len();
+        if from_index <= len - search_len {
+            for i in from_index..=len - search_len {
+                let candidate = &self.as_slice()[i..i + search_len];
+                if candidate == search_value.as_slice() {
+                    return Some(i);
+                }
+            }
+        }
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests;

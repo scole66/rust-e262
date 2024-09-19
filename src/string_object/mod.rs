@@ -721,14 +721,124 @@ fn string_prototype_slice(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
 // 22.1.3.22 String.prototype.split ( separator, limit )
+#[expect(clippy::many_single_char_names)]
 fn string_prototype_split(
-    _: &ECMAScriptValue,
+    this: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.prototype.split ( separator, limit )
+    // This method returns an Array into which substrings of the result of converting this object to a String
+    // have been stored. The substrings are determined by searching from left to right for occurrences of
+    // separator; these occurrences are not part of any String in the returned array, but serve to divide up
+    // the String value. The value of separator may be a String of any length or it may be an object, such as
+    // a RegExp, that has a %Symbol.split% method.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let O be ? RequireObjectCoercible(this value).
+    //  2. If separator is neither undefined nor null, then
+    //      a. Let splitter be ? GetMethod(separator, %Symbol.split%).
+    //      b. If splitter is not undefined, then
+    //          i. Return ? Call(splitter, separator, « O, limit »).
+    //  3. Let S be ? ToString(O).
+    //  4. If limit is undefined, let lim be 2**32 - 1; else let lim be ℝ(? ToUint32(limit)).
+    //  5. Let R be ? ToString(separator).
+    //  6. If lim = 0, then
+    //      a. Return CreateArrayFromList(« »).
+    //  7. If separator is undefined, then
+    //      a. Return CreateArrayFromList(« S »).
+    //  8. Let separatorLength be the length of R.
+    //  9. If separatorLength = 0, then
+    //      a. Let strLen be the length of S.
+    //      b. Let outLen be the result of clamping lim between 0 and strLen.
+    //      c. Let head be the substring of S from 0 to outLen.
+    //      d. Let codeUnits be a List consisting of the sequence of code units that are the elements of head.
+    //      e. Return CreateArrayFromList(codeUnits).
+    //  10. If S is the empty String, return CreateArrayFromList(« S »).
+    //  11. Let substrings be a new empty List.
+    //  12. Let i be 0.
+    //  13. Let j be StringIndexOf(S, R, 0).
+    //  14. Repeat, while j is not not-found,
+    //      a. Let T be the substring of S from i to j.
+    //      b. Append T to substrings.
+    //      c. If the number of elements in substrings is lim, return CreateArrayFromList(substrings).
+    //      d. Set i to j + separatorLength.
+    //      e. Set j to StringIndexOf(S, R, i).
+    //  15. Let T be the substring of S from i.
+    //  16. Append T to substrings.
+    //  17. Return CreateArrayFromList(substrings).
+    //
+    // Note 1 | The value of separator may be an empty String. In this case, separator does not match the
+    //        | empty substring at the beginning or end of the input String, nor does it match the empty
+    //        | substring at the end of the previous separator match. If separator is the empty String, the
+    //        | String is split up into individual code unit elements; the length of the result array equals
+    //        | the length of the String, and each substring contains one code unit.
+    //        |
+    //        | If the this value is (or converts to) the empty String, the result depends on whether
+    //        | separator can match the empty String. If it can, the result array contains no elements.
+    //        | Otherwise, the result array contains one element, which is the empty String.
+    //        |
+    //        | If separator is undefined, then the result array contains just one String, which is the this
+    //        | value (converted to a String). If limit is not undefined, then the output array is truncated
+    //        | so that it contains no more than limit elements.
+    //
+    // Note 2 | This method is intentionally generic; it does not require that its this value be a String
+    //        | object. Therefore, it can be transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let separator = args.next_arg();
+    let limit = args.next_arg();
+    require_object_coercible(this)?;
+    let o = this.clone();
+    if ![ECMAScriptValue::Undefined, ECMAScriptValue::Null].contains(&separator) {
+        let splitter = separator.get_method(&PropertyKey::from(wks(WksId::Split)))?;
+        if splitter != ECMAScriptValue::Undefined {
+            return call(&splitter, &separator, &[o, limit]);
+        }
+    }
+    let s = to_string(o)?;
+    let lim = if limit == ECMAScriptValue::Undefined { 4_294_967_295 } else { limit.to_uint32()? };
+    let r = to_string(separator.clone())?;
+    if lim == 0 {
+        return Ok(ECMAScriptValue::Object(create_array_from_list(&[])));
+    }
+    if separator == ECMAScriptValue::Undefined {
+        return Ok(ECMAScriptValue::Object(create_array_from_list(&[ECMAScriptValue::String(s)])));
+    }
+    let separator_length = r.len();
+    if separator_length == 0 {
+        let str_len = u32::try_from(s.len()).unwrap_or(u32::MAX);
+        let out_len = lim.clamp(0, str_len);
+        let head = s.as_slice()[0..out_len as usize]
+            .iter()
+            .map(|num| ECMAScriptValue::from(JSString::from(&[*num] as &[u16])))
+            .collect::<Vec<_>>();
+        return Ok(ECMAScriptValue::Object(create_array_from_list(&head)));
+    }
+
+    if s.is_empty() {
+        return Ok(ECMAScriptValue::Object(create_array_from_list(&[ECMAScriptValue::from(s)])));
+    }
+
+    let mut substrings = vec![];
+    let mut i = 0;
+    let mut maybe_j = s.string_index_of(&r, 0);
+    while let Some(j) = maybe_j {
+        let t = ECMAScriptValue::String(JSString::from(&s.as_slice()[i..j]));
+        substrings.push(t);
+        if substrings.len() == lim as usize {
+            return Ok(ECMAScriptValue::Object(create_array_from_list(&substrings)));
+        }
+        i = j + separator_length;
+        maybe_j = s.string_index_of(&r, i);
+    }
+    let t = ECMAScriptValue::String(JSString::from(&s.as_slice()[i..]));
+    substrings.push(t);
+    Ok(ECMAScriptValue::Object(create_array_from_list(&substrings)))
 }
+
 // 22.1.3.23 String.prototype.startsWith ( searchString [ , position ] )
 fn string_prototype_starts_with(
     _: &ECMAScriptValue,
