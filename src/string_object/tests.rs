@@ -761,7 +761,6 @@ tbd_function!(string_prototype_replace);
 tbd_function!(string_prototype_replace_all);
 tbd_function!(string_prototype_search);
 tbd_function!(string_prototype_slice);
-tbd_function!(string_prototype_split);
 tbd_function!(string_prototype_starts_with);
 tbd_function!(string_prototype_substring);
 tbd_function!(string_prototype_to_locale_lower_case);
