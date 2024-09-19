@@ -881,6 +881,23 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => Ok(ECMAScriptValue::from(1));
     "arguments object (mapped)"
 )]
+// 9/18/2024: private method generators
+#[test_case(
+    "
+    class C {
+        *#method(a) {
+            yield a;
+        }
+        get method() {
+            return this.#method;
+        }
+    };
+    const c = new C();
+    c.method(789).next().value
+    "
+    => Ok(ECMAScriptValue::from(789));
+    "class: generator method with private name"
+)]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

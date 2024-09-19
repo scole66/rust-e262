@@ -121,6 +121,7 @@ impl TryFrom<NormalCompletion> for ClassItem {
     fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
         match value {
             NormalCompletion::ClassItem(ci) => Ok(*ci),
+            NormalCompletion::PrivateElement(pi) => Ok(Self::PrivateElement(*pi)),
             _ => bail!("Not a ClassItem"),
         }
     }
@@ -132,8 +133,9 @@ impl TryFrom<NormalCompletion> for Option<ClassItem> {
     fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
         match value {
             NormalCompletion::ClassItem(ci) => Ok(Some(*ci)),
+            NormalCompletion::PrivateElement(pi) => Ok(Some(ClassItem::PrivateElement(*pi))),
             NormalCompletion::Empty => Ok(None),
-            _ => bail!("Not a ClassItem"),
+            _ => bail!(format!("{value:?} Not a ClassItem")),
         }
     }
 }
@@ -1450,6 +1452,16 @@ impl From<JSString> for FunctionName {
 impl From<&str> for FunctionName {
     fn from(source: &str) -> Self {
         Self::String(JSString::from(source))
+    }
+}
+
+impl From<ClassName> for FunctionName {
+    fn from(source: ClassName) -> Self {
+        match source {
+            ClassName::String(jsstring) => FunctionName::String(jsstring),
+            ClassName::Symbol(symbol) => FunctionName::Symbol(symbol),
+            ClassName::Private(private_name) => FunctionName::PrivateName(private_name),
+        }
     }
 }
 
