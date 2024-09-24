@@ -7810,13 +7810,15 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
         if strict || !simple_parameter_list {
             chunk.op(Insn::CreateUnmappedArguments);
         } else {
-            // Store all the boundnames someplace. On the stack, maybe? In a new list operand? @@@
-            for sidx in param_name_indexes.iter().copied() {
-                chunk.op_plus_arg(Insn::String, sidx);
-            }
-            let idx = chunk.add_to_float_pool(to_f64(param_name_indexes.len())?)?;
-            chunk.op_plus_arg(Insn::Float, idx);
             chunk.op(Insn::CreateMappedArguments);
+            let mut mapped_names = vec![];
+            for (idx, &name) in param_name_indexes.iter().enumerate().rev() {
+                if !mapped_names.contains(&name) {
+                    mapped_names.push(name);
+                    let idx = u16::try_from(idx)?;
+                    chunk.op_plus_two_args(Insn::AddMappedArgument, name, idx);
+                }
+            }
         }
         let args_idx = chunk.add_to_string_pool("arguments".into())?;
         chunk.op_plus_arg(

@@ -2407,33 +2407,9 @@ mod insn_impl {
         Ok(())
         // Stack at exit: AObj N arg[N-1] ... arg[0] ...
     }
-    fn make_arg_getter(name: JSString) -> anyhow::Result<Object> {
-        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
-        let closure =
-            move |_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]| env.get_binding_value(&name, false);
-        let getter =
-            create_builtin_function(Box::new(closure), None, 0.0, PropertyKey::from(""), &[], None, None, None);
-        Ok(getter)
-    }
-    fn make_arg_setter(name: JSString) -> anyhow::Result<Object> {
-        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
-        let closure =
-            move |_: &ECMAScriptValue, _: Option<&Object>, args: &[ECMAScriptValue]| -> Completion<ECMAScriptValue> {
-                let mut args = FuncArgs::from(args);
-                let value = args.next_arg();
-                env.set_mutable_binding(name.clone(), value, false).map(|()| ECMAScriptValue::Undefined)
-            };
-        let setter =
-            create_builtin_function(Box::new(closure), None, 1.0, PropertyKey::from(""), &[], None, None, None);
-        Ok(setter)
-    }
     pub fn create_mapped_arguments_object() -> anyhow::Result<()> {
-        // Input: N name(n-1) ... name(0) M arg(m-1) ... arg(0) func
-        // Output Obj M arg(m-1) ... arg(0) func
-        let num_names = pop_usize()?;
-        // Note that this arg_names vector is reversed. (It's [ name(n-1) .. name(0) ].)
-        let arg_names = (0..num_names).map(|_| pop_string()).collect::<Result<Vec<_>, _>>()?;
-
+        // Input: M arg(m-1) ... arg(0) func
+        // Output: Obj M arg(m-1) ... arg(0) func
         let length = peek_usize(0)?;
         let arguments = peek_list(1, length)?;
 
@@ -2453,23 +2429,6 @@ mod insn_impl {
             PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(true),
         )
         .expect("ArgumentObject won't throw");
-
-        let mut mapped_names = vec![];
-        for (idx, name) in arg_names.into_iter().enumerate() {
-            let index = num_names - idx - 1;
-            if !mapped_names.contains(&name) {
-                mapped_names.push(name.clone());
-                if index < length {
-                    let g = make_arg_getter(name.clone())?;
-                    let p = make_arg_setter(name)?;
-                    ao.o.define_own_property(
-                        PropertyKey::from(index),
-                        PotentialPropertyDescriptor::new().set(p).get(g).enumerable(false).configurable(true),
-                    )
-                    .expect("spec objects should never fail");
-                }
-            }
-        }
 
         let iterator = wks(WksId::Iterator);
         let array_values = intrinsic(IntrinsicId::ArrayPrototypeValues);
@@ -2494,13 +2453,16 @@ mod insn_impl {
     pub fn add_mapped_argument(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let name = string_operand(chunk)?;
         let argument_index = usize_operand(chunk)?;
-        // Stack: AObj ...
+        // Stack: AObj len ...
         let obj = peek_obj(0)?;
-        let ao = obj.o.to_arguments_object().ok_or(InternalRuntimeError::ArgumentsObjectExpected)?;
-        let pmap = ao.parameter_map.as_ref().ok_or(InternalRuntimeError::MappedArgumentsObjectExpected)?;
-        let mut pmap = pmap.borrow_mut();
-        pmap.add_mapped_name(name.clone(), argument_index);
-        // Stack: AObj ...
+        let len = peek_usize(1)?;
+        if argument_index < len {
+            let ao = obj.o.to_arguments_object().ok_or(InternalRuntimeError::ArgumentsObjectExpected)?;
+            let pmap = ao.parameter_map.as_ref().ok_or(InternalRuntimeError::MappedArgumentsObjectExpected)?;
+            let mut pmap = pmap.borrow_mut();
+            pmap.add_mapped_name(name.clone(), argument_index);
+        }
+        // Stack: AObj len ...
         Ok(())
     }
     pub fn handle_empty_break() -> anyhow::Result<()> {
