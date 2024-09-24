@@ -1423,7 +1423,12 @@ pub fn number_same_value_zero(x: f64, y: f64) -> bool {
 //  2. If argument has a [[Call]] internal method, return true.
 //  3. Return false.
 pub fn is_callable(value: &ECMAScriptValue) -> bool {
-    to_callable(value).is_some()
+    value.is_callable()
+}
+impl ECMAScriptValue {
+    pub fn is_callable(&self) -> bool {
+        to_callable(self).is_some()
+    }
 }
 
 // IsConstructor ( argument )

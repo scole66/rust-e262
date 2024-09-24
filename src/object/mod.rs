@@ -1140,7 +1140,10 @@ impl fmt::Display for ObjectTag {
 pub trait ObjectInterface: Debug {
     fn common_object_data(&self) -> &RefCell<CommonObjectData>;
     fn uses_ordinary_get_prototype_of(&self) -> bool; // True if implements ordinary defintion of GetPrototypeOf
-    fn id(&self) -> usize; // Unique object id. Used for object "is_same" detection.
+    fn id(&self) -> usize {
+        // Unique object id. Used for object "is_same" detection.
+        self.common_object_data().borrow().objid
+    }
     fn to_boolean_obj(&self) -> Option<&dyn BooleanObjectInterface> {
         None
     }
@@ -1712,6 +1715,10 @@ pub enum InternalSlotName {
     // Proxy Objects
     ProxyTarget,
     ProxyHandler,
+    // Bound Function Objects
+    BoundTargetFunction,
+    BoundThis,
+    BoundArguments,
 
     Nonsense, // For testing purposes, for the time being.
 }
@@ -1745,6 +1752,8 @@ pub const FUNCTION_OBJECT_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::ClassFieldInitializerName,
     InternalSlotName::IsClassConstructor,
 ];
+pub const BOUND_FUNCTION_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::BoundTargetFunction, InternalSlotName::BoundThis, InternalSlotName::BoundArguments];
 pub const NUMBER_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
 pub const BIGINT_OBJECT_SLOTS: &[InternalSlotName] =
