@@ -2535,11 +2535,73 @@ fn function_prototype_apply(
 }
 
 fn function_prototype_bind(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Function.prototype.bind ( thisArg, ...args )
+    // This method performs the following steps when called:
+    //
+    // 1. Let Target be the this value.
+    // 2. If IsCallable(Target) is false, throw a TypeError exception.
+    // 3. Let F be ? BoundFunctionCreate(Target, thisArg, args).
+    // 4. Let L be 0.
+    // 5. Let targetHasLength be ? HasOwnProperty(Target, "length").
+    // 6. If targetHasLength is true, then
+    //    a. Let targetLen be ? Get(Target, "length").
+    //    b. If targetLen is a Number, then
+    //       i. If targetLen is +∞𝔽, then
+    //          1. Set L to +∞.
+    //       ii. Else if targetLen is -∞𝔽, then
+    //           1. Set L to 0.
+    //       iii. Else,
+    //            1. Let targetLenAsInt be ! ToIntegerOrInfinity(targetLen).
+    //            2. Assert: targetLenAsInt is finite.
+    //            3. Let argCount be the number of elements in args.
+    //            4. Set L to max(targetLenAsInt - argCount, 0).
+    // 7. Perform SetFunctionLength(F, L).
+    // 8. Let targetName be ? Get(Target, "name").
+    // 9. If targetName is not a String, set targetName to the empty String.
+    // 10. Perform SetFunctionName(F, targetName, "bound").
+    // 11. Return F.
+    //
+    // Note 1 | Function objects created using Function.prototype.bind are exotic objects. They also do not have a
+    //        | "prototype" property.
+    //
+    // Note 2 | If Target is either an arrow function or a bound function exotic object, then the thisArg passed to this
+    //        | method will not be used by subsequent calls to F.
+    let mut arg_getter = FuncArgs::from(arguments);
+    let this_arg = arg_getter.next_arg();
+    let args = arg_getter.remaining().cloned().collect::<Vec<_>>();
+    let target = this_value;
+    if !target.is_callable() {
+        return Err(create_type_error("Bind must be called on a function"));
+    }
+    let target = Object::try_from(target).expect("Callable items should be objects");
+    let f = BoundFunctionObject::create(target.clone(), this_arg, &args)?;
+    let mut l = 0.0;
+    let target_has_length = target.has_own_property(&"length".into())?;
+    if target_has_length {
+        let target_len = target.get(&"length".into())?;
+        if let ECMAScriptValue::Number(target_len) = target_len {
+            l = if target_len == f64::INFINITY {
+                f64::INFINITY
+            } else if target_len == f64::NEG_INFINITY {
+                0.0
+            } else {
+                let target_len_as_int = to_integer_or_infinity(target_len);
+                let arg_count = to_f64(args.len()).expect("in bounds math");
+                (target_len_as_int - arg_count).max(0.0)
+            };
+        }
+    }
+    set_function_length(&f, l);
+    let target_name = match target.get(&"name".into())? {
+        ECMAScriptValue::String(s) => s,
+        _ => JSString::from(""),
+    };
+    set_function_name(&f, target_name.into(), Some("bound".into()));
+    Ok(ECMAScriptValue::Object(f))
 }
 
 fn function_prototype_to_string(

@@ -221,12 +221,6 @@ fn function_prototype_call(
     super::function_prototype_call(&this_value, None, args).map_err(unwind_any_error)
 }
 
-#[test_case(super::function_prototype_bind => panics "not yet implemented"; "function_prototype_bind")]
-fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
-    setup_test_agent();
-    f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
-}
-
 #[test_case(|| intrinsic(IntrinsicId::IsNaN) => sok("function isNaN() { [native code] }"); "builtin fcn")]
 #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (undefined)")]
 #[test_case(|| ECMAScriptValue::Null => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (null)")]
