@@ -905,6 +905,27 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => Ok(ECMAScriptValue::from(982));
     "class: static method with private name not attached correctly"
 )]
+// 9/22/2024: arguments objects still not connected properly
+#[test_case(
+    "
+        let setCalls = 0;
+        function x(a) {
+          Object.defineProperty(arguments, '0', {
+            set(_v) { setCalls += 1; },
+            enumerable: true,
+            configurable: true,
+          });
+
+          arguments[0] = 'foo';
+
+          return arguments[0]
+        }
+
+        [x('bar'), setCalls].join(', ')
+    "
+    => Ok(ECMAScriptValue::from(", 1"));
+    "argumentsObject: accessor function"
+)]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

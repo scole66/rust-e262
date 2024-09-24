@@ -645,11 +645,6 @@ mod agent {
                     stack.push(Ok(value.clone().into()));
                 }
                 stack.push(Ok(num_values.into()));
-                let num_names = names.len();
-                for name in names.iter().map(|s| JSString::from(*s)) {
-                    stack.push(Ok(name.into()));
-                }
-                stack.push(Ok(num_names.into()));
                 index
             });
 
