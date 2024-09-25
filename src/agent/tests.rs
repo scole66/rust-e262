@@ -1797,7 +1797,7 @@ mod define_method_property {
         setup_test_agent();
         let home_object = make_home_object();
         let closure = make_closure();
-        let opt_pe = define_method_property(&home_object, key.clone(), closure.clone(), enumerable);
+        let opt_pe = define_method_property(&home_object, key.clone(), closure.clone(), enumerable).unwrap();
         match opt_pe {
             None => {
                 let pk = PropertyKey::try_from(key).unwrap();

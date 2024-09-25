@@ -2301,9 +2301,10 @@ mod insn_impl {
         )
         .expect("defining properties on an algorithmically generated object should work");
 
-        let result = super::define_method_property(&object, FunctionName::from(prop_key), closure, enumerable);
+        let result = super::define_method_property(&object, FunctionName::from(prop_key), closure, enumerable)
+            .map(NormalCompletion::from);
 
-        push_completion(Ok(NormalCompletion::from(result))).expect(PUSHABLE);
+        push_completion(result).expect(PUSHABLE);
         Ok(())
     }
     pub fn throw() -> anyhow::Result<()> {
@@ -3014,8 +3015,8 @@ mod insn_impl {
         let name = pop_functionname()?;
         let closure = pop_obj()?;
         let home_object = pop_obj()?;
-        let result = super::define_method_property(&home_object, name, closure, enumerable);
-        push_completion(Ok(result.into())).expect(PUSHABLE);
+        let result = super::define_method_property(&home_object, name, closure, enumerable).map(NormalCompletion::from);
+        push_completion(result).expect(PUSHABLE);
         Ok(())
     }
     pub fn define_getter(chunk: &Rc<Chunk>, text: &str) -> anyhow::Result<()> {
@@ -4282,20 +4283,23 @@ fn define_method_property(
     key: FunctionName,
     closure: Object,
     enumerable: bool,
-) -> Option<PrivateElement> {
+) -> Completion<Option<PrivateElement>> {
     // DefineMethodProperty ( homeObject, key, closure, enumerable )
-    // The abstract operation DefineMethodProperty takes arguments homeObject (an Object), key (a property key or
-    // Private Name), closure (a function object), and enumerable (a Boolean) and returns a PrivateElement or UNUSED. It
-    // performs the following steps when called:
+    // The abstract operation DefineMethodProperty takes arguments homeObject (an Object), key (a property key
+    // or Private Name), closure (a function object), and enumerable (a Boolean) and returns either a normal
+    // completion containing either a PrivateElement or unused, or an abrupt completion. It performs the
+    // following steps when called:
     //
-    //  1. Assert: homeObject is an ordinary, extensible object with no non-configurable properties.
-    //  2. If key is a Private Name, then
-    //      a. Return PrivateElement { [[Key]]: key, [[Kind]]: METHOD, [[Value]]: closure }.
-    //  3. Else,
-    //      a. Let desc be the PropertyDescriptor { [[Value]]: closure, [[Writable]]: true, [[Enumerable]]: enumerable,
-    //         [[Configurable]]: true }.
-    //      b. Perform ! DefinePropertyOrThrow(homeObject, key, desc).
-    //      c. Return UNUSED.
+    // 1. Assert: homeObject is an ordinary, extensible object.
+    // 2. If key is a Private Name, then
+    //    a. Return PrivateElement { [[Key]]: key, [[Kind]]: method, [[Value]]: closure }.
+    // 3. Else,
+    //    a. Let desc be the PropertyDescriptor { [[Value]]: closure, [[Writable]]: true, [[Enumerable]]:
+    //       enumerable, [[Configurable]]: true }.
+    //    b. Perform ? DefinePropertyOrThrow(homeObject, key, desc).
+    //    c. NOTE: DefinePropertyOrThrow only returns an abrupt completion when attempting to define a class
+    //       static method whose key is "prototype".
+    //    d. Return unused.
 
     match key {
         FunctionName::String(_) | FunctionName::Symbol(_) => {
@@ -4305,11 +4309,11 @@ fn define_method_property(
                 .enumerable(enumerable)
                 .configurable(true);
             let key = PropertyKey::try_from(key).expect("strings and symbols should convert just fine");
-            define_property_or_throw(home_object, key, ppd).expect("property should be attached without issue");
-            None
+            define_property_or_throw(home_object, key, ppd)?;
+            Ok(None)
         }
         FunctionName::PrivateName(pn) => {
-            Some(PrivateElement { key: pn, kind: PrivateElementKind::Method { value: closure.into() } })
+            Ok(Some(PrivateElement { key: pn, kind: PrivateElementKind::Method { value: closure.into() } }))
         }
     }
 }
