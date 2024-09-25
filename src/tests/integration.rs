@@ -939,6 +939,12 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => Ok(ECMAScriptValue::from(2));
     "argumentsObject: writable failing"
 )]
+// 9/24/2024: static prototype function fails
+#[test_case(
+    "class C { static *['prototype']() {} }"
+    => serr("Thrown: TypeError: Property cannot be assigned to");
+    "class: static prototype functions"
+)]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
