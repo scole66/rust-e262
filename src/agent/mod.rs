@@ -2833,7 +2833,7 @@ mod insn_impl {
         // Input on stack: iteratorRecord
         // Output:         nextResult/err iteratorRecord
         let ir = pop_ir()?;
-        let next_method = ECMAScriptValue::from(ir.next_method.clone());
+        let next_method = ir.next_method.clone();
         let iterator = ECMAScriptValue::from(ir.iterator.clone());
         let next_result = super::call(&next_method, &iterator, &[]);
 
@@ -2885,8 +2885,7 @@ mod insn_impl {
         // output: an iterator record set up to iterate over the properties of that object
         let obj = pop_obj()?;
         let iterator = create_for_in_iterator(obj);
-        let next_obj = Object::try_from(iterator.get(&"next".into()).expect("next method should exist"))
-            .expect("next method should be an object");
+        let next_obj = iterator.get(&"next".into()).expect("next method should exist");
         let ir = IteratorRecord { iterator, next_method: next_obj, done: Cell::new(false) };
         push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
         Ok(())

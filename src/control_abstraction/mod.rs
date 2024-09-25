@@ -353,7 +353,7 @@ pub fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord
         create_iterator_from_closure(asyncfn_wrap(closure), "", Some(intrinsic(IntrinsicId::IteratorPrototype)));
     IteratorRecord {
         iterator,
-        next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext),
+        next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext).into(),
         done: Cell::new(false),
     }
 }
@@ -921,16 +921,19 @@ pub async fn generator_yield(
 // Iterator Records have the fields listed in Table 15.
 //
 // Table 15: Iterator Record Fields
-// +----------------+-------------------+---------------------------------------------------------------------+
-// | Field Name     | Value             | Meaning                                                             |
-// +----------------+-------------------+---------------------------------------------------------------------+
-// | [[Iterator]]   | an Object         | An object that conforms to the Iterator or AsyncIterator interface. |
-// | [[NextMethod]] | a function object | The next method of the [[Iterator]] object.                         |
-// | [[Done]]       | a Boolean         | Whether the iterator has been closed.                               |
-// +----------------+-------------------+---------------------------------------------------------------------+
+// +----------------+----------------+---------------------------------------------------------------------+
+// | Field Name     | Value          | Meaning                                                             |
+// +----------------+----------------+---------------------------------------------------------------------+
+// | [[Iterator]]   | an Object      | An object that conforms to the Iterator or AsyncIterator interface. |
+// +----------------+----------------+---------------------------------------------------------------------+
+// | [[NextMethod]] | an ECMAScript  | The next method of the [[Iterator]] object.                         |
+// |                | language value |                                                                     |
+// +----------------+----------------+---------------------------------------------------------------------+
+// | [[Done]]       | a Boolean      | Whether the iterator has been closed.                               |
+// +----------------+----------------+---------------------------------------------------------------------+
 pub struct IteratorRecord {
     pub iterator: Object,
-    pub next_method: Object,
+    pub next_method: ECMAScriptValue,
     pub done: Cell<bool>,
 }
 
@@ -938,9 +941,21 @@ impl fmt::Debug for IteratorRecord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("IteratorRecord")
             .field("iterator", &ConciseObject::from(&self.iterator))
-            .field("next_method", &ConciseObject::from(&self.next_method))
+            .field("next_method", &ConciseValue::from(&self.next_method))
             .field("done", &self.done)
             .finish()
+    }
+}
+
+struct ConciseValue<'a>(&'a ECMAScriptValue);
+impl<'a> fmt::Debug for ConciseValue<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.concise(f)
+    }
+}
+impl<'a> From<&'a ECMAScriptValue> for ConciseValue<'a> {
+    fn from(value: &'a ECMAScriptValue) -> Self {
+        Self(value)
     }
 }
 
@@ -970,7 +985,6 @@ fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> 
     }
     let next_method = iterator.get(&"next".into())?;
     let iterator = Object::try_from(iterator).expect("iterator previously proved");
-    let next_method = Object::try_from(next_method).map_err(|e| create_type_error(e.to_string()))?;
     Ok(IteratorRecord { iterator, next_method, done: Cell::new(false) })
 }
 
@@ -1010,7 +1024,7 @@ impl IteratorRecord {
         format!(
             "IR(iter: {:?}; next: {:?}; {})",
             ConciseObject::from(&self.iterator),
-            ConciseObject::from(&self.next_method),
+            ConciseValue::from(&self.next_method),
             if self.done.get() { "DONE" } else { "unfinished" }
         )
     }
@@ -1029,11 +1043,11 @@ impl IteratorRecord {
         //      a. Let result be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]], « value »).
         //  3. If result is not an Object, throw a TypeError exception.
         //  4. Return result.
-        let next_method = ECMAScriptValue::from(&self.next_method);
+        let next_method = &self.next_method;
         let iterator = ECMAScriptValue::from(&self.iterator);
         let result = match value {
-            Some(value) => call(&next_method, &iterator, &[value])?,
-            None => call(&next_method, &iterator, &[])?,
+            Some(value) => call(next_method, &iterator, &[value])?,
+            None => call(next_method, &iterator, &[])?,
         };
         Object::try_from(result).map_err(|_| create_type_error("not an iterator result"))
     }
