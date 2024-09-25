@@ -2833,7 +2833,7 @@ mod insn_impl {
         // Input on stack: iteratorRecord
         // Output:         nextResult/err iteratorRecord
         let ir = pop_ir()?;
-        let next_method = ECMAScriptValue::from(ir.next_method.clone());
+        let next_method = ir.next_method.clone();
         let iterator = ECMAScriptValue::from(ir.iterator.clone());
         let next_result = super::call(&next_method, &iterator, &[]);
 

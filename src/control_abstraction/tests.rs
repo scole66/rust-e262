@@ -229,7 +229,10 @@ fn create_list_iterator_record() {
     // done must be false...
     assert!(!ir.done.get());
     // next_method must be the appropriate intrinsic...
-    assert_eq!(ir.next_method, ECMAScriptValue::Object(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext)));
+    assert_eq!(
+        ir.next_method,
+        ECMAScriptValue::Object(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext))
+    );
     // and iterator must be a generator object that returns the above list.
     assert!(ir.iterator.o.to_generator_object().is_some());
     let mut results = vec![];
@@ -908,7 +911,7 @@ mod get_iterator_from_method {
 
     #[test_case(undefined, undefined => serr("TypeError: Value not callable"); "uncallable")]
     #[test_case(undefined, number => serr("TypeError: not an object"); "non-object came back from method")]
-    #[test_case(undefined, object => serr("TypeError: Only object values may be converted to true objects"); "no next method")]
+    #[test_case(undefined, object => serr("TypeError: Undefined and null cannot be converted to objects"); "no next method")]
     #[test_case(undefined, dead_func => serr("TypeError: get called on DeadObject"); "get fails")]
     #[test_case(silly_this, silly_iterator_method_object => Ok(("Next".to_string(), "Iterator(This)".to_string(), false)); "something positive")]
     fn call(
@@ -920,12 +923,12 @@ mod get_iterator_from_method {
         let method = make_method();
         let result = super::get_iterator_from_method(&obj, &method);
         result
-            .map(|ir| {
-                (
-                    ir.next_method.get(&"sentinel".into()).unwrap().to_string(),
-                    ir.iterator.get(&"sentinel".into()).unwrap().to_string(),
+            .and_then(|ir| {
+                Ok((
+                    ir.next_method.get(&"sentinel".into())?.to_string(),
+                    ir.iterator.get(&"sentinel".into())?.to_string(),
                     ir.done.get(),
-                )
+                ))
             })
             .map_err(unwind_any_error)
     }

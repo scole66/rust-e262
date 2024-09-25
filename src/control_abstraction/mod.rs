@@ -941,9 +941,21 @@ impl fmt::Debug for IteratorRecord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("IteratorRecord")
             .field("iterator", &ConciseObject::from(&self.iterator))
-            .field("next_method", &self.next_method)
+            .field("next_method", &ConciseValue::from(&self.next_method))
             .field("done", &self.done)
             .finish()
+    }
+}
+
+struct ConciseValue<'a>(&'a ECMAScriptValue);
+impl<'a> fmt::Debug for ConciseValue<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.concise(f)
+    }
+}
+impl<'a> From<&'a ECMAScriptValue> for ConciseValue<'a> {
+    fn from(value: &'a ECMAScriptValue) -> Self {
+        Self(value)
     }
 }
 
@@ -1012,7 +1024,7 @@ impl IteratorRecord {
         format!(
             "IR(iter: {:?}; next: {:?}; {})",
             ConciseObject::from(&self.iterator),
-            &self.next_method,
+            ConciseValue::from(&self.next_method),
             if self.done.get() { "DONE" } else { "unfinished" }
         )
     }
@@ -1034,7 +1046,7 @@ impl IteratorRecord {
         let next_method = &self.next_method;
         let iterator = ECMAScriptValue::from(&self.iterator);
         let result = match value {
-            Some(value) => call(&next_method, &iterator, &[value])?,
+            Some(value) => call(next_method, &iterator, &[value])?,
             None => call(next_method, &iterator, &[])?,
         };
         Object::try_from(result).map_err(|_| create_type_error("not an iterator result"))
