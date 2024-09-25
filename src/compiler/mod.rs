@@ -2104,7 +2104,7 @@ impl MemberExpression {
             }
             MemberExpression::TemplateLiteral(_, _) => todo!(),
             MemberExpression::SuperProperty(_) => todo!(),
-            MemberExpression::MetaProperty(_) => todo!(),
+            MemberExpression::MetaProperty(mp) => mp.compile(chunk, strict, text),
             MemberExpression::NewArguments(me, args, ..) => {
                 compile_new_evaluator(chunk, strict, text, &ConstructExpr::Member(me.clone()), Some(args.clone()))
             }
@@ -2141,6 +2141,22 @@ impl MemberExpression {
                 };
                 Ok(CompilerStatusFlags::new().abrupt(maybe_abrupt).reference(true))
             }
+        }
+    }
+}
+
+impl MetaProperty {
+    #[expect(unused_variables)]
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        match self {
+            MetaProperty::NewTarget { .. } => {
+                // Runtime Semantics: Evaluation
+                // NewTarget : new . target
+                //  1. Return GetNewTarget().
+                chunk.op(Insn::GetNewTarget);
+                Ok(CompilerStatusFlags::new())
+            }
+            MetaProperty::ImportMeta { .. } => todo!(),
         }
     }
 }
