@@ -246,7 +246,7 @@ mod normal_completion {
             || {
                 let iterator = ordinary_object_create(None);
                 iterator.create_data_property_or_throw("sentinel", 3939).unwrap();
-                let next_method = intrinsic(IntrinsicId::ThrowTypeError);
+                let next_method = ECMAScriptValue::from(intrinsic(IntrinsicId::ThrowTypeError));
                 let done = Cell::new(true);
                 let ir = IteratorRecord { iterator, next_method, done };
                 NormalCompletion::IteratorRecord(Rc::new(ir))
@@ -263,7 +263,7 @@ mod normal_completion {
                 .map(|item| {
                     let IteratorRecord { iterator, next_method, done } = item.as_ref();
                     let name = String::from(to_string(iterator.get(&"sentinel".into()).unwrap()).unwrap());
-                    let method = if next_method == &intrinsic(IntrinsicId::ThrowTypeError) {
+                    let method = if next_method == &ECMAScriptValue::Object(intrinsic(IntrinsicId::ThrowTypeError)) {
                         "throw-type-error"
                     } else {
                         "something-else"

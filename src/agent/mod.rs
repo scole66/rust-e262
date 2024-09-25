@@ -2885,8 +2885,7 @@ mod insn_impl {
         // output: an iterator record set up to iterate over the properties of that object
         let obj = pop_obj()?;
         let iterator = create_for_in_iterator(obj);
-        let next_obj = Object::try_from(iterator.get(&"next".into()).expect("next method should exist"))
-            .expect("next method should be an object");
+        let next_obj = iterator.get(&"next".into()).expect("next method should exist");
         let ir = IteratorRecord { iterator, next_method: next_obj, done: Cell::new(false) };
         push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
         Ok(())
