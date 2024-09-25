@@ -926,6 +926,19 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => Ok(ECMAScriptValue::from(", 1"));
     "argumentsObject: accessor function"
 )]
+// 9/24/2024 : arguments is staying writable
+#[test_case(
+    "
+    function f(a) {
+        Object.defineProperty(arguments, '0', {writable: false, enumerable: false, value: 2, configurable: false});
+        arguments[0] = 999;
+        return arguments[0];
+    }
+    f(10)
+    "
+    => Ok(ECMAScriptValue::from(2));
+    "argumentsObject: writable failing"
+)]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

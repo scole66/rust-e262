@@ -4718,6 +4718,10 @@ impl fmt::Display for ProcessError {
                     if o.is_error_object() {
                         return write!(f, "Thrown: {}", unwind_any_error_object(o));
                     }
+                    let maybe_message = to_string(o.into());
+                    if let Ok(message) = maybe_message {
+                        return write!(f, "Thrown: {message}");
+                    }
                 }
                 write!(f, "Thrown: {error}")
             }
