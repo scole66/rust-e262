@@ -3562,7 +3562,9 @@ mod insn_impl {
     pub fn get_new_target() -> anyhow::Result<()> {
         // Input: nothing
         // Output: Stack: newTarget
-        push_value(ECMAScriptValue::from(super::get_new_target()?))
+        let nt = super::get_new_target()?;
+        let val = if let Some(obj) = nt { ECMAScriptValue::Object(obj) } else { ECMAScriptValue::Undefined };
+        push_value(val)
     }
 
     pub fn get_super_constructor() -> anyhow::Result<()> {

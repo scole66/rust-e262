@@ -1215,7 +1215,7 @@ mod member_expression {
     #[test_case("a[@@@]", true, None => serr("out of range integral type conversion attempted"); "bad jump (expression)")]
     #[test_case("a`${b}`", true, None => panics "not yet implemented"; "template")]
     #[test_case("super.a", true, None => panics "not yet implemented"; "super ref")]
-    #[test_case("new.target", true, None => panics "not yet implemented"; "meta")]
+    #[test_case("new.target", true, None => Ok((svec(&["GET_NEW_TARGET"]), false, false)); "meta")]
     #[test_case("new a()", true, None => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
