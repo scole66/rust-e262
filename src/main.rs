@@ -99,7 +99,7 @@ impl VM {
         let sym_registry = Rc::new(RefCell::new(SymbolRegistry::new()));
         AGENT.with(|agent| {
             agent.set_global_symbol_registry(sym_registry.clone());
-            initialize_host_defined_realm(0, false);
+            initialize_host_defined_realm(0, true);
         });
         VM { symbols: sym_registry }
     }
