@@ -605,7 +605,75 @@ pub fn initialize_host_defined_realm(id: RealmId, install_test_hooks: bool) {
             };
         }
         global_data!("debug_token", "present", true, true, true);
+        global_data!("$262", testrunner_helper(), true, true, true);
+        let print_function = create_builtin_function(
+            Box::new(print_262),
+            None,
+            f64::from(1),
+            PropertyKey::from("print"),
+            BUILTIN_FUNCTION_SLOTS,
+            Some(current_realm_record().expect("realm should exist by now")),
+            Some(intrinsic(IntrinsicId::FunctionPrototype)),
+            None,
+        );
+        global_data!("print", print_function, true, false, true);
     }
+}
+
+fn print_262(_this: &ECMAScriptValue, _nt: Option<&Object>, args: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    // print A function that exposes the string value of its first argument to the test runner. This is used
+    // as a communication mechanism for asynchronous tests (via the async flag, described below).
+    let mut a = FuncArgs::from(args);
+    let message = a.next_arg();
+    let message = to_string(message)?.to_string();
+    for line in message.lines() {
+        println!("LOGGER: {line}");
+    }
+    Ok(ECMAScriptValue::Undefined)
+}
+fn testrunner_helper() -> Object {
+    let two62 = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
+    let global = get_global_object().unwrap();
+    macro_rules! data {
+        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+            define_property_or_throw(
+                &two62,
+                $name,
+                PotentialPropertyDescriptor::new()
+                    .value(ECMAScriptValue::from($value))
+                    .writable($writable)
+                    .enumerable($enumerable)
+                    .configurable($configurable),
+            )
+            .unwrap();
+        };
+    }
+    data!("global", global, true, true, true);
+    let createrealm = create_builtin_function(
+        Box::new(testrunner_createrealm),
+        None,
+        f64::from(0),
+        PropertyKey::from("createRealm"),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(current_realm_record().expect("realm should exist by now")),
+        Some(intrinsic(IntrinsicId::FunctionPrototype)),
+        None,
+    );
+    data!("createRealm", createrealm, true, false, true);
+
+    two62
+}
+
+fn testrunner_createrealm(
+    _this: &ECMAScriptValue,
+    _nt: Option<&Object>,
+    _args: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    initialize_host_defined_realm(9939, true);
+    let global = get_global_object().unwrap();
+    let twosixtytwo = global.get(&PropertyKey::from("$262"))?;
+    pop_execution_context();
+    Ok(twosixtytwo)
 }
 
 pub fn global_symbol_registry() -> Rc<RefCell<SymbolRegistry>> {

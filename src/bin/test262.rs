@@ -208,7 +208,7 @@ struct Arguments {
 }
 
 fn main() -> Result<()> {
-    let ignored_features = ["caller", "async", "cross-realm", "async-iteration", "iterator-helpers"];
+    let ignored_features = ["caller", "async", "cross-realm", "async-iteration", "async-functions", "iterator-helpers"];
     color_eyre::install()?;
 
     let args = Arguments::parse();
