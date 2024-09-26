@@ -504,6 +504,7 @@ pub fn set_default_global_bindings() {
     constructor_property!(Boolean);
     // DataView ( . . . )
     // Date ( . . . )
+    constructor_property!(Date);
     // Error ( . . . )
     constructor_property!(Error);
     // EvalError ( . . . )

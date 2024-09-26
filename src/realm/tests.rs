@@ -15,6 +15,8 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::BigIntPrototype,
     IntrinsicId::Boolean,
     IntrinsicId::BooleanPrototype,
+    IntrinsicId::Date,
+    IntrinsicId::DatePrototype,
     IntrinsicId::DecodeURI,
     IntrinsicId::DecodeURIComponent,
     IntrinsicId::EncodeURI,
