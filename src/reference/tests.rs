@@ -80,7 +80,7 @@ mod referenced_name {
 
     #[test]
     fn debug() {
-        let rn = ReferencedName::String(JSString::from("apple"));
+        let rn = ReferencedName::Value(ECMAScriptValue::from("apple"));
         assert_ne!(format!("{rn:?}"), "");
     }
 
@@ -94,9 +94,9 @@ mod referenced_name {
 
         fn setup() -> (ReferencedName, ReferencedName, ReferencedName) {
             (
-                ReferencedName::String(JSString::from("apple")),
+                ReferencedName::Value(ECMAScriptValue::from("apple")),
                 ReferencedName::PrivateName(PrivateName::new("apple")),
-                ReferencedName::String(JSString::from("apple")),
+                ReferencedName::Value(ECMAScriptValue::from("apple")),
             )
         }
 
@@ -122,24 +122,24 @@ mod referenced_name {
         #[test]
         fn str_slice() {
             let rn = ReferencedName::from("orange");
-            assert_eq!(rn, ReferencedName::String(JSString::from("orange")));
+            assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::from("orange")));
         }
         #[test]
         fn string() {
             let rn = ReferencedName::from(String::from("orange"));
-            assert_eq!(rn, ReferencedName::String(JSString::from("orange")));
+            assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::from("orange")));
         }
         #[test]
         fn jsstring() {
             let rn = ReferencedName::from(JSString::from("orange"));
-            assert_eq!(rn, ReferencedName::String(JSString::from("orange")));
+            assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::from("orange")));
         }
         #[test]
         fn symbol() {
             setup_test_agent();
             let sym = Symbol::new(None);
             let rn = ReferencedName::from(sym.clone());
-            assert_eq!(rn, ReferencedName::Symbol(sym));
+            assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::Symbol(sym)));
         }
         #[test]
         fn privatename() {
@@ -153,7 +153,7 @@ mod referenced_name {
             fn string() {
                 let pk = PropertyKey::from("a");
                 let rn = ReferencedName::from(pk);
-                assert_eq!(rn, ReferencedName::String(JSString::from("a")));
+                assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::from("a")));
             }
             #[test]
             fn symbol() {
@@ -161,7 +161,7 @@ mod referenced_name {
                 let sym = Symbol::new(Some(JSString::from("crazy")));
                 let pk = PropertyKey::from(sym.clone());
                 let rn = ReferencedName::from(pk);
-                assert_eq!(rn, ReferencedName::Symbol(sym));
+                assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::Symbol(sym)));
             }
         }
     }
@@ -182,14 +182,14 @@ mod referenced_name {
                 setup_test_agent();
                 let sym = Symbol::new(None);
                 let rn = ReferencedName::from(sym);
-                let err = JSString::try_from(rn).unwrap_err();
-                assert_eq!(err, "invalid string");
+                let err = JSString::try_from(rn).unwrap_err().to_string();
+                assert_eq!(&err, "Symbols may not be converted to strings");
             }
             #[test]
             fn privatename() {
                 let rn = ReferencedName::PrivateName(PrivateName::new("blue"));
-                let err = JSString::try_from(rn).unwrap_err();
-                assert_eq!(err, "invalid string");
+                let err = JSString::try_from(rn).unwrap_err().to_string();
+                assert_eq!(&err, "string value expected");
             }
         }
 
@@ -213,8 +213,8 @@ mod referenced_name {
             #[test]
             fn privatename() {
                 let rn = ReferencedName::PrivateName(PrivateName::new("blue"));
-                let err = PropertyKey::try_from(rn).unwrap_err();
-                assert_eq!(err, "invalid property key");
+                let err = PropertyKey::try_from(rn).unwrap_err().to_string();
+                assert_eq!(&err, "property key (string or symbol) expected");
             }
         }
     }
@@ -247,7 +247,7 @@ mod reference {
     fn debug() {
         let r = Reference {
             base: Base::Unresolvable,
-            referenced_name: ReferencedName::String(JSString::from("name")),
+            referenced_name: ReferencedName::Value(ECMAScriptValue::from("name")),
             strict: false,
             this_value: None,
         };
@@ -259,7 +259,7 @@ mod reference {
     fn clone() {
         let r = Reference {
             base: Base::Unresolvable,
-            referenced_name: ReferencedName::String(JSString::from("name")),
+            referenced_name: ReferencedName::Value(ECMAScriptValue::from("name")),
             strict: false,
             this_value: None,
         };
@@ -272,13 +272,13 @@ mod reference {
     fn eq() {
         let r1 = Reference {
             base: Base::Unresolvable,
-            referenced_name: ReferencedName::String(JSString::from("name")),
+            referenced_name: ReferencedName::Value(ECMAScriptValue::from("name")),
             strict: false,
             this_value: None,
         };
         let r2 = Reference {
             base: Base::Value(true.into()),
-            referenced_name: ReferencedName::String(JSString::from("name")),
+            referenced_name: ReferencedName::Value(ECMAScriptValue::from("name")),
             strict: false,
             this_value: None,
         };

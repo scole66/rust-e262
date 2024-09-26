@@ -803,6 +803,10 @@ pub enum InternalRuntimeError {
     GetPrototypeOfFailed,
     #[error("String, Symbol, or PrivateName expected")]
     ClassNameExpected,
+    #[error("current environment has no super")]
+    MissingSuperEnvironnment,
+    #[error("property key (string or symbol) expected")]
+    ImproperPropertyKey,
 }
 mod insn_impl {
     use super::*;
@@ -1371,6 +1375,17 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
+    pub fn make_super_property_ref(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Input: operand: 0 == not-strict; 1 == strict
+        // Input: Stack: key this
+        // Output: Stack: err/ref
+        let strict = operand(chunk)? != 0;
+        let key = pop_value()?;
+        let this = pop_value()?;
+        let super_ref = Reference::make_super_property_reference(this, key, strict)?.map(NormalCompletion::from);
+        push_completion(super_ref).expect(PUSHABLE);
+        Ok(())
+    }
     pub fn pop_or_panic() -> anyhow::Result<()> {
         let val = pop_completion()?;
         if let Err(e) = val {
@@ -1921,7 +1936,7 @@ mod insn_impl {
         let mut was_direct_eval = false;
         if let NormalCompletion::Reference(evalref) = &ref_nc {
             if !evalref.is_property_reference() {
-                if let ReferencedName::String(name) = &evalref.referenced_name {
+                if let ReferencedName::Value(ECMAScriptValue::String(name)) = &evalref.referenced_name {
                     if name == &JSString::from("eval")
                         && super::to_object(func_val.clone()).unwrap() == intrinsic(IntrinsicId::Eval)
                     {
@@ -3818,6 +3833,7 @@ pub async fn execute(
             Insn::RotateListUp => insn_impl::rotate_list_up(&chunk).expect(GOODCODE),
             Insn::Ref => insn_impl::make_ref(false).expect(GOODCODE),
             Insn::StrictRef => insn_impl::make_ref(true).expect(GOODCODE),
+            Insn::MakeSuperPropertyReference => insn_impl::make_super_property_ref(&chunk).expect(GOODCODE),
             Insn::Pop => insn_impl::pop().expect(GOODCODE),
             Insn::PopOrPanic => insn_impl::pop_or_panic().expect(GOODCODE),
             Insn::Swap => insn_impl::swap().expect(GOODCODE),
@@ -4324,7 +4340,7 @@ fn evaluate_class_static_block_definition(
     let prod_text = &text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
     let chunk_name = nameify(prod_text, 50);
     let mut compiled = Chunk::new(chunk_name);
-    to_compile.block.as_ref().compile(&mut compiled, info.strict, text)?;
+    to_compile.block.as_ref().compile(&mut compiled, text)?;
     for line in compiled.disassemble() {
         println!("{line}");
     }

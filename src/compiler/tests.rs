@@ -1214,7 +1214,11 @@ mod member_expression {
     #[test_case("b[a]", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no space for expression (expression)")]
     #[test_case("a[@@@]", true, None => serr("out of range integral type conversion attempted"); "bad jump (expression)")]
     #[test_case("a`${b}`", true, None => panics "not yet implemented"; "template")]
-    #[test_case("super.a", true, None => panics "not yet implemented"; "super ref")]
+    #[test_case(
+        "super.a", true, None
+        => Ok((svec(&["THIS", "JUMP_IF_ABRUPT 4", "STRING 0 (a)", "SUPER_REF strict"]), true, true));
+        "super ref"
+    )]
     #[test_case("new.target", true, None => Ok((svec(&["GET_NEW_TARGET"]), false, false)); "meta")]
     #[test_case("new a()", true, None => Ok((svec(&[
         "STRING 0 (a)",
@@ -11470,14 +11474,14 @@ mod class_element_name {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("name", true, &[] => Ok((svec(&["STRING 0 (name)"]), false)); "property name")]
-    #[test_case("#name", true, &[] => Ok((svec(&["PRIV_ID_LOOKUP 0 (#name)"]), false)); "private name")]
-    #[test_case("#name", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "private name fail")]
-    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+    #[test_case("name", &[] => Ok((svec(&["STRING 0 (name)"]), false)); "property name")]
+    #[test_case("#name", &[] => Ok((svec(&["PRIV_ID_LOOKUP 0 (#name)"]), false)); "private name")]
+    #[test_case("#name", &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "private name fail")]
+    fn compile(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).class_element_name();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, src).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11490,8 +11494,8 @@ mod field_definition {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("name", true, &[] => Ok((svec(&["STRING 0 (name)", "NAME_ONLY_FIELD_REC"]), false)); "infallible; no init")]
-    #[test_case("[a]", true, &[] => Ok((svec(&[
+    #[test_case("name", &[] => Ok((svec(&["STRING 0 (name)", "NAME_ONLY_FIELD_REC"]), false)); "infallible; no init")]
+    #[test_case("[a]", &[] => Ok((svec(&[
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -11500,25 +11504,19 @@ mod field_definition {
         "JUMP_IF_ABRUPT 1",
         "NAME_ONLY_FIELD_REC"
     ]), true)); "fallible; no init")]
-    #[test_case("a=10", true, &[] => Ok((svec(&["STRING 0 (a)", "EVAL_CLASS_FIELD_DEF 0"]), false)); "with init")]
-    #[test_case("[9n]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "name fail")]
-    #[test_case("a=23", true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "init fail")]
-    fn class_field_definition_evaluation(
-        src: &str,
-        strict: bool,
-        what: &[(Fillable, usize)],
-    ) -> Result<(Vec<String>, bool), String> {
+    #[test_case("a=10", &[] => Ok((svec(&["STRING 0 (a)", "EVAL_CLASS_FIELD_DEF 0"]), false)); "with init")]
+    #[test_case("[9n]", &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "name fail")]
+    #[test_case("a=23", &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "init fail")]
+    fn class_field_definition_evaluation(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).field_definition();
         let mut c = complex_filled_chunk("x", what);
 
-        node.class_field_definition_evaluation(&mut c, strict, src, Static::No).map_err(|e| e.to_string()).map(
-            |flags| {
-                (
-                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
-                    flags.maybe_abrupt(),
-                )
-            },
-        )
+        node.class_field_definition_evaluation(&mut c, src, Static::No).map_err(|e| e.to_string()).map(|flags| {
+            (
+                c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+                flags.maybe_abrupt(),
+            )
+        })
     }
 }
 
@@ -11526,8 +11524,8 @@ mod class_static_block_statement_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("", true, &[] => Ok((svec(&["UNDEFINED"]), false)); "empty")]
-    #[test_case("this.item = 3;", true, &[] => Ok((svec(&[
+    #[test_case("", &[] => Ok((svec(&["UNDEFINED"]), false)); "empty")]
+    #[test_case("this.item = 3;", &[] => Ok((svec(&[
         "THIS",
         "JUMP_IF_ABRUPT 3",
         "STRING 0 (item)",
@@ -11538,11 +11536,11 @@ mod class_static_block_statement_list {
         "PUT_VALUE",
         "UPDATE_EMPTY"
     ]), true)); "slist")]
-    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+    fn compile(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).class_static_block_statement_list();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, src).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11555,8 +11553,8 @@ mod class_static_block_body {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("", true, &[] => Ok((svec(&["FINISH_ARGS", "UNDEFINED", "END_FUNCTION"]), true)); "empty")]
-    #[test_case("this.item = 3;", true, &[] => Ok((svec(&[
+    #[test_case("", &[] => Ok((svec(&["FINISH_ARGS", "UNDEFINED", "END_FUNCTION"]), true)); "empty")]
+    #[test_case("this.item = 3;", &[] => Ok((svec(&[
         "FINISH_ARGS",
         "THIS",
         "JUMP_IF_ABRUPT 3",
@@ -11569,11 +11567,11 @@ mod class_static_block_body {
         "UPDATE_EMPTY",
         "END_FUNCTION"
     ]), true)); "slist")]
-    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+    fn compile(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).class_static_block_body();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, src).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11586,17 +11584,13 @@ mod class_static_block {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("static {}", true, &[] => Ok(svec(&["EVAL_CLASS_SBLK_DEF 0"])); "normal")]
-    #[test_case("static {}", true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "compile error")]
-    fn class_static_block_definition_evaluation(
-        src: &str,
-        strict: bool,
-        what: &[(Fillable, usize)],
-    ) -> Result<Vec<String>, String> {
+    #[test_case("static {}", &[] => Ok(svec(&["EVAL_CLASS_SBLK_DEF 0"])); "normal")]
+    #[test_case("static {}", &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "compile error")]
+    fn class_static_block_definition_evaluation(src: &str, what: &[(Fillable, usize)]) -> Result<Vec<String>, String> {
         let node = Maker::new(src).class_static_block();
         let mut c = complex_filled_chunk("x", what);
 
-        node.class_static_block_definition_evaluation(&mut c, strict)
+        node.class_static_block_definition_evaluation(&mut c)
             .map_err(|e| e.to_string())
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }
@@ -12624,7 +12618,7 @@ mod class_declaration {
     use test_case::test_case;
 
     #[test_case(
-        "class a {}", true, &[]
+        "class a {}", &[]
         => Ok((
             svec(&[
                 "STRING 0 (a)",
@@ -12662,10 +12656,10 @@ mod class_declaration {
         ));
         "empty named class"
     )]
-    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+    fn compile(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).class_declaration();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, src)
             .as_ref()
             .map(|flags| {
                 (

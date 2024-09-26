@@ -69,6 +69,7 @@ pub enum Insn {
     ListToArray,
     Ref,
     StrictRef,
+    MakeSuperPropertyReference,
     InitializeReferencedBinding,
     PushNewLexEnv,
     PopLexEnv,
@@ -262,6 +263,7 @@ impl fmt::Display for Insn {
             Insn::ListToArray => "LIST_TO_ARRAY",
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
+            Insn::MakeSuperPropertyReference => "SUPER_REF",
             Insn::InitializeReferencedBinding => "IRB",
             Insn::PushNewLexEnv => "PNLE",
             Insn::PopLexEnv => "PLE",
@@ -846,7 +848,7 @@ impl NameableProduction {
             NameableProduction::AsyncGenerator(_) => todo!(),
             NameableProduction::Class(class_expression) => {
                 let name = id.expect("named class expressions should have a name");
-                class_expression.named_evaluation(chunk, strict, text, name).map(CompilerStatusFlags::from)
+                class_expression.named_evaluation(chunk, text, name).map(CompilerStatusFlags::from)
             }
             NameableProduction::Arrow(child) => {
                 child.compile_named_evaluation(chunk, strict, text, child.clone(), id).map(CompilerStatusFlags::from)
@@ -974,7 +976,7 @@ impl PrimaryExpression {
             PrimaryExpression::Function { node } => {
                 node.compile(chunk, strict, text, node.clone()).map(CompilerStatusFlags::from)
             }
-            PrimaryExpression::Class { node } => node.compile(chunk, strict, text).map(CompilerStatusFlags::from),
+            PrimaryExpression::Class { node } => node.compile(chunk, text).map(CompilerStatusFlags::from),
             PrimaryExpression::Generator { node } => node.compile(chunk, strict, text).map(CompilerStatusFlags::from),
             PrimaryExpression::AsyncFunction { node } => todo!(),
             PrimaryExpression::AsyncGenerator { node } => todo!(),
@@ -2103,7 +2105,7 @@ impl MemberExpression {
                 Ok(CompilerStatusFlags::new().abrupt(true).reference(true))
             }
             MemberExpression::TemplateLiteral(_, _) => todo!(),
-            MemberExpression::SuperProperty(_) => todo!(),
+            MemberExpression::SuperProperty(sp) => sp.compile(chunk, strict, text).map(CompilerStatusFlags::from),
             MemberExpression::MetaProperty(mp) => mp.compile(chunk, strict, text),
             MemberExpression::NewArguments(me, args, ..) => {
                 compile_new_evaluator(chunk, strict, text, &ConstructExpr::Member(me.clone()), Some(args.clone()))
@@ -5188,7 +5190,7 @@ impl Statement {
 impl Declaration {
     pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
         match self {
-            Declaration::Class(cls) => cls.compile(chunk, strict, text),
+            Declaration::Class(cls) => cls.compile(chunk, text),
             Declaration::Hoistable(_) => {
                 chunk.op(Insn::Empty);
                 Ok(AbruptResult::Never)
@@ -9751,7 +9753,7 @@ impl FunctionStatementList {
 }
 
 impl ClassDeclaration {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: Evaluation
         // ClassDeclaration : class BindingIdentifier ClassTail
         //  1. Perform ? BindingClassDeclarationEvaluation of this ClassDeclaration.
@@ -9763,17 +9765,12 @@ impl ClassDeclaration {
         // <self.binding_class_declaration_evaluation>    anything/err
         // EMPTY_IF_NOT_ERROR                             [empty]/e
 
-        let decl_status = self.binding_class_declaration_evaluation(chunk, strict, text)?;
+        let decl_status = self.binding_class_declaration_evaluation(chunk, text)?;
         chunk.op(Insn::EmptyIfNotError);
         Ok(decl_status)
     }
 
-    fn binding_class_declaration_evaluation(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-        text: &str,
-    ) -> anyhow::Result<AbruptResult> {
+    fn binding_class_declaration_evaluation(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: BindingClassDeclarationEvaluation
         // The syntax-directed operation BindingClassDeclarationEvaluation takes no arguments and returns either a
         // normal completion containing a function object or an abrupt completion. It is defined piecewise over the
@@ -9802,14 +9799,14 @@ impl ClassDeclaration {
                 // exit:
                 let class_name = ident.string_value();
                 let idx = chunk.add_to_string_pool(class_name)?;
-                tail.class_definition_evaluation(chunk, strict, text, Some(idx), NameLoc::Index(idx))?;
+                tail.class_definition_evaluation(chunk, text, Some(idx), NameLoc::Index(idx))?;
                 let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                 let src_idx = chunk.add_to_string_pool(JSString::from(
                     &text[location.span.starting_index..location.span.starting_index + location.span.length],
                 ))?;
                 chunk.op_plus_arg(Insn::AttachSourceText, src_idx);
                 chunk.op(Insn::Dup);
-                compile_initialize_bound_name(chunk, strict, EnvUsage::UseCurrentLexical, idx);
+                compile_initialize_bound_name(chunk, true, EnvUsage::UseCurrentLexical, idx);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AbruptResult::Maybe)
             }
@@ -9819,7 +9816,7 @@ impl ClassDeclaration {
                 //  2. Set value.[[SourceText]] to the source text matched by ClassDeclaration.
                 //  3. Return value.
                 let default_idx = chunk.add_to_string_pool("default".into())?;
-                tail.class_definition_evaluation(chunk, strict, text, None, NameLoc::Index(default_idx))?;
+                tail.class_definition_evaluation(chunk, text, None, NameLoc::Index(default_idx))?;
                 let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                 let src_idx = chunk.add_to_string_pool(JSString::from(
                     &text[location.span.starting_index..location.span.starting_index + location.span.length],
@@ -9833,13 +9830,7 @@ impl ClassDeclaration {
 }
 
 impl ClassExpression {
-    fn named_evaluation(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-        text: &str,
-        name: NameLoc,
-    ) -> anyhow::Result<AbruptResult> {
+    fn named_evaluation(&self, chunk: &mut Chunk, text: &str, name: NameLoc) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: NamedEvaluation
         // The syntax-directed operation NamedEvaluation takes argument name (a property key or a Private Name) and
         // returns either a normal completion containing a function object or an abrupt completion.
@@ -9855,7 +9846,7 @@ impl ClassExpression {
         //   ATTACH_SOURCE <text>                                  F
         // exit:
 
-        let status = self.tail.class_definition_evaluation(chunk, strict, text, None, name)?;
+        let status = self.tail.class_definition_evaluation(chunk, text, None, name)?;
         let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
         let source_loc = self.location().span;
         let source_text = &text[source_loc.starting_index..source_loc.starting_index + source_loc.length];
@@ -9867,7 +9858,7 @@ impl ClassExpression {
         Ok(status)
     }
 
-    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
         match &self.ident {
             Some(binding_id) => {
                 // ClassExpression : class BindingIdentifier ClassTail
@@ -9882,13 +9873,8 @@ impl ClassExpression {
                 //   ATTACH_SOURCE <text>                                           F
                 // exit:
                 let binding_id = chunk.add_to_string_pool(binding_id.string_value())?;
-                let status = self.tail.class_definition_evaluation(
-                    chunk,
-                    strict,
-                    text,
-                    Some(binding_id),
-                    NameLoc::Index(binding_id),
-                )?;
+                let status =
+                    self.tail.class_definition_evaluation(chunk, text, Some(binding_id), NameLoc::Index(binding_id))?;
                 let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 let source_loc = self.location().span;
                 let source_text = &text[source_loc.starting_index..source_loc.starting_index + source_loc.length];
@@ -9912,8 +9898,7 @@ impl ClassExpression {
                 // exit:
 
                 let emptystr = chunk.add_to_string_pool(JSString::from(""))?;
-                let status =
-                    self.tail.class_definition_evaluation(chunk, strict, text, None, NameLoc::Index(emptystr))?;
+                let status = self.tail.class_definition_evaluation(chunk, text, None, NameLoc::Index(emptystr))?;
                 let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 let source_loc = self.location().span;
                 let source_text = &text[source_loc.starting_index..source_loc.starting_index + source_loc.length];
@@ -9932,7 +9917,6 @@ impl ClassTail {
     fn class_definition_evaluation(
         &self,
         chunk: &mut Chunk,
-        strict: bool,
         text: &str,
         class_binding: Option<u16>,
         class_name: NameLoc,
@@ -10170,7 +10154,7 @@ impl ClassTail {
                 None
             }
             Some(heritage) => {
-                heritage.compile(chunk, strict, text)?;
+                heritage.compile(chunk, text)?;
                 chunk.op(Insn::SetAsideLexEnv);
                 chunk.op(Insn::Swap);
                 chunk.op(Insn::GetParentsFromSuperclass);
@@ -10202,7 +10186,7 @@ impl ClassTail {
             Some(element) => {
                 chunk.op(Insn::Dup);
                 chunk.op_plus_arg(Insn::RotateDown, 4);
-                element.define_method(chunk, strict, text)?;
+                element.define_method(chunk, text)?;
                 fix_envs_and_exit.push(chunk.op_jump(Insn::JumpIfAbrupt));
                 chunk.op(Insn::Pop);
                 chunk.op(Insn::MakeClassConstructorAndSetName);
@@ -10232,7 +10216,7 @@ impl ClassTail {
                 chunk.op(Insn::Swap);
                 ready_for_static = !ready_for_static;
             }
-            let status = e.class_element_evaluation(chunk, strict, text)?;
+            let status = e.class_element_evaluation(chunk, text)?;
             if status.maybe_abrupt() {
                 let tgt = chunk.op_jump(Insn::JumpIfAbrupt);
                 jump_targets.push((count, tgt));
@@ -10283,15 +10267,15 @@ impl ClassTail {
 }
 
 impl ClassHeritage {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
-        self.exp.compile(chunk, strict, text)
+    fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<CompilerStatusFlags> {
+        self.exp.compile(chunk, true, text)
     }
 }
 
 impl ClassElement {
-    fn define_method(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
+    fn define_method(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
         match self {
-            ClassElement::Standard { method } => method.define_method(chunk, strict, text),
+            ClassElement::Standard { method } => method.define_method(chunk, true, text),
             ClassElement::Static { .. }
             | ClassElement::Field { .. }
             | ClassElement::StaticField { .. }
@@ -10300,7 +10284,7 @@ impl ClassElement {
         }
     }
 
-    fn class_element_evaluation(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+    fn class_element_evaluation(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: ClassElementEvaluation
         // The syntax-directed operation ClassElementEvaluation takes argument object (an Object) and returns either a
         // normal completion containing either a ClassFieldDefinition Record, a ClassStaticBlockDefinition Record, a
@@ -10313,7 +10297,7 @@ impl ClassElement {
                 //      static MethodDefinition
                 //  1. Return ? MethodDefinitionEvaluation of MethodDefinition with arguments object and false.
                 chunk.op(Insn::Dup);
-                method.method_definition_evaluation(false, chunk, strict, text).map(AbruptResult::from)
+                method.method_definition_evaluation(false, chunk, true, text).map(AbruptResult::from)
             }
             ClassElement::Static { method, .. } => {
                 // ClassElement :
@@ -10321,7 +10305,7 @@ impl ClassElement {
                 //      static MethodDefinition
                 //  1. Return ? MethodDefinitionEvaluation of MethodDefinition with arguments object and false.
                 chunk.op(Insn::Dup);
-                method.method_definition_evaluation(false, chunk, strict, text)?;
+                method.method_definition_evaluation(false, chunk, true, text)?;
                 chunk.op(Insn::StaticClassItem);
                 Ok(AbruptResult::Maybe)
             }
@@ -10331,7 +10315,7 @@ impl ClassElement {
                 //  1. Return ? ClassFieldDefinitionEvaluation of FieldDefinition with argument object.
                 // start:                                               obj
                 //   <method.class_field_definition_eval(is_static)>    elem/err obj
-                field.class_field_definition_evaluation(chunk, strict, text, Static::No)
+                field.class_field_definition_evaluation(chunk, text, Static::No)
             }
             ClassElement::StaticField { field, .. } => {
                 // ClassElement :
@@ -10339,14 +10323,14 @@ impl ClassElement {
                 //  1. Return ? ClassFieldDefinitionEvaluation of FieldDefinition with argument object.
                 // start:                                               obj
                 //   <method.class_field_definition_eval(is_static)>    elem/err obj
-                field.class_field_definition_evaluation(chunk, strict, text, Static::Yes)
+                field.class_field_definition_evaluation(chunk, text, Static::Yes)
             }
             ClassElement::StaticBlock { block } => {
                 // ClassElement : ClassStaticBlock
                 //  1. Return the ClassStaticBlockDefinitionEvaluation of ClassStaticBlock with argument object.
                 // start:                                               obj
                 //   <block.class_static_block_definition_evaluation>   elem/err obj
-                block.class_static_block_definition_evaluation(chunk, strict).map(AbruptResult::from)
+                block.class_static_block_definition_evaluation(chunk).map(AbruptResult::from)
             }
             ClassElement::Empty { .. } => {
                 // ClassElement : ;
@@ -10359,9 +10343,9 @@ impl ClassElement {
 }
 
 impl ClassElementName {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
         match self {
-            ClassElementName::PropertyName(pn) => pn.compile(chunk, strict, text),
+            ClassElementName::PropertyName(pn) => pn.compile(chunk, true, text),
             ClassElementName::PrivateIdentifier { data, .. } => {
                 // ClassElementName : PrivateIdentifier
                 //  1. Let privateIdentifier be StringValue of PrivateIdentifier.
@@ -10389,7 +10373,6 @@ impl FieldDefinition {
     fn class_field_definition_evaluation(
         self: &Rc<Self>,
         chunk: &mut Chunk,
-        strict: bool,
         text: &str,
         staticness: Static,
     ) -> anyhow::Result<AbruptResult> {
@@ -10429,7 +10412,7 @@ impl FieldDefinition {
         //   EVAL_CLASS_FIELD_DEF(initializer)  // FieldRecord homeObject
         // exit:
 
-        let status = self.name.compile(chunk, strict, text)?;
+        let status = self.name.compile(chunk, text)?;
         let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
         match &self.init {
             Some(init) => {
@@ -10438,7 +10421,7 @@ impl FieldDefinition {
                     params: Rc::new(FormalParameters::Empty(Location::default())).into(),
                     body: init.clone().into(),
                     to_compile: self.clone().into(),
-                    strict,
+                    strict: true,
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let func_id = chunk.add_to_func_stash(info)?;
@@ -10468,7 +10451,6 @@ impl ClassStaticBlock {
     pub fn class_static_block_definition_evaluation(
         self: &Rc<Self>,
         chunk: &mut Chunk,
-        strict: bool,
     ) -> anyhow::Result<NeverAbruptRefResult> {
         // Runtime Semantics: ClassStaticBlockDefinitionEvaluation
         // The syntax-directed operation ClassStaticBlockDefinitionEvaluation takes argument homeObject (an Object) and
@@ -10493,7 +10475,7 @@ impl ClassStaticBlock {
             params: Rc::new(FormalParameters::Empty(Location::default())).into(),
             body: self.block.clone().into(),
             to_compile: self.clone().into(),
-            strict,
+            strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
         };
         let func_id = chunk.add_to_func_stash(info)?;
@@ -10503,18 +10485,18 @@ impl ClassStaticBlock {
 }
 
 impl ClassStaticBlockBody {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+    pub fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
         chunk.op(Insn::FinishArgs);
-        self.0.compile(chunk, strict, text)?;
+        self.0.compile(chunk, text)?;
         chunk.op(Insn::EndFunction);
         Ok(AbruptResult::Maybe)
     }
 }
 
 impl ClassStaticBlockStatementList {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AbruptResult> {
+    pub fn compile(&self, chunk: &mut Chunk, text: &str) -> anyhow::Result<AbruptResult> {
         match self {
-            ClassStaticBlockStatementList::Statements(sl) => sl.compile(chunk, strict, text),
+            ClassStaticBlockStatementList::Statements(sl) => sl.compile(chunk, true, text),
             ClassStaticBlockStatementList::Empty(_) => {
                 // ClassStaticBlockStatementList : [empty]
                 //  1. Return undefined.
@@ -10572,7 +10554,7 @@ impl MethodDefinition {
                 //  UNWIND 1                 err
                 // exit:                     err/(propkey closure)
 
-                let status = class_element_name.compile(chunk, strict, text)?;
+                let status = class_element_name.compile(chunk, text)?;
                 let unwind_2 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 chunk.op_plus_arg(Insn::RotateDown, 3);
                 let source_text =
@@ -10681,7 +10663,7 @@ impl MethodDefinition {
                 // unwind_1:                                     err object
                 //   UNWIND 1                                    err
                 // exit:                                         err/empty/PrivateElement
-                let status = name.compile(chunk, strict, text)?;
+                let status = name.compile(chunk, text)?;
                 let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 let source_text =
                     text[location.span.starting_index..location.span.starting_index + location.span.length].to_string();
@@ -10731,7 +10713,7 @@ impl MethodDefinition {
                 // unwind_1:                                     err object
                 //   UNWIND 1                                    err
                 // exit:                                         err/empty/PrivateElement
-                let status = name.compile(chunk, strict, text)?;
+                let status = name.compile(chunk, text)?;
                 let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
                 let source_text =
                     text[location.span.starting_index..location.span.starting_index + location.span.length].to_string();
@@ -10925,7 +10907,7 @@ impl GeneratorMethod {
         //   UNWIND 1
         // exit:
 
-        let name_status = self.name.compile(chunk, strict, text)?;
+        let name_status = self.name.compile(chunk, text)?;
         let unwind = if name_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
         let span = self.location().span;
         let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
@@ -11023,6 +11005,79 @@ impl GeneratorBody {
         }
 
         Ok(AbruptResult::Maybe)
+    }
+}
+
+impl SuperProperty {
+    pub fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptRefResult> {
+        // Runtime Semantics: Evaluation
+        match self {
+            SuperProperty::Expression { exp, .. } => {
+                // SuperProperty : super [ Expression ]
+                //  1. Let env be GetThisEnvironment().
+                //  2. Let actualThis be ? env.GetThisBinding().
+                //  3. Let propertyNameReference be ? Evaluation of Expression.
+                //  4. Let propertyNameValue be ? GetValue(propertyNameReference).
+                //  5. Let strict be IsStrict(this SuperProperty).
+                //  6. NOTE: In most cases, ToPropertyKey will be performed on propertyNameValue immediately after this
+                //     step. However, in the case of super[b] = c, it will not be performed until after evaluation of c.
+                //  7. Return ? MakeSuperPropertyReference(actualThis, propertyNameValue, strict).
+
+                // start:
+                //   THIS                      err/actualThis
+                //   JUMP_IF_ABRUPT exit       actualThis
+                //   <expression>              err/propref actualThis
+                //   GET_VALUE                 err/propname actualThis
+                //   JUMP_IF_ABRUPT unwind1    propname actualThis
+                //   SUPER_REF strict          err/ref
+                //   JUMP exit
+                // unwind1:                    err actualThis
+                //   UNWIND 1                  err
+                // exit:                       err/ref
+                chunk.op(Insn::This);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let status = exp.compile(chunk, strict, text)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let unwind1 = if status.maybe_ref() || status.maybe_abrupt() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+                chunk.op_plus_arg(Insn::MakeSuperPropertyReference, u16::from(strict));
+                if let Some(unwind1) = unwind1 {
+                    let exit_2 = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(unwind1).expect("jump too short to fail");
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.fixup(exit_2).expect("jump too short to fail");
+                }
+                chunk.fixup(exit)?;
+                Ok(AlwaysAbruptRefResult)
+            }
+            SuperProperty::IdentifierName { id, .. } => {
+                // SuperProperty : super . IdentifierName
+                //  1. Let env be GetThisEnvironment().
+                //  2. Let actualThis be ? env.GetThisBinding().
+                //  3. Let propertyKey be the StringValue of IdentifierName.
+                //  4. Let strict be IsStrict(this SuperProperty).
+                //  5. Return ? MakeSuperPropertyReference(actualThis, propertyKey, strict).
+
+                // start:
+                //   THIS                      err/actualThis
+                //   JUMP_IF_ABRUPT exit       actualThis
+                //   STRING id                 propertyKey actualThis
+                //   SUPER_REF strict          err/ref
+                // exit:
+                chunk.op(Insn::This);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let id_idx = chunk.add_to_string_pool(id.string_value.clone())?;
+                chunk.op_plus_arg(Insn::String, id_idx);
+                chunk.op_plus_arg(Insn::MakeSuperPropertyReference, u16::from(strict));
+                chunk.fixup(exit).expect("Jump too short to fail");
+                Ok(AlwaysAbruptRefResult)
+            }
+        }
     }
 }
 

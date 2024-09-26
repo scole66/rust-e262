@@ -338,6 +338,10 @@ impl Chunk {
                 let flag = self.opcodes[idx + 1] != 0;
                 (3, format!("    {:<24}{} {}", insn, arg, if flag { "enumerable" } else { "hidden" }))
             }
+            Insn::MakeSuperPropertyReference => {
+                let flag = self.opcodes[idx] != 0;
+                (2, format!("    {:<24}{}", insn, if flag { "strict" } else { "non-strict" }))
+            }
             Insn::LoopContinues | Insn::CreatePerIterationEnvironment => {
                 let string_set_idx = self.opcodes[idx] as usize;
                 let mut string_set = self.string_sets[string_set_idx].iter().collect::<Vec<&JSString>>();
