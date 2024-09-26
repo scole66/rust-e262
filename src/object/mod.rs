@@ -1179,6 +1179,9 @@ pub trait ObjectInterface: Debug {
     fn to_proxy_object(&self) -> Option<&ProxyObject> {
         None
     }
+    fn to_bound_function_object(&self) -> Option<&BoundFunctionObject> {
+        None
+    }
     /// True if this object has no special behavior and no additional slots
     fn is_plain_object(&self) -> bool {
         false
@@ -2676,14 +2679,13 @@ impl Object {
         } else if let Some(po) = self.o.to_proxy_object() {
             let (target, _) = po.validate_non_revoked()?;
             target.get_function_realm()
+        } else if let Some(bo) = self.o.to_bound_function_object() {
+            let target = &bo.bound_target_function;
+            target.get_function_realm()
         } else {
             // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
             // a realm slot was _not_ present.
             assert!(!self.o.common_object_data().borrow().slots.contains(&InternalSlotName::Realm));
-
-            // Add the bound-function check
-            eprintln!("GetFunctionRealm: Skipping over bound-function checks...");
-
             Ok(current_realm_record().unwrap())
         }
     }

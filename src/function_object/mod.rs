@@ -2649,10 +2649,9 @@ fn function_prototype_to_string(
                 } else {
                     Ok("function () { [native code] }".into())
                 }
-            //} else if is_callable(&obj.into()) {
-            //    Nothing currently does this (maybe bound function objects will?)
-            //    Relying on test-262 to tell me when I finally build something that needs this.
-            //    Ok("function () { [native code] }".into())
+            } else if is_callable(&obj.into()) {
+                // Bound function objects do this.
+                Ok("function () { [native code] }".into())
             } else {
                 Err(create_type_error(ERRMSG))
             }
