@@ -28,9 +28,9 @@ use super::*;
 #[derive(Debug)]
 pub struct BoundFunctionObject {
     common: RefCell<CommonObjectData>,
-    bound_target_function: Object,
-    bound_this: ECMAScriptValue,
-    bound_arguments: Box<[ECMAScriptValue]>,
+    pub bound_target_function: Object,
+    pub bound_this: ECMAScriptValue,
+    pub bound_arguments: Box<[ECMAScriptValue]>,
 }
 
 impl<'a> From<&'a BoundFunctionObject> for &'a dyn ObjectInterface {
@@ -67,6 +67,10 @@ impl ObjectInterface for BoundFunctionObject {
         } else {
             None
         }
+    }
+
+    fn to_bound_function_object(&self) -> Option<&BoundFunctionObject> {
+        Some(self)
     }
 
     // [[GetPrototypeOf]] ( )
