@@ -19,6 +19,8 @@ pub enum IntrinsicId {
     BigIntPrototype,
     Boolean,
     BooleanPrototype,
+    Date,
+    DatePrototype,
     DecodeURI,
     DecodeURIComponent,
     EncodeURI,
@@ -88,6 +90,7 @@ pub struct Intrinsics {
     pub boolean_prototype: Object,        // The Boolean object prototoype
     pub data_view: Object,                // DataView	The DataView constructor (25.3.2)
     pub date: Object,                     // Date	The Date constructor (21.4.2)
+    pub date_prototype: Object,           // Date.prototype
     pub decode_uri: Object,               // decodeURI	The decodeURI function (19.2.6.2)
     pub decode_uri_component: Object,     // decodeURIComponent	The decodeURIComponent function (19.2.6.3)
     pub encode_uri: Object,               // encodeURI	The encodeURI function (19.2.6.4)
@@ -190,6 +193,7 @@ impl Intrinsics {
             boolean_prototype: dead.clone(),
             data_view: dead.clone(),
             date: dead.clone(),
+            date_prototype: dead.clone(),
             decode_uri: dead.clone(),
             decode_uri_component: dead.clone(),
             encode_uri: dead.clone(),
@@ -273,6 +277,8 @@ impl Intrinsics {
             IntrinsicId::BigIntPrototype => &self.big_int_prototype,
             IntrinsicId::Boolean => &self.boolean,
             IntrinsicId::BooleanPrototype => &self.boolean_prototype,
+            IntrinsicId::Date => &self.date,
+            IntrinsicId::DatePrototype => &self.date_prototype,
             IntrinsicId::DecodeURI => &self.decode_uri,
             IntrinsicId::DecodeURIComponent => &self.decode_uri_component,
             IntrinsicId::EncodeURI => &self.encode_uri,
@@ -330,6 +336,8 @@ impl Intrinsics {
             o if o == &self.big_int_prototype => Some(IntrinsicId::BigIntPrototype),
             o if o == &self.boolean => Some(IntrinsicId::Boolean),
             o if o == &self.boolean_prototype => Some(IntrinsicId::BooleanPrototype),
+            o if o == &self.date => Some(IntrinsicId::Date),
+            o if o == &self.date_prototype => Some(IntrinsicId::DatePrototype),
             o if o == &self.decode_uri => Some(IntrinsicId::DecodeURI),
             o if o == &self.decode_uri_component => Some(IntrinsicId::DecodeURIComponent),
             o if o == &self.encode_uri => Some(IntrinsicId::EncodeURI),
@@ -504,6 +512,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     provision_proxy_intrinsic(realm_rec);
     provision_math_intrinsic(realm_rec);
     provision_reflect_intrinsic(realm_rec);
+    provision_date_intrinsic(realm_rec);
 
     macro_rules! intrinsic_function {
         ( $intrinsicid:ident, $name:expr, $length:expr ) => {
