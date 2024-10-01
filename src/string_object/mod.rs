@@ -873,12 +873,59 @@ fn string_prototype_to_locale_upper_case(
 }
 // 22.1.3.27 String.prototype.toLowerCase ( )
 fn string_prototype_to_lower_case(
-    _: &ECMAScriptValue,
+    this: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.prototype.toLowerCase ( )
+    // This method interprets a String value as a sequence of UTF-16 encoded code points, as described in 6.1.4.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let O be ? RequireObjectCoercible(this value).
+    //  2. Let S be ? ToString(O).
+    //  3. Let sText be StringToCodePoints(S).
+    //  4. Let lowerText be toLowercase(sText), according to the Unicode Default Case Conversion algorithm.
+    //  5. Let L be CodePointsToString(lowerText).
+    //  6. Return L.
+    //
+    // The result must be derived according to the locale-insensitive case mappings in the Unicode Character Database
+    // (this explicitly includes not only the file UnicodeData.txt, but also all locale-insensitive mappings in the file
+    // SpecialCasing.txt that accompanies it).
+    //
+    // Note 1 The case mapping of some code points may produce multiple code points. In this case the result String may
+    // not be the same length as the source String. Because both toUpperCase and toLowerCase have context-sensitive
+    // behaviour, the methods are not symmetrical. In other words, s.toUpperCase().toLowerCase() is not necessarily
+    // equal to s.toLowerCase().
+    //
+    // Note 2 This method is intentionally generic; it does not require that its this value be a String object.
+    // Therefore, it can be transferred to other kinds of objects for use as a method.
+    require_object_coercible(this)?;
+    let s = to_string(this.clone())?;
+    let stext = s.to_code_points();
+
+    let mut result = vec![];
+    for c in stext {
+        match char::try_from(c) {
+            Ok(ch) => {
+                let chars = ch.to_lowercase().collect::<Vec<_>>();
+                let mut buf = [0; 2];
+                for c in chars {
+                    let encoded = c.encode_utf16(&mut buf);
+                    result.extend_from_slice(encoded);
+                }
+            }
+            Err(_) => {
+                let mut buf = [0; 2];
+                let encoded = utf16_encode_code_point(c, &mut buf).expect("char points should be in range");
+                result.extend_from_slice(encoded);
+            }
+        }
+    }
+
+    Ok(ECMAScriptValue::String(JSString::from(result)))
 }
+
 // 22.1.3.28 String.prototype.toString ( )
 fn string_prototype_to_string(
     this_value: &ECMAScriptValue,

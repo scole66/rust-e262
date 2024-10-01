@@ -1,3 +1,4 @@
+use super::*;
 use num::BigInt;
 use std::fmt;
 use std::ops::Index;
@@ -221,8 +222,7 @@ fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
 //      c. Set position to position + cp.[[CodeUnitCount]].
 //  5. Return codePoints.
 impl JSString {
-    #[allow(dead_code)]
-    fn to_code_points(&self) -> Vec<u32> {
+    pub fn to_code_points(&self) -> Vec<u32> {
         // Note that this happily glosses over encoding errors. Storing in a Vec<u32> for now.
         let size = self.len();
         let mut code_points: Vec<u32> = Vec::with_capacity(size);
@@ -233,6 +233,29 @@ impl JSString {
             position += cp.code_unit_count as usize;
         }
         code_points
+    }
+}
+
+#[allow(clippy::cast_possible_truncation)]
+pub fn utf16_encode_code_point(cp: u32, dst: &mut [u16; 2]) -> anyhow::Result<&mut [u16]> {
+    // Static Semantics: UTF16EncodeCodePoint ( cp )
+    // The abstract operation UTF16EncodeCodePoint takes argument cp (a Unicode code point) and returns a String. It performs the following steps when called:
+    //
+    // 1. Assert: 0 ≤ cp ≤ 0x10FFFF.
+    // 2. If cp ≤ 0xFFFF, return the String value consisting of the code unit whose numeric value is cp.
+    // 3. Let cu1 be the code unit whose numeric value is floor((cp - 0x10000) / 0x400) + 0xD800.
+    // 4. Let cu2 be the code unit whose numeric value is ((cp - 0x10000) modulo 0x400) + 0xDC00.
+    // 5. Return the string-concatenation of cu1 and cu2.
+    if cp <= 0xFFFF {
+        dst[0] = cp as u16;
+        Ok(&mut dst[0..1])
+    } else if cp <= 0x10_FFFF {
+        let c = (cp - 0x10_0000) as u16;
+        dst[0] = c / 0x400 + 0xD800;
+        dst[1] = c % 0x400 + 0xDC00;
+        Ok(&mut dst[0..2])
+    } else {
+        Err(InternalRuntimeError::CodePointOutOfRange)?
     }
 }
 

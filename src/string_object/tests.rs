@@ -765,7 +765,6 @@ tbd_function!(string_prototype_starts_with);
 tbd_function!(string_prototype_substring);
 tbd_function!(string_prototype_to_locale_lower_case);
 tbd_function!(string_prototype_to_locale_upper_case);
-tbd_function!(string_prototype_to_lower_case);
 tbd_function!(string_prototype_to_upper_case);
 tbd_function!(string_prototype_trim);
 tbd_function!(string_prototype_trim_end);
