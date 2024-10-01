@@ -294,42 +294,46 @@ pub fn get_value(v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
 
 // PutValue ( V, W )
 //
-// The abstract operation PutValue takes arguments V and W. It performs the following steps when called:
+// The abstract operation PutValue takes arguments V (a Reference Record or an ECMAScript language value) and W (an
+// ECMAScript language value) and returns either a normal completion containing unused or an abrupt completion. It
+// performs the following steps when called:
 //
-//  1. ReturnIfAbrupt(V).
-//  2. ReturnIfAbrupt(W).
-//  3. If V is not a Reference Record, throw a ReferenceError exception.
-//  4. If IsUnresolvableReference(V) is true, then
-//      a. If V.[[Strict]] is true, throw a ReferenceError exception.
-//      b. Let globalObj be GetGlobalObject().
-//      c. Return ? Set(globalObj, V.[[ReferencedName]], W, false).
-//  5. If IsPropertyReference(V) is true, then
-//      a. Let baseObj be ? ToObject(V.[[Base]]).
-//      b. If IsPrivateReference(V) is true, then
-//          i. Return ? PrivateSet(baseObj, V.[[ReferencedName]], W).
-//      c. Let succeeded be ? baseObj.[[Set]](V.[[ReferencedName]], W, GetThisValue(V)).
-//      d. If succeeded is false and V.[[Strict]] is true, throw a TypeError exception.
-//      e. Return.
-//  6. Else,
-//      a. Let base be V.[[Base]].
-//      b. Assert: base is an Environment Record.
-//      c. Return ? base.SetMutableBinding(V.[[ReferencedName]], W, V.[[Strict]]) (see 9.1).
+// 1. If V is not a Reference Record, throw a ReferenceError exception.
+// 2. If IsUnresolvableReference(V) is true, then
+//    a. If V.[[Strict]] is true, throw a ReferenceError exception.
+//    b. Let globalObj be GetGlobalObject().
+//    c. Perform ? Set(globalObj, V.[[ReferencedName]], W, false).
+//    d. Return unused.
+// 3. If IsPropertyReference(V) is true, then
+//    a. Let baseObj be ? ToObject(V.[[Base]]).
+//    b. If IsPrivateReference(V) is true, then
+//       i. Return ? PrivateSet(baseObj, V.[[ReferencedName]], W).
+//    c. If V.[[ReferencedName]] is not a property key, then
+//       i. Set V.[[ReferencedName]] to ? ToPropertyKey(V.[[ReferencedName]]).
+//    d. Let succeeded be ? baseObj.[[Set]](V.[[ReferencedName]], W, GetThisValue(V)).
+//    e. If succeeded is false and V.[[Strict]] is true, throw a TypeError exception.
+//    f. Return unused.
+// 4. Else,
+//    a. Let base be V.[[Base]].
+//    b. Assert: base is an Environment Record.
+//    c. Return ? base.SetMutableBinding(V.[[ReferencedName]], W, V.[[Strict]]) (see 9.1).
 //
-// NOTE     The object that may be created in step 5.a is not accessible outside of the above abstract operation and the
+// NOTE     The object that may be created in step 3.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Set]] internal method. An implementation might choose to avoid the actual creation of that
 //          object.
 pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScriptValue>) -> Completion<()> {
     let v = v_completion?;
     let w = w_completion?;
     match v {
-        NormalCompletion::IteratorRecord(_)
+        NormalCompletion::Empty
+        | NormalCompletion::IteratorRecord(_)
         | NormalCompletion::Environment(_)
         | NormalCompletion::PrivateName(_)
         | NormalCompletion::PrivateElement(_)
         | NormalCompletion::ClassItem(_) => {
             panic!("Bad completion type for put_value: ({v:?})")
         }
-        NormalCompletion::Value(_) | NormalCompletion::Empty => Err(create_reference_error("Invalid Reference")),
+        NormalCompletion::Value(_) => Err(create_reference_error("Invalid Reference")),
         NormalCompletion::Reference(r) => match &r.base {
             Base::Unresolvable => {
                 if r.strict {
@@ -345,9 +349,10 @@ pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScri
                 let base_obj = to_object(val.clone())?;
                 match &r.referenced_name {
                     ReferencedName::PrivateName(pn) => private_set(&base_obj, pn, w),
-                    ReferencedName::Value(_) => {
+                    ReferencedName::Value(v) => {
                         let this_value = r.get_this_value();
-                        let propkey_ref: &PropertyKey = &r.referenced_name.try_into().unwrap();
+                        let propkey_ref: &PropertyKey =
+                            &v.clone().try_into().or_else(|_| to_property_key(v.clone()))?;
                         let succeeded = base_obj.o.set(propkey_ref.clone(), w, &this_value)?;
                         if !succeeded && r.strict {
                             Err(create_type_error("Invalid Assignment Target"))
