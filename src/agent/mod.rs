@@ -803,6 +803,8 @@ pub enum InternalRuntimeError {
     GetPrototypeOfFailed,
     #[error("String, Symbol, or PrivateName expected")]
     ClassNameExpected,
+    #[error("Code point value out of range")]
+    CodePointOutOfRange,
 }
 mod insn_impl {
     use super::*;
