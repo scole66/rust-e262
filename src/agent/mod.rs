@@ -807,6 +807,8 @@ pub enum InternalRuntimeError {
     MissingSuperEnvironnment,
     #[error("property key (string or symbol) expected")]
     ImproperPropertyKey,
+    #[error("Code point value out of range")]
+    CodePointOutOfRange,
 }
 mod insn_impl {
     use super::*;
