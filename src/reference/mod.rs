@@ -23,8 +23,10 @@ use std::rc::Rc;
 // |                    | * an Environment Record, or  |                                                               |
 // |                    | * unresolvable.              |                                                               |
 // +--------------------+------------------------------+---------------------------------------------------------------+
-// | [[ReferencedName]] | String, Symbol, or           | The name of the binding. Always a String if [[Base]] value is |
-// |                    | PrivateName                  | an Environment Record.                                        |
+// | [[ReferencedName]] | an ECMAScript language value | The name of the binding. Always a String if [[Base]] value is |
+// |                    | or a Private Name            | an Environment Record. Otherwise, may be an ECMAScript        |
+// |                    |                              | language value other than a String or a Symbol until          |
+// |                    |                              | ToPropertyKey is performed.                                   |
 // +--------------------+------------------------------+---------------------------------------------------------------+
 // | [[Strict]]         | Boolean                      | true if the Reference Record originated in strict mode code,  |
 // |                    |                              | false otherwise.                                              |
@@ -90,32 +92,31 @@ impl TryFrom<Base> for Rc<dyn EnvironmentRecord> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+impl From<Option<Object>> for Base {
+    fn from(value: Option<Object>) -> Self {
+        Base::Value(value.map_or(ECMAScriptValue::Undefined, ECMAScriptValue::Object))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum ReferencedName {
-    String(JSString),
-    Symbol(Symbol),
+    Value(ECMAScriptValue),
     PrivateName(PrivateName),
 }
 impl fmt::Display for ReferencedName {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ReferencedName::String(s) => write!(f, "{s}"),
-            ReferencedName::Symbol(sym) => write!(f, "{sym}"),
+            ReferencedName::Value(v) => write!(f, "{v}"),
             ReferencedName::PrivateName(p) => write!(f, "{p}"),
         }
     }
 }
 impl<T> From<T> for ReferencedName
 where
-    T: Into<JSString>,
+    T: Into<ECMAScriptValue>,
 {
     fn from(val: T) -> Self {
-        Self::String(val.into())
-    }
-}
-impl From<Symbol> for ReferencedName {
-    fn from(val: Symbol) -> Self {
-        Self::Symbol(val)
+        Self::Value(val.into())
     }
 }
 impl From<PrivateName> for ReferencedName {
@@ -123,30 +124,21 @@ impl From<PrivateName> for ReferencedName {
         Self::PrivateName(val)
     }
 }
-impl From<PropertyKey> for ReferencedName {
-    fn from(val: PropertyKey) -> Self {
-        match val {
-            PropertyKey::String(st) => Self::String(st),
-            PropertyKey::Symbol(sy) => Self::Symbol(sy),
-        }
-    }
-}
 impl TryFrom<ReferencedName> for PropertyKey {
-    type Error = &'static str;
+    type Error = anyhow::Error;
     fn try_from(rn: ReferencedName) -> Result<Self, Self::Error> {
         match rn {
-            ReferencedName::String(s) => Ok(PropertyKey::from(s)),
-            ReferencedName::Symbol(s) => Ok(PropertyKey::from(s)),
-            ReferencedName::PrivateName(_) => Err("invalid property key"),
+            ReferencedName::Value(v) => PropertyKey::try_from(v),
+            ReferencedName::PrivateName(_) => Err(InternalRuntimeError::ImproperPropertyKey)?,
         }
     }
 }
 impl TryFrom<ReferencedName> for JSString {
-    type Error = &'static str;
+    type Error = anyhow::Error;
     fn try_from(rn: ReferencedName) -> Result<Self, Self::Error> {
         match rn {
-            ReferencedName::String(s) => Ok(s),
-            _ => Err("invalid string"),
+            ReferencedName::Value(v) => JSString::try_from(v),
+            ReferencedName::PrivateName(_) => Err(InternalRuntimeError::StringExpected)?,
         }
     }
 }
@@ -222,24 +214,47 @@ impl Reference {
             _ => unreachable!(),
         }
     }
+
+    pub fn make_super_property_reference(
+        actual_this: ECMAScriptValue,
+        property_key: ECMAScriptValue,
+        strict: bool,
+    ) -> anyhow::Result<Completion<Self>> {
+        // MakeSuperPropertyReference ( actualThis, propertyKey, strict )
+        // The abstract operation MakeSuperPropertyReference takes arguments actualThis (an ECMAScript language value),
+        // propertyKey (an ECMAScript language value), and strict (a Boolean) and returns either a normal completion
+        // containing a Super Reference Record or a throw completion. It performs the following steps when called:
+        //
+        //  1. Let env be GetThisEnvironment().
+        //  2. Assert: env.HasSuperBinding() is true.
+        //  3. Let baseValue be ? env.GetSuperBase().
+        //  4. Return the Reference Record { [[Base]]: baseValue, [[ReferencedName]]: propertyKey, [[Strict]]: strict,
+        //     [[ThisValue]]: actualThis }.
+        Ok(get_this_environment()
+            .as_function_environment_record()
+            .ok_or(InternalRuntimeError::MissingSuperEnvironnment)?
+            .get_super_base()
+            .map(|base_value| Self::new(Base::from(base_value), property_key, strict, Some(actual_this))))
+    }
 }
 
 // GetValue ( V )
 //
 // The abstract operation GetValue takes argument V. It performs the following steps when called:
 //
-//  1. ReturnIfAbrupt(V).
-//  2. If V is not a Reference Record, return V.
-//  3. If IsUnresolvableReference(V) is true, throw a ReferenceError exception.
-//  4. If IsPropertyReference(V) is true, then
-//      a. Let baseObj be ? ToObject(V.[[Base]]).
-//      b. If IsPrivateReference(V) is true, then
-//          i. Return ? PrivateGet(baseObj, V.[[ReferencedName]]).
-//      c. Return ? baseObj.[[Get]](V.[[ReferencedName]], GetThisValue(V)).
-//  5. Else,
-//      a. Let base be V.[[Base]].
-//      b. Assert: base is an Environment Record.
-//      c. Return ? base.GetBindingValue(V.[[ReferencedName]], V.[[Strict]]) (see 9.1).
+//  1. If V is not a Reference Record, return V.
+//  2. If IsUnresolvableReference(V) is true, throw a ReferenceError exception.
+//  3. If IsPropertyReference(V) is true, then
+//     a. Let baseObj be ? ToObject(V.[[Base]]).
+//     b. If IsPrivateReference(V) is true, then
+//        i. Return ? PrivateGet(baseObj, V.[[ReferencedName]]).
+//     c. If V.[[ReferencedName]] is not a property key, then
+//        i. Set V.[[ReferencedName]] to ? ToPropertyKey(V.[[ReferencedName]]).
+//     d. Return ? baseObj.[[Get]](V.[[ReferencedName]], GetThisValue(V)).
+//  4. Else,
+//     a. Let base be V.[[Base]].
+//     b. Assert: base is an Environment Record.
+//     c. Return ? base.GetBindingValue(V.[[ReferencedName]], V.[[Strict]]) (see 9.1).
 //
 // NOTE     The object that may be created in step 4.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Get]] internal method. An implementation might choose to avoid the actual creation of the
@@ -253,9 +268,11 @@ pub fn get_value(v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
                 let base_obj = to_object(val.clone())?;
                 match &reference.referenced_name {
                     ReferencedName::PrivateName(private) => private_get(&base_obj, private),
-                    _ => {
+                    ReferencedName::Value(value) => {
                         let this_value = reference.get_this_value();
-                        base_obj.o.get(&reference.referenced_name.try_into().unwrap(), &this_value)
+                        let key = PropertyKey::try_from(value.clone()).or_else(|_| to_property_key(value.clone()))?;
+
+                        base_obj.o.get(&key, &this_value)
                     }
                 }
             }
@@ -277,42 +294,46 @@ pub fn get_value(v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
 
 // PutValue ( V, W )
 //
-// The abstract operation PutValue takes arguments V and W. It performs the following steps when called:
+// The abstract operation PutValue takes arguments V (a Reference Record or an ECMAScript language value) and W (an
+// ECMAScript language value) and returns either a normal completion containing unused or an abrupt completion. It
+// performs the following steps when called:
 //
-//  1. ReturnIfAbrupt(V).
-//  2. ReturnIfAbrupt(W).
-//  3. If V is not a Reference Record, throw a ReferenceError exception.
-//  4. If IsUnresolvableReference(V) is true, then
-//      a. If V.[[Strict]] is true, throw a ReferenceError exception.
-//      b. Let globalObj be GetGlobalObject().
-//      c. Return ? Set(globalObj, V.[[ReferencedName]], W, false).
-//  5. If IsPropertyReference(V) is true, then
-//      a. Let baseObj be ? ToObject(V.[[Base]]).
-//      b. If IsPrivateReference(V) is true, then
-//          i. Return ? PrivateSet(baseObj, V.[[ReferencedName]], W).
-//      c. Let succeeded be ? baseObj.[[Set]](V.[[ReferencedName]], W, GetThisValue(V)).
-//      d. If succeeded is false and V.[[Strict]] is true, throw a TypeError exception.
-//      e. Return.
-//  6. Else,
-//      a. Let base be V.[[Base]].
-//      b. Assert: base is an Environment Record.
-//      c. Return ? base.SetMutableBinding(V.[[ReferencedName]], W, V.[[Strict]]) (see 9.1).
+// 1. If V is not a Reference Record, throw a ReferenceError exception.
+// 2. If IsUnresolvableReference(V) is true, then
+//    a. If V.[[Strict]] is true, throw a ReferenceError exception.
+//    b. Let globalObj be GetGlobalObject().
+//    c. Perform ? Set(globalObj, V.[[ReferencedName]], W, false).
+//    d. Return unused.
+// 3. If IsPropertyReference(V) is true, then
+//    a. Let baseObj be ? ToObject(V.[[Base]]).
+//    b. If IsPrivateReference(V) is true, then
+//       i. Return ? PrivateSet(baseObj, V.[[ReferencedName]], W).
+//    c. If V.[[ReferencedName]] is not a property key, then
+//       i. Set V.[[ReferencedName]] to ? ToPropertyKey(V.[[ReferencedName]]).
+//    d. Let succeeded be ? baseObj.[[Set]](V.[[ReferencedName]], W, GetThisValue(V)).
+//    e. If succeeded is false and V.[[Strict]] is true, throw a TypeError exception.
+//    f. Return unused.
+// 4. Else,
+//    a. Let base be V.[[Base]].
+//    b. Assert: base is an Environment Record.
+//    c. Return ? base.SetMutableBinding(V.[[ReferencedName]], W, V.[[Strict]]) (see 9.1).
 //
-// NOTE     The object that may be created in step 5.a is not accessible outside of the above abstract operation and the
+// NOTE     The object that may be created in step 3.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Set]] internal method. An implementation might choose to avoid the actual creation of that
 //          object.
 pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScriptValue>) -> Completion<()> {
     let v = v_completion?;
     let w = w_completion?;
     match v {
-        NormalCompletion::IteratorRecord(_)
+        NormalCompletion::Empty
+        | NormalCompletion::IteratorRecord(_)
         | NormalCompletion::Environment(_)
         | NormalCompletion::PrivateName(_)
         | NormalCompletion::PrivateElement(_)
         | NormalCompletion::ClassItem(_) => {
             panic!("Bad completion type for put_value: ({v:?})")
         }
-        NormalCompletion::Value(_) | NormalCompletion::Empty => Err(create_reference_error("Invalid Reference")),
+        NormalCompletion::Value(_) => Err(create_reference_error("Invalid Reference")),
         NormalCompletion::Reference(r) => match &r.base {
             Base::Unresolvable => {
                 if r.strict {
@@ -328,9 +349,10 @@ pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScri
                 let base_obj = to_object(val.clone())?;
                 match &r.referenced_name {
                     ReferencedName::PrivateName(pn) => private_set(&base_obj, pn, w),
-                    _ => {
+                    ReferencedName::Value(v) => {
                         let this_value = r.get_this_value();
-                        let propkey_ref: &PropertyKey = &r.referenced_name.try_into().unwrap();
+                        let propkey_ref: &PropertyKey =
+                            &v.clone().try_into().or_else(|_| to_property_key(v.clone()))?;
                         let succeeded = base_obj.o.set(propkey_ref.clone(), w, &this_value)?;
                         if !succeeded && r.strict {
                             Err(create_type_error("Invalid Assignment Target"))
