@@ -784,16 +784,16 @@ fn faux_class() -> ECMAScriptValue {
 #[test_case(empty_object, undef => serr("TypeError: Right-hand side of 'instanceof' is not an object"); "class is not object")]
 #[test_case(empty_object, dead_object => serr("TypeError: get called on DeadObject"); "GetMethod throws for class")]
 #[test_case(empty_object, empty_object => serr("TypeError: Right-hand side of 'instanceof' is not callable"); "class is not callable")]
-#[test_case(empty_object, bool_class => Ok(false.into()); "defer to ordinary")]
-#[test_case(empty_object, faux_class => Ok(false.into()); "[Symbol.hasInstance] returns false")]
-#[test_case(number, faux_class => Ok(true.into()); "[Symbol.hasInstance] returns true")]
+#[test_case(empty_object, bool_class => Ok(false); "defer to ordinary")]
+#[test_case(empty_object, faux_class => Ok(false); "[Symbol.hasInstance] returns false")]
+#[test_case(number, faux_class => Ok(true); "[Symbol.hasInstance] returns true")]
 #[test_case(string, faux_class => serr("TypeError: Test Sentinel"); "[Symbol.hasInstance] throws")]
-fn instanceof_operator(make_v: ValueMaker, make_target: ValueMaker) -> Result<ECMAScriptValue, String> {
+fn instanceof_operator(make_v: ValueMaker, make_target: ValueMaker) -> Result<bool, String> {
     setup_test_agent();
     let v = make_v();
     let target = make_target();
 
-    super::instanceof_operator(v, &target).map_err(unwind_any_error).map(|nc| nc.try_into().unwrap())
+    super::instanceof_operator(v, &target).map_err(unwind_any_error)
 }
 
 #[test]
