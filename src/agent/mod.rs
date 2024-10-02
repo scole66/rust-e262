@@ -2418,7 +2418,7 @@ mod insn_impl {
     pub fn instance_of() -> anyhow::Result<()> {
         let right = pop_value()?;
         let left = pop_value()?;
-        let result = instanceof_operator(left, &right);
+        let result = instanceof_operator(left, &right).map(NormalCompletion::from);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
@@ -4473,7 +4473,7 @@ fn is_less_than(x: ECMAScriptValue, y: ECMAScriptValue, left_first: bool) -> Com
     }
 }
 
-fn instanceof_operator(v: ECMAScriptValue, target: &ECMAScriptValue) -> FullCompletion {
+pub fn instanceof_operator(v: ECMAScriptValue, target: &ECMAScriptValue) -> Completion<bool> {
     // InstanceofOperator ( V, target )
     //
     // The abstract operation InstanceofOperator takes arguments V (an ECMAScript language value) and target (an
@@ -4500,14 +4500,14 @@ fn instanceof_operator(v: ECMAScriptValue, target: &ECMAScriptValue) -> FullComp
             match &instof_handler {
                 ECMAScriptValue::Undefined => {
                     if is_callable(target) {
-                        ordinary_has_instance(target, &v).map(NormalCompletion::from)
+                        ordinary_has_instance(target, &v)
                     } else {
                         Err(create_type_error("Right-hand side of 'instanceof' is not callable"))
                     }
                 }
                 _ => {
                     let res = call(&instof_handler, target, &[v])?;
-                    Ok(NormalCompletion::from(to_boolean(res)))
+                    Ok(to_boolean(res))
                 }
             }
         }

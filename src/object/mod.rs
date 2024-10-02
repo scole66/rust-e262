@@ -2277,9 +2277,12 @@ pub fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Comple
     if !is_callable(c) {
         return Ok(false);
     }
-    // todo: bound target function nonsense
 
     let c = to_object(c.clone()).expect("Callables must be objects");
+    if let Some(bf) = c.o.to_bound_function_object() {
+        let bc = &bf.bound_target_function;
+        return instanceof_operator(o.clone(), &ECMAScriptValue::Object(bc.clone()));
+    }
     match o {
         ECMAScriptValue::Object(obj) => {
             let p = c.get(&"prototype".into())?;
