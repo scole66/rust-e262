@@ -57,7 +57,7 @@ impl ObjectInterface for BoundFunctionObject {
     }
 
     fn kind(&self) -> ObjectTag {
-        ObjectTag::Object
+        ObjectTag::Function
     }
 
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
