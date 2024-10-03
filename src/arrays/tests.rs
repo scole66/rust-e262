@@ -699,7 +699,6 @@ fn defaults() {
 #[test_case(super::array_prototype_flat => panics "not yet implemented"; "array_prototype_flat")]
 #[test_case(super::array_prototype_flat_map => panics "not yet implemented"; "array_prototype_flat_map")]
 #[test_case(super::array_prototype_includes => panics "not yet implemented"; "array_prototype_includes")]
-#[test_case(super::array_prototype_index_of => panics "not yet implemented"; "array_prototype_index_of")]
 #[test_case(super::array_prototype_keys => panics "not yet implemented"; "array_prototype_keys")]
 #[test_case(super::array_prototype_last_index_of => panics "not yet implemented"; "array_prototype_last_index_of")]
 #[test_case(super::array_prototype_reduce => panics "not yet implemented"; "array_prototype_reduce")]

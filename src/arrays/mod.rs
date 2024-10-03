@@ -883,12 +883,78 @@ fn array_prototype_includes(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
 fn array_prototype_index_of(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.indexOf ( searchElement [ , fromIndex ] )
+    // This method compares searchElement to the elements of the array, in ascending order, using the
+    // IsStrictlyEqual algorithm, and if found at one or more indices, returns the smallest such index;
+    // otherwise, it returns -1𝔽.
+    //
+    // Note 1
+    // The optional second argument fromIndex defaults to +0𝔽 (i.e. the whole array is searched). If it is
+    // greater than or equal to the length of the array, -1𝔽 is returned, i.e. the array will not be
+    // searched. If it is less than -0𝔽, it is used as the offset from the end of the array to compute
+    // fromIndex. If the computed index is less than or equal to +0𝔽, the whole array will be searched.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. If len = 0, return -1𝔽.
+    // 4. Let n be ? ToIntegerOrInfinity(fromIndex).
+    // 5. Assert: If fromIndex is undefined, then n is 0.
+    // 6. If n = +∞, return -1𝔽.
+    // 7. Else if n = -∞, set n to 0.
+    // 8. If n ≥ 0, then
+    //    a. Let k be n.
+    // 9. Else,
+    //    a. Let k be len + n.
+    //    b. If k < 0, set k to 0.
+    // 10. Repeat, while k < len,
+    //     a. Let Pk be ! ToString(𝔽(k)).
+    //     b. Let kPresent be ? HasProperty(O, Pk).
+    //     c. If kPresent is true, then
+    //        i. Let elementK be ? Get(O, Pk).
+    //        ii. If IsStrictlyEqual(searchElement, elementK) is true, return 𝔽(k).
+    //     d. Set k to k + 1.
+    // 11. Return -1𝔽.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it
+    // can be transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let search_element = args.next_arg();
+    let from_index = args.next_arg();
+
+    let o = to_object(this_value.clone())?;
+    let len = length_of_array_like(&o)?;
+    if len == 0 {
+        return Ok(ECMAScriptValue::from(-1));
+    }
+    #[expect(clippy::cast_precision_loss)]
+    let len = len as f64;
+    let n = from_index.to_integer_or_infinity()?;
+    if n == f64::INFINITY {
+        return Ok(ECMAScriptValue::from(-1));
+    }
+    let n = if n == f64::NEG_INFINITY { 0.0 } else { n };
+    let mut k = if n >= 0.0 { n } else { (len + n).max(0.0) };
+    while k < len {
+        let pk = PropertyKey::from(JSString::from(k));
+        let kpresent = has_property(&o, &pk)?;
+        if kpresent {
+            let element_k = o.get(&pk)?;
+            if search_element.is_strictly_equal(&element_k) {
+                return Ok(ECMAScriptValue::from(k));
+            }
+        }
+        k += 1.0;
+    }
+    Ok(ECMAScriptValue::from(-1))
 }
 
 // Array.prototype.join ( separator )
