@@ -828,6 +828,20 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => serr("Thrown: TypeError: @@~ token detected. aborting compilation.");
     "class: method compile fails"
 )]
+// Array.prototype.indexOf
+#[test_case("[1, 2, 3].indexOf(2)" => Ok(ECMAScriptValue::Number(1.0)); "Array.prototype.indexOf: item present")]
+#[test_case("[1, 2, 3].indexOf(99)" => Ok(ECMAScriptValue::Number(-1.0)); "Array.prototype.indexOf: item not present")]
+#[test_case("[].indexOf('bob')" => Ok(ECMAScriptValue::Number(-1.0)); "Array.prototype.indexOf: empty list")]
+#[test_case("[1, 2, 3, 2, 1].indexOf(2, -3)" => Ok(ECMAScriptValue::Number(3.0)); "Array.prototype.indexOf: from right")]
+#[test_case("[1, 2, 3].indexOf(1, Infinity)" => Ok(ECMAScriptValue::Number(-1.0)); "Array.prototype.indexOf: infinite start index")]
+#[test_case("Array.prototype.indexOf.call(undefined, [], 2)" => serr("Thrown: TypeError: Undefined and null cannot be converted to objects"); "Array.prototype.indexOf: Non-object this")]
+#[test_case("Array.prototype.indexOf.call({length: Symbol.toStringTag})" => serr("Thrown: TypeError: Symbol values cannot be converted to Number values"); "Array.prototype.indexOf: not array-like")]
+#[test_case("[1, 2].indexOf(1, Symbol.toStringTag)" => serr("Thrown: TypeError: Symbol values cannot be converted to Number values"); "Array.prototype.indexOf: bad starting index")]
+#[test_case("[1, 2, 3, 1].indexOf(1, -Infinity)" => Ok(ECMAScriptValue::Number(0.0)); "Array.prototype.indexOf: starting index -inf")]
+#[test_case("Array.prototype.indexOf.call({length: 2, get [1]() { throw 'oops' }}, 7)" => serr("Thrown: oops"); "Array.prototype.indexOf: get throws")]
+#[test_case("new Proxy([1],{has(t,p){throw'oops';}}).indexOf(1)" => serr("Thrown: oops"); "Array.prototype.indexOf: HasProperty throws")]
+#[test_case("[1, 3, 9].indexOf(3, 10)" => Ok(ECMAScriptValue::Number(-1.0)); "Array.prototype.indexOf: starting index beyond length")]
+#[test_case("[1, 3, 9].indexOf(3, -10000)" => Ok(ECMAScriptValue::Number(1.0)); "Array.prototype.indexOf: starting index before start")]
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {
