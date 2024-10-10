@@ -809,6 +809,10 @@ pub enum InternalRuntimeError {
     ImproperPropertyKey,
     #[error("Code point value out of range")]
     CodePointOutOfRange,
+    #[error("unknown time zone id")]
+    UnknownTimeZoneIdentifier,
+    #[error("time value out of range")]
+    TimeValueOutOfRange,
 }
 mod insn_impl {
     use super::*;

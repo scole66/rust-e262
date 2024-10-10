@@ -114,6 +114,13 @@ impl ECMAScriptValue {
             Self::Null
         }
     }
+
+    pub fn to_date_object(&self) -> Option<&DateObject> {
+        match self {
+            ECMAScriptValue::Object(o) => o.o.to_date_obj(),
+            _ => None,
+        }
+    }
 }
 
 impl From<&Object> for ECMAScriptValue {

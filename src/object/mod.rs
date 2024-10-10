@@ -1182,6 +1182,9 @@ pub trait ObjectInterface: Debug {
     fn to_bound_function_object(&self) -> Option<&BoundFunctionObject> {
         None
     }
+    fn to_date_obj(&self) -> Option<&DateObject> {
+        None
+    }
     /// True if this object has no special behavior and no additional slots
     fn is_plain_object(&self) -> bool {
         false
@@ -1658,6 +1661,10 @@ impl Object {
     pub fn is_error_object(&self) -> bool {
         self.o.kind() == ObjectTag::Error
     }
+
+    pub fn date_value(&self) -> Option<f64> {
+        self.o.to_date_obj().map(DateObject::date_value)
+    }
 }
 
 // MakeBasicObject ( internalSlotsList )
@@ -1722,6 +1729,8 @@ pub enum InternalSlotName {
     BoundTargetFunction,
     BoundThis,
     BoundArguments,
+    // Date Object
+    DateValue,
 
     Nonsense, // For testing purposes, for the time being.
 }
@@ -1783,6 +1792,8 @@ pub const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::RemainingKeys,
 ];
 pub const PROXY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::ProxyTarget, InternalSlotName::ProxyHandler];
+pub const DATE_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::DateValue];
 
 impl ECMAScriptValue {
     /// Convert a value to an object, and then do a property lookup
