@@ -955,6 +955,53 @@ fn string_prototype_trim(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum TrimHint {
+    Start,
+    End,
+    Both,
+}
+
+pub fn trim_string(string: ECMAScriptValue, hint: TrimHint) -> Completion<JSString> {
+    // TrimString ( string, where )
+    // The abstract operation TrimString takes arguments string (an ECMAScript language value) and where
+    // (start, end, or start+end) and returns either a normal completion containing a String or a throw
+    // completion. It interprets string as a sequence of UTF-16 encoded code points, as described in 6.1.4. It
+    // performs the following steps when called:
+    //
+    // 1. Let str be ? RequireObjectCoercible(string).
+    // 2. Let S be ? ToString(str).
+    // 3. If where is start, then
+    //    a. Let T be the String value that is a copy of S with leading white space removed.
+    // 4. Else if where is end, then
+    //    a. Let T be the String value that is a copy of S with trailing white space removed.
+    // 5. Else,
+    //    a. Assert: where is start+end.
+    //    b. Let T be the String value that is a copy of S with both leading and trailing white space removed.
+    // 6. Return T.
+    //
+    // The definition of white space is the union of WhiteSpace and LineTerminator. When determining whether a
+    // Unicode code point is in Unicode general category “Space_Separator” (“Zs”), code unit sequences are
+    // interpreted as UTF-16 encoded code point sequences as specified in 6.1.4.
+
+    require_object_coercible(&string)?;
+    let s = to_string(string)?;
+    let mut start = 0;
+    let mut final_idx = s.len();
+    if hint == TrimHint::Start || hint == TrimHint::Both {
+        while start < s.len() && is_str_whitespace(s[start]) {
+            start += 1;
+        }
+    }
+    if hint == TrimHint::End || hint == TrimHint::Both {
+        while final_idx > 0 && is_str_whitespace(s[final_idx - 1]) {
+            final_idx -= 1;
+        }
+    }
+    Ok(JSString::from(&s.as_slice()[start..final_idx]))
+}
+
 // 22.1.3.31 String.prototype.trimEnd ( )
 fn string_prototype_trim_end(
     _: &ECMAScriptValue,

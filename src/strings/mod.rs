@@ -259,7 +259,7 @@ pub fn utf16_encode_code_point(cp: u32, dst: &mut [u16; 2]) -> anyhow::Result<&m
     }
 }
 
-fn is_str_whitespace(ch: u16) -> bool {
+pub fn is_str_whitespace(ch: u16) -> bool {
     (0x09..=0x0d).contains(&ch)
         || ch == 0x20
         || ch == 0x00a0
