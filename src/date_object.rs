@@ -200,66 +200,6 @@ pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
     realm.borrow_mut().intrinsics.date_prototype = date_prototype;
 }
 
-macro_rules! todo_function {
-    ( $name:ident ) => {
-        fn $name(
-            _this_value: &ECMAScriptValue,
-            _new_target: Option<&Object>,
-            _arguments: &[ECMAScriptValue],
-        ) -> Completion<ECMAScriptValue> {
-            todo!()
-        }
-    };
-}
-
-todo_function!(date_now);
-todo_function!(date_parse);
-todo_function!(date_utc);
-todo_function!(date_prototype_getdate);
-todo_function!(date_prototype_getday);
-todo_function!(date_prototype_getfullyear);
-todo_function!(date_prototype_gethours);
-todo_function!(date_prototype_getmilliseconds);
-todo_function!(date_prototype_getminutes);
-todo_function!(date_prototype_getmonth);
-todo_function!(date_prototype_getseconds);
-todo_function!(date_prototype_gettime);
-todo_function!(date_prototype_gettimezoneoffset);
-todo_function!(date_prototype_getutcdate);
-todo_function!(date_prototype_getutcday);
-todo_function!(date_prototype_getutcfullyear);
-todo_function!(date_prototype_getutchours);
-todo_function!(date_prototype_getutcmilliseconds);
-todo_function!(date_prototype_getutcminutes);
-todo_function!(date_prototype_getutcmonth);
-todo_function!(date_prototype_getutcseconds);
-todo_function!(date_prototype_setdate);
-todo_function!(date_prototype_setfullyear);
-todo_function!(date_prototype_sethours);
-todo_function!(date_prototype_setmilliseconds);
-todo_function!(date_prototype_setminutes);
-todo_function!(date_prototype_setmonth);
-todo_function!(date_prototype_setseconds);
-todo_function!(date_prototype_settime);
-todo_function!(date_prototype_setutcdate);
-todo_function!(date_prototype_setutcfullyear);
-todo_function!(date_prototype_setutchours);
-todo_function!(date_prototype_setutcmilliseconds);
-todo_function!(date_prototype_setutcminutes);
-todo_function!(date_prototype_setutcmonth);
-todo_function!(date_prototype_setutcseconds);
-todo_function!(date_prototype_todatestring);
-todo_function!(date_prototype_toisostring);
-todo_function!(date_prototype_tojson);
-todo_function!(date_prototype_tolocaledatestring);
-todo_function!(date_prototype_tolocalestring);
-todo_function!(date_prototype_tolocaletimestring);
-todo_function!(date_prototype_tostring);
-todo_function!(date_prototype_totimestring);
-todo_function!(date_prototype_toutcstring);
-todo_function!(date_prototype_valueof);
-todo_function!(date_prototype_toprimitive);
-
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 struct TimeNumber {
     // This is a floating point number that contains an integer between the values of -8,640,000,000,000,000 and
@@ -349,6 +289,13 @@ impl TryFrom<TimeNumber> for u16 {
     fn try_from(value: TimeNumber) -> Result<Self, Self::Error> {
         let val = i128::from(value);
         u16::try_from(val)
+    }
+}
+impl TryFrom<TimeNumber> for u8 {
+    type Error = TryFromIntError;
+    fn try_from(value: TimeNumber) -> Result<Self, Self::Error> {
+        let val = i128::from(value);
+        u8::try_from(val)
     }
 }
 
@@ -579,9 +526,9 @@ fn day_from_year(y: isize) -> isize {
     // 6. Let numYears400 be floor((ry - 1601) / 400).
     // 7. Return 𝔽(365 × numYears1 + numYears4 - numYears100 + numYears400).
     let num_years_1 = y - 1970;
-    let num_years_4 = (y - 1969) / 4;
-    let num_years_100 = (y - 1901) / 100;
-    let num_years_400 = (y - 1601) / 400;
+    let num_years_4 = (y - 1969).div_euclid(4);
+    let num_years_100 = (y - 1901).div_euclid(100);
+    let num_years_400 = (y - 1601).div_euclid(400);
     365 * num_years_1 + num_years_4 - num_years_100 + num_years_400
 }
 
@@ -746,7 +693,7 @@ fn hour_from_time(t: f64) -> u8 {
     // steps when called:
     //
     // 1. Return 𝔽(floor(ℝ(t / msPerHour)) modulo HoursPerDay).
-    u8::try_from(i128::from(TimeNumber::try_from((t / MS_PER_HOUR_F64).floor()).unwrap()) % HOURS_PER_DAY_I128).unwrap()
+    u8::try_from(TimeNumber::try_from((t / MS_PER_HOUR_F64).floor().rem_euclid(HOURS_PER_DAY_F64)).unwrap()).unwrap()
 }
 
 fn min_from_time(t: f64) -> u8 {
@@ -756,7 +703,7 @@ fn min_from_time(t: f64) -> u8 {
     // following steps when called:
     //
     // 1. Return 𝔽(floor(ℝ(t / msPerMinute)) modulo MinutesPerHour).
-    u8::try_from(i128::from(TimeNumber::try_from((t / MS_PER_MINUTE_F64).floor()).unwrap()) % MINUTES_PER_HOUR_I128)
+    u8::try_from(TimeNumber::try_from((t / MS_PER_MINUTE_F64).floor().rem_euclid(MINUTES_PER_HOUR_F64)).unwrap())
         .unwrap()
 }
 
@@ -767,7 +714,7 @@ fn sec_from_time(t: f64) -> u8 {
     // following steps when called:
     //
     // 1. Return 𝔽(floor(ℝ(t / msPerSecond)) modulo SecondsPerMinute).
-    u8::try_from(i128::from(TimeNumber::try_from((t / MS_PER_SECOND_F64).floor()).unwrap()) % SECONDS_PER_MINUTE_I128)
+    u8::try_from(TimeNumber::try_from((t / MS_PER_SECOND_F64).floor().rem_euclid(SECONDS_PER_MINUTE_F64)).unwrap())
         .unwrap()
 }
 
@@ -778,7 +725,7 @@ fn ms_from_time(t: f64) -> u16 {
     // following steps when called:
     //
     //  1. Return 𝔽(ℝ(t) modulo ℝ(msPerSecond)).
-    u16::try_from(TimeNumber::try_from(t % MS_PER_SECOND_F64).unwrap()).expect("number should fit")
+    u16::try_from(TimeNumber::try_from(t.rem_euclid(MS_PER_SECOND_F64)).unwrap()).expect("number should fit")
 }
 
 #[expect(clippy::too_many_arguments)]
@@ -1091,6 +1038,30 @@ fn make_day(year: f64, month: f64, date: f64) -> anyhow::Result<f64> {
     //  8. Find a finite time value t such that YearFromTime(t) is ym, MonthFromTime(t) is mn, and DateFromTime(t) is
     //     1𝔽; but if this is not possible (because some argument is out of range), return NaN.
     //  9. Return Day(t) + dt - 1𝔽.
+    fn guess(year: f64, month: f64) -> f64 {
+        const APPROXIMATE_YEAR_MS: f64 = 365.0 * MS_PER_DAY_F64;
+        const APPROXIMATE_MONTH_MS: f64 = 30.0 * MS_PER_DAY_F64;
+        APPROXIMATE_YEAR_MS * (year - 1970.0) + month * APPROXIMATE_MONTH_MS
+    }
+    fn compare(guess: f64, year: f64, month: f64) -> std::cmp::Ordering {
+        let result_y = f64::from(TimeNumber::try_from(year_from_time(guess)).unwrap());
+        let result_m = f64::from(TimeNumber::from(month_from_time(guess)));
+        let result_d = date_from_time(guess);
+
+        if result_y > year {
+            std::cmp::Ordering::Greater
+        } else if result_y < year {
+            std::cmp::Ordering::Less
+        } else if result_m > month {
+            std::cmp::Ordering::Greater
+        } else if result_m < month {
+            std::cmp::Ordering::Less
+        } else if result_d > 1 {
+            std::cmp::Ordering::Greater
+        } else {
+            std::cmp::Ordering::Equal
+        }
+    }
     if !year.is_finite() || !month.is_finite() || !date.is_finite() {
         Ok(f64::NAN)
     } else {
@@ -1099,39 +1070,68 @@ fn make_day(year: f64, month: f64, date: f64) -> anyhow::Result<f64> {
         let dt = to_integer_or_infinity(date);
         let ym = y + (m / 12.0).floor();
         if ym.is_finite() {
-            let mn = m % 12.0;
-            let approximate_year_ms = 365.0 * MS_PER_DAY_F64;
-            let approximate_month_ms = 30.0 * MS_PER_DAY_F64;
-            let mut t = approximate_year_ms * (y - 1970.0) + mn * approximate_month_ms;
+            let mn = m.rem_euclid(12.0);
+            let g = guess(ym, mn);
+            let (mut upper, mut lower) = match compare(g, ym, mn) {
+                std::cmp::Ordering::Less => {
+                    let lower = g;
+                    let mut yp = ym + 1.0;
+                    loop {
+                        let new_guess = guess(yp, mn);
+                        match compare(new_guess, ym, mn) {
+                            std::cmp::Ordering::Less => {
+                                yp += 1.0;
+                            }
+                            std::cmp::Ordering::Greater => {
+                                break (new_guess, lower);
+                            }
+                            std::cmp::Ordering::Equal => {
+                                return Ok(f64::from(TimeNumber::try_from(day(new_guess))?) + dt - 1.0);
+                            }
+                        }
+                    }
+                }
+                std::cmp::Ordering::Equal => {
+                    return Ok(f64::from(TimeNumber::try_from(day(g))?) + dt - 1.0);
+                }
+                std::cmp::Ordering::Greater => {
+                    let upper = g;
+                    let mut yp = ym - 1.0;
+                    loop {
+                        let new_guess = guess(yp, mn);
+                        match compare(new_guess, ym, mn) {
+                            std::cmp::Ordering::Greater => {
+                                yp -= 1.0;
+                            }
+                            std::cmp::Ordering::Less => {
+                                break (upper, new_guess);
+                            }
+                            std::cmp::Ordering::Equal => {
+                                return Ok(f64::from(TimeNumber::try_from(day(new_guess))?) + dt - 1.0);
+                            }
+                        }
+                    }
+                }
+            };
+
             loop {
-                let result_y = f64::from(TimeNumber::try_from(year_from_time(t))?);
-                let result_m = f64::from(TimeNumber::from(month_from_time(t)));
-                let result_d = date_from_time(t);
-                let dy = result_y - ym;
-                let dm = result_m - mn;
-                let dd = result_d - 1;
-                if dy == 0.0 && dm == 0.0 && dd == 0 {
-                    break;
+                let probe = (upper + lower) / 2.0;
+                // pay attention when probe == -62167064625000
+                match compare(probe, ym, mn) {
+                    std::cmp::Ordering::Less => {
+                        lower = probe;
+                    }
+                    std::cmp::Ordering::Equal => {
+                        return Ok(f64::from(TimeNumber::try_from(day(probe))?) + dt - 1.0);
+                    }
+                    std::cmp::Ordering::Greater => {
+                        upper = probe;
+                    }
                 }
-                if dy < 0.0 {
-                    t += 365.0 * (-dy) * MS_PER_DAY_F64 / 2.0;
-                    continue;
+                if upper - lower < MS_PER_DAY_F64 {
+                    return Ok(f64::NAN);
                 }
-                if dy > 0.0 {
-                    t -= 365.0 * dy * MS_PER_DAY_F64 / 2.0;
-                    continue;
-                }
-                if dm < 0.0 {
-                    t += 28.0 * (-dm) * MS_PER_DAY_F64 / 2.0;
-                    continue;
-                }
-                if dm > 0.0 {
-                    t += 28.0 * dm * MS_PER_DAY_F64 / 2.0;
-                    continue;
-                }
-                t -= f64::from(dd) * MS_PER_DAY_F64;
             }
-            Ok(f64::from(TimeNumber::try_from(day(t))?) + dt - 1.0)
         } else {
             Ok(f64::NAN)
         }
@@ -1358,9 +1358,7 @@ fn date_constructor_function(
                         None => {
                             let v = to_primitive(value, None)?;
                             match v {
-                                ECMAScriptValue::String(s) => {
-                                    todo!()
-                                }
+                                ECMAScriptValue::String(s) => parse_date(&s),
                                 _ => v.to_number()?,
                             }
                         }
@@ -1385,6 +1383,286 @@ fn date_constructor_function(
             ))
         }
     }
+}
+
+macro_rules! todo_function {
+    ( $name:ident ) => {
+        fn $name(
+            _this_value: &ECMAScriptValue,
+            _new_target: Option<&Object>,
+            _arguments: &[ECMAScriptValue],
+        ) -> Completion<ECMAScriptValue> {
+            todo!()
+        }
+    };
+}
+
+todo_function!(date_now);
+
+fn date_parse(
+    _this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.parse ( string )
+    // This function applies the ToString operator to its argument. If ToString results in an abrupt completion the
+    // Completion Record is immediately returned. Otherwise, this function interprets the resulting String as a date and
+    // time; it returns a Number, the UTC time value corresponding to the date and time. The String may be interpreted
+    // as a local time, a UTC time, or a time in some other time zone, depending on the contents of the String. The
+    // function first attempts to parse the String according to the format described in Date Time String Format
+    // (21.4.1.32), including expanded years. If the String does not conform to that format the function may fall back
+    // to any implementation-specific heuristics or implementation-specific date formats. Strings that are
+    // unrecognizable or contain out-of-bounds format element values shall cause this function to return NaN.
+    //
+    // If the String conforms to the Date Time String Format, substitute values take the place of absent format
+    // elements. When the MM or DD elements are absent, "01" is used. When the HH, mm, or ss elements are absent, "00"
+    // is used. When the sss element is absent, "000" is used. When the UTC offset representation is absent, date-only
+    // forms are interpreted as a UTC time and date-time forms are interpreted as a local time.
+    //
+    // If x is any Date whose milliseconds amount is zero within a particular implementation of ECMAScript, then all of
+    // the following expressions should produce the same numeric value in that implementation, if all the properties
+    // referenced have their initial values:
+    //
+    //     x.valueOf()
+    //     Date.parse(x.toString())
+    //     Date.parse(x.toUTCString())
+    //     Date.parse(x.toISOString())
+    //
+    // However, the expression
+    //
+    //     Date.parse(x.toLocaleString())
+    //
+    // is not required to produce the same Number value as the preceding three expressions and, in general, the value
+    // produced by this function is implementation-defined when given any String value that does not conform to the Date
+    // Time String Format (21.4.1.32) and that could not be produced in that implementation by the toString or
+    // toUTCString method.
+    let mut args = FuncArgs::from(arguments);
+    let date_str = to_string(args.next_arg())?;
+    Ok(ECMAScriptValue::Number(parse_date(&date_str)))
+}
+
+// Date Time String Format
+// ECMAScript defines a string interchange format for date-times based upon a simplification of the ISO 8601 calendar
+// date extended format. The format is as follows: YYYY-MM-DDTHH:mm:ss.sssZ
+//
+// Where the elements are as follows:
+//
+// YYYY is the year in the proleptic Gregorian calendar as four decimal digits from 0000 to 9999, or as an expanded year
+//      of "+" or "-" followed by six decimal digits.
+// -	"-" (hyphen) appears literally twice in the string.
+// MM	is the month of the year as two decimal digits from 01 (January) to 12 (December).
+// DD	is the day of the month as two decimal digits from 01 to 31.
+// T	"T" appears literally in the string, to indicate the beginning of the time element.
+// HH	is the number of complete hours that have passed since midnight as two decimal digits from 00 to 24.
+// :	":" (colon) appears literally twice in the string.
+// mm	is the number of complete minutes since the start of the hour as two decimal digits from 00 to 59.
+// ss	is the number of complete seconds since the start of the minute as two decimal digits from 00 to 59.
+// .	"." (dot) appears literally in the string.
+// sss	is the number of complete milliseconds since the start of the second as three decimal digits.
+// Z	is the UTC offset representation specified as "Z" (for UTC with no offset) or as either "+" or "-" followed by a
+//      time expression HH:mm (a subset of the time zone offset string format for indicating local time ahead of or
+//      behind UTC, respectively)
+//
+// This format includes date-only forms:
+//
+// YYYY
+// YYYY-MM
+// YYYY-MM-DD
+//
+// It also includes “date-time” forms that consist of one of the above date-only forms immediately followed by one of
+// the following time forms with an optional UTC offset representation appended:
+//
+// THH:mm
+// THH:mm:ss
+// THH:mm:ss.sss
+//
+// A string containing out-of-bounds or nonconforming elements is not a valid instance of this format.
+//
+// Note 1
+// As every day both starts and ends with midnight, the two notations 00:00 and 24:00 are available to distinguish the
+// two midnights that can be associated with one date. This means that the following two notations refer to exactly the
+// same point in time: 1995-02-04T24:00 and 1995-02-05T00:00. This interpretation of the latter form as "end of a
+// calendar day" is consistent with ISO 8601, even though that specification reserves it for describing time intervals
+// and does not permit it within representations of single points in time.
+//
+// Note 2
+// There exists no international standard that specifies abbreviations for civil time zones like CET, EST, etc. and
+// sometimes the same abbreviation is even used for two very different time zones. For this reason, both ISO 8601 and
+// this format specify numeric representations of time zone offsets.
+
+// Expanded Years
+// Covering the full time value range of approximately 273,790 years forward or backward from 1 January 1970 (21.4.1.1)
+// requires representing years before 0 or after 9999. ISO 8601 permits expansion of the year representation, but only
+// by mutual agreement of the partners in information interchange. In the simplified ECMAScript format, such an expanded
+// year representation shall have 6 digits and is always prefixed with a + or - sign. The year 0 is considered positive
+// and must be prefixed with a + sign. The representation of the year 0 as -000000 is invalid. Strings matching the Date
+// Time String Format with expanded years representing instants in time outside the range of a time value are treated as
+// unrecognizable by Date.parse and cause that function to return NaN without falling back to implementation-specific
+// behaviour or heuristics.
+//
+// Note
+// Examples of date-time values with expanded years:
+//
+// -271821-04-20T00:00:00Z	271822 B.C.
+// -000001-01-01T00:00:00Z	2 B.C.
+// +000000-01-01T00:00:00Z	1 B.C.
+// +000001-01-01T00:00:00Z	1 A.D.
+// +001970-01-01T00:00:00Z	1970 A.D.
+// +002009-12-15T00:00:00Z	2009 A.D.
+// +275760-09-13T00:00:00Z	275760 A.D.
+
+fn parse_date(date_str: &JSString) -> f64 {
+    const FDY: &str = "(?<four_digit_year>[0-9]{4})";
+    const SDY: &str = "(?<six_digit_year>[-+][0-9]{6})";
+    const MONTH: &str = "(?<month>[0-9][0-9])";
+    const DAY: &str = "(?<day>[0-9][0-9])";
+    const HOUR: &str = "(?<hour>[0-9][0-9])";
+    const MINUTE: &str = "(?<minute>[0-9][0-9])";
+    const SECOND: &str = "(?<second>[0-9][0-9])";
+    const MILLIS: &str = "(?<millis>[0-9]{3})";
+    const ZONE: &str = "(?<zone>Z|([-+][0-9][0-9]:[0-9][0-9]))";
+    lazy_static! {
+        static ref PATTERN: String =
+            format!(r"({FDY}|{SDY})(-{MONTH}(-{DAY}(T{HOUR}:{MINUTE}(:{SECOND}(\.{MILLIS})?)?{ZONE}?)?)?)?");
+        static ref MATCHER: Regex =
+            Regex::new(&PATTERN).expect("regular expressions not based on user input should not fail");
+    }
+    let date_str = String::from(date_str);
+    let date_match = MATCHER.captures(&date_str);
+    match date_match {
+        None => f64::NAN,
+        Some(caps) => {
+            let year = f64::from(if let Some(year) = caps.name("four_digit_year") {
+                year.as_str().parse::<i32>().expect("match should parse as an integer")
+            } else {
+                caps.name("six_digit_year")
+                    .expect("we should get either a 4-digit year or a six-digit year")
+                    .as_str()
+                    .parse::<i32>()
+                    .expect("match should parse as an integer")
+            });
+            let month = f64::from(
+                caps.name("month")
+                    .map_or(1, |month| month.as_str().parse::<i32>().expect("month should parse as an integer")),
+            ) - 1.0;
+            let day = f64::from(
+                caps.name("day").map_or(1, |day| day.as_str().parse::<i32>().expect("days should parse as an integer")),
+            );
+            let hour = f64::from(
+                caps.name("hour")
+                    .map_or(0, |hour| hour.as_str().parse::<i32>().expect("hours shouls parse as an integer")),
+            );
+            let minute = f64::from(
+                caps.name("minute")
+                    .map_or(0, |minute| minute.as_str().parse::<i32>().expect("minutes should parse as an int")),
+            );
+            let second = f64::from(
+                caps.name("second")
+                    .map_or(0, |second| second.as_str().parse::<i32>().expect("seconds should parse as an int")),
+            );
+            let millis = f64::from(
+                caps.name("millis")
+                    .map_or(0, |millis| millis.as_str().parse::<i32>().expect("millis should parse as an int")),
+            );
+            let zone = caps.name("zone").map_or("Z", |zone| zone.as_str());
+
+            make_date(make_day(year, month, day).expect("should be ok"), make_time(hour, minute, second, millis))
+        }
+    }
+}
+
+todo_function!(date_utc);
+todo_function!(date_prototype_getdate);
+todo_function!(date_prototype_getday);
+todo_function!(date_prototype_getfullyear);
+todo_function!(date_prototype_gethours);
+todo_function!(date_prototype_getmilliseconds);
+todo_function!(date_prototype_getminutes);
+todo_function!(date_prototype_getmonth);
+todo_function!(date_prototype_getseconds);
+todo_function!(date_prototype_gettime);
+
+fn date_prototype_gettimezoneoffset(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.getTimezoneOffset ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let t be dateObject.[[DateValue]].
+    //  4. If t is NaN, return NaN.
+    //  5. Return (t - LocalTime(t)) / msPerMinute.
+    this_value
+        .to_date_object()
+        .map(|obj| {
+            let t = obj.date_value();
+            let result = (t - local_time(t).unwrap()) / MS_PER_MINUTE_F64;
+            ECMAScriptValue::Number(result)
+        })
+        .ok_or_else(|| create_type_error("Date.prototype.getTimezoneOffset requires a datelike object"))
+}
+
+todo_function!(date_prototype_getutcdate);
+todo_function!(date_prototype_getutcday);
+todo_function!(date_prototype_getutcfullyear);
+todo_function!(date_prototype_getutchours);
+todo_function!(date_prototype_getutcmilliseconds);
+todo_function!(date_prototype_getutcminutes);
+todo_function!(date_prototype_getutcmonth);
+todo_function!(date_prototype_getutcseconds);
+todo_function!(date_prototype_setdate);
+todo_function!(date_prototype_setfullyear);
+todo_function!(date_prototype_sethours);
+todo_function!(date_prototype_setmilliseconds);
+todo_function!(date_prototype_setminutes);
+todo_function!(date_prototype_setmonth);
+todo_function!(date_prototype_setseconds);
+todo_function!(date_prototype_settime);
+todo_function!(date_prototype_setutcdate);
+todo_function!(date_prototype_setutcfullyear);
+todo_function!(date_prototype_setutchours);
+todo_function!(date_prototype_setutcmilliseconds);
+todo_function!(date_prototype_setutcminutes);
+todo_function!(date_prototype_setutcmonth);
+todo_function!(date_prototype_setutcseconds);
+todo_function!(date_prototype_todatestring);
+todo_function!(date_prototype_toisostring);
+todo_function!(date_prototype_tojson);
+todo_function!(date_prototype_tolocaledatestring);
+todo_function!(date_prototype_tolocalestring);
+todo_function!(date_prototype_tolocaletimestring);
+fn date_prototype_tostring(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.toString ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let tv be dateObject.[[DateValue]].
+    //  4. Return ToDateString(tv).
+    //
+    // Note 1
+    // For any Date d such that d.[[DateValue]] is evenly divisible by 1000, the result of Date.parse(d.toString()) =
+    // d.valueOf(). See 21.4.3.2.
+    //
+    // Note 2
+    // This method is not generic; it throws a TypeError exception if its this value is not a Date. Therefore, it cannot
+    // be transferred to other kinds of objects for use as a method.
+    this_value
+        .to_date_object()
+        .ok_or_else(|| create_type_error("Date.prototype.valueOf requires a datelike object"))
+        .map(|date_object| {
+            ECMAScriptValue::String(
+                to_date_string(date_object.date_value())
+                    .expect("a valid date value should always produce a good date string"),
+            )
+        })
 }
 
 fn time_string(tv: f64) -> JSString {
@@ -1520,6 +1798,64 @@ fn to_date_string(tv: f64) -> anyhow::Result<JSString> {
     }
 }
 
+todo_function!(date_prototype_totimestring);
+todo_function!(date_prototype_toutcstring);
+
+fn date_prototype_valueof(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.valueOf ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Return dateObject.[[DateValue]].
+    this_value
+        .to_date_object()
+        .map(|obj| ECMAScriptValue::Number(obj.date_value()))
+        .ok_or_else(|| create_type_error("Date.prototype.valueOf requires a datelike object"))
+}
+
+fn date_prototype_toprimitive(
+    this_value: &ECMAScriptValue,
+    _: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype [ %Symbol.toPrimitive% ] ( hint )
+    // This method is called by ECMAScript language operators to convert a Date to a primitive value. The allowed values
+    // for hint are "default", "number", and "string". Dates are unique among built-in ECMAScript object in that they
+    // treat "default" as being equivalent to "string", All other built-in ECMAScript objects treat "default" as being
+    // equivalent to "number".
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let O be the this value.
+    // 2. If O is not an Object, throw a TypeError exception.
+    // 3. If hint is either "string" or "default", then
+    //    a. Let tryFirst be string.
+    // 4. Else if hint is "number", then
+    //    a. Let tryFirst be number.
+    // 5. Else,
+    //    a. Throw a TypeError exception.
+    // 6. Return ? OrdinaryToPrimitive(O, tryFirst).
+    let mut args = FuncArgs::from(arguments);
+    let hint = args.next_arg();
+    if let ECMAScriptValue::Object(o) = this_value {
+        let try_first = if hint == ECMAScriptValue::from("default") || hint == ECMAScriptValue::from("string") {
+            ConversionHint::String
+        } else if hint == ECMAScriptValue::from("number") {
+            ConversionHint::Number
+        } else {
+            return Err(create_type_error("Date.prototype[Symbol.toPrimitive]: invalid hint"));
+        };
+        ordinary_to_primitive(o, try_first)
+    } else {
+        Err(create_type_error("Date.prototype[Symbol.toPrimitive] called on incompatible receiver"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1555,5 +1891,26 @@ mod tests {
         } else {
             Some(result)
         }
+    }
+
+    #[test_case("0000" => -62_167_219_200_000.0; "zero")]
+    #[test_case("0001" => -62_135_596_800_000.0; "one")]
+    #[test_case("1969" => -31_536_000_000.0; "nineteen sixty-nine")]
+    #[test_case("1970" => 0.0; "nineteen seventy")]
+    #[test_case("1971" => 31_536_000_000.0; "nineteen seventy-one")]
+    #[test_case("2000" => 946_684_800_000.0; "two thousand")]
+    #[test_case("1929-03-22T10:53:31.021Z" => -1_286_888_788_979.0; "march 22, 1929")]
+    fn parse_date(s: &str) -> f64 {
+        super::parse_date(&JSString::from(s))
+    }
+
+    #[test_case(-62_167_219_200_000.0 => 1; "year zero")]
+    fn date_from_time(t: f64) -> u8 {
+        super::date_from_time(t)
+    }
+
+    #[test_case(-62_167_219_200_000.0 => 0; "year zero")]
+    fn year_from_time(t: f64) -> isize {
+        super::year_from_time(t)
     }
 }
