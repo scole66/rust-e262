@@ -1,5 +1,6 @@
 use super::*;
 use itertools::Itertools;
+use num::{BigInt, ToPrimitive};
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
@@ -764,8 +765,8 @@ fn parse_int(
     //     a. If sign = -1, return -0𝔽.
     //     b. Return +0𝔽.
     // 16. Return 𝔽(sign × mathInt).
-    // Note
     //
+    // Note
     // This function may interpret only a leading portion of string as an integer value; it ignores any code
     // units that cannot be interpreted as part of the notation of an integer, and no indication is given that
     // any such code units were ignored.
@@ -774,9 +775,46 @@ fn parse_int(
     let radix = args.next_arg();
 
     let input_string = to_string(string)?;
-    let s = trim_string(input_string.into(), TrimHint::Start).expect("argument is string already");
-    let sign = if !s.is_empty() && s[0] == ('-' as u16) { -1 } else { 1 };
-    todo!()
+    let s_jss = trim_string(input_string.into(), TrimHint::Start).expect("argument is string already");
+    let mut s = s_jss.as_slice();
+    let sign = if !s.is_empty() && s[0] == 0x2d { -1 } else { 1 };
+    if !s.is_empty() && [0x2b, 0x2d].contains(&s[0]) {
+        s = &s[1..];
+    }
+    let mut r = radix.to_int32()?;
+    let mut strip_prefix = true;
+    if r != 0 {
+        if !(2..=36).contains(&r) {
+            return Ok(ECMAScriptValue::Number(f64::NAN));
+        }
+        if r != 16 {
+            strip_prefix = false;
+        }
+    } else {
+        r = 10;
+    }
+    if strip_prefix && s.len() >= 2 && s[0] == 0x30 && [0x58, 0x78].contains(&s[1]) {
+        s = &s[2..];
+        r = 16;
+    }
+    let mut end = s.len();
+    for (idx, &val) in s.iter().enumerate() {
+        if !is_radix_digit(val, r) {
+            end = idx;
+            break;
+        }
+    }
+    let z = &s[0..end];
+    let math_int = JSString::from(z).to_bigint_radix(u32::try_from(r).expect("r should be between 2 and 36"));
+    if math_int == BigInt::ZERO {
+        if sign == -1 {
+            Ok(ECMAScriptValue::Number(-0.0))
+        } else {
+            Ok(ECMAScriptValue::Number(0.0))
+        }
+    } else {
+        Ok(ECMAScriptValue::Number(f64::from(sign) * math_int.to_f64().unwrap()))
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

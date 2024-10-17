@@ -273,6 +273,18 @@ pub fn is_str_whitespace(ch: u16) -> bool {
         || ch == 0x3000
 }
 
+pub fn is_radix_digit(ch: u16, radix: i32) -> bool {
+    assert!((2..=36).contains(&radix));
+    let radix = u16::try_from(radix).unwrap();
+    if radix <= 10 {
+        (0x30..(0x30 + radix)).contains(&ch)
+    } else {
+        (0x30..(0x30 + radix)).contains(&ch)
+            || (0x61..(0x61 + radix - 10)).contains(&ch)
+            || (0x41..(0x41 + radix - 10)).contains(&ch)
+    }
+}
+
 impl JSString {
     pub fn to_bigint(&self) -> Option<Rc<BigInt>> {
         // StringToBigInt ( str )
@@ -318,6 +330,11 @@ impl JSString {
         }
         let digits = code_units.iter().map(|word| u8::try_from(*word).ok()).collect::<Option<Vec<u8>>>()?;
         BigInt::parse_bytes(&digits, radix).map(Rc::new)
+    }
+
+    pub fn to_bigint_radix(&self, radix: u32) -> BigInt {
+        let digits = self.as_slice().iter().map(|word| u8::try_from(*word).unwrap()).collect::<Vec<u8>>();
+        BigInt::parse_bytes(digits.as_slice(), radix).unwrap()
     }
 }
 
