@@ -202,15 +202,15 @@ pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 struct TimeNumber {
-    // This is a floating point number that contains an integer between the values of -8,640,000,000,000,000 and
-    // 8,640,000,000,000,000, inclusive.
+    // This is a floating point number that has conversion routines to/from integers designed to not generate clippy
+    // warnings.
     val: f64,
 }
 
 impl TryFrom<f64> for TimeNumber {
     type Error = InternalRuntimeError;
     fn try_from(value: f64) -> Result<Self, Self::Error> {
-        if (-8_640_000_000_000_000.0..=8_640_000_000_000_000.0).contains(&value) && value.fract() == 0.0 {
+        if value.fract() == 0.0 {
             Ok(Self { val: value })
         } else {
             Err(InternalRuntimeError::TimeValueOutOfRange)
@@ -237,9 +237,7 @@ impl TryFrom<isize> for TimeNumber {
 
     #[expect(clippy::cast_precision_loss)]
     fn try_from(value: isize) -> Result<Self, Self::Error> {
-        // A time value supports a slightly smaller range of -8,640,000,000,000,000 to 8,640,000,000,000,000
-        // milliseconds.
-        if (-8_640_000_000_000_000..=8_640_000_000_000_000).contains(&value) {
+        if (-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&value) {
             Ok(Self { val: value as f64 })
         } else {
             Err(InternalRuntimeError::TimeValueOutOfRange)
@@ -253,7 +251,7 @@ impl TryFrom<i128> for TimeNumber {
     fn try_from(value: i128) -> Result<Self, Self::Error> {
         // A time value supports a slightly smaller range of -8,640,000,000,000,000 to 8,640,000,000,000,000
         // milliseconds.
-        if (-8_640_000_000_000_000..=8_640_000_000_000_000).contains(&value) {
+        if (-9_007_199_254_740_991..=9_007_199_254_740_991).contains(&value) {
             Ok(Self { val: value as f64 })
         } else {
             Err(InternalRuntimeError::TimeValueOutOfRange)
@@ -442,11 +440,14 @@ impl DateObject {
         Ok(TimeNumber::try_from(milliseconds)?.val)
     }
 
-    fn new(prototype: Option<Object>, value: TimeNumber) -> Self {
-        Self { common: RefCell::new(CommonObjectData::new(prototype, true, DATE_OBJECT_SLOTS)), date_value: value.val }
+    fn new(prototype: Option<Object>, value: Option<TimeNumber>) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(prototype, true, DATE_OBJECT_SLOTS)),
+            date_value: value.map_or(f64::NAN, |tv| tv.val),
+        }
     }
 
-    fn object(prototype: Option<Object>, value: TimeNumber) -> Object {
+    fn object(prototype: Option<Object>, value: Option<TimeNumber>) -> Object {
         Object { o: Rc::new(Self::new(prototype, value)) }
     }
 }
@@ -1175,7 +1176,7 @@ fn make_full_year(year: f64) -> f64 {
         f64::NAN
     } else {
         let truncated = to_integer_or_infinity(year);
-        if (0.0..=99.0).contains(&year) {
+        if (0.0..=99.0).contains(&truncated) {
             1900.0 + truncated
         } else {
             truncated
@@ -1353,7 +1354,7 @@ fn date_constructor_function(
                 0 => DateObject::now_utc().expect(ERROR),
                 1 => {
                     let value = values[0].clone();
-                    match value.to_date_object() {
+                    let tv = match value.to_date_object() {
                         Some(date_obj) => date_obj.date_value(),
                         None => {
                             let v = to_primitive(value, None)?;
@@ -1362,7 +1363,8 @@ fn date_constructor_function(
                                 _ => v.to_number()?,
                             }
                         }
-                    }
+                    };
+                    time_clip(tv)
                 }
                 _ => {
                     let y = values[0].to_number()?;
@@ -1377,7 +1379,7 @@ fn date_constructor_function(
                     time_clip(utc(final_date).expect(ERROR))
                 }
             };
-            let dv = TimeNumber::try_from(dv).expect(ERROR);
+            let dv = TimeNumber::try_from(dv).ok();
             Ok(ECMAScriptValue::Object(
                 nt.ordinary_create_from_constructor(IntrinsicId::DatePrototype, |proto| DateObject::object(proto, dv))?,
             ))
@@ -1397,7 +1399,16 @@ macro_rules! todo_function {
     };
 }
 
-todo_function!(date_now);
+#[expect(clippy::unnecessary_wraps)]
+fn date_now(
+    _this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.now ( )
+    // This function returns the time value designating the UTC date and time of the occurrence of the call to it.
+    Ok(ECMAScriptValue::Number(DateObject::now_utc().expect("clock should work")))
+}
 
 fn date_parse(
     _this_value: &ECMAScriptValue,
@@ -1513,7 +1524,7 @@ fn date_parse(
 
 fn parse_date(date_str: &JSString) -> f64 {
     const FDY: &str = "(?<four_digit_year>[0-9]{4})";
-    const SDY: &str = "(?<six_digit_year>[-+][0-9]{6})";
+    const SDY: &str = r"(?<six_digit_year>(\+[0-9]{6})|(-([1-9][0-9]{5})|([0-9][1-9][0-9]{4})|([0-9]{2}[1-9][0-9]{3})|([0-9]{3}[1-9][0-9]{2})|([0-9]{4}[1-9][0-9])|([0-9]{5}[1-9])))";
     const MONTH: &str = "(?<month>[0-9][0-9])";
     const DAY: &str = "(?<day>[0-9][0-9])";
     const HOUR: &str = "(?<hour>[0-9][0-9])";
@@ -1523,7 +1534,7 @@ fn parse_date(date_str: &JSString) -> f64 {
     const ZONE: &str = "(?<zone>Z|([-+][0-9][0-9]:[0-9][0-9]))";
     lazy_static! {
         static ref PATTERN: String =
-            format!(r"({FDY}|{SDY})(-{MONTH}(-{DAY}(T{HOUR}:{MINUTE}(:{SECOND}(\.{MILLIS})?)?{ZONE}?)?)?)?");
+            format!(r"^({FDY}|{SDY})(-{MONTH}(-{DAY}(T{HOUR}:{MINUTE}(:{SECOND}(\.{MILLIS})?)?{ZONE}?)?)?)?$");
         static ref MATCHER: Regex =
             Regex::new(&PATTERN).expect("regular expressions not based on user input should not fail");
     }
@@ -1532,15 +1543,18 @@ fn parse_date(date_str: &JSString) -> f64 {
     match date_match {
         None => f64::NAN,
         Some(caps) => {
-            let year = f64::from(if let Some(year) = caps.name("four_digit_year") {
-                year.as_str().parse::<i32>().expect("match should parse as an integer")
-            } else {
-                caps.name("six_digit_year")
-                    .expect("we should get either a 4-digit year or a six-digit year")
-                    .as_str()
-                    .parse::<i32>()
-                    .expect("match should parse as an integer")
-            });
+            let (year, year_as_int) = {
+                let year = if let Some(year) = caps.name("four_digit_year") {
+                    year.as_str().parse::<i32>().expect("match should parse as an integer")
+                } else {
+                    caps.name("six_digit_year")
+                        .expect("we should get either a 4-digit year or a six-digit year")
+                        .as_str()
+                        .parse::<i32>()
+                        .expect("match should parse as an integer")
+                };
+                (f64::from(year), year)
+            };
             let month = f64::from(
                 caps.name("month")
                     .map_or(1, |month| month.as_str().parse::<i32>().expect("month should parse as an integer")),
@@ -1550,7 +1564,7 @@ fn parse_date(date_str: &JSString) -> f64 {
             );
             let hour = f64::from(
                 caps.name("hour")
-                    .map_or(0, |hour| hour.as_str().parse::<i32>().expect("hours shouls parse as an integer")),
+                    .map_or(0, |hour| hour.as_str().parse::<i32>().expect("hours should parse as an integer")),
             );
             let minute = f64::from(
                 caps.name("minute")
@@ -1566,12 +1580,64 @@ fn parse_date(date_str: &JSString) -> f64 {
             );
             let zone = caps.name("zone").map_or("Z", |zone| zone.as_str());
 
-            make_date(make_day(year, month, day).expect("should be ok"), make_time(hour, minute, second, millis))
+            let tv =
+                make_date(make_day(year, month, day).expect("should be ok"), make_time(hour, minute, second, millis));
+            if year_from_time(tv) != isize::try_from(year_as_int).unwrap()
+                || f64::from(month_from_time(tv)) != month
+                || f64::from(date_from_time(tv)) != day
+                || f64::from(hour_from_time(tv)) != hour
+                || f64::from(min_from_time(tv)) != minute
+                || f64::from(sec_from_time(tv)) != second
+                || !(-8_640_000_000_000_000.0..=8_640_000_000_000_000.0).contains(&tv)
+            {
+                f64::NAN
+            } else {
+                tv
+            }
         }
     }
 }
 
-todo_function!(date_utc);
+fn date_utc(
+    _this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.UTC ( year [ , month [ , date [ , hours [ , minutes [ , seconds [ , ms ] ] ] ] ] ] )
+    // This function performs the following steps when called:
+    //
+    //  1. Let y be ? ToNumber(year).
+    //  2. If month is present, let m be ? ToNumber(month); else let m be +0𝔽.
+    //  3. If date is present, let dt be ? ToNumber(date); else let dt be 1𝔽.
+    //  4. If hours is present, let h be ? ToNumber(hours); else let h be +0𝔽.
+    //  5. If minutes is present, let min be ? ToNumber(minutes); else let min be +0𝔽.
+    //  6. If seconds is present, let s be ? ToNumber(seconds); else let s be +0𝔽.
+    //  7. If ms is present, let milli be ? ToNumber(ms); else let milli be +0𝔽.
+    //  8. Let yr be MakeFullYear(y).
+    //  9. Return TimeClip(MakeDate(MakeDay(yr, m, dt), MakeTime(h, min, s, milli))).
+    //
+    // The "length" property of this function is 7𝔽.
+    //
+    // Note
+    // This function differs from the Date constructor in two ways: it returns a time value as a Number, rather than
+    // creating a Date, and it interprets the arguments in UTC rather than as local time.
+
+    let mut args = FuncArgs::from(arguments);
+    let year = args.next_arg();
+    let y = year.to_number()?;
+    let m = args.next_if_exists().map_or(Ok(0.0), |month| month.to_number())?;
+    let dt = args.next_if_exists().map_or(Ok(1.0), |date| date.to_number())?;
+    let h = args.next_if_exists().map_or(Ok(0.0), |hours| hours.to_number())?;
+    let min = args.next_if_exists().map_or(Ok(0.0), |minutes| minutes.to_number())?;
+    let s = args.next_if_exists().map_or(Ok(0.0), |seconds| seconds.to_number())?;
+    let milli = args.next_if_exists().map_or(Ok(0.0), |ms| ms.to_number())?;
+    let yr = make_full_year(y);
+    Ok(ECMAScriptValue::Number(time_clip(make_date(
+        make_day(yr, m, dt).expect("values in range"),
+        make_time(h, min, s, milli),
+    ))))
+}
+
 todo_function!(date_prototype_getdate);
 todo_function!(date_prototype_getday);
 todo_function!(date_prototype_getfullyear);
@@ -1580,7 +1646,26 @@ todo_function!(date_prototype_getmilliseconds);
 todo_function!(date_prototype_getminutes);
 todo_function!(date_prototype_getmonth);
 todo_function!(date_prototype_getseconds);
-todo_function!(date_prototype_gettime);
+
+fn date_prototype_gettime(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.getTime ( )
+    // This method performs the following steps when called:
+    //
+    // 1. Let dateObject be the this value.
+    // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    // 3. Return dateObject.[[DateValue]].
+    this_value
+        .to_date_object()
+        .map(|obj| {
+            let t = obj.date_value();
+            ECMAScriptValue::Number(t)
+        })
+        .ok_or_else(|| create_type_error("Date.prototype.getTimezoneOffset requires a datelike object"))
+}
 
 fn date_prototype_gettimezoneoffset(
     this_value: &ECMAScriptValue,
@@ -1629,11 +1714,52 @@ todo_function!(date_prototype_setutcminutes);
 todo_function!(date_prototype_setutcmonth);
 todo_function!(date_prototype_setutcseconds);
 todo_function!(date_prototype_todatestring);
-todo_function!(date_prototype_toisostring);
+
+fn date_prototype_toisostring(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.toISOString ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let tv be dateObject.[[DateValue]].
+    //  4. If tv is NaN, throw a RangeError exception.
+    //  5. Assert: tv is an integral Number.
+    //  6. If tv corresponds with a year that cannot be represented in the Date Time String Format, throw a RangeError
+    //     exception.
+    //  7. Return a String representation of tv in the Date Time String Format on the UTC time scale, including all
+    //     format elements and the UTC offset representation "Z".
+    this_value
+        .to_date_object()
+        .ok_or_else(|| create_type_error("Date.prototype.toISOString requires a datelike object"))
+        .and_then(|date_object| {
+            let tv = date_object.date_value();
+            if tv.is_nan() {
+                Err(create_range_error("Date.prototype.toISOString: time value missing"))
+            } else {
+                let year = year_from_time(tv);
+                let month = month_from_time(tv) + 1;
+                let date = date_from_time(tv);
+                let hour = hour_from_time(tv);
+                let minute = min_from_time(tv);
+                let second = sec_from_time(tv);
+                let millis = ms_from_time(tv);
+                Ok(ECMAScriptValue::from(format!(
+                    "{}-{month:02}-{date:02}T{hour:02}:{minute:02}:{second:02}.{millis:03}Z",
+                    if (0..=9999).contains(&year) { format!("{year:04}") } else { format!("{year:+06}") }
+                )))
+            }
+        })
+}
+
 todo_function!(date_prototype_tojson);
 todo_function!(date_prototype_tolocaledatestring);
 todo_function!(date_prototype_tolocalestring);
 todo_function!(date_prototype_tolocaletimestring);
+
 fn date_prototype_tostring(
     this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1857,60 +1983,4 @@ fn date_prototype_toprimitive(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use test_case::test_case;
-
-    #[test]
-    fn day() {
-        let historical = -(MS_PER_DAY_F64);
-        assert_eq!(super::day(historical), -1);
-    }
-    #[test]
-    fn day_within_year() {
-        let historical = -(MS_PER_DAY_F64);
-        assert_eq!(super::day_within_year(historical), 364);
-    }
-
-    #[test_case(0.0 => "Thu Jan 01 1970")]
-    #[test_case(-1.0 => "Wed Dec 31 1969")]
-    #[test_case(1_727_974_098_974.0 => "Thu Oct 03 2024")]
-    fn date_string(tv: f64) -> String {
-        super::date_string(tv).to_string()
-    }
-
-    #[test_case(0.0 => Some(0.0); "zero")]
-    #[test_case(f64::INFINITY => None; "positive infinity")]
-    #[test_case(f64::NEG_INFINITY => None; "negative infinity")]
-    #[test_case(f64::NAN => None; "not a number")]
-    #[test_case(8.0e15 => Some(8.0e15); "big but valid")]
-    fn time_clip(t: f64) -> Option<f64> {
-        let result = super::time_clip(t);
-        if result.is_nan() {
-            None
-        } else {
-            Some(result)
-        }
-    }
-
-    #[test_case("0000" => -62_167_219_200_000.0; "zero")]
-    #[test_case("0001" => -62_135_596_800_000.0; "one")]
-    #[test_case("1969" => -31_536_000_000.0; "nineteen sixty-nine")]
-    #[test_case("1970" => 0.0; "nineteen seventy")]
-    #[test_case("1971" => 31_536_000_000.0; "nineteen seventy-one")]
-    #[test_case("2000" => 946_684_800_000.0; "two thousand")]
-    #[test_case("1929-03-22T10:53:31.021Z" => -1_286_888_788_979.0; "march 22, 1929")]
-    fn parse_date(s: &str) -> f64 {
-        super::parse_date(&JSString::from(s))
-    }
-
-    #[test_case(-62_167_219_200_000.0 => 1; "year zero")]
-    fn date_from_time(t: f64) -> u8 {
-        super::date_from_time(t)
-    }
-
-    #[test_case(-62_167_219_200_000.0 => 0; "year zero")]
-    fn year_from_time(t: f64) -> isize {
-        super::year_from_time(t)
-    }
-}
+mod tests;

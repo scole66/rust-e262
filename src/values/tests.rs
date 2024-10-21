@@ -1325,12 +1325,19 @@ fn to_integer_or_infinity_01() {
         (-0.0, 0.0),
         (10.2, 10.0),
         (-10.2, -10.0),
+        (-0.99999, 0.0),
     ];
 
     for (val, expected) in testcases {
         let result = to_integer_or_infinity(*val);
         assert_eq!(result, *expected);
     }
+}
+#[test]
+fn to_integer_or_infinity_neg_zero() {
+    let result = to_integer_or_infinity(-0.0);
+    assert_eq!(result, 0.0, "expected 0.0, got {result}");
+    assert_eq!(result.signum(), 1.0, "expected positive sign");
 }
 
 #[test]
