@@ -321,11 +321,8 @@ impl TestObject {
         throwers: &[FunctionId],
     ) -> (ThrowsOrNot, Option<PropertyKey>) {
         for item in throwers {
-            match matcher(item) {
-                (true, rval) => {
-                    return (ThrowsOrNot::Throws, rval);
-                }
-                (false, _) => {}
+            if let (true, rval) = matcher(item) {
+                return (ThrowsOrNot::Throws, rval);
             }
         }
         (ThrowsOrNot::BehavesNormally, None)

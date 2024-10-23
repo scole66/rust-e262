@@ -138,24 +138,21 @@ impl Script {
     // * It is a Syntax Error if any element of the LexicallyDeclaredNames of ScriptBody also occurs in the
     //   VarDeclaredNames of ScriptBody.
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
-        match &self.body {
-            Some(body) => {
-                let lex_names = body.lexically_declared_names();
-                let var_names = body.var_declared_names();
-                if !has_unique_elements(lex_names.clone()) {
-                    errs.push(create_syntax_error_object("Duplicate lexically declared names", Some(body.location())));
-                }
-                let lex_names_set: AHashSet<JSString> = lex_names.into_iter().collect();
-                let var_names_set: AHashSet<JSString> = var_names.into_iter().collect();
-                if !lex_names_set.is_disjoint(&var_names_set) {
-                    errs.push(create_syntax_error_object(
-                        "Name defined both lexically and var-style",
-                        Some(body.location()),
-                    ));
-                }
-                body.early_errors(errs, strict);
+        if let Some(body) = &self.body {
+            let lex_names = body.lexically_declared_names();
+            let var_names = body.var_declared_names();
+            if !has_unique_elements(lex_names.clone()) {
+                errs.push(create_syntax_error_object("Duplicate lexically declared names", Some(body.location())));
             }
-            None => {}
+            let lex_names_set: AHashSet<JSString> = lex_names.into_iter().collect();
+            let var_names_set: AHashSet<JSString> = var_names.into_iter().collect();
+            if !lex_names_set.is_disjoint(&var_names_set) {
+                errs.push(create_syntax_error_object(
+                    "Name defined both lexically and var-style",
+                    Some(body.location()),
+                ));
+            }
+            body.early_errors(errs, strict);
         }
     }
 
