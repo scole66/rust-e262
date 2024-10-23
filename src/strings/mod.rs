@@ -279,7 +279,7 @@ pub fn is_radix_digit(ch: u16, radix: i32) -> bool {
     if radix <= 10 {
         (0x30..(0x30 + radix)).contains(&ch)
     } else {
-        (0x30..(0x30 + radix)).contains(&ch)
+        (0x30..=0x39).contains(&ch)
             || (0x61..(0x61 + radix - 10)).contains(&ch)
             || (0x41..(0x41 + radix - 10)).contains(&ch)
     }

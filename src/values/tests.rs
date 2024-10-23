@@ -560,6 +560,7 @@ mod ecmascript_value {
     #[test_case(2_147_483_648.0 => Ok(-2_147_483_648); "lower rollover")]
     #[test_case(-2_147_483_648.0 => Ok(-2_147_483_648); "lower limit")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
+    #[test_case(-4_294_967_294.0 => Ok(2); "negative modulo")]
     fn to_int32(arg: impl Into<ECMAScriptValue>) -> Result<i32, String> {
         setup_test_agent();
         arg.into().to_int32().map_err(unwind_any_error)
@@ -1248,7 +1249,7 @@ mod jsstring {
     #[test_case("Infinity" => using check_value(0.0); "Infinity")]
     #[test_case("10" => using check_value(10.0); "ten")]
     #[test_case("257" => using check_value(1.0); "one over the modulo")]
-    #[test_case("-513" => using check_value(-1.0); "negative, one beyond")]
+    #[test_case("-513" => using check_value(255.0); "negative, one beyond")]
     fn to_core_int(s: &str) -> f64 {
         let s = JSString::from(s);
         s.to_core_int(256.0)

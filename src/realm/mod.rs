@@ -805,15 +805,19 @@ fn parse_int(
         }
     }
     let z = &s[0..end];
-    let math_int = JSString::from(z).to_bigint_radix(u32::try_from(r).expect("r should be between 2 and 36"));
-    if math_int == BigInt::ZERO {
-        if sign == -1 {
-            Ok(ECMAScriptValue::Number(-0.0))
-        } else {
-            Ok(ECMAScriptValue::Number(0.0))
-        }
+    if z.is_empty() {
+        Ok(ECMAScriptValue::Number(f64::NAN))
     } else {
-        Ok(ECMAScriptValue::Number(f64::from(sign) * math_int.to_f64().unwrap()))
+        let math_int = JSString::from(z).to_bigint_radix(u32::try_from(r).expect("r should be between 2 and 36"));
+        if math_int == BigInt::ZERO {
+            if sign == -1 {
+                Ok(ECMAScriptValue::Number(-0.0))
+            } else {
+                Ok(ECMAScriptValue::Number(0.0))
+            }
+        } else {
+            Ok(ECMAScriptValue::Number(f64::from(sign) * math_int.to_f64().unwrap()))
+        }
     }
 }
 
