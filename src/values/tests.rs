@@ -1326,11 +1326,13 @@ fn to_integer_or_infinity_01() {
         (10.2, 10.0),
         (-10.2, -10.0),
         (-0.99999, 0.0),
+        (-1.23e-16, 0.0),
     ];
 
     for (val, expected) in testcases {
         let result = to_integer_or_infinity(*val);
         assert_eq!(result, *expected);
+        assert!(result != 0.0 || result.signum() > 0.0, "never returns -0");
     }
 }
 #[test]

@@ -123,7 +123,7 @@ pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(date_prototype_getday, "getDay", 0); // 21.4.4.3 Date.prototype.getDay ( )
     prototype_function!(date_prototype_getfullyear, "getFullYear", 0); // 21.4.4.4 Date.prototype.getFullYear ( )
     prototype_function!(date_prototype_gethours, "getHours", 0); // 21.4.4.5 Date.prototype.getHours ( )
-    prototype_function!(date_prototype_getmilliseconds, "getMillisecond0", 1); // 21.4.4.6 Date.prototype.getMilliseconds ( )
+    prototype_function!(date_prototype_getmilliseconds, "getMilliseconds", 1); // 21.4.4.6 Date.prototype.getMilliseconds ( )
     prototype_function!(date_prototype_getminutes, "getMinutes", 0); // 21.4.4.7 Date.prototype.getMinutes ( )
     prototype_function!(date_prototype_getmonth, "getMonth", 0); // 21.4.4.8 Date.prototype.getMonth ( )
     prototype_function!(date_prototype_getseconds, "getSeconds", 0); // 21.4.4.9 Date.prototype.getSeconds ( )
@@ -179,7 +179,7 @@ pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
         toprimitive_key,
         PotentialPropertyDescriptor::new()
             .value(date_prototype_toprimitive_function)
-            .writable(true)
+            .writable(false)
             .enumerable(false)
             .configurable(true),
     )
@@ -1532,6 +1532,11 @@ fn parse_date(date_str: &JSString) -> f64 {
     const SECOND: &str = "(?<second>[0-9][0-9])";
     const MILLIS: &str = "(?<millis>[0-9]{3})";
     const ZONE: &str = "(?<zone>Z|([-+][0-9][0-9]:[0-9][0-9]))";
+
+    const MNTH: &str =
+        "(?:Jan)|(?:Feb)|(?:Mar)|(?:Apr)|(?:May)|(?:Jun)|(?:Jul)|(?:Aug)|(?:Sep)|(?:Oct)|(?:Nov)|(?:Dec)";
+    const WKDY: &str = "(?:(?:Sun)|(?:Mon)|(?:Tue)|(?:Wed)|(?:Thu)|(?:Fri))";
+
     lazy_static! {
         static ref PATTERN: String =
             format!(r"^({FDY}|{SDY})(-{MONTH}(-{DAY}(T{HOUR}:{MINUTE}(:{SECOND}(\.{MILLIS})?)?{ZONE}?)?)?)?$");
@@ -1540,7 +1545,7 @@ fn parse_date(date_str: &JSString) -> f64 {
     }
     let date_str = String::from(date_str);
     let date_match = MATCHER.captures(&date_str);
-    match date_match {
+    let first_try = match date_match {
         None => f64::NAN,
         Some(caps) => {
             let (year, year_as_int) = {
@@ -1595,6 +1600,85 @@ fn parse_date(date_str: &JSString) -> f64 {
                 tv
             }
         }
+    };
+    if first_try.is_nan() {
+        // Now try and match the result of Date.prototype.toString.
+        lazy_static! {
+            static ref TOSTRING_PATTERN: String = format!(
+                r"^{WKDY},? *(?<month_name>{MNTH})? (?<day>[0-9][0-9]) (?<month_name2>{MNTH})? *(?<year>-?[0-9]+) (?<hour>[0-9][0-9]):(?<minute>[0-9][0-9]):(?<second>[0-9][0-9]) GMT(?<zone>[-+][0-9]{{4}})?(?: \(.*\))?$"
+            );
+            static ref TOSTRING_MATCHER: Regex =
+                Regex::new(&TOSTRING_PATTERN).expect("regular expressions not based on user input should not fail");
+        }
+        println!("{}", TOSTRING_PATTERN.clone());
+        let second_try = match TOSTRING_MATCHER.captures(&date_str) {
+            None => f64::NAN,
+            Some(caps) => {
+                let (year, year_as_int) = {
+                    caps.name("year")
+                        .expect("regex should always have 'year'")
+                        .as_str()
+                        .parse::<i32>()
+                        .map_or((f64::NAN, 0), |yy| (f64::from(yy), yy))
+                };
+                let month = f64::from(
+                    MONTH_NAMES
+                        .iter()
+                        .enumerate()
+                        .find(|(_, &name)| {
+                            caps.name("month_name")
+                                .or_else(|| caps.name("month_name2"))
+                                .expect("regex should always have 'month_name'")
+                                .as_str()
+                                == name
+                        })
+                        .map(|(idx, _)| u8::try_from(idx).expect("result should be in range 0 .. 11"))
+                        .expect("month name should be valid"),
+                );
+                let day = caps
+                    .name("day")
+                    .expect("regex should always have 'day'")
+                    .as_str()
+                    .parse::<f64>()
+                    .expect("date should be two digits, and thus should parse");
+                let hour = caps
+                    .name("hour")
+                    .expect("regex should always have 'hour'")
+                    .as_str()
+                    .parse::<f64>()
+                    .expect("hour should be two digits and should thus parse");
+                let minute = caps
+                    .name("minute")
+                    .expect("regex should always have 'minute'")
+                    .as_str()
+                    .parse::<f64>()
+                    .expect("minute should be two digits and should thus parse");
+                let second = caps
+                    .name("second")
+                    .expect("regex should always have 'second'")
+                    .as_str()
+                    .parse::<f64>()
+                    .expect("second should be two digits and should thus parse");
+                let tv =
+                    make_date(make_day(year, month, day).expect("should be ok"), make_time(hour, minute, second, 0.0));
+                if year_from_time(tv) != isize::try_from(year_as_int).unwrap_or(isize::MAX)
+                    || f64::from(month_from_time(tv)) != month
+                    || f64::from(date_from_time(tv)) != day
+                    || f64::from(hour_from_time(tv)) != hour
+                    || f64::from(min_from_time(tv)) != minute
+                    || f64::from(sec_from_time(tv)) != second
+                    || !(-8_640_000_000_000_000.0..=8_640_000_000_000_000.0).contains(&tv)
+                {
+                    f64::NAN
+                } else {
+                    tv
+                }
+            }
+        };
+
+        second_try
+    } else {
+        first_try
     }
 }
 
@@ -1638,7 +1722,34 @@ fn date_utc(
     ))))
 }
 
-todo_function!(date_prototype_getdate);
+fn date_prototype_getdate(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.getDate ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let t be dateObject.[[DateValue]].
+    //  4. If t is NaN, return NaN.
+    //  5. Return DateFromTime(LocalTime(t)).
+    Ok(ECMAScriptValue::Number(
+        this_value
+            .to_date_object()
+            .map(|date_object| {
+                let t = date_object.date_value();
+                if t.is_nan() {
+                    f64::NAN
+                } else {
+                    f64::from(date_from_time(local_time(t).expect("reasonable time")))
+                }
+            })
+            .ok_or_else(|| create_type_error("Date.prototype.getDate requires a datelike object"))?,
+    ))
+}
+
 todo_function!(date_prototype_getday);
 todo_function!(date_prototype_getfullyear);
 todo_function!(date_prototype_gethours);
@@ -1806,6 +1917,9 @@ fn time_string(tv: f64) -> JSString {
     hour.concat(":").concat(minute).concat(":").concat(second).concat(" GMT")
 }
 
+const WEEKDAY_NAMES: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 fn date_string(tv: f64) -> JSString {
     // DateString ( tv )
     // The abstract operation DateString takes argument tv (a Number, but not NaN) and returns a String. It performs the
@@ -1844,9 +1958,6 @@ fn date_string(tv: f64) -> JSString {
     // 9𝔽	"Oct"
     // 10𝔽	"Nov"
     // 11𝔽	"Dec"
-    const WEEKDAY_NAMES: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const MONTH_NAMES: [&str; 12] =
-        ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     let weekday = WEEKDAY_NAMES[week_day(tv) as usize];
     let month = MONTH_NAMES[month_from_time(tv) as usize];
@@ -1925,7 +2036,60 @@ fn to_date_string(tv: f64) -> anyhow::Result<JSString> {
 }
 
 todo_function!(date_prototype_totimestring);
-todo_function!(date_prototype_toutcstring);
+
+fn date_prototype_toutcstring(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.toUTCString ( )
+    // This method returns a String value representing the instant in time corresponding to the this value. The format
+    // of the String is based upon "HTTP-date" from RFC 7231, generalized to support the full range of times supported
+    // by ECMAScript Dates.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let tv be dateObject.[[DateValue]].
+    //  4. If tv is NaN, return "Invalid Date".
+    //  5. Let weekday be the Name of the entry in Table 61 with the Number WeekDay(tv).
+    //  6. Let month be the Name of the entry in Table 62 with the Number MonthFromTime(tv).
+    //  7. Let day be ToZeroPaddedDecimalString(ℝ(DateFromTime(tv)), 2).
+    //  8. Let yv be YearFromTime(tv).
+    //  9. If yv is +0𝔽 or yv > +0𝔽, let yearSign be the empty String; otherwise, let yearSign be "-".
+    //  10. Let paddedYear be ToZeroPaddedDecimalString(abs(ℝ(yv)), 4).
+    //  11. Return the string-concatenation of weekday, ",", the code unit 0x0020 (SPACE), day, the code unit 0x0020
+    //      (SPACE), month, the code unit 0x0020 (SPACE), yearSign, paddedYear, the code unit 0x0020 (SPACE), and
+    //      TimeString(tv).
+    let tv = this_value
+        .to_date_object()
+        .map(DateObject::date_value)
+        .ok_or_else(|| create_type_error("Date.prototype.valueOf requires a datelike object"))?;
+    if tv.is_nan() {
+        Ok(ECMAScriptValue::from("Invalid Date"))
+    } else {
+        let weekday = WEEKDAY_NAMES[week_day(tv) as usize];
+        let month = MONTH_NAMES[month_from_time(tv) as usize];
+        let day = to_zero_padded_decimal_string(date_from_time(tv) as usize, 2);
+        let yv = year_from_time(tv);
+        let year_sign = if yv >= 0 { "" } else { "-" };
+        let padded_year = to_zero_padded_decimal_string(yv.abs().try_into().unwrap(), 4);
+
+        Ok(ECMAScriptValue::String(
+            JSString::from(weekday)
+                .concat(", ")
+                .concat(day)
+                .concat(" ")
+                .concat(month)
+                .concat(" ")
+                .concat(year_sign)
+                .concat(padded_year)
+                .concat(" ")
+                .concat(time_string(tv)),
+        ))
+    }
+}
 
 fn date_prototype_valueof(
     this_value: &ECMAScriptValue,
