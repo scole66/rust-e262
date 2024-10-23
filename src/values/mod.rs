@@ -1049,7 +1049,7 @@ fn to_core_int_f64(modulo: f64, number: f64) -> f64 {
         0.0
     } else {
         let i = number.signum() * number.abs().floor();
-        i % modulo
+        i.rem_euclid(modulo)
     }
 }
 impl ECMAScriptValue {

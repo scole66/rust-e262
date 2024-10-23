@@ -1,5 +1,6 @@
 use super::*;
 use itertools::Itertools;
+use num::{BigInt, ToPrimitive};
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
@@ -719,9 +720,105 @@ fn parse_float(
 fn parse_int(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // parseInt ( string, radix )
+    // This function produces an integral Number dictated by interpretation of the contents of string
+    // according to the specified radix. Leading white space in string is ignored. If radix coerces to 0 (such
+    // as when it is undefined), it is assumed to be 10 except when the number representation begins with "0x"
+    // or "0X", in which case it is assumed to be 16. If radix is 16, the number representation may optionally
+    // begin with "0x" or "0X".
+    //
+    // It is the %parseInt% intrinsic object.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let inputString be ? ToString(string).
+    // 2. Let S be ! TrimString(inputString, start).
+    // 3. Let sign be 1.
+    // 4. If S is not empty and the first code unit of S is the code unit 0x002D (HYPHEN-MINUS), set sign to
+    //    -1.
+    // 5. If S is not empty and the first code unit of S is either the code unit 0x002B (PLUS SIGN) or the
+    //    code unit 0x002D (HYPHEN-MINUS), set S to the substring of S from index 1.
+    // 6. Let R be ℝ(? ToInt32(radix)).
+    // 7. Let stripPrefix be true.
+    // 8. If R ≠ 0, then
+    //    a. If R < 2 or R > 36, return NaN.
+    //    b. If R ≠ 16, set stripPrefix to false.
+    // 9. Else,
+    //    a. Set R to 10.
+    // 10. If stripPrefix is true, then
+    //     a. If the length of S is at least 2 and the first two code units of S are either "0x" or "0X", then
+    //        i. Set S to the substring of S from index 2.
+    //        ii. Set R to 16.
+    // 11. If S contains a code unit that is not a radix-R digit, let end be the index within S of the first
+    //     such code unit; otherwise, let end be the length of S.
+    // 12. Let Z be the substring of S from 0 to end.
+    // 13. If Z is empty, return NaN.
+    // 14. Let mathInt be the integer value that is represented by Z in radix-R notation, using the letters A
+    //     through Z and a through z for digits with values 10 through 35. (However, if R = 10 and Z contains
+    //     more than 20 significant digits, every significant digit after the 20th may be replaced by a 0
+    //     digit, at the option of the implementation; and if R is not one of 2, 4, 8, 10, 16, or 32, then
+    //     mathInt may be an implementation-approximated integer representing the integer value denoted by Z
+    //     in radix-R notation.)
+    // 15. If mathInt = 0, then
+    //     a. If sign = -1, return -0𝔽.
+    //     b. Return +0𝔽.
+    // 16. Return 𝔽(sign × mathInt).
+    //
+    // Note
+    // This function may interpret only a leading portion of string as an integer value; it ignores any code
+    // units that cannot be interpreted as part of the notation of an integer, and no indication is given that
+    // any such code units were ignored.
+    let mut args = FuncArgs::from(arguments);
+    let string = args.next_arg();
+    let radix = args.next_arg();
+
+    let input_string = to_string(string)?;
+    let s_jss = trim_string(input_string.into(), TrimHint::Start).expect("argument is string already");
+    let mut s = s_jss.as_slice();
+    let sign = if !s.is_empty() && s[0] == 0x2d { -1 } else { 1 };
+    if !s.is_empty() && [0x2b, 0x2d].contains(&s[0]) {
+        s = &s[1..];
+    }
+    let mut r = radix.to_int32()?;
+    let mut strip_prefix = true;
+    if r != 0 {
+        if !(2..=36).contains(&r) {
+            return Ok(ECMAScriptValue::Number(f64::NAN));
+        }
+        if r != 16 {
+            strip_prefix = false;
+        }
+    } else {
+        r = 10;
+    }
+    if strip_prefix && s.len() >= 2 && s[0] == 0x30 && [0x58, 0x78].contains(&s[1]) {
+        s = &s[2..];
+        r = 16;
+    }
+    let mut end = s.len();
+    for (idx, &val) in s.iter().enumerate() {
+        if !is_radix_digit(val, r) {
+            end = idx;
+            break;
+        }
+    }
+    let z = &s[0..end];
+    if z.is_empty() {
+        Ok(ECMAScriptValue::Number(f64::NAN))
+    } else {
+        let math_int = JSString::from(z).to_bigint_radix(u32::try_from(r).expect("r should be between 2 and 36"));
+        if math_int == BigInt::ZERO {
+            if sign == -1 {
+                Ok(ECMAScriptValue::Number(-0.0))
+            } else {
+                Ok(ECMAScriptValue::Number(0.0))
+            }
+        } else {
+            Ok(ECMAScriptValue::Number(f64::from(sign) * math_int.to_f64().unwrap()))
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

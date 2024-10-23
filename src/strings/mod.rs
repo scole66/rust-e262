@@ -259,7 +259,7 @@ pub fn utf16_encode_code_point(cp: u32, dst: &mut [u16; 2]) -> anyhow::Result<&m
     }
 }
 
-fn is_str_whitespace(ch: u16) -> bool {
+pub fn is_str_whitespace(ch: u16) -> bool {
     (0x09..=0x0d).contains(&ch)
         || ch == 0x20
         || ch == 0x00a0
@@ -271,6 +271,18 @@ fn is_str_whitespace(ch: u16) -> bool {
         || ch == 0x202f
         || ch == 0x205f
         || ch == 0x3000
+}
+
+pub fn is_radix_digit(ch: u16, radix: i32) -> bool {
+    assert!((2..=36).contains(&radix));
+    let radix = u16::try_from(radix).unwrap();
+    if radix <= 10 {
+        (0x30..(0x30 + radix)).contains(&ch)
+    } else {
+        (0x30..=0x39).contains(&ch)
+            || (0x61..(0x61 + radix - 10)).contains(&ch)
+            || (0x41..(0x41 + radix - 10)).contains(&ch)
+    }
 }
 
 impl JSString {
@@ -318,6 +330,11 @@ impl JSString {
         }
         let digits = code_units.iter().map(|word| u8::try_from(*word).ok()).collect::<Option<Vec<u8>>>()?;
         BigInt::parse_bytes(&digits, radix).map(Rc::new)
+    }
+
+    pub fn to_bigint_radix(&self, radix: u32) -> BigInt {
+        let digits = self.as_slice().iter().map(|word| u8::try_from(*word).unwrap()).collect::<Vec<u8>>();
+        BigInt::parse_bytes(digits.as_slice(), radix).unwrap()
     }
 }
 
