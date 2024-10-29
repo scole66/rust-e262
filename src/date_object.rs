@@ -4,6 +4,7 @@
 
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::cell::Cell;
 use std::num::TryFromIntError;
 
 use super::*;
@@ -123,7 +124,7 @@ pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(date_prototype_getday, "getDay", 0); // 21.4.4.3 Date.prototype.getDay ( )
     prototype_function!(date_prototype_getfullyear, "getFullYear", 0); // 21.4.4.4 Date.prototype.getFullYear ( )
     prototype_function!(date_prototype_gethours, "getHours", 0); // 21.4.4.5 Date.prototype.getHours ( )
-    prototype_function!(date_prototype_getmilliseconds, "getMilliseconds", 1); // 21.4.4.6 Date.prototype.getMilliseconds ( )
+    prototype_function!(date_prototype_getmilliseconds, "getMilliseconds", 0); // 21.4.4.6 Date.prototype.getMilliseconds ( )
     prototype_function!(date_prototype_getminutes, "getMinutes", 0); // 21.4.4.7 Date.prototype.getMinutes ( )
     prototype_function!(date_prototype_getmonth, "getMonth", 0); // 21.4.4.8 Date.prototype.getMonth ( )
     prototype_function!(date_prototype_getseconds, "getSeconds", 0); // 21.4.4.9 Date.prototype.getSeconds ( )
@@ -300,7 +301,7 @@ impl TryFrom<TimeNumber> for u8 {
 #[derive(Debug)]
 pub struct DateObject {
     common: RefCell<CommonObjectData>,
-    date_value: f64,
+    date_value: Cell<f64>,
 }
 
 impl<'a> From<&'a DateObject> for &'a dyn ObjectInterface {
@@ -430,7 +431,11 @@ impl ObjectInterface for DateObject {
 
 impl DateObject {
     pub fn date_value(&self) -> f64 {
-        self.date_value
+        self.date_value.get()
+    }
+
+    pub fn set_date_value(&self, value: f64) {
+        self.date_value.set(value);
     }
 
     pub fn now_utc() -> anyhow::Result<f64> {
@@ -443,7 +448,7 @@ impl DateObject {
     fn new(prototype: Option<Object>, value: Option<TimeNumber>) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(prototype, true, DATE_OBJECT_SLOTS)),
-            date_value: value.map_or(f64::NAN, |tv| tv.val),
+            date_value: Cell::new(value.map_or(f64::NAN, |tv| tv.val)),
         }
     }
 
@@ -1750,13 +1755,204 @@ fn date_prototype_getdate(
     ))
 }
 
-todo_function!(date_prototype_getday);
-todo_function!(date_prototype_getfullyear);
-todo_function!(date_prototype_gethours);
-todo_function!(date_prototype_getmilliseconds);
-todo_function!(date_prototype_getminutes);
-todo_function!(date_prototype_getmonth);
-todo_function!(date_prototype_getseconds);
+fn date_prototype_getday(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.getDay ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let t be dateObject.[[DateValue]].
+    //  4. If t is NaN, return NaN.
+    //  5. Return WeekDay(LocalTime(t)).
+    Ok(ECMAScriptValue::Number(
+        this_value
+            .to_date_object()
+            .map(|date_object| {
+                let t = date_object.date_value();
+                if t.is_nan() {
+                    f64::NAN
+                } else {
+                    f64::from(week_day(local_time(t).expect("reasonable time")))
+                }
+            })
+            .ok_or_else(|| create_type_error("Date.prototype.getDay requires a datelike object"))?,
+    ))
+}
+
+fn date_prototype_getfullyear(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.getFullYear ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let t be dateObject.[[DateValue]].
+    //  4. If t is NaN, return NaN.
+    //  5. Return YearFromTime(LocalTime(t)).
+    Ok(ECMAScriptValue::Number(
+        this_value
+            .to_date_object()
+            .map(|date_object| {
+                let t = date_object.date_value();
+                if t.is_nan() {
+                    f64::NAN
+                } else {
+                    f64::from(
+                        TimeNumber::try_from(year_from_time(local_time(t).expect("reasonable time")))
+                            .expect("reasonable time"),
+                    )
+                }
+            })
+            .ok_or_else(|| create_type_error("Date.prototype.getFullYear requires a datelike object"))?,
+    ))
+}
+
+fn date_prototype_gethours(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.getHours ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let t be dateObject.[[DateValue]].
+    //  4. If t is NaN, return NaN.
+    //  5. Return HourFromTime(LocalTime(t)).
+    Ok(ECMAScriptValue::Number(
+        this_value
+            .to_date_object()
+            .map(|date_object| {
+                let t = date_object.date_value();
+                if t.is_nan() {
+                    f64::NAN
+                } else {
+                    f64::from(hour_from_time(local_time(t).expect("reasonable time")))
+                }
+            })
+            .ok_or_else(|| create_type_error("Date.prototype.getHours requires a datelike object"))?,
+    ))
+}
+
+fn date_prototype_getmilliseconds(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.getMilliseconds ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let t be dateObject.[[DateValue]].
+    //  4. If t is NaN, return NaN.
+    //  5. Return msFromTime(LocalTime(t)).
+    Ok(ECMAScriptValue::Number(
+        this_value
+            .to_date_object()
+            .map(|date_object| {
+                let t = date_object.date_value();
+                if t.is_nan() {
+                    f64::NAN
+                } else {
+                    f64::from(ms_from_time(local_time(t).expect("reasonable time")))
+                }
+            })
+            .ok_or_else(|| create_type_error("Date.prototype.getMilliseconds requires a datelike object"))?,
+    ))
+}
+
+fn date_prototype_getminutes(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.getMinutes ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let t be dateObject.[[DateValue]].
+    //  4. If t is NaN, return NaN.
+    //  5. Return MinFromTime(LocalTime(t)).
+    Ok(ECMAScriptValue::Number(
+        this_value
+            .to_date_object()
+            .map(|date_object| {
+                let t = date_object.date_value();
+                if t.is_nan() {
+                    f64::NAN
+                } else {
+                    f64::from(min_from_time(local_time(t).expect("reasonable time")))
+                }
+            })
+            .ok_or_else(|| create_type_error("Date.prototype.getMinutes requires a datelike object"))?,
+    ))
+}
+
+fn date_prototype_getmonth(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.getMonth ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let t be dateObject.[[DateValue]].
+    //  4. If t is NaN, return NaN.
+    //  5. Return MonthFromTime(LocalTime(t)).
+    Ok(ECMAScriptValue::Number(
+        this_value
+            .to_date_object()
+            .map(|date_object| {
+                let t = date_object.date_value();
+                if t.is_nan() {
+                    f64::NAN
+                } else {
+                    f64::from(month_from_time(local_time(t).expect("reasonable time")))
+                }
+            })
+            .ok_or_else(|| create_type_error("Date.prototype.getMonth requires a datelike object"))?,
+    ))
+}
+
+fn date_prototype_getseconds(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.getSeconds ( )
+    // This method performs the following steps when called:
+    //
+    // 1. Let dateObject be the this value.
+    // 2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    // 3. Let t be dateObject.[[DateValue]].
+    // 4. If t is NaN, return NaN.
+    // 5. Return SecFromTime(LocalTime(t)).
+    Ok(ECMAScriptValue::Number(
+        this_value
+            .to_date_object()
+            .map(|date_object| {
+                let t = date_object.date_value();
+                if t.is_nan() {
+                    f64::NAN
+                } else {
+                    f64::from(sec_from_time(local_time(t).expect("reasonable time")))
+                }
+            })
+            .ok_or_else(|| create_type_error("Date.prototype.getSeconds requires a datelike object"))?,
+    ))
+}
 
 fn date_prototype_gettime(
     this_value: &ECMAScriptValue,
@@ -1801,7 +1997,34 @@ fn date_prototype_gettimezoneoffset(
         .ok_or_else(|| create_type_error("Date.prototype.getTimezoneOffset requires a datelike object"))
 }
 
-todo_function!(date_prototype_getutcdate);
+fn date_prototype_getutcdate(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.getUTCDate ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let t be dateObject.[[DateValue]].
+    //  4. If t is NaN, return NaN.
+    //  5. Return DateFromTime(t).
+    Ok(ECMAScriptValue::Number(
+        this_value
+            .to_date_object()
+            .map(|date_object| {
+                let t = date_object.date_value();
+                if t.is_nan() {
+                    f64::NAN
+                } else {
+                    f64::from(date_from_time(t))
+                }
+            })
+            .ok_or_else(|| create_type_error("Date.prototype.getUTCDate requires a datelike object"))?,
+    ))
+}
+
 todo_function!(date_prototype_getutcday);
 todo_function!(date_prototype_getutcfullyear);
 todo_function!(date_prototype_getutchours);
@@ -2035,7 +2258,31 @@ fn to_date_string(tv: f64) -> anyhow::Result<JSString> {
     }
 }
 
-todo_function!(date_prototype_totimestring);
+fn date_prototype_totimestring(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.toTimeString ( )
+    // This method performs the following steps when called:
+    //
+    //  1. Let dateObject be the this value.
+    //  2. Perform ? RequireInternalSlot(dateObject, [[DateValue]]).
+    //  3. Let tv be dateObject.[[DateValue]].
+    //  4. If tv is NaN, return "Invalid Date".
+    //  5. Let t be LocalTime(tv).
+    //  6. Return the string-concatenation of TimeString(t) and TimeZoneString(tv).
+    let tv = this_value
+        .to_date_object()
+        .map(DateObject::date_value)
+        .ok_or_else(|| create_type_error("Date.prototype.toTimeString requires a datelike object"))?;
+    if tv.is_nan() {
+        Ok(ECMAScriptValue::from("Invalid Date"))
+    } else {
+        let t = local_time(tv).expect("reasonable date");
+        Ok(ECMAScriptValue::String(time_string(t).concat(time_zone_string(tv).expect("reasonable date"))))
+    }
+}
 
 fn date_prototype_toutcstring(
     this_value: &ECMAScriptValue,
