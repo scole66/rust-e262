@@ -56,6 +56,7 @@ pub enum IntrinsicId {
     ReferenceErrorPrototype,
     Reflect,
     String,
+    StringIteratorPrototype,
     StringPrototype,
     Symbol,
     SymbolPrototype,
@@ -314,6 +315,7 @@ impl Intrinsics {
             IntrinsicId::ReferenceErrorPrototype => &self.reference_error_prototype,
             IntrinsicId::Reflect => &self.reflect,
             IntrinsicId::String => &self.string,
+            IntrinsicId::StringIteratorPrototype => &self.string_iterator_prototype,
             IntrinsicId::StringPrototype => &self.string_prototype,
             IntrinsicId::Symbol => &self.symbol,
             IntrinsicId::SymbolPrototype => &self.symbol_prototype,
@@ -377,6 +379,7 @@ impl Intrinsics {
             o if o == &self.reference_error_prototype => Some(IntrinsicId::ReferenceErrorPrototype),
             o if o == &self.reflect => Some(IntrinsicId::Reflect),
             o if o == &self.string => Some(IntrinsicId::String),
+            o if o == &self.string_iterator_prototype => Some(IntrinsicId::StringIteratorPrototype),
             o if o == &self.string_prototype => Some(IntrinsicId::StringPrototype),
             o if o == &self.symbol => Some(IntrinsicId::Symbol),
             o if o == &self.symbol_prototype => Some(IntrinsicId::SymbolPrototype),
@@ -510,6 +513,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     provision_generator_function_intrinsics(realm_rec);
     provision_array_iterator_intrinsic(realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
     provision_for_in_iterator_prototype(realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
+    provision_string_iterator_prototype(realm_rec); // must be after %IteratorPrototype% and %FunctionPrototype%
     provision_proxy_intrinsic(realm_rec);
     provision_math_intrinsic(realm_rec);
     provision_reflect_intrinsic(realm_rec);
