@@ -769,4 +769,3 @@ tbd_function!(string_prototype_to_upper_case);
 tbd_function!(string_prototype_trim);
 tbd_function!(string_prototype_trim_end);
 tbd_function!(string_prototype_trim_start);
-tbd_function!(string_prototype_iterator);

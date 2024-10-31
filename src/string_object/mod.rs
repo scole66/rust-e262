@@ -1,4 +1,5 @@
 use super::*;
+use genawaiter::rc::Co;
 use std::cell::RefCell;
 
 /// String Objects
@@ -1090,12 +1091,131 @@ fn string_prototype_value_of(
     Ok(s.into())
 }
 
+async fn string_iterator(
+    co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
+    s: JSString,
+) -> Completion<ECMAScriptValue> {
+    //  1. Let len be the length of s.
+    //  2. Let position be 0.
+    //  3. Repeat, while position < len,
+    //     a. Let cp be CodePointAt(s, position).
+    //     b. Let nextIndex be position + cp.[[CodeUnitCount]].
+    //     c. Let resultString be the substring of s from position to nextIndex.
+    //     d. Set position to nextIndex.
+    //     e. Perform ? GeneratorYield(CreateIteratorResultObject(resultString, false)).
+    //  4. Return undefined.
+    let len = s.len();
+    let mut position = 0;
+    while position < len {
+        let cp = code_point_at(&s, position);
+        let next_index = position + usize::from(cp.code_unit_count);
+        let result_string = JSString::from(&s.as_slice()[position..next_index]);
+        position = next_index;
+        let res = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from(result_string), false));
+        generator_yield(&co, res).await?;
+    }
+    Ok(ECMAScriptValue::Undefined)
+}
+
 fn string_prototype_iterator(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.prototype [ %Symbol.iterator% ] ( )
+    // This method returns an Iterator object (27.1.1.2) that iterates over the code points of a String value,
+    // returning each code point as a String value.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let O be ? RequireObjectCoercible(this value).
+    //  2. Let s be ? ToString(O).
+    //  3. Let closure be a new Abstract Closure with no parameters that captures s and performs the following
+    //     steps when called:
+    //     a. Let len be the length of s.
+    //     b. Let position be 0.
+    //     c. Repeat, while position < len,
+    //        i. Let cp be CodePointAt(s, position).
+    //        ii. Let nextIndex be position + cp.[[CodeUnitCount]].
+    //        iii. Let resultString be the substring of s from position to nextIndex.
+    //        iv. Set position to nextIndex.
+    //        v. Perform ? GeneratorYield(CreateIteratorResultObject(resultString, false)).
+    //     d. Return undefined.
+    //  4. Return CreateIteratorFromClosure(closure, "%StringIteratorPrototype%", %StringIteratorPrototype%).
+    require_object_coercible(this_value)?;
+    let s = to_string(this_value.clone())?;
+    let closure = move |co| string_iterator(co, s);
+
+    Ok(ECMAScriptValue::Object(create_iterator_from_closure(
+        asyncfn_wrap(closure),
+        "%StringIteratorPrototype%",
+        Some(intrinsic(IntrinsicId::StringIteratorPrototype)),
+    )))
+}
+
+pub fn provision_string_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
+    // The %StringIteratorPrototype% object:
+    //
+    //  * has properties that are inherited by all String Iterator Objects.
+    //  * is an ordinary object.
+    //  * has a [[Prototype]] internal slot whose value is %Iterator.prototype%.
+    let string_iterator_prototype = ordinary_object_create(Some(realm.borrow().intrinsics.iterator_prototype.clone()));
+
+    // %StringIteratorPrototype% [ %Symbol.toStringTag% ]
+    // The initial value of the %Symbol.toStringTag% property is the String value "String Iterator".
+    //
+    // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }.
+    define_property_or_throw(
+        &string_iterator_prototype,
+        wks(WksId::ToStringTag),
+        PotentialPropertyDescriptor::new()
+            .value("String Iterator")
+            .writable(false)
+            .enumerable(false)
+            .configurable(true),
+    )
+    .expect("internal object");
+
+    let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
+    macro_rules! prototype_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(
+                Box::new($steps),
+                None,
+                f64::from($length),
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                &string_iterator_prototype,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
+        };
+    }
+
+    prototype_function!(string_iterator_prototype_next, "next", 0);
+
+    realm.borrow_mut().intrinsics.string_iterator_prototype = string_iterator_prototype;
+}
+
+fn string_iterator_prototype_next(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // %StringIteratorPrototype%.next ( )
+    //  1. Return ? GeneratorResume(this value, empty, "%StringIteratorPrototype%").
+    generator_resume(this_value, ECMAScriptValue::Undefined, "%StringIteratorPrototype%")
 }
 
 #[cfg(test)]

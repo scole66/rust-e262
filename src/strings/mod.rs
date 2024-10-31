@@ -181,14 +181,13 @@ fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
 //  9. Set cp to ! UTF16SurrogatePairToCodePoint(first, second).
 //  10. Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 2, [[IsUnpairedSurrogate]]: false }.
 #[derive(PartialEq, Eq)]
-#[allow(dead_code)]
-struct CodePointAtResult {
-    code_point: u32,
-    code_unit_count: u8,
-    is_unpaired_surrogate: bool,
+pub struct CodePointAtResult {
+    pub code_point: u32,
+    pub code_unit_count: u8,
+    pub is_unpaired_surrogate: bool,
 }
-#[allow(dead_code)]
-fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
+
+pub fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
     let size = string.len();
     let first = string[position];
     let cp: u32 = u32::from(first);
