@@ -876,6 +876,7 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("Date.parse(new Date(0).toString())" => vok(0); "Date.parse to-string round trip")]
 #[test_case("Date.parse(new Date(0).toUTCString())" => vok(0); "Date.parse to-utc-string round trip")]
 #[test_case("1/(new Date(-1.23e-15)).valueOf() > 0" => vok(true); "Date negative zero")]
+#[test_case("(new Date('-000001-07-01T00:00Z')).valueOf()" => vok(-62_183_116_800_000.0); "Date negative year parse")]
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {
@@ -1000,12 +1001,6 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     "iterators non-object next"
 )]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
-    setup_test_agent();
-    process_ecmascript(src).map_err(|e| e.to_string())
-}
-
-#[test_case("1/(new Date(-1.23e-15)).valueOf() > 0" => vok(true); "Date negative zero")]
-fn xcode(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
 }
