@@ -114,6 +114,13 @@ impl ECMAScriptValue {
             Self::Null
         }
     }
+
+    pub fn to_date_object(&self) -> Option<&DateObject> {
+        match self {
+            ECMAScriptValue::Object(o) => o.o.to_date_obj(),
+            _ => None,
+        }
+    }
 }
 
 impl From<&Object> for ECMAScriptValue {
@@ -975,17 +982,20 @@ impl JSString {
 
 // ToIntegerOrInfinity ( argument )
 //
-// The abstract operation ToIntegerOrInfinity takes argument argument (an ECMAScript language value). It converts
-// argument to an integer representing its Number value with fractional part truncated, or to +∞ or -∞ when that Number
-// value is infinite. It performs the following steps when called:
+// The abstract operation ToIntegerOrInfinity takes argument argument (an ECMAScript language value) and returns either
+// a normal completion containing either an integer, +∞, or -∞, or a throw completion. It converts argument to an
+// integer representing its Number value with fractional part truncated, or to +∞ or -∞ when that Number value is
+// infinite. It performs the following steps when called:
 //
 //  1. Let number be ? ToNumber(argument).
-//  2. If number is NaN, +0𝔽, or -0𝔽, return 0.
+//  2. If number is one of NaN, +0𝔽, or -0𝔽, return 0.
 //  3. If number is +∞𝔽, return +∞.
 //  4. If number is -∞𝔽, return -∞.
-//  5. Let integer be floor(abs(ℝ(number))).
-//  6. If number < +0𝔽, set integer to -integer.
-//  7. Return integer.
+//  5. Return truncate(ℝ(number)).
+//
+// Note
+// 𝔽(ToIntegerOrInfinity(x)) never returns -0𝔽 for any value of x. The truncation of the fractional part is performed
+// after converting x to a mathematical value.
 impl ECMAScriptValue {
     pub fn to_integer_or_infinity(&self) -> Completion<f64> {
         Ok(to_integer_or_infinity(self.to_number()?))
@@ -998,7 +1008,7 @@ pub fn to_integer_or_infinity(number: f64) -> f64 {
         number
     } else {
         let integer = number.abs().floor();
-        if number < 0.0 {
+        if number < 0.0 && integer != 0.0 {
             -integer
         } else {
             integer

@@ -1410,6 +1410,9 @@ impl<'a> FuncArgs<'a> {
     pub fn remaining(&mut self) -> &mut std::slice::Iter<'a, ECMAScriptValue> {
         &mut self.iterator
     }
+    pub fn next_if_exists(&mut self) -> Option<ECMAScriptValue> {
+        self.iterator.next().cloned()
+    }
 }
 
 #[derive(Debug, Clone)]

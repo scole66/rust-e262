@@ -853,6 +853,30 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => serr("Thrown: TypeError: @@~ token detected. aborting compilation.");
     "class: method compile fails"
 )]
+// Date.parse
+#[test_case("Date.parse('0000')" => vok(-62_167_219_200_000.0); "Date.parse: zero year only")]
+#[test_case("Date.parse(Symbol.toPrimitive)" => serr("Thrown: TypeError: Symbols may not be converted to strings"); "Date.parse: ToString throws")]
+// parse_date
+#[test_case("isNaN(Date.parse('not-a-date'))" => vok(true); "parse_date: value not in right format")]
+#[test_case("Date.parse('1970')" => vok(0); "parse_date: year only")]
+#[test_case("isNaN(Date.parse('1970-13-65'))" => vok(true); "parse_date: illegitimate date")]
+#[test_case("Date.parse('2024-10-17T07:50:32.832Z')" => vok(1_729_151_432_832.0); "parse_date: utc time zone")]
+#[test_case("Date.parse('+123456')" => vok(3_833_727_840_000_000.0); "parse_date: six-digit-year")]
+// Date failures from test262
+#[test_case("new Date('1970').toISOString()" => vok("1970-01-01T00:00:00.000Z"); "Date: default values (15.9.1.15-1.js)")]
+#[test_case("isNaN(new Date(1899, 11, undefined).valueOf())" => vok(true); "Date: undefined gets a NaN (S15.9.3.1_A6_T1.js)")]
+#[test_case("1 / (new Date(-0).getTime()) > 0" => vok(true); "Date: neg zero converts to positive (TimeClip_negative_zero.js)")]
+#[test_case("Date.UTC(1970)" => vok(0.0); "Date.UTC works")]
+#[test_case("Date.UTC(275760, 8, 13, 0, 0, 0, 0)" => vok(8_640_000_000_000_000.0); "Date.UTC limits (high working value)")]
+#[test_case("isNaN(Date.UTC(275760, 8, 13, 0, 0, 0, 1))" => vok(true); "Date.UTC limits (too large)")]
+#[test_case("Date.UTC(-0.999999, 0)" => vok(-2_208_988_800_000.0); "Date.UTC year clipping")]
+#[test_case("typeof Date.now()" => vok("number"); "Date.now does something")]
+#[test_case("isNaN(Date.parse('-271821-04-19T23:59:59.999Z'))" => vok(true); "Date.parse below max range")]
+#[test_case("isNaN(Date.parse('-000000-03-31T00:45Z'))" => vok(true); "Date.parse rejects -000000 as a valid year")]
+#[test_case("Date.parse(new Date(0).toString())" => vok(0); "Date.parse to-string round trip")]
+#[test_case("Date.parse(new Date(0).toUTCString())" => vok(0); "Date.parse to-utc-string round trip")]
+#[test_case("1/(new Date(-1.23e-15)).valueOf() > 0" => vok(true); "Date negative zero")]
+#[test_case("(new Date('-000001-07-01T00:00Z')).valueOf()" => vok(-62_183_116_800_000.0); "Date negative year parse")]
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {

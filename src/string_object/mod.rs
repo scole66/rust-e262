@@ -682,6 +682,64 @@ fn string_prototype_pad_start(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum PadPlacement {
+    Start,
+    End,
+}
+
+impl JSString {
+    #[must_use]
+    pub fn string_pad(&self, max_length: usize, fill_string: &JSString, placement: PadPlacement) -> JSString {
+        // StringPad ( S, maxLength, fillString, placement )
+        // The abstract operation StringPad takes arguments S (a String), maxLength (a non-negative integer), fillString
+        // (a String), and placement (start or end) and returns a String. It performs the following steps when called:
+        //
+        //  1. Let stringLength be the length of S.
+        //  2. If maxLength ≤ stringLength, return S.
+        //  3. If fillString is the empty String, return S.
+        //  4. Let fillLen be maxLength - stringLength.
+        //  5. Let truncatedStringFiller be the String value consisting of repeated concatenations of fillString
+        //     truncated to length fillLen.
+        //  6. If placement is start, return the string-concatenation of truncatedStringFiller and S.
+        //  7. Else, return the string-concatenation of S and truncatedStringFiller.
+        //
+        // Note 1
+        // The argument maxLength will be clamped such that it can be no smaller than the length of S.
+        //
+        // Note 2
+        // The argument fillString defaults to " " (the String value consisting of the code unit 0x0020 SPACE).
+        let string_length = self.len();
+        if max_length <= string_length || fill_string.is_empty() {
+            return self.clone();
+        }
+        let fill_len = max_length - string_length;
+        let mut truncated_string_filler = JSString::from("");
+        while truncated_string_filler.len() < fill_len {
+            truncated_string_filler = truncated_string_filler.concat(fill_string.clone());
+        }
+        if truncated_string_filler.len() > fill_len {
+            truncated_string_filler = JSString::from(&truncated_string_filler.as_slice()[0..fill_len]);
+        }
+        match placement {
+            PadPlacement::Start => truncated_string_filler.concat(self.clone()),
+            PadPlacement::End => self.concat(truncated_string_filler),
+        }
+    }
+}
+
+pub fn to_zero_padded_decimal_string(n: usize, min_length: usize) -> JSString {
+    // ToZeroPaddedDecimalString ( n, minLength )
+    // The abstract operation ToZeroPaddedDecimalString takes arguments n (a non-negative integer) and minLength (a
+    // non-negative integer) and returns a String. It performs the following steps when called:
+    //
+    // 1. Let S be the String representation of n, formatted as a decimal number.
+    // 2. Return StringPad(S, minLength, "0", start).
+    let s = JSString::from(format!("{n}"));
+    s.string_pad(min_length, &JSString::from("0"), PadPlacement::Start)
+}
+
 // 22.1.3.17 String.prototype.repeat ( count )
 fn string_prototype_repeat(
     _: &ECMAScriptValue,

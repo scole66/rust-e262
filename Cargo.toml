@@ -38,6 +38,7 @@ tempfile = "3.9.0"
 clap = { version = "4.4.12", features = ["derive"] }
 rand = "0.8.5"
 thiserror = "1.0.61"
+time = { version = "0.3.36", features = ["formatting", "large-dates", "local-offset", "std", "macros"]}
 
 [dev-dependencies]
 test-case = "2.0"
