@@ -1002,6 +1002,8 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 )]
 // 10/31/2024: bad method definition error path
 #[test_case("class C{static['prototype'](){}}" => serr("Thrown: TypeError: Property cannot be assigned to"); "class method definition errors")]
+// 10/31/2024: named function initializers in destructuring assignment
+#[test_case("Object.getOwnPropertyNames({x:a=()=>{}}={}).length" => vok(0); "named function initializers in destructuring assignment")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
