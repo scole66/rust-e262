@@ -4961,8 +4961,7 @@ impl AssignmentElement {
                 let id = chunk
                     .add_to_string_pool(lhse_id.string_value())
                     .expect("id will have been added during lhse compile");
-                chunk.op_plus_arg(Insn::String, id);
-                np.compile_named_evaluation(chunk, strict, text, Some(NameLoc::OnStack))?
+                np.compile_named_evaluation(chunk, strict, text, Some(NameLoc::Index(id)))?
             } else {
                 izer.compile(chunk, strict, text, CompileMod::Unmodified)?
             };
