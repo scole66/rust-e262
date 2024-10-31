@@ -1025,10 +1025,11 @@ mod property_definition {
                 "SWAP",
                 "JUMP 2",
                 "UNWIND 1",
-                "JUMP_IF_ABRUPT 3",
+                "JUMP_IF_ABRUPT 5",
                 "SET_FUNC_NAME",
                 "DEF_METH_PROP 1",
-                "UNWIND_IF_ABRUPT 1",
+                "JUMP 2",
+                "UNWIND 1",
                 "JUMP_IF_ABRUPT 1",
                 "POP",
                 "UNWIND_IF_ABRUPT 1"
@@ -12534,10 +12535,11 @@ mod method_definition {
             "SWAP",
             "JUMP 2",
             "UNWIND 1",
-            "JUMP_IF_ABRUPT 3",
+            "JUMP_IF_ABRUPT 5",
             "SET_FUNC_NAME",
             "DEF_METH_PROP 0",
-            "UNWIND_IF_ABRUPT 1"
+            "JUMP 2",
+            "UNWIND 1"
         ]));
         "success; not enumerable"
     )]
@@ -12554,10 +12556,11 @@ mod method_definition {
             "SWAP",
             "JUMP 2",
             "UNWIND 1",
-            "JUMP_IF_ABRUPT 3",
+            "JUMP_IF_ABRUPT 5",
             "SET_FUNC_NAME",
             "DEF_METH_PROP 1",
-            "UNWIND_IF_ABRUPT 1"
+            "JUMP 2",
+            "UNWIND 1"
         ]));
         "success; enumerable"
     )]
