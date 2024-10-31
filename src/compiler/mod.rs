@@ -10619,9 +10619,11 @@ impl MethodDefinition {
                 //  <md.define_method>           err/(propertykey closure) object
                 //  JUMP_IF_ABRUPT unwind        propertykey closure object
                 //  SET_FUNC_NAME                propertykey closure object
-                //  DEFMETHPROP(enumerable)      empty/PrivateElement
+                //  DEFMETHPROP(enumerable)      err/empty/PrivateElement
+                //  JUMP exit
                 // unwind:
-                //  UNWIND_IF_ABRUPT 1
+                //  UNWIND 1                     err
+                // exit:                         err/empty/PrivateElement
 
                 chunk.op(Insn::Dup);
                 chunk.op(Insn::FunctionPrototype);
@@ -10630,8 +10632,10 @@ impl MethodDefinition {
                 let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::SetFunctionName);
                 chunk.op_plus_arg(Insn::DefineMethodProperty, u16::from(enumerable));
+                let exit = chunk.op_jump(Insn::Jump);
                 chunk.fixup(unwind).expect("Short jumps should work");
-                chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("short jump");
 
                 Ok(AlwaysAbruptResult)
             }
