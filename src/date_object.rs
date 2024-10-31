@@ -156,9 +156,9 @@ pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(date_prototype_todatestring, "toDateString", 0); // 21.4.4.35 Date.prototype.toDateString ( )
     prototype_function!(date_prototype_toisostring, "toISOString", 0); // 21.4.4.36 Date.prototype.toISOString ( )
     prototype_function!(date_prototype_tojson, "toJSON", 1); // 21.4.4.37 Date.prototype.toJSON ( key )
-    prototype_function!(date_prototype_tolocaledatestring, "toLocaleDateString", 1); // 21.4.4.38 Date.prototype.toLocaleDateString ( [ reserved1 [ , reserved2 ] ] )
-    prototype_function!(date_prototype_tolocalestring, "toLocaleString", 1); // 21.4.4.39 Date.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] )
-    prototype_function!(date_prototype_tolocaletimestring, "toLocaleTimeString", 1); // 21.4.4.40 Date.prototype.toLocaleTimeString ( [ reserved1 [ , reserved2 ] ] )
+    prototype_function!(date_prototype_tolocaledatestring, "toLocaleDateString", 0); // 21.4.4.38 Date.prototype.toLocaleDateString ( [ reserved1 [ , reserved2 ] ] )
+    prototype_function!(date_prototype_tolocalestring, "toLocaleString", 0); // 21.4.4.39 Date.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] )
+    prototype_function!(date_prototype_tolocaletimestring, "toLocaleTimeString", 0); // 21.4.4.40 Date.prototype.toLocaleTimeString ( [ reserved1 [ , reserved2 ] ] )
     prototype_function!(date_prototype_tostring, "toString", 0); // 21.4.4.41 Date.prototype.toString ( )
     prototype_function!(date_prototype_totimestring, "toTimeString", 0); // 21.4.4.42 Date.prototype.toTimeString ( )
     prototype_function!(date_prototype_toutcstring, "toUTCString", 0); // 21.4.4.43 Date.prototype.toUTCString ( )
@@ -1399,18 +1399,6 @@ fn date_constructor_function(
             ))
         }
     }
-}
-
-macro_rules! todo_function {
-    ( $name:ident ) => {
-        fn $name(
-            _this_value: &ECMAScriptValue,
-            _new_target: Option<&Object>,
-            _arguments: &[ECMAScriptValue],
-        ) -> Completion<ECMAScriptValue> {
-            todo!()
-        }
-    };
 }
 
 #[expect(clippy::unnecessary_wraps)]
@@ -2788,10 +2776,91 @@ fn date_prototype_toisostring(
         })
 }
 
-todo_function!(date_prototype_tojson);
-todo_function!(date_prototype_tolocaledatestring);
-todo_function!(date_prototype_tolocalestring);
-todo_function!(date_prototype_tolocaletimestring);
+fn date_prototype_tojson(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.toJSON ( key )
+    // This method provides a String representation of a Date for use by JSON.stringify (25.5.2).
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let tv be ? ToPrimitive(O, number).
+    // 3. If tv is a Number and tv is not finite, return null.
+    // 4. Return ? Invoke(O, "toISOString").
+    // Note 1
+    // The argument is ignored.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be a Date. Therefore, it can be
+    // transferred to other kinds of objects for use as a method. However, it does require that any such object have a
+    // toISOString method.
+    let o = to_object(this_value.clone())?;
+    let tv = to_primitive(ECMAScriptValue::Object(o.clone()), Some(ConversionHint::Number))?;
+    match tv {
+        ECMAScriptValue::Number(v) if !v.is_finite() => Ok(ECMAScriptValue::Null),
+        _ => ECMAScriptValue::Object(o).invoke(&PropertyKey::from("toISOString"), &[]),
+    }
+}
+
+fn date_prototype_tolocaledatestring(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.toLocaleDateString ( [ reserved1 [ , reserved2 ] ] )
+    // An ECMAScript implementation that includes the ECMA-402 Internationalization API must implement this method as
+    // specified in the ECMA-402 specification. If an ECMAScript implementation does not include the ECMA-402 API the
+    // following specification of this method is used:
+    //
+    // This method returns a String value. The contents of the String are implementation-defined, but are intended to
+    // represent the “date” portion of the Date in the current time zone in a convenient, human-readable form that
+    // corresponds to the conventions of the host environment's current locale.
+    //
+    // The meaning of the optional parameters to this method are defined in the ECMA-402 specification; implementations
+    // that do not include ECMA-402 support must not use those parameter positions for anything else.
+    date_prototype_todatestring(this_value, None, &[])
+}
+
+fn date_prototype_tolocalestring(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] )
+    // An ECMAScript implementation that includes the ECMA-402 Internationalization API must implement this method as
+    // specified in the ECMA-402 specification. If an ECMAScript implementation does not include the ECMA-402 API the
+    // following specification of this method is used:
+    //
+    // This method returns a String value. The contents of the String are implementation-defined, but are intended to
+    // represent the Date in the current time zone in a convenient, human-readable form that corresponds to the
+    // conventions of the host environment's current locale.
+    //
+    // The meaning of the optional parameters to this method are defined in the ECMA-402 specification; implementations
+    // that do not include ECMA-402 support must not use those parameter positions for anything else.
+    date_prototype_tostring(this_value, None, &[])
+}
+
+fn date_prototype_tolocaletimestring(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Date.prototype.toLocaleTimeString ( [ reserved1 [ , reserved2 ] ] )
+    // An ECMAScript implementation that includes the ECMA-402 Internationalization API must implement this method as
+    // specified in the ECMA-402 specification. If an ECMAScript implementation does not include the ECMA-402 API the
+    // following specification of this method is used:
+    //
+    // This method returns a String value. The contents of the String are implementation-defined, but are intended to
+    // represent the “time” portion of the Date in the current time zone in a convenient, human-readable form that
+    // corresponds to the conventions of the host environment's current locale.
+    //
+    // The meaning of the optional parameters to this method are defined in the ECMA-402 specification; implementations
+    // that do not include ECMA-402 support must not use those parameter positions for anything else.
+    date_prototype_totimestring(this_value, None, &[])
+}
 
 fn date_prototype_tostring(
     this_value: &ECMAScriptValue,
