@@ -142,6 +142,15 @@ impl TryFrom<ReferencedName> for JSString {
         }
     }
 }
+impl TryFrom<ReferencedName> for ECMAScriptValue {
+    type Error = anyhow::Error;
+    fn try_from(rn: ReferencedName) -> Result<Self, Self::Error> {
+        match rn {
+            ReferencedName::Value(v) => Ok(v),
+            ReferencedName::PrivateName(_) => Err(InternalRuntimeError::ValueExpected)?,
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Reference {

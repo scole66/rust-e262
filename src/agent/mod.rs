@@ -733,6 +733,8 @@ pub enum InternalRuntimeError {
     StringExpected,
     #[error("number value expected")]
     NumberExpected,
+    #[error("value expected")]
+    ValueExpected,
     #[error("code terminated early")]
     CodeEndedEarly,
     #[error("string index out of bounds")]
@@ -4113,6 +4115,26 @@ fn prefix_decrement(expr: FullCompletion) -> FullCompletion {
 }
 
 fn delete_ref(expr: FullCompletion) -> FullCompletion {
+    // Runtime Semantics: Evaluation
+    // UnaryExpression : delete UnaryExpression
+    // 1. Let ref be ? Evaluation of UnaryExpression.
+    // 2. If ref is not a Reference Record, return true.
+    // 3. If IsUnresolvableReference(ref) is true, then
+    //    a. Assert: ref.[[Strict]] is false.
+    //    b. Return true.
+    // 4. If IsPropertyReference(ref) is true, then
+    //    a. Assert: IsPrivateReference(ref) is false.
+    //    b. If IsSuperReference(ref) is true, throw a ReferenceError exception.
+    //    c. Let baseObj be ? ToObject(ref.[[Base]]).
+    //    d. If ref.[[ReferencedName]] is not a property key, then
+    //       i. Set ref.[[ReferencedName]] to ? ToPropertyKey(ref.[[ReferencedName]]).
+    //    e. Let deleteStatus be ? baseObj.[[Delete]](ref.[[ReferencedName]]).
+    //    f. If deleteStatus is false and ref.[[Strict]] is true, throw a TypeError exception.
+    //    g. Return deleteStatus.
+    // 5. Else,
+    //    a. Let base be ref.[[Base]].
+    //    b. Assert: base is an Environment Record.
+    //    c. Return ? base.DeleteBinding(ref.[[ReferencedName]]).
     let reference = expr?;
     match reference {
         NormalCompletion::IteratorRecord(_)
@@ -4129,8 +4151,19 @@ fn delete_ref(expr: FullCompletion) -> FullCompletion {
             }
             Reference { base: Base::Value(val), referenced_name, strict, this_value: None } => {
                 let base_obj = to_object(val)?;
-                let delete_status =
-                    base_obj.o.delete(&referenced_name.try_into().expect("Property name will never be private"))?;
+                let name_value =
+                    ECMAScriptValue::try_from(referenced_name).expect("Property name will never be private");
+                let referenced_name = match name_value {
+                    ECMAScriptValue::String(jsstring) => PropertyKey::from(jsstring),
+                    ECMAScriptValue::Symbol(symbol) => PropertyKey::from(symbol),
+                    ECMAScriptValue::Undefined
+                    | ECMAScriptValue::Null
+                    | ECMAScriptValue::Boolean(_)
+                    | ECMAScriptValue::Number(_)
+                    | ECMAScriptValue::BigInt(_)
+                    | ECMAScriptValue::Object(_) => to_property_key(name_value)?,
+                };
+                let delete_status = base_obj.o.delete(&referenced_name)?;
                 if !delete_status && strict {
                     Err(create_type_error("property not deletable"))
                 } else {
