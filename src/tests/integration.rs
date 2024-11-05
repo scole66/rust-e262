@@ -1024,6 +1024,13 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     z[targetKey2()] = value2();
     Object.getOwnPropertyNames(z).join(', ');
     " => vok("value-done-first"); "a[b] = c: toPropertyKey happens after eval of c")]
+// 11/5/2024: delete o[1]
+#[test_case("
+    let o = { [1]: 'one', [2]: 'two' };
+    delete o[2]
+    Object.getOwnPropertyNames(o).join(', ')
+    "
+    => vok("1"); "delete o[1]: value-style property reference works in a delete")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
