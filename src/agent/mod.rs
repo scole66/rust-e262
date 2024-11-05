@@ -1373,8 +1373,7 @@ mod insn_impl {
     pub fn make_ref(strict: bool) -> anyhow::Result<()> {
         // Input:  Stack: name base
         // Output: Stack: reference
-        let value = pop_value()?;
-        let name = PropertyKey::try_from(value)?;
+        let name = pop_value()?;
         let base = pop_value()?;
         let reference = Reference::new(Base::Value(base), name, strict, None);
         let result = Ok(NormalCompletion::from(reference));

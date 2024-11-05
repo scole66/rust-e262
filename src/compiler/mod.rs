@@ -1,6 +1,6 @@
 use super::*;
 use ahash::AHashSet;
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 use counter::Counter;
 #[cfg(test)]
 use num::BigInt;
@@ -2017,15 +2017,25 @@ fn evaluate_property_access_with_expression_key(
     expression: &Rc<Expression>,
     strict: bool,
     text: &str,
-) -> anyhow::Result<AlwaysAbruptRefResult> {
+) -> anyhow::Result<CompilerStatusFlags> {
+    // EvaluatePropertyAccessWithExpressionKey ( baseValue, expression, strict )
+    // The abstract operation EvaluatePropertyAccessWithExpressionKey takes arguments baseValue (an ECMAScript language
+    // value), expression (an Expression Parse Node), and strict (a Boolean) and returns either a normal completion
+    // containing a Reference Record or an abrupt completion. It performs the following steps when called:
+    //
+    // 1. Let propertyNameReference be ? Evaluation of expression.
+    // 2. Let propertyNameValue be ? GetValue(propertyNameReference).
+    // 3. NOTE: In most cases, ToPropertyKey will be performed on propertyNameValue immediately after this step.
+    //    However, in the case of a[b] = c, it will not be performed until after evaluation of c.
+    // 4. Return the Reference Record { [[Base]]: baseValue, [[ReferencedName]]: propertyNameValue, [[Strict]]: strict,
+    //    [[ThisValue]]: empty }.
+
     // start:                         base
     //  <expression>                  err/ref base
     //  GET_VALUE                     err/val base
     //  JUMP_IF_ABRUPT unwind_1       val base
-    //  TO_KEY                        key/err base
-    //  JUMP_IF_ABRUPT unwind_1       key base
     //  REF/STRICT_REF                ref
-    // unwind_1:                      (err base) / ref
+    // unwind_1:                      (err base) or ref
     //  UNWIND_IF_ABRUPT 1            err/ref
     let state = expression.compile(chunk, strict, text)?;
     if state.maybe_ref() {
@@ -2033,17 +2043,15 @@ fn evaluate_property_access_with_expression_key(
     }
     let unwind_a =
         if state.maybe_ref() || state.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-    chunk.op(Insn::ToPropertyKey);
-    let unwind_b = chunk.op_jump(Insn::JumpIfAbrupt);
     chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
 
     if let Some(unwind_a) = unwind_a {
         chunk.fixup(unwind_a).expect("jump too short to fail");
+        chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1);
+        Ok(CompilerStatusFlags::new().reference(true).abrupt(true))
+    } else {
+        Ok(CompilerStatusFlags::new().reference(true))
     }
-    chunk.fixup(unwind_b).expect("jump too short to fail");
-
-    chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1);
-    Ok(AlwaysAbruptRefResult)
 }
 
 /// See [EvaluatePropertyAccessWithIdentifierKey](https://tc39.es/ecma262/#sec-evaluate-property-access-with-identifier-key)
@@ -2476,13 +2484,13 @@ impl OptionalExpression {
         let chain_status = oc.chain_evaluation(chunk, strict, text)?;
         if let Some(mark) = unwind_1 {
             let exit_c = chunk.op_jump(Insn::Jump);
-            chunk.fixup(mark)?;
+            chunk.fixup(mark).context("OE CP 01")?;
             chunk.op_plus_arg(Insn::Unwind, 1);
             chunk.fixup(exit_c).expect("Jump should be too short to fail");
         }
-        chunk.fixup(exit_b)?;
+        chunk.fixup(exit_b).context("OE CP 02")?;
         if let Some(mark) = exit_a {
-            chunk.fixup(mark)?;
+            chunk.fixup(mark).context("OE CP 03")?;
         }
 
         Ok(CompilerStatusFlags::new()
@@ -3886,7 +3894,7 @@ impl ObjectAssignmentPattern {
                 let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                 chunk.op(Insn::Zero);
                 arp.rest_destructuring_assignment_evaluation(chunk, strict, text)?;
-                chunk.fixup(exit)?;
+                chunk.fixup(exit).context("OAP: location RO")?;
                 Ok(AlwaysAbruptResult)
             }
             ObjectAssignmentPattern::ListOnly { apl, .. }
@@ -3921,7 +3929,7 @@ impl ObjectAssignmentPattern {
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit2).expect("Jump too short to fail");
 
-                chunk.fixup(exit)?;
+                chunk.fixup(exit).context("OAP: location LST")?;
                 Ok(AlwaysAbruptResult)
             }
             ObjectAssignmentPattern::ListRest { apl, arp: Some(arp), .. } => {
@@ -3949,11 +3957,11 @@ impl ObjectAssignmentPattern {
                 arp.rest_destructuring_assignment_evaluation(chunk, strict, text)?;
 
                 let exit2 = chunk.op_jump(Insn::Jump);
-                chunk.fixup(unwind)?;
+                chunk.fixup(unwind).context("OAP: location LR01")?;
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit2).expect("jump too short to fail");
 
-                chunk.fixup(exit1)?;
+                chunk.fixup(exit1).context("OAP: location LR02")?;
                 Ok(AlwaysAbruptResult)
             }
         }
@@ -4375,10 +4383,14 @@ impl ArrayAssignmentPattern {
                 chunk.op(Insn::UpdateEmpty);
                 let exit = chunk.op_jump(Insn::Jump);
                 if let Some(unwind2) = unwind2 {
-                    chunk.fixup(unwind2)?;
+                    chunk
+                        .fixup(unwind2)
+                        .context("ArrayAssignmentPattern::destructuring_assignment_evaluation: Location ROU2")?;
                     chunk.op_plus_arg(Insn::Unwind, 1);
                 }
-                chunk.fixup(unwind)?;
+                chunk
+                    .fixup(unwind)
+                    .context("ArrayAssignmentPattern::destructuring_assignment_evaluation: Location ROU1")?;
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit).expect("jump too short to fail");
 
@@ -4497,10 +4509,14 @@ impl ArrayAssignmentPattern {
                 let exit = chunk.op_jump(Insn::Jump);
 
                 if let Some(unwind2) = unwind2 {
-                    chunk.fixup(unwind2)?;
+                    chunk
+                        .fixup(unwind2)
+                        .context("ArrayAssignmentPattern::destructuring_assignment_evaluate: Location LRU2")?;
                     chunk.op_plus_arg(Insn::Unwind, 1);
                 }
-                chunk.fixup(unwind)?;
+                chunk
+                    .fixup(unwind)
+                    .context("ArrayAssignmentPattern::destructuring_assignment_evaluate: Location LRU1")?;
                 chunk.fixup(unwind_alt).expect("If unwind worked, unwind_alt will work");
                 chunk.op_plus_arg(Insn::Unwind, 1);
                 chunk.fixup(exit).expect("Jump too short to fail");
@@ -4679,7 +4695,7 @@ impl AssignmentElisionElement {
                 elision.iterator_destructuring_assignment_evaluation(chunk)?;
                 let exit = chunk.op_jump(Insn::JumpIfAbrupt);
                 self.element.iterator_destructuring_assignment_evaluation(chunk, strict, text)?;
-                chunk.fixup(exit)?;
+                chunk.fixup(exit).context("AEE: IDAE")?;
                 Ok(AlwaysAbruptResult)
             }
             None => {
@@ -4709,21 +4725,16 @@ impl AssignmentElement {
         // AssignmentElement : DestructuringAssignmentTarget Initializeropt
         //  1. If DestructuringAssignmentTarget is neither an ObjectLiteral nor an ArrayLiteral, then
         //      a. Let lref be ? Evaluation of DestructuringAssignmentTarget.
-        //  2. If iteratorRecord.[[Done]] is false, then
-        //      a. Let next be Completion(IteratorStep(iteratorRecord)).
-        //      b. If next is an abrupt completion, set iteratorRecord.[[Done]] to true.
-        //      c. ReturnIfAbrupt(next).
-        //      d. If next is false, then
-        //          i. Set iteratorRecord.[[Done]] to true.
-        //      e. Else,
-        //          i. Let value be Completion(IteratorValue(next)).
-        //          ii. If value is an abrupt completion, set iteratorRecord.[[Done]] to true.
-        //          iii. ReturnIfAbrupt(value).
-        //  3. If iteratorRecord.[[Done]] is true, let value be undefined.
+        //  2. Let value be undefined.
+        //  3. If iteratorRecord.[[Done]] is false, then
+        //      a. Let next be ? IteratorStepValue(iteratorRecord).
+        //      b. If next is not done, then
+        //          i. Set value to next.
         //  4. If Initializer is present and value is undefined, then
         //      a. If IsAnonymousFunctionDefinition(Initializer) is true and IsIdentifierRef of
         //         DestructuringAssignmentTarget is true, then
-        //          i. Let v be ? NamedEvaluation of Initializer with argument lref.[[ReferencedName]].
+        //          i. Let target be the StringValue of DestructuringAssignmentTarget.
+        //          ii. Let v be ? NamedEvaluation of Initializer with argument target.
         //      b. Else,
         //          i. Let defaultValue be ? Evaluation of Initializer.
         //          ii. Let v be ? GetValue(defaultValue).
@@ -4734,6 +4745,10 @@ impl AssignmentElement {
         //         DestructuringAssignmentTarget.
         //      b. Return ? DestructuringAssignmentEvaluation of nestedAssignmentPattern with argument v.
         //  7. Return ? PutValue(lref, v).
+        //
+        // Note
+        // Left to right evaluation order is maintained by evaluating a DestructuringAssignmentTarget that is not a
+        // destructuring pattern prior to accessing the iterator or evaluating the Initializer.
 
         // start:                                         ir
         // --- if not pattern
@@ -4826,7 +4841,7 @@ impl AssignmentElement {
                     unwind_1_c = target;
                 }
             }
-            chunk.fixup(has_value)?;
+            chunk.fixup(has_value).context("AE: IDAE: Location hv01")?;
         }
         if not_pattern {
             chunk.op(Insn::PutValue);
@@ -4846,18 +4861,18 @@ impl AssignmentElement {
                 chunk.op_plus_arg(Insn::Unwind, 1);
             }
             if let Some(unwind_1) = unwind_1_a {
-                chunk.fixup(unwind_1)?;
+                chunk.fixup(unwind_1).context("AE: IDAE: Location uw1a")?;
             }
             if let Some(unwind_1) = unwind_1_b {
-                chunk.fixup(unwind_1)?;
+                chunk.fixup(unwind_1).context("AE: IDAE: Location uw1b")?;
             }
             if let Some(unwind_1) = unwind_1_c {
-                chunk.fixup(unwind_1)?;
+                chunk.fixup(unwind_1).context("AE: IDAE: Location uw1c")?;
             }
             chunk.op_plus_arg(Insn::Unwind, 1);
         }
         if let Some(exit) = exit_a {
-            chunk.fixup(exit)?;
+            chunk.fixup(exit).context("AE: IDAE: Location ex01")?;
         }
         if let Some(exit) = exit_b {
             chunk.fixup(exit).expect("jump too short to fail");

@@ -1117,6 +1117,34 @@ impl IteratorRecord {
         }
         completion
     }
+
+    pub fn step_value(&self) -> Completion<Option<ECMAScriptValue>> {
+        // IteratorStepValue ( iteratorRecord )
+        // The abstract operation IteratorStepValue takes argument iteratorRecord (an Iterator Record) and returns
+        // either a normal completion containing either an ECMAScript language value or done, or a throw completion. It
+        // requests the next value from iteratorRecord.[[Iterator]] by calling iteratorRecord.[[NextMethod]] and returns
+        // either done indicating that the iterator has reached its end or the value from the IteratorResult object if a
+        // next value is available. It performs the following steps when called:
+        //
+        // 1. Let result be ? IteratorStep(iteratorRecord).
+        // 2. If result is done, then
+        //    a. Return done.
+        // 3. Let value be Completion(IteratorValue(result)).
+        // 4. If value is a throw completion, then
+        //    a. Set iteratorRecord.[[Done]] to true.
+        // 5. Return ? value.
+        let result = self.step()?;
+        match result {
+            None => Ok(None),
+            Some(result) => {
+                let value = iterator_value(&result);
+                if matches!(value, Err(AbruptCompletion::Throw { .. })) {
+                    self.done.set(true);
+                }
+                value.map(Option::Some)
+            }
+        }
+    }
 }
 
 pub fn iterator_complete(iter_result: &Object) -> Completion<bool> {
@@ -1149,5 +1177,10 @@ pub fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Obje
 pub fn iterator_close(iterator_record: &IteratorRecord, completion: FullCompletion) -> FullCompletion {
     iterator_record.close(completion)
 }
+
+pub fn iterator_step_value(iterator_record: &IteratorRecord) -> Completion<Option<ECMAScriptValue>> {
+    iterator_record.step_value()
+}
+
 #[cfg(test)]
 mod tests;

@@ -1176,12 +1176,10 @@ mod member_expression {
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 12",
+        "JUMP_IF_ABRUPT 9",
         "STRING 1 (b)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 4",
-        "TO_KEY",
         "JUMP_IF_ABRUPT 1",
         "STRICT_REF",
         "UNWIND_IF_ABRUPT 1"
@@ -1192,12 +1190,10 @@ mod member_expression {
             "STRING 0 (a)",
             "RESOLVE",
             "GET_VALUE",
-            "JUMP_IF_ABRUPT 12",
+            "JUMP_IF_ABRUPT 9",
             "STRING 1 (b)",
             "RESOLVE",
             "GET_VALUE",
-            "JUMP_IF_ABRUPT 4",
-            "TO_KEY",
             "JUMP_IF_ABRUPT 1",
             "REF",
             "UNWIND_IF_ABRUPT 1"
@@ -1207,9 +1203,7 @@ mod member_expression {
     #[test_case("a[b]", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no space for base (expression)")]
     #[test_case(
         "(1)[1]", true, None
-        => Ok((svec(&[
-            "FLOAT 0 (1)", "FLOAT 0 (1)", "TO_KEY", "JUMP_IF_ABRUPT 1", "STRICT_REF", "UNWIND_IF_ABRUPT 1"
-        ]), true, true));
+        => Ok((svec(&["FLOAT 0 (1)", "FLOAT 0 (1)", "STRICT_REF"]), true, true));
         "no errors in base (expression)"
     )]
     #[test_case("b[a]", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no space for expression (expression)")]
@@ -1382,12 +1376,10 @@ mod call_expression {
         "JUMP 3",
         "FLOAT 0 (0)",
         "CALL_STRICT",
-        "JUMP_IF_ABRUPT 12",
+        "JUMP_IF_ABRUPT 9",
         "STRING 1 (b)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 4",
-        "TO_KEY",
         "JUMP_IF_ABRUPT 1",
         "STRICT_REF",
         "UNWIND_IF_ABRUPT 1"
@@ -1406,12 +1398,10 @@ mod call_expression {
         "STRING 1 (b)",
         "STRICT_REF",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 12",
+        "JUMP_IF_ABRUPT 9",
         "STRING 2 (c)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 4",
-        "TO_KEY",
         "JUMP_IF_ABRUPT 1",
         "STRICT_REF",
         "UNWIND_IF_ABRUPT 1"
@@ -2921,12 +2911,9 @@ mod assignment_expression {
         "STRING 0 (a)",
         "RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 8",
+        "JUMP_IF_ABRUPT 3",
         "FLOAT 0 (1)",
-        "TO_KEY",
-        "JUMP_IF_ABRUPT 1",
         "REF",
-        "UNWIND_IF_ABRUPT 1",
         "JUMP_IF_ABRUPT 13",
         "STRING 1 ()",
         "FUNC_IIFE 0",
@@ -9750,12 +9737,12 @@ mod assignment_element {
         "JUMP 2",
         "UNWIND 1"
     ])); "dstr with initializer")]
-    #[test_case("a=@@(2)", true, &[] => serr("out of range integral type conversion attempted"); "izer too big")]
+    #[test_case("a=@@(2)", true, &[] => serr("AE: IDAE: Location hv01"); "izer too big")]
     #[test_case("[a[1n]]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "dstr fail")]
-    #[test_case("a=@@(15)", true, &[] => serr("out of range integral type conversion attempted"); "izer too big v2")]
-    #[test_case("0=@@(11)", true, &[] => serr("out of range integral type conversion attempted"); "izer too big v3")]
-    #[test_case("[a[@@(44)]]=q", true, &[] => serr("out of range integral type conversion attempted"); "dstr too big")]
-    #[test_case("[a[@@(42)]]", true, &[] => serr("out of range integral type conversion attempted"); "dstr too big v2")]
+    #[test_case("a=@@(15)", true, &[] => serr("AE: IDAE: Location uw1a"); "izer too big v2")]
+    #[test_case("0=@@(11)", true, &[] => serr("AE: IDAE: Location uw1b"); "izer too big v3")]
+    #[test_case("[a[@@(39)]]=q", true, &[] => serr("AE: IDAE: Location uw1c"); "dstr too big")]
+    #[test_case("[a[@@(37)]]", true, &[] => serr("AE: IDAE: Location ex01"); "dstr too big v2")]
     fn iterator_destructuring_assignment_evaluation(
         src: &str,
         strict: bool,
@@ -9806,7 +9793,7 @@ mod assignment_elision_element {
     ])); "has elision; normal")]
     #[test_case(",,,,,,,a", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "elision fail")]
     #[test_case(",a[8n]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "element fail")]
-    #[test_case(",a[@@(28)]", true, &[] => serr("out of range integral type conversion attempted"); "elem too big")]
+    #[test_case(",a[@@(23)]", true, &[] => serr("AEE: IDAE"); "elem too big")]
     fn iterator_destructuring_assignment_evaluation(
         src: &str,
         strict: bool,
@@ -9867,7 +9854,7 @@ mod assignment_element_list {
     ])); "list; normal")]
     #[test_case("a[1n],b", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list fail")]
     #[test_case("a,b[1n]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "item fail")]
-    #[test_case("a,b[@@(28)]", true, &[] => serr("out of range integral type conversion attempted"); "item too big")]
+    #[test_case("a,b[@@(23)]", true, &[] => serr("out of range integral type conversion attempted"); "item too big")]
     fn iterator_destructuring_assignment_evaluation(
         src: &str,
         strict: bool,
@@ -10012,7 +9999,7 @@ mod array_assignment_pattern {
         "UNWIND 1"
     ])); "elision+rest; normal")]
     #[test_case("[,,,...a]", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "elision+rest; elision fail")]
-    #[test_case("[,...a[@@(33)]]", true, &[] => serr("out of range integral type conversion attempted"); "elision+rest; rest too big")]
+    #[test_case("[,...a[@@(28)]]", true, &[] => serr("ArrayAssignmentPattern::destructuring_assignment_evaluation: Location ROU2"); "elision+rest; rest too big")]
     #[test_case("[...a]", true, &[] => Ok(svec(&[
         "DUP",
         "GET_SYNC_ITER",
@@ -10037,7 +10024,7 @@ mod array_assignment_pattern {
         "UNWIND 1"
     ])); "rest; normal")]
     #[test_case("[...a[1n]]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "rest fail")]
-    #[test_case("[...a[@@(34)]]", true, &[] => serr("out of range integral type conversion attempted"); "rest-only; too big")]
+    #[test_case("[...a[@@(29)]]", true, &[] => serr("ArrayAssignmentPattern::destructuring_assignment_evaluation: Location ROU1"); "rest-only; too big")] // 4389
     #[test_case("[a]", true, &[] => Ok(svec(&[
         "DUP",
         "GET_SYNC_ITER",
@@ -10062,7 +10049,7 @@ mod array_assignment_pattern {
         "UNWIND 1"
     ])); "list; normal")]
     #[test_case("[a[1n]]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list fail")]
-    #[test_case("[a[@@(34)]]", true, &[] => serr("out of range integral type conversion attempted"); "list-only; too big")]
+    #[test_case("[a[@@(29)]]", true, &[] => serr("out of range integral type conversion attempted"); "list-only; too big")] // 4426
     #[test_case("[a,]", true, &[] => Ok(svec(&[
         "DUP",
         "GET_SYNC_ITER",
@@ -10202,8 +10189,8 @@ mod array_assignment_pattern {
     #[test_case("[a[1n],]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list+e+r; list fail")]
     #[test_case("[a,,,]", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "l+e+r; elision fail")]
     #[test_case("[a,...b[1n]]", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "l+e+r; rest fail")]
-    #[test_case("[a,,...b[@@(37)]]", true, &[] => serr("out of range integral type conversion attempted"); "l+e+r; rest too big")]
-    #[test_case("[a,,...b[@@(33)]]", true, &[] => serr("out of range integral type conversion attempted"); "l+e+r; rest too big v2")]
+    #[test_case("[a,,...b[@@(37)]]", true, &[] => serr("ArrayAssignmentPattern::destructuring_assignment_evaluate: Location LRU1"); "l+e+r; rest too big")]
+    #[test_case("[a,,...b[@@(28)]]", true, &[] => serr("ArrayAssignmentPattern::destructuring_assignment_evaluate: Location LRU2"); "l+e+r; rest too big v2")]
     fn destructuring_assignment_evaluation(
         src: &str,
         strict: bool,
@@ -11321,7 +11308,7 @@ mod object_assignment_pattern {
         "UNWIND 1"
     ])); "rest-only: normal")]
     #[test_case("{...b}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "rest-only; fail")]
-    #[test_case("{...b[@@(36)]}", true, &[] => serr("out of range integral type conversion attempted"); "rest-only; too large")]
+    #[test_case("{...b[@@(31)]}", true, &[] => serr("OAP: location RO"); "rest-only; too large")]
     #[test_case("{a,b}", true, &[] => Ok(svec(&[
         "REQ_COER",
         "JUMP_IF_ABRUPT 66",
@@ -11413,7 +11400,7 @@ mod object_assignment_pattern {
         "UNWIND 1"
     ])); "list-rest/empty-rest; normal")]
     #[test_case("{a=1n,b}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list-only; fail")]
-    #[test_case("{a=@@(70),b}", true, &[] => serr("out of range integral type conversion attempted"); "list-only; too big")]
+    #[test_case("{a=@@(70),b}", true, &[] => serr("OAP: location LST"); "list-only; too big")]
     #[test_case("{a,...b}", true, &[] => Ok(svec(&[
         "REQ_COER",
         "JUMP_IF_ABRUPT 55",
@@ -11454,8 +11441,8 @@ mod object_assignment_pattern {
     ])); "list-rest; normal")]
     #[test_case("{a=8n,...b}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list-rest; list-fail")]
     #[test_case("{a,...b[8n]}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "list-rest; rest-fail")]
-    #[test_case("{a,...b[@@(37)]}", true, &[] => serr("out of range integral type conversion attempted"); "list-rest; rest too big")]
-    #[test_case("{a=@@(59),...b}", true, &[] => serr("out of range integral type conversion attempted"); "list-rest; list too big")]
+    #[test_case("{a,...b[@@(31)]}", true, &[] => serr("OAP: location LR01"); "list-rest; rest too big")]
+    #[test_case("{a=@@(37),...b}", true, &[] => serr("OAP: location LR02"); "list-rest; list too big")]
     fn destructuring_assignment_evaluation(
         src: &str,
         strict: bool,
@@ -11650,17 +11637,17 @@ mod optional_expression {
     )]
     #[test_case(
         "a?.[@@@]", false, &[]
-        => serr("out of range integral type conversion attempted");
+        => serr("OE CP 01");
         "oc: me oc; me is ref + oc too big"
     )]
     #[test_case(
         "({})?.[@@@]", false, &[]
-        => serr("out of range integral type conversion attempted");
+        => serr("OE CP 02");
         "oc: me oc; me not ref + oc too big"
     )]
     #[test_case(
-        "a?.[@@(24)]", false, &[]
-        => serr("out of range integral type conversion attempted");
+        "a?.[@@(19)]", false, &[]
+        => serr("OE CP 03");
         "oc: me oc; me fallible + oc too big (but smaller)"
     )]
     #[test_case(
@@ -11767,13 +11754,7 @@ mod optional_chain {
     )]
     #[test_case(
         "?.[0]", true, &[]
-        => Ok(
-            (svec(&[
-                "UNWIND 1", "FLOAT 0 (0)", "TO_KEY", "JUMP_IF_ABRUPT 1", "STRICT_REF", "UNWIND_IF_ABRUPT 1"
-            ]),
-            true,
-            true
-        ));
+        => Ok((svec(&["UNWIND 1", "FLOAT 0 (0)", "STRICT_REF"]), false, true));
         "oc: exp; success"
     )]
     #[test_case(
@@ -11840,12 +11821,9 @@ mod optional_chain {
                 "STRING 0 (a)",
                 "REF",
                 "GET_VALUE",
-                "JUMP_IF_ABRUPT 8",
+                "JUMP_IF_ABRUPT 3",
                 "FLOAT 0 (0)",
-                "TO_KEY",
-                "JUMP_IF_ABRUPT 1",
-                "REF",
-                "UNWIND_IF_ABRUPT 1"
+                "REF"
             ]),
             true,
             true
@@ -11860,16 +11838,7 @@ mod optional_chain {
     #[test_case(
         "?.()[0]", false, &[]
         => Ok((
-            svec(&[
-                "FLOAT 0 (0)",
-                "CALL",
-                "JUMP_IF_ABRUPT 8",
-                "FLOAT 0 (0)",
-                "TO_KEY",
-                "JUMP_IF_ABRUPT 1",
-                "REF",
-                "UNWIND_IF_ABRUPT 1"
-            ]),
+            svec(&["FLOAT 0 (0)", "CALL", "JUMP_IF_ABRUPT 3", "FLOAT 0 (0)", "REF"]),
             true,
             true
         ));
