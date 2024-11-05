@@ -1006,6 +1006,24 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("Object.getOwnPropertyNames({x:a=()=>{}}={}).length" => vok(0); "named function initializers in destructuring assignment")]
 // 10/31/2024: throwing field initializer
 #[test_case("new class C{a=(()=>{throw'oops'})()}()" => serr("Thrown: oops"); "throwing field initializer")]
+// 11/1/2024: a[b] = c order of evaluation
+#[test_case("
+    let z = {};
+    let key = 'key-done-first';
+    function targetKey2() {
+        return {
+            toString: function() {
+                return key;
+            }
+        }
+    }
+    function value2() {
+        key='value-done-first';
+        return 0;
+    }
+    z[targetKey2()] = value2();
+    Object.getOwnPropertyNames(z).join(', ');
+    " => vok("value-done-first"); "a[b] = c: toPropertyKey happens after eval of c")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
