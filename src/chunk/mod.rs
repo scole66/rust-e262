@@ -197,6 +197,7 @@ impl Chunk {
             | Insn::RestoreLexEnv
             | Insn::PushNewPrivateEnv
             | Insn::PopPrivateEnv
+            | Insn::PushWithEnv
             | Insn::CreateDataProperty
             | Insn::SetPrototype
             | Insn::ToPropertyKey
@@ -209,6 +210,7 @@ impl Chunk {
             | Insn::False
             | Insn::Empty
             | Insn::EmptyIfNotError
+            | Insn::UndefinedIfEmpty
             | Insn::Zero
             | Insn::GetValue
             | Insn::PutValue

@@ -3577,7 +3577,22 @@ mod statement {
     #[test_case("continue;", true => svec(&["CONTINUE"]); "continue statement")]
     #[test_case("break;", true => svec(&["BREAK"]); "break statement")]
     #[test_case("return;", true => svec(&["UNDEFINED", "RETURN"]); "return statement")]
-    #[test_case("with (a) {}", true => panics "not yet implemented"; "with statement")]
+    #[test_case(
+        "with (a) {}", true
+        => svec(&[
+            "STRING 0 (a)",
+            "STRICT_RESOLVE",
+            "GET_VALUE",
+            "JUMP_IF_ABRUPT 7",
+            "TO_OBJECT",
+            "JUMP_IF_ABRUPT 4",
+            "PWE",
+            "EMPTY",
+            "PLE",
+            "UNDEFINED_IF_EMPTY"
+        ]);
+        "with statement"
+    )]
     #[test_case("a: true;", true => svec(&["TRUE"]); "labelled statement")]
     #[test_case("throw a;", true => svec(&[
         "STRING 0 (a)",
