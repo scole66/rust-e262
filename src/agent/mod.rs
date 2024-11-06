@@ -1085,6 +1085,14 @@ mod insn_impl {
         // Output: Undefined on the stack
         push_value(ECMAScriptValue::Undefined)
     }
+    pub fn undefined_if_empty() -> anyhow::Result<()> {
+        // Input: err/val/empty
+        // Output: err/val/undefined
+        let completion = pop_completion()?;
+        let new_completion = super::update_empty(completion, NormalCompletion::Value(ECMAScriptValue::Undefined));
+        push_completion(new_completion).expect(PUSHABLE);
+        Ok(())
+    }
     pub fn function_prototype() -> anyhow::Result<()> {
         // Input: None
         // Output: Stack: Current realm's %Function.prototype%
@@ -1616,6 +1624,15 @@ mod insn_impl {
         let current_private_environment = current_private_environment().ok_or(InternalRuntimeError::NoPrivateEnv)?;
         let parent = current_private_environment.borrow().outer_private_environment.clone();
         set_private_environment(parent);
+        Ok(())
+    }
+    pub fn push_new_with_env() -> anyhow::Result<()> {
+        // Input: Stack: obj
+        // Output: nothing on stack
+        let obj = Object::try_from(pop_value()?)?;
+        let current_env = current_lexical_environment();
+        let environment = ObjectEnvironmentRecord::new(obj, true, current_env, "with env");
+        set_lexical_environment(Some(Rc::new(environment)));
         Ok(())
     }
     pub fn create_immutable_lex_binding(strict: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
@@ -3811,6 +3828,7 @@ pub async fn execute(
             Insn::Empty => insn_impl::empty().expect(GOODCODE),
             Insn::EmptyIfNotError => insn_impl::empty_if_not_error().expect(GOODCODE),
             Insn::Undefined => insn_impl::undefined().expect(GOODCODE),
+            Insn::UndefinedIfEmpty => insn_impl::undefined_if_empty().expect(GOODCODE),
             Insn::This => insn_impl::this().expect(GOODCODE),
             Insn::Resolve => insn_impl::resolve(false).expect(GOODCODE),
             Insn::StrictResolve => insn_impl::resolve(true).expect(GOODCODE),
@@ -3859,6 +3877,7 @@ pub async fn execute(
             Insn::RestoreLexEnv => insn_impl::restore_lex_env().expect(GOODCODE),
             Insn::PushNewPrivateEnv => insn_impl::push_new_private_env(),
             Insn::PopPrivateEnv => insn_impl::pop_private_env().expect(GOODCODE),
+            Insn::PushWithEnv => insn_impl::push_new_with_env().expect(GOODCODE),
             Insn::CreateStrictImmutableLexBinding => {
                 insn_impl::create_immutable_lex_binding(true, &chunk).expect(GOODCODE);
             }

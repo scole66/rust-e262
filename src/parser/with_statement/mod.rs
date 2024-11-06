@@ -7,8 +7,8 @@ use std::io::Write;
 //      with ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
 pub struct WithStatement {
-    expression: Rc<Expression>,
-    statement: Rc<Statement>,
+    pub expression: Rc<Expression>,
+    pub statement: Rc<Statement>,
     location: Location,
 }
 

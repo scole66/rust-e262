@@ -27,6 +27,7 @@ pub enum Insn {
     Zero,
     Empty,
     EmptyIfNotError,
+    UndefinedIfEmpty,
     Float,
     Bigint,
     GetValue,
@@ -80,6 +81,7 @@ pub enum Insn {
     RestoreLexEnv,
     PushNewPrivateEnv,
     PopPrivateEnv,
+    PushWithEnv,
     CreateStrictImmutableLexBinding,
     CreateNonStrictImmutableLexBinding,
     CreatePermanentMutableLexBinding,
@@ -221,6 +223,7 @@ impl fmt::Display for Insn {
             Insn::Zero => "ZERO",
             Insn::Empty => "EMPTY",
             Insn::EmptyIfNotError => "EMPTY_IF_NOT_ERR",
+            Insn::UndefinedIfEmpty => "UNDEFINED_IF_EMPTY",
             Insn::Float => "FLOAT",
             Insn::Bigint => "BIGINT",
             Insn::GetValue => "GET_VALUE",
@@ -274,6 +277,7 @@ impl fmt::Display for Insn {
             Insn::RestoreLexEnv => "RLE",
             Insn::PushNewPrivateEnv => "PNPE",
             Insn::PopPrivateEnv => "PPE",
+            Insn::PushWithEnv => "PWE",
             Insn::CreateStrictImmutableLexBinding => "CSILB",
             Insn::CreateNonStrictImmutableLexBinding => "CNSILB",
             Insn::CreatePermanentMutableLexBinding => "CPMLB",
@@ -5166,7 +5170,7 @@ impl Statement {
             Statement::Continue(c) => c.compile(chunk).map(AbruptResult::from),
             Statement::Break(b) => b.compile(chunk).map(AbruptResult::from),
             Statement::Return(r) => r.compile(chunk, strict, text).map(AbruptResult::from),
-            Statement::With(_) => todo!(),
+            Statement::With(ws) => ws.compile(chunk, strict, text).map(AbruptResult::from),
             Statement::Labelled(lbl) => lbl.compile(chunk, strict, text),
             Statement::Throw(throw_statement) => throw_statement.compile(chunk, strict, text).map(AbruptResult::from),
             Statement::Try(try_statement) => try_statement.compile(chunk, strict, text),
@@ -11172,6 +11176,57 @@ impl SuperCall {
         }
         chunk.fixup(exit2).expect("jump in range");
         chunk.fixup(exit).expect("jump in range");
+        Ok(AlwaysAbruptResult)
+    }
+}
+
+impl WithStatement {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: Evaluation
+        // WithStatement : with ( Expression ) Statement
+        //  1. Let val be ? Evaluation of Expression.
+        //  2. Let obj be ? ToObject(? GetValue(val)).
+        //  3. Let oldEnv be the running execution context's LexicalEnvironment.
+        //  4. Let newEnv be NewObjectEnvironment(obj, true, oldEnv).
+        //  5. Set the running execution context's LexicalEnvironment to newEnv.
+        //  6. Let C be Completion(Evaluation of Statement).
+        //  7. Set the running execution context's LexicalEnvironment to oldEnv.
+        //  8. Return ? UpdateEmpty(C, undefined).
+        //
+        // Note
+        // No matter how control leaves the embedded Statement, whether normally or by some form of abrupt completion or
+        // exception, the LexicalEnvironment is always restored to its former state.
+
+        // start:
+        //   <expression>                    err/ref/val
+        //   GET_VALUE                       err/val
+        //   JUMP_IF_ABRUPT exit             val
+        //   TO_OBJECT                       err/obj
+        //   JUMP_IF_ABRUPT exit             obj
+        //   PUSH_WITH_ENV
+        //   <statement>                     err/val/empty
+        //   POP_ENV                         err/val/empty
+        //   UNDEFINED_IF_EMPTY              err/val/undefined
+        // exit:
+        let expr_status = self.expression.compile(chunk, strict, text)?;
+        if expr_status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        let exit_1 = if expr_status.maybe_abrupt() || expr_status.maybe_ref() {
+            Some(chunk.op_jump(Insn::JumpIfAbrupt))
+        } else {
+            None
+        };
+        chunk.op(Insn::ToObject);
+        let exit_2 = chunk.op_jump(Insn::JumpIfAbrupt);
+        chunk.op(Insn::PushWithEnv);
+        self.statement.compile(chunk, strict, text)?;
+        chunk.op(Insn::PopLexEnv);
+        chunk.op(Insn::UndefinedIfEmpty);
+        if let Some(exit) = exit_1 {
+            chunk.fixup(exit).context("WithExpression Fixup Failure 01")?;
+        }
+        chunk.fixup(exit_2).context("WithExpression Fixup Failure 02")?;
         Ok(AlwaysAbruptResult)
     }
 }
