@@ -521,6 +521,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     provision_math_intrinsic(realm_rec);
     provision_reflect_intrinsic(realm_rec);
     provision_date_intrinsic(realm_rec);
+    provision_map_intrinsic(realm_rec);
 
     macro_rules! intrinsic_function {
         ( $intrinsicid:ident, $name:expr, $length:expr ) => {
