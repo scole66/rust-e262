@@ -1,7 +1,4 @@
 // The Date Constructor
-#![expect(unused_variables)]
-#![expect(dead_code)]
-
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::cell::Cell;
@@ -461,28 +458,18 @@ impl DateObject {
 // These constants are referenced by algorithms in the following sections.
 //
 // HoursPerDay = 24
-const HOURS_PER_DAY: usize = 24;
-const HOURS_PER_DAY_I128: i128 = HOURS_PER_DAY as i128;
 const HOURS_PER_DAY_F64: f64 = 24.0;
 // MinutesPerHour = 60
-const MINUTES_PER_HOUR: usize = 60;
-const MINUTES_PER_HOUR_I128: i128 = MINUTES_PER_HOUR as i128;
 const MINUTES_PER_HOUR_F64: f64 = 60.0;
 // SecondsPerMinute = 60
-const SECONDS_PER_MINUTE: usize = 60;
-const SECONDS_PER_MINUTE_I128: i128 = SECONDS_PER_MINUTE as i128;
 const SECONDS_PER_MINUTE_F64: f64 = 60.0;
 // msPerSecond = 1000𝔽
-const MS_PER_SECOND: usize = 1000;
 const MS_PER_SECOND_F64: f64 = 1000.0;
 // msPerMinute = 60000𝔽 = msPerSecond × 𝔽(SecondsPerMinute)
-const MS_PER_MINUTE: usize = MS_PER_SECOND * SECONDS_PER_MINUTE;
 const MS_PER_MINUTE_F64: f64 = MS_PER_SECOND_F64 * SECONDS_PER_MINUTE_F64;
 // msPerHour = 3600000𝔽 = msPerMinute × 𝔽(MinutesPerHour)
-const MS_PER_HOUR: usize = MS_PER_MINUTE * MINUTES_PER_HOUR;
 const MS_PER_HOUR_F64: f64 = MS_PER_MINUTE_F64 * MINUTES_PER_HOUR_F64;
 // msPerDay = 86400000𝔽 = msPerHour × 𝔽(HoursPerDay)
-const MS_PER_DAY: usize = MS_PER_HOUR * HOURS_PER_DAY;
 const MS_PER_DAY_F64: f64 = MS_PER_HOUR_F64 * HOURS_PER_DAY_F64;
 const MS_PER_DAY_ISIZE: isize = 86_400_000;
 
@@ -781,7 +768,7 @@ fn get_utc_epoch_nanoseconds(
 
 #[expect(clippy::too_many_arguments)]
 fn get_named_time_zone_epoch_nanoseconds(
-    time_zone_identifier: &str,
+    _time_zone_identifier: &str,
     year: isize,
     month: u8,
     day: u8,
@@ -1585,7 +1572,7 @@ fn parse_date(date_str: &JSString) -> f64 {
                 caps.name("millis")
                     .map_or(0, |millis| millis.as_str().parse::<i32>().expect("millis should parse as an int")),
             );
-            let zone = caps.name("zone").map_or("Z", |zone| zone.as_str());
+            let _zone = caps.name("zone").map_or("Z", |zone| zone.as_str());
 
             let tv =
                 make_date(make_day(year, month, day).expect("should be ok"), make_time(hour, minute, second, millis));
