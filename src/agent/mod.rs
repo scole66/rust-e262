@@ -518,6 +518,7 @@ pub fn set_default_global_bindings() {
     // Int16Array ( . . . )
     // Int32Array ( . . . )
     // Map ( . . . )
+    constructor_property!(Map);
     // Number ( . . . )
     constructor_property!(Number);
     // Object ( . . . )
