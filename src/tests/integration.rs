@@ -670,6 +670,31 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => serr("Thrown: 0");
     "Array.prototype.push: second Set fails"
 )]
+// Array.prototype.indexOf
+#[test_case("[1, 2, 3].indexOf(2)" => Ok(ECMAScriptValue::Number(1.0)); "Array.prototype.indexOf: item present")]
+#[test_case("[1, 2, 3].indexOf(99)" => Ok(ECMAScriptValue::Number(-1.0)); "Array.prototype.indexOf: item not present")]
+#[test_case("[].indexOf('bob')" => Ok(ECMAScriptValue::Number(-1.0)); "Array.prototype.indexOf: empty list")]
+#[test_case("[1, 2, 3, 2, 1].indexOf(2, -3)" => Ok(ECMAScriptValue::Number(3.0)); "Array.prototype.indexOf: from right")]
+#[test_case("[1, 2, 3].indexOf(1, Infinity)" => Ok(ECMAScriptValue::Number(-1.0)); "Array.prototype.indexOf: infinite start index")]
+#[test_case("Array.prototype.indexOf.call(undefined, [], 2)" => serr("Thrown: TypeError: Undefined and null cannot be converted to objects"); "Array.prototype.indexOf: Non-object this")]
+#[test_case("Array.prototype.indexOf.call({length: Symbol.toStringTag})" => serr("Thrown: TypeError: Symbol values cannot be converted to Number values"); "Array.prototype.indexOf: not array-like")]
+#[test_case("[1, 2].indexOf(1, Symbol.toStringTag)" => serr("Thrown: TypeError: Symbol values cannot be converted to Number values"); "Array.prototype.indexOf: bad starting index")]
+#[test_case("[1, 2, 3, 1].indexOf(1, -Infinity)" => Ok(ECMAScriptValue::Number(0.0)); "Array.prototype.indexOf: starting index -inf")]
+#[test_case("Array.prototype.indexOf.call({length: 2, get [1]() { throw 'oops' }}, 7)" => serr("Thrown: oops"); "Array.prototype.indexOf: get throws")]
+#[test_case("new Proxy([1],{has(t,p){throw'oops';}}).indexOf(1)" => serr("Thrown: oops"); "Array.prototype.indexOf: HasProperty throws")]
+#[test_case("[1, 3, 9].indexOf(3, 10)" => Ok(ECMAScriptValue::Number(-1.0)); "Array.prototype.indexOf: starting index beyond length")]
+#[test_case("[1, 3, 9].indexOf(3, -10000)" => Ok(ECMAScriptValue::Number(1.0)); "Array.prototype.indexOf: starting index before start")]
+// Array.prototype.map
+#[test_case("[1, 2, 3].map(x => x + 10).join(', ')" => Ok(ECMAScriptValue::from("11, 12, 13")); "Array.prototype.map: items present")]
+#[test_case("Array.prototype.map.call(undefined)" => serr("Thrown: TypeError: Undefined and null cannot be converted to objects"); "Array.prototype.map: bad this")]
+#[test_case("Array.prototype.map.call({length: Symbol.toStringTag})" => serr("Thrown: TypeError: Symbol values cannot be converted to Number values"); "Array.prototype.map: not arraylike")]
+#[test_case("[].map(9)" => serr("Thrown: TypeError: Array.prototype.map: callback function was not callable"); "Array.prototype.map: non-callable callback")]
+#[test_case("Array.prototype.map.call({length: 999999999999999999999999999999}, x => x + 1)" => serr("Thrown: RangeError: Array lengths greater than 4294967295 are not allowed"); "Array.prototype.map: array_species_create fails")]
+#[test_case("new Proxy([1],{has(t,p){throw'oops';}}).map(x=>x+1)" => serr("Thrown: oops"); "Array.prototype.map: [[HasProperty]] fails")]
+#[test_case("Array.prototype.map.call({length:3,get[1](){throw'oops';}},x=>x+1)" => serr("Thrown: oops"); "Array.prototype.map: [[Get]] fails")]
+#[test_case("[1].map(x=>{throw'oops';})" => serr("Thrown: oops"); "Array.prototype.map: callback throws")]
+#[test_case("class M extends Array{constructor(){super();Object.defineProperty(this,'2',{configurable:false})}};(new M()).map(x=>x)" => serr("Thrown: TypeError: Unable to create data property"); "Array.prototype.map: CreateDataPropertyOrThrow fails")]
+#[test_case("class M extends Array{constructor(name,...args){super(...args);this.token=name;}}; (new M('sentinel', 10, 652, 3)).map((val,idx,obj)=>`${obj.token}~${idx}~${val}`).join(',')" => vok("sentinel~0~10,sentinel~1~652,sentinel~2~3"); "Array.prototype.map: all the function args are correct")]
 // MethodDefinition: get ClassElementName ( ) { FunctionBody }
 #[test_case("let o = { get a() { return 3; } }; o.a" => vok(3); "method_def_get_call_works")]
 #[test_case("let o = { get a() { return 3; } }; Object.getOwnPropertyDescriptor(o, 'a').get.name" => vok("get a"); "method_def_get_name")]
@@ -702,6 +727,156 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("'a' in new Proxy({}, { has(p) { throw 'oops'; }})" => serr("Thrown: oops"); "in-operator: HasProperty(...) throws")]
 #[test_case("'a' in ({a: 10})" => Ok(ECMAScriptValue::Boolean(true)); "in-operator: success (true)")]
 #[test_case("'b' in ({a: 10})" => Ok(ECMAScriptValue::Boolean(false)); "in-operator: success (false)")]
+// Number.isInteger
+#[test_case("Number.isInteger(20)" => Ok(ECMAScriptValue::Boolean(true)); "value 20")]
+#[test_case("Number.isInteger(20.0001)" => Ok(ECMAScriptValue::Boolean(false)); "value 20.0001")]
+#[test_case("Number.isInteger(Infinity)" => Ok(ECMAScriptValue::Boolean(false)); "value Infinity")]
+#[test_case("Number.isInteger('sixteen')" => Ok(ECMAScriptValue::Boolean(false)); "value 'sixteen'")]
+// Boolean.toString
+#[test_case("true.toString()" => Ok(ECMAScriptValue::from("true")); "Boolean.prototype.toString(true)")]
+#[test_case("false.toString()" => Ok(ECMAScriptValue::from("false")); "Boolean.prototype.toString(false)")]
+#[test_case("Boolean.prototype.toString.call(0)" => serr("Thrown: TypeError: Value is not boolean"); "Boolean.prototype.toString non-boolean this")]
+// Boolean.valueOf
+#[test_case("true.valueOf()" => Ok(ECMAScriptValue::from(true)); "Boolean.prototype.valueOf(true)")]
+#[test_case("false.valueOf()" => Ok(ECMAScriptValue::from(false)); "Boolean.prototype.valueOf(false)")]
+#[test_case("Boolean.prototype.valueOf.call(0)" => serr("Thrown: TypeError: Value is not boolean"); "Boolean.prototype.valueOf non-boolean this")]
+// Boolean constructor
+#[test_case("Boolean(10)" => Ok(ECMAScriptValue::from(true)); "Boolean as func")]
+#[test_case("new Boolean(true).valueOf()" => Ok(ECMAScriptValue::from(true)); "Boolean as constructor")]
+#[test_case(
+    "function X() { this.x = 0; }
+     x = new Proxy(X, { 'get' : (obj, key) => { throw `get(${obj}, ${key})`; }});
+     Reflect.construct(Boolean, [true], x)"
+    => serr("Thrown: get(function X() { this.x = 0; }, prototype)");
+    "boolean construction fails in new-from-constructor"
+)]
+// this_boolean_value
+#[test_case("Boolean.prototype.valueOf.call(new Object())" => serr("Thrown: TypeError: Object has no boolean value"); "not-boolean object in this_boolean_value")]
+// Boolean::uses_ordinary_get_prototype_of
+#[test_case("Object.setPrototypeOf(new String(''), new Boolean(true)).valueOf()" => serr("Thrown: TypeError: Object has no boolean value"); "Boolean::uses_ordinary_get_prototype_of")]
+// is_boolean_obj on boolean object
+#[test_case("Object.prototype.toString.call(new Boolean(true))" => Ok(ECMAScriptValue::from("[object Boolean]")); "BooleanObject::is_boolean_object coverage")]
+#[test_case("Object.getPrototypeOf(Object.setPrototypeOf(new Boolean(), null))" => Ok(ECMAScriptValue::Null); "BooleanObject::set_prototype_of coverage")]
+#[test_case("Object.isFrozen(Object.freeze(new Boolean()))" => Ok(ECMAScriptValue::from(true)); "BooleanObject::prevent_extensions coverage")]
+#[test_case("let bo = new Boolean(); bo.prop = 10; bo.prop" => Ok(ECMAScriptValue::from(10)); "BooleanObject::set coverage")]
+#[test_case("Reflect.has(new Boolean(), 'mystery')" => Ok(ECMAScriptValue::from(false)); "BooleanObject::has_property coverage")]
+#[test_case("let bo = new Boolean(); bo.prop = 10; delete bo.prop; Object.hasOwnProperty(bo, 'prop')" => Ok(ECMAScriptValue::from(false)); "BooleanObject::delete coverage")]
+#[test_case("Number.prototype.valueOf.call(new Boolean())" => serr("Thrown: TypeError: Number method called with non-number receiver"); "BooleanObject::to_number_obj coverage")]
+#[test_case("String.prototype.valueOf.call(new Boolean())" => serr("Thrown: TypeError: String.prototype.valueOf requires that 'this' be a String"); "BooleanObject::to_string_obj coverage")]
+// Class Stuff
+#[test_case("class C {}; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}`" => Ok(ECMAScriptValue::from("true, true")); "class: empty")]
+#[test_case("const C = class {}; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}`" => Ok(ECMAScriptValue::from("true, true")); "class expression: empty")]
+#[test_case("let C = ({cls: class{}}).cls; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}`" => Ok(ECMAScriptValue::from("true, true")); "class object literal: empty")]
+#[test_case("class C extends Boolean {}; `${C.prototype.constructor === C}, ${Object.getPrototypeOf(new C()) === C.prototype}, ${Object.getPrototypeOf(C) === Boolean}`" => Ok(ECMAScriptValue::from("true, true, true")); "class extends: empty")]
+#[test_case("class C extends @@~ {}" => serr("During compilation: [SyntaxError: @@~ token detected. aborting compilation.]"); "class: ClassHeritage compile fails")]
+#[test_case(
+    "class C {
+        constructor(val) {
+            this.value = val;
+        }
+    };
+    const c = new C('sentinel');
+    c.value
+    "
+    => Ok(ECMAScriptValue::from("sentinel"));
+    "class: has constructor function (no heritage)"
+)]
+#[test_case(
+    "
+    class C {
+        #left;
+        #right;
+        constructor(left, right) {
+            this.#left = left;
+            this.#right = right;
+        }
+        build() {
+            return `${this.#left} ~~~ ${this.#right}`;
+        }
+    }
+    const c = new C('fire', 'truck');
+    c.build()
+    "
+    => Ok(ECMAScriptValue::from("fire ~~~ truck"));
+    "class: constructor plus private elements"
+)]
+#[test_case(
+    "
+    class C {
+        constructor(left, right = @@~) {
+        }
+    }
+    "
+    => serr("Thrown: TypeError: @@~ token detected. aborting compilation.");
+    "class: constructor define-method throws"
+)]
+#[test_case(
+    "
+    class C {
+        static [@@~];
+    }
+    "
+    => serr("During compilation: [SyntaxError: @@~ token detected. aborting compilation.]");
+    "class: class element compile fails"
+)]
+#[test_case(
+    "
+    class C extends String {
+        constructor(a, b) {
+            super(a);
+            this.other = b;
+        }
+        build() {
+            return this + this.other;
+        }
+    };
+    const ss = new C('one', 'two');
+    ss.build()
+    "
+    => Ok(ECMAScriptValue::from("onetwo"));
+    "class: heritage + fields"
+)]
+#[test_case(
+    "
+    class C extends String {
+        constructor(a, b) {
+            super(a);
+            this.other = b;
+        }
+        build() {
+            return @@~;
+        }
+    };
+    const ss = new C('one', 'two');
+    ss.build()
+    "
+    => serr("Thrown: TypeError: @@~ token detected. aborting compilation.");
+    "class: method compile fails"
+)]
+// Date.parse
+#[test_case("Date.parse('0000')" => vok(-62_167_219_200_000.0); "Date.parse: zero year only")]
+#[test_case("Date.parse(Symbol.toPrimitive)" => serr("Thrown: TypeError: Symbols may not be converted to strings"); "Date.parse: ToString throws")]
+// parse_date
+#[test_case("isNaN(Date.parse('not-a-date'))" => vok(true); "parse_date: value not in right format")]
+#[test_case("Date.parse('1970')" => vok(0); "parse_date: year only")]
+#[test_case("isNaN(Date.parse('1970-13-65'))" => vok(true); "parse_date: illegitimate date")]
+#[test_case("Date.parse('2024-10-17T07:50:32.832Z')" => vok(1_729_151_432_832.0); "parse_date: utc time zone")]
+#[test_case("Date.parse('+123456')" => vok(3_833_727_840_000_000.0); "parse_date: six-digit-year")]
+// Date failures from test262
+#[test_case("new Date('1970').toISOString()" => vok("1970-01-01T00:00:00.000Z"); "Date: default values (15.9.1.15-1.js)")]
+#[test_case("isNaN(new Date(1899, 11, undefined).valueOf())" => vok(true); "Date: undefined gets a NaN (S15.9.3.1_A6_T1.js)")]
+#[test_case("1 / (new Date(-0).getTime()) > 0" => vok(true); "Date: neg zero converts to positive (TimeClip_negative_zero.js)")]
+#[test_case("Date.UTC(1970)" => vok(0.0); "Date.UTC works")]
+#[test_case("Date.UTC(275760, 8, 13, 0, 0, 0, 0)" => vok(8_640_000_000_000_000.0); "Date.UTC limits (high working value)")]
+#[test_case("isNaN(Date.UTC(275760, 8, 13, 0, 0, 0, 1))" => vok(true); "Date.UTC limits (too large)")]
+#[test_case("Date.UTC(-0.999999, 0)" => vok(-2_208_988_800_000.0); "Date.UTC year clipping")]
+#[test_case("typeof Date.now()" => vok("number"); "Date.now does something")]
+#[test_case("isNaN(Date.parse('-271821-04-19T23:59:59.999Z'))" => vok(true); "Date.parse below max range")]
+#[test_case("isNaN(Date.parse('-000000-03-31T00:45Z'))" => vok(true); "Date.parse rejects -000000 as a valid year")]
+#[test_case("Date.parse(new Date(0).toString())" => vok(0); "Date.parse to-string round trip")]
+#[test_case("Date.parse(new Date(0).toUTCString())" => vok(0); "Date.parse to-utc-string round trip")]
+#[test_case("1/(new Date(-1.23e-15)).valueOf() > 0" => vok(true); "Date negative zero")]
+#[test_case("(new Date('-000001-07-01T00:00Z')).valueOf()" => vok(-62_183_116_800_000.0); "Date negative year parse")]
 // ############# Random "it didn't work right" source text #############
 // This first item is 4/23/2023: the stack is messed up for errors in function parameters
 #[test_case("function id(x=(()=>{throw 'howdy';})()) {
@@ -741,6 +916,121 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("(function([...x]=['test']){return x[0];})()" => Ok(ECMAScriptValue::from("test")); "destructuring rest failure")]
 // 6/13/2024: prototype chain for generator expressions
 #[test_case("Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Object.getPrototypeOf((function*(){})())),Symbol.toStringTag)?.value" => Ok(ECMAScriptValue::from("Generator")); "prototype chain for generator expressions")]
+// 9/15/2024: arguments object not working?
+#[test_case(
+    "
+    function foo(a)
+    {
+      a = 1;
+      return arguments[0];
+    }
+
+    foo(10)
+    "
+    => Ok(ECMAScriptValue::from(1));
+    "arguments object (mapped)"
+)]
+// 9/18/2024: private method generators
+#[test_case(
+    "
+    class C {
+        *#method(a) { yield a; }
+        get method() { return this.#method; }
+    };
+    (new C()).method(789).next().value
+    "
+    => Ok(ECMAScriptValue::from(789));
+    "class: generator method with private name"
+)]
+// 9/19/2024: static methods not attached correctly
+#[test_case(
+    "
+    class C {
+      static #item(a) { return a; }
+      static get item() { return this.#item; }
+    }
+    C.item(982)
+    "
+    => Ok(ECMAScriptValue::from(982));
+    "class: static method with private name not attached correctly"
+)]
+// 9/22/2024: arguments objects still not connected properly
+#[test_case(
+    "
+        let setCalls = 0;
+        function x(a) {
+          Object.defineProperty(arguments, '0', {
+            set(_v) { setCalls += 1; },
+            enumerable: true,
+            configurable: true,
+          });
+
+          arguments[0] = 'foo';
+
+          return arguments[0]
+        }
+
+        [x('bar'), setCalls].join(', ')
+    "
+    => Ok(ECMAScriptValue::from(", 1"));
+    "argumentsObject: accessor function"
+)]
+// 9/24/2024 : arguments is staying writable
+#[test_case(
+    "
+    function f(a) {
+        Object.defineProperty(arguments, '0', {writable: false, enumerable: false, value: 2, configurable: false});
+        arguments[0] = 999;
+        return arguments[0];
+    }
+    f(10)
+    "
+    => Ok(ECMAScriptValue::from(2));
+    "argumentsObject: writable failing"
+)]
+// 9/24/2024: static prototype function fails
+#[test_case(
+    "class C { static *['prototype']() {} }"
+    => serr("Thrown: TypeError: Property cannot be assigned to");
+    "class: static prototype functions"
+)]
+// 9/24/2024: iterators can have non-object next methods
+#[test_case(
+    "const i={[Symbol.iterator]:function(){return{};}};const[a]=i;"
+    => serr("Thrown: TypeError: Value not callable");
+    "iterators non-object next"
+)]
+// 10/31/2024: bad method definition error path
+#[test_case("class C{static['prototype'](){}}" => serr("Thrown: TypeError: Property cannot be assigned to"); "class method definition errors")]
+// 10/31/2024: named function initializers in destructuring assignment
+#[test_case("Object.getOwnPropertyNames({x:a=()=>{}}={}).length" => vok(0); "named function initializers in destructuring assignment")]
+// 10/31/2024: throwing field initializer
+#[test_case("new class C{a=(()=>{throw'oops'})()}()" => serr("Thrown: oops"); "throwing field initializer")]
+// 11/1/2024: a[b] = c order of evaluation
+#[test_case("
+    let z = {};
+    let key = 'key-done-first';
+    function targetKey2() {
+        return {
+            toString: function() {
+                return key;
+            }
+        }
+    }
+    function value2() {
+        key='value-done-first';
+        return 0;
+    }
+    z[targetKey2()] = value2();
+    Object.getOwnPropertyNames(z).join(', ');
+    " => vok("value-done-first"); "a[b] = c: toPropertyKey happens after eval of c")]
+// 11/5/2024: delete o[1]
+#[test_case("
+    let o = { [1]: 'one', [2]: 'two' };
+    delete o[2]
+    Object.getOwnPropertyNames(o).join(', ')
+    "
+    => vok("1"); "delete o[1]: value-style property reference works in a delete")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

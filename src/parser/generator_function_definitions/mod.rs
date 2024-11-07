@@ -7,9 +7,9 @@ use std::io::Write;
 //      * ClassElementName[?Yield, ?Await] ( UniqueFormalParameters[+Yield, ~Await] ) { GeneratorBody }
 #[derive(Debug)]
 pub struct GeneratorMethod {
-    name: Rc<ClassElementName>,
-    params: Rc<UniqueFormalParameters>,
-    body: Rc<GeneratorBody>,
+    pub name: Rc<ClassElementName>,
+    pub params: Rc<UniqueFormalParameters>,
+    pub body: Rc<GeneratorBody>,
     location: Location,
 }
 

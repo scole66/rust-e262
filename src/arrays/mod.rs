@@ -138,6 +138,9 @@ impl ObjectInterface for ArrayObject {
     fn to_array_object(&self) -> Option<&ArrayObject> {
         Some(self)
     }
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Array
+    }
 }
 
 pub fn array_create(length: u64, proto: Option<Object>) -> Completion<Object> {
@@ -163,10 +166,7 @@ impl ArrayObject {
         }
         let length: u32 = length.try_into().unwrap();
         let proto = proto.unwrap_or_else(|| intrinsic(IntrinsicId::ArrayPrototype));
-        let a = make_basic_object(
-            &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker],
-            Some(proto),
-        );
+        let a = ArrayObject::object(Some(proto));
         ordinary_define_own_property(
             &a,
             "length",
@@ -367,8 +367,8 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let array_constructor = create_builtin_function(
-        array_constructor_function,
-        true,
+        Box::new(array_constructor_function),
+        Some(ConstructorKind::Base),
         1.0,
         PropertyKey::from("Array"),
         BUILTIN_FUNCTION_SLOTS,
@@ -382,8 +382,8 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -408,8 +408,8 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     constructor_function!(array_of, "of", 0.0);
     let species_sym = wks(WksId::Species);
     let species_fcn = create_builtin_function(
-        array_species,
-        false,
+        Box::new(array_species),
+        None,
         0.0,
         species_sym.clone().into(),
         BUILTIN_FUNCTION_SLOTS,
@@ -455,8 +455,8 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -556,7 +556,7 @@ pub fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // * is an ordinary object.
     // * has a [[Prototype]] internal slot whose value is %IteratorPrototype%.
     let iterator_prototype = realm.borrow().intrinsics.iterator_prototype.clone();
-    let array_iterator_prototype = ordinary_object_create(Some(iterator_prototype), &[]);
+    let array_iterator_prototype = ordinary_object_create(Some(iterator_prototype));
 
     // %ArrayIteratorPrototype% [ @@toStringTag ]
     // The initial value of the @@toStringTag property is the String value "Array Iterator".
@@ -572,8 +572,8 @@ pub fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -703,7 +703,7 @@ fn array_of(
     todo!()
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn array_species(
     this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -883,12 +883,78 @@ fn array_prototype_includes(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
 fn array_prototype_index_of(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.indexOf ( searchElement [ , fromIndex ] )
+    // This method compares searchElement to the elements of the array, in ascending order, using the
+    // IsStrictlyEqual algorithm, and if found at one or more indices, returns the smallest such index;
+    // otherwise, it returns -1𝔽.
+    //
+    // Note 1
+    // The optional second argument fromIndex defaults to +0𝔽 (i.e. the whole array is searched). If it is
+    // greater than or equal to the length of the array, -1𝔽 is returned, i.e. the array will not be
+    // searched. If it is less than -0𝔽, it is used as the offset from the end of the array to compute
+    // fromIndex. If the computed index is less than or equal to +0𝔽, the whole array will be searched.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. If len = 0, return -1𝔽.
+    // 4. Let n be ? ToIntegerOrInfinity(fromIndex).
+    // 5. Assert: If fromIndex is undefined, then n is 0.
+    // 6. If n = +∞, return -1𝔽.
+    // 7. Else if n = -∞, set n to 0.
+    // 8. If n ≥ 0, then
+    //    a. Let k be n.
+    // 9. Else,
+    //    a. Let k be len + n.
+    //    b. If k < 0, set k to 0.
+    // 10. Repeat, while k < len,
+    //     a. Let Pk be ! ToString(𝔽(k)).
+    //     b. Let kPresent be ? HasProperty(O, Pk).
+    //     c. If kPresent is true, then
+    //        i. Let elementK be ? Get(O, Pk).
+    //        ii. If IsStrictlyEqual(searchElement, elementK) is true, return 𝔽(k).
+    //     d. Set k to k + 1.
+    // 11. Return -1𝔽.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it
+    // can be transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let search_element = args.next_arg();
+    let from_index = args.next_arg();
+
+    let o = to_object(this_value.clone())?;
+    let len = length_of_array_like(&o)?;
+    if len == 0 {
+        return Ok(ECMAScriptValue::from(-1));
+    }
+    #[expect(clippy::cast_precision_loss)]
+    let len = len as f64;
+    let n = from_index.to_integer_or_infinity()?;
+    if n == f64::INFINITY {
+        return Ok(ECMAScriptValue::from(-1));
+    }
+    let n = if n == f64::NEG_INFINITY { 0.0 } else { n };
+    let mut k = if n >= 0.0 { n } else { (len + n).max(0.0) };
+    while k < len {
+        let pk = PropertyKey::from(JSString::from(k));
+        let kpresent = has_property(&o, &pk)?;
+        if kpresent {
+            let element_k = o.get(&pk)?;
+            if search_element.is_strictly_equal(&element_k) {
+                return Ok(ECMAScriptValue::from(k));
+            }
+        }
+        k += 1.0;
+    }
+    Ok(ECMAScriptValue::from(-1))
 }
 
 // Array.prototype.join ( separator )

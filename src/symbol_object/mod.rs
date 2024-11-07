@@ -14,13 +14,13 @@ use std::rc::Rc;
 // object.
 
 pub trait SymbolObjectInterface: ObjectInterface {
-    fn symbol_data(&self) -> &RefCell<Option<Symbol>>;
+    fn symbol_data(&self) -> &Symbol;
 }
 
 #[derive(Debug)]
 pub struct SymbolObject {
     common: RefCell<CommonObjectData>,
-    symbol_data: RefCell<Option<Symbol>>,
+    symbol_data: Symbol,
 }
 
 impl<'a> From<&'a SymbolObject> for &'a dyn ObjectInterface {
@@ -155,29 +155,24 @@ impl ObjectInterface for SymbolObject {
 }
 
 impl SymbolObjectInterface for SymbolObject {
-    fn symbol_data(&self) -> &RefCell<Option<Symbol>> {
+    fn symbol_data(&self) -> &Symbol {
         &self.symbol_data
     }
 }
 
 impl SymbolObject {
-    pub fn new(prototype: Option<Object>) -> Self {
-        Self {
-            common: RefCell::new(CommonObjectData::new(prototype, true, SYMBOL_OBJECT_SLOTS)),
-            symbol_data: RefCell::new(None),
-        }
+    pub fn new(prototype: Option<Object>, sym: Symbol) -> Self {
+        Self { common: RefCell::new(CommonObjectData::new(prototype, true, SYMBOL_OBJECT_SLOTS)), symbol_data: sym }
     }
-    pub fn object(prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self::new(prototype)) }
+    pub fn object(prototype: Option<Object>, sym: Symbol) -> Object {
+        Object { o: Rc::new(Self::new(prototype, sym)) }
     }
 }
 
 impl From<Symbol> for Object {
     fn from(sym: Symbol) -> Self {
         let symbol_proto = intrinsic(IntrinsicId::SymbolPrototype);
-        let obj = SymbolObject::object(Some(symbol_proto));
-        *obj.o.to_symbol_obj().unwrap().symbol_data().borrow_mut() = Some(sym);
-        obj
+        SymbolObject::object(Some(symbol_proto), sym)
     }
 }
 
@@ -203,8 +198,8 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let symbol_constructor = create_builtin_function(
-        symbol_constructor_function,
-        true,
+        Box::new(symbol_constructor_function),
+        Some(ConstructorKind::Base),
         0.0,
         PropertyKey::from("Symbol"),
         BUILTIN_FUNCTION_SLOTS,
@@ -218,8 +213,8 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -277,15 +272,15 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //  * is an ordinary object.
     //  * is not a Symbol instance and does not have a [[SymbolData]] internal slot.
     //  * has a [[Prototype]] internal slot whose value is %Object.prototype%.
-    let symbol_prototype = ordinary_object_create(Some(object_prototype), &[]);
+    let symbol_prototype = ordinary_object_create(Some(object_prototype));
 
     // Prototype Function Properties
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -327,8 +322,8 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_data!("constructor", symbol_constructor.clone(), true, false, true);
 
     let descriptor_getter = create_builtin_function(
-        symbol_description,
-        false,
+        Box::new(symbol_description),
+        None,
         0.0,
         PropertyKey::from("description"),
         BUILTIN_FUNCTION_SLOTS,
@@ -344,8 +339,8 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
     .unwrap();
     let to_prop_sym = wks(WksId::ToPrimitive);
     let to_primitive_func = create_builtin_function(
-        symbol_value_of,
-        false,
+        Box::new(symbol_value_of),
+        None,
         1.0,
         PropertyKey::from(to_prop_sym.clone()),
         BUILTIN_FUNCTION_SLOTS,
@@ -496,15 +491,13 @@ fn symbol_key_for(
     }
 }
 
-fn this_symbol_value(this_value: ECMAScriptValue) -> Completion<Symbol> {
+fn this_symbol_value(this_value: &ECMAScriptValue) -> Completion<Symbol> {
     match this_value {
-        ECMAScriptValue::Symbol(s) => Ok(s),
-        ECMAScriptValue::Object(o) if o.o.is_symbol_object() => {
-            let so = o.o.to_symbol_obj().unwrap();
-            Ok(so.symbol_data().borrow().clone().unwrap())
-        }
-        _ => Err(create_type_error("Not a symbol")),
+        ECMAScriptValue::Symbol(s) => Some(s.clone()),
+        ECMAScriptValue::Object(o) => o.o.to_symbol_obj().map(|so| so.symbol_data().clone()),
+        _ => None,
     }
+    .ok_or_else(|| create_type_error("Not a symbol"))
 }
 
 fn symbol_to_string(
@@ -512,7 +505,7 @@ fn symbol_to_string(
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let sym = this_symbol_value(this_value.clone())?;
+    let sym = this_symbol_value(this_value)?;
     Ok(sym.descriptive_string().into())
 }
 
@@ -521,7 +514,7 @@ fn symbol_value_of(
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    Ok(this_symbol_value(this_value.clone())?.into())
+    Ok(this_symbol_value(this_value)?.into())
 }
 
 fn symbol_description(
@@ -529,7 +522,7 @@ fn symbol_description(
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    let sym = this_symbol_value(this_value.clone())?;
+    let sym = this_symbol_value(this_value)?;
     Ok(sym.description().map_or(ECMAScriptValue::Undefined, ECMAScriptValue::from))
 }
 

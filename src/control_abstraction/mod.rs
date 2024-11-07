@@ -31,15 +31,15 @@ pub fn provision_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
     //
     //      Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()))
 
-    let iterator_prototype = ordinary_object_create(Some(object_prototype), &[]);
+    let iterator_prototype = ordinary_object_create(Some(object_prototype));
 
     // Prototype Function Properties
     macro_rules! prototype_function {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -93,8 +93,8 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     //  * has a [[Prototype]] internal slot whose value is %Function%.
     //  * has a "name" property whose value is "GeneratorFunction".
     let generator_function_constructor = create_builtin_function(
-        generator_function,
-        true,
+        Box::new(generator_function),
+        Some(ConstructorKind::Base),
         1.0,
         "GeneratorFunction".into(),
         BUILTIN_FUNCTION_SLOTS,
@@ -127,7 +127,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     //  * is not a function object and does not have an [[ECMAScriptCode]] internal slot or any other of
     //    the internal slots listed in Table 33 or Table 86.
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
-    let generator_function_prototype = ordinary_object_create(Some(function_prototype.clone()), &[]);
+    let generator_function_prototype = ordinary_object_create(Some(function_prototype.clone()));
 
     macro_rules! gf_prototype_data {
         ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
@@ -157,7 +157,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     //  * is not a Generator instance and does not have a [[GeneratorState]] internal slot.
     //  * has a [[Prototype]] internal slot whose value is %IteratorPrototype%.
     //  * has properties that are indirectly inherited by all Generator instances.
-    let generator_prototype = ordinary_object_create(Some(iterator_prototype), &[]);
+    let generator_prototype = ordinary_object_create(Some(iterator_prototype));
     gf_prototype_data!("prototype", generator_prototype.clone(), false, false, true);
 
     macro_rules! gen_prototype_data {
@@ -182,8 +182,8 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {{
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -214,7 +214,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     realm.borrow_mut().intrinsics.generator_function_prototype_prototype_next = generator_prototype_next_obj;
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn iterator_prototype_iterator(
     this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -312,7 +312,7 @@ pub fn create_iter_result_object(value: ECMAScriptValue, done: bool) -> Object {
     //  3. Perform ! CreateDataPropertyOrThrow(obj, "done", done).
     //  4. Return obj.
     let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_prototype), &[]);
+    let obj = ordinary_object_create(Some(object_prototype));
     obj.create_data_property_or_throw("value", value).unwrap();
     obj.create_data_property_or_throw("done", done).unwrap();
     obj
@@ -353,7 +353,7 @@ pub fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord
         create_iterator_from_closure(asyncfn_wrap(closure), "", Some(intrinsic(IntrinsicId::IteratorPrototype)));
     IteratorRecord {
         iterator,
-        next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext),
+        next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext).into(),
         done: Cell::new(false),
     }
 }
@@ -921,16 +921,19 @@ pub async fn generator_yield(
 // Iterator Records have the fields listed in Table 15.
 //
 // Table 15: Iterator Record Fields
-// +----------------+-------------------+---------------------------------------------------------------------+
-// | Field Name     | Value             | Meaning                                                             |
-// +----------------+-------------------+---------------------------------------------------------------------+
-// | [[Iterator]]   | an Object         | An object that conforms to the Iterator or AsyncIterator interface. |
-// | [[NextMethod]] | a function object | The next method of the [[Iterator]] object.                         |
-// | [[Done]]       | a Boolean         | Whether the iterator has been closed.                               |
-// +----------------+-------------------+---------------------------------------------------------------------+
+// +----------------+----------------+---------------------------------------------------------------------+
+// | Field Name     | Value          | Meaning                                                             |
+// +----------------+----------------+---------------------------------------------------------------------+
+// | [[Iterator]]   | an Object      | An object that conforms to the Iterator or AsyncIterator interface. |
+// +----------------+----------------+---------------------------------------------------------------------+
+// | [[NextMethod]] | an ECMAScript  | The next method of the [[Iterator]] object.                         |
+// |                | language value |                                                                     |
+// +----------------+----------------+---------------------------------------------------------------------+
+// | [[Done]]       | a Boolean      | Whether the iterator has been closed.                               |
+// +----------------+----------------+---------------------------------------------------------------------+
 pub struct IteratorRecord {
     pub iterator: Object,
-    pub next_method: Object,
+    pub next_method: ECMAScriptValue,
     pub done: Cell<bool>,
 }
 
@@ -938,9 +941,21 @@ impl fmt::Debug for IteratorRecord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("IteratorRecord")
             .field("iterator", &ConciseObject::from(&self.iterator))
-            .field("next_method", &ConciseObject::from(&self.next_method))
+            .field("next_method", &ConciseValue::from(&self.next_method))
             .field("done", &self.done)
             .finish()
+    }
+}
+
+struct ConciseValue<'a>(&'a ECMAScriptValue);
+impl<'a> fmt::Debug for ConciseValue<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.concise(f)
+    }
+}
+impl<'a> From<&'a ECMAScriptValue> for ConciseValue<'a> {
+    fn from(value: &'a ECMAScriptValue) -> Self {
+        Self(value)
     }
 }
 
@@ -970,7 +985,6 @@ fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> 
     }
     let next_method = iterator.get(&"next".into())?;
     let iterator = Object::try_from(iterator).expect("iterator previously proved");
-    let next_method = Object::try_from(next_method).map_err(|e| create_type_error(e.to_string()))?;
     Ok(IteratorRecord { iterator, next_method, done: Cell::new(false) })
 }
 
@@ -1010,7 +1024,7 @@ impl IteratorRecord {
         format!(
             "IR(iter: {:?}; next: {:?}; {})",
             ConciseObject::from(&self.iterator),
-            ConciseObject::from(&self.next_method),
+            ConciseValue::from(&self.next_method),
             if self.done.get() { "DONE" } else { "unfinished" }
         )
     }
@@ -1029,11 +1043,11 @@ impl IteratorRecord {
         //      a. Let result be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]], « value »).
         //  3. If result is not an Object, throw a TypeError exception.
         //  4. Return result.
-        let next_method = ECMAScriptValue::from(&self.next_method);
+        let next_method = &self.next_method;
         let iterator = ECMAScriptValue::from(&self.iterator);
         let result = match value {
-            Some(value) => call(&next_method, &iterator, &[value])?,
-            None => call(&next_method, &iterator, &[])?,
+            Some(value) => call(next_method, &iterator, &[value])?,
+            None => call(next_method, &iterator, &[])?,
         };
         Object::try_from(result).map_err(|_| create_type_error("not an iterator result"))
     }
@@ -1103,10 +1117,34 @@ impl IteratorRecord {
         }
         completion
     }
-}
 
-fn iterator_next(iterator_record: &IteratorRecord, value: Option<ECMAScriptValue>) -> Completion<Object> {
-    iterator_record.next(value)
+    pub fn step_value(&self) -> Completion<Option<ECMAScriptValue>> {
+        // IteratorStepValue ( iteratorRecord )
+        // The abstract operation IteratorStepValue takes argument iteratorRecord (an Iterator Record) and returns
+        // either a normal completion containing either an ECMAScript language value or done, or a throw completion. It
+        // requests the next value from iteratorRecord.[[Iterator]] by calling iteratorRecord.[[NextMethod]] and returns
+        // either done indicating that the iterator has reached its end or the value from the IteratorResult object if a
+        // next value is available. It performs the following steps when called:
+        //
+        // 1. Let result be ? IteratorStep(iteratorRecord).
+        // 2. If result is done, then
+        //    a. Return done.
+        // 3. Let value be Completion(IteratorValue(result)).
+        // 4. If value is a throw completion, then
+        //    a. Set iteratorRecord.[[Done]] to true.
+        // 5. Return ? value.
+        let result = self.step()?;
+        match result {
+            None => Ok(None),
+            Some(result) => {
+                let value = iterator_value(&result);
+                if matches!(value, Err(AbruptCompletion::Throw { .. })) {
+                    self.done.set(true);
+                }
+                value.map(Option::Some)
+            }
+        }
+    }
 }
 
 pub fn iterator_complete(iter_result: &Object) -> Completion<bool> {
@@ -1139,5 +1177,10 @@ pub fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Obje
 pub fn iterator_close(iterator_record: &IteratorRecord, completion: FullCompletion) -> FullCompletion {
     iterator_record.close(completion)
 }
+
+pub fn iterator_step_value(iterator_record: &IteratorRecord) -> Completion<Option<ECMAScriptValue>> {
+    iterator_record.step_value()
+}
+
 #[cfg(test)]
 mod tests;

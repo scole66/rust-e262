@@ -1,5 +1,5 @@
-#![allow(clippy::float_cmp)]
-#![allow(clippy::clone_on_copy)]
+#![expect(clippy::float_cmp)]
+#![expect(clippy::clone_on_copy)]
 use super::*;
 use crate::tests::*;
 use ahash::RandomState;
@@ -1709,7 +1709,7 @@ fn scan_token_err() {
 
 #[test]
 fn number_style_debug() {
-    format!("{:?}", NumberStyle::BigHex);
+    assert_ne!(format!("{:?}", NumberStyle::BigHex), "");
 }
 #[test]
 fn number_style_clone() {
@@ -1773,7 +1773,6 @@ mod scanner {
         assert_eq!(s1 != s3, true);
     }
     #[test]
-    #[allow(clippy::eq_op)]
     fn ordering() {
         let line10col50 = Scanner { line: 10, column: 50, start_idx: 33 };
         let line1col1 = Scanner { line: 1, column: 1, start_idx: 0 };
@@ -1820,7 +1819,7 @@ mod string_token {
             .has_legacy_octal_escapes());
     }
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let s1 = StringToken { value: "blue".into(), delimiter: StringDelimiter::Double, raw: None };
         let s2 = s1.clone();

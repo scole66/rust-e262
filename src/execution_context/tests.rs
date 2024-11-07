@@ -21,7 +21,7 @@ mod script_record {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         setup_test_agent();
         let sr = ScriptRecord::new_empty(current_realm_record().unwrap());
@@ -155,7 +155,7 @@ mod execution_context {
         setup_test_agent();
         let som = maker();
         let original_was_none = som.is_none();
-        let func = Some(ordinary_object_create(None, &[]));
+        let func = Some(ordinary_object_create(None));
         let ec = ExecutionContext::new(func.clone(), current_realm_record().unwrap(), som);
         assert_eq!(&func, &ec.function);
         assert!(Rc::ptr_eq(&ec.realm, &current_realm_record().unwrap()));
@@ -285,7 +285,8 @@ mod agent {
             | NormalCompletion::Value(_)
             | NormalCompletion::Environment(_)
             | NormalCompletion::PrivateName(_)
-            | NormalCompletion::PrivateElement(_) => Err("improper completion".to_string()),
+            | NormalCompletion::PrivateElement(_)
+            | NormalCompletion::ClassItem(_) => Err("improper completion".to_string()),
             NormalCompletion::Reference(r) => Ok((format!("{:?}", r.base), r.referenced_name, r.strict, r.this_value)),
         })
     }

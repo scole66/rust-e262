@@ -15,8 +15,7 @@ mod prototype {
 
             let result = object_prototype_value_of(&value, None, &[]).unwrap();
             match &result {
-                ECMAScriptValue::Object(obj) => {
-                    assert!(obj.o.is_number_object());
+                ECMAScriptValue::Object(_obj) => {
                     assert_eq!(result.to_number().unwrap(), 10.0);
                 }
                 _ => {
@@ -39,7 +38,7 @@ mod prototype {
         fn greasy() -> ECMAScriptValue {
             // Return an object whose @@toStringTag property has the value "Grease"
             let to_string_tag_symbol = wks(WksId::ToStringTag);
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.set(PropertyKey::from(to_string_tag_symbol), ECMAScriptValue::from("Grease"), false).unwrap();
             ECMAScriptValue::from(obj)
         }
@@ -50,7 +49,7 @@ mod prototype {
         #[test_case(|| ECMAScriptValue::from(true) => "[object Boolean]"; "boolean")]
         #[test_case(|| ECMAScriptValue::from(create_type_error_object("test_error")) => "[object Error]"; "error object")]
         #[test_case(|| ECMAScriptValue::from(intrinsic(IntrinsicId::Boolean)) => "[object Function]"; "callable object")]
-        #[test_case(|| ECMAScriptValue::from(ordinary_object_create(None, &[])) => "[object Object]"; "ordinary object")]
+        #[test_case(|| ECMAScriptValue::from(ordinary_object_create(None)) => "[object Object]"; "ordinary object")]
         #[test_case(greasy => "[object Grease]"; "to-string-tag")]
         #[test_case(|| ECMAScriptValue::from(DeadObject::object()) => "get called on DeadObject"; "throw getting tag")]
         fn f(make: fn() -> ECMAScriptValue) -> String {
@@ -76,11 +75,11 @@ mod prototype {
             ) -> Completion<ECMAScriptValue> {
                 Err(create_type_error("toPrimitive throws"))
             }
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             let to_primitive_method =
                 create_builtin_function(
-                    behavior,
-                    false,
+                    Box::new(behavior),
+                    None,
                     0.0,
                     "f".into(),
                     BUILTIN_FUNCTION_SLOTS,
@@ -120,7 +119,7 @@ mod prototype {
     #[test_case(
         || {
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let obj = ordinary_object_create(Some(proto), &[]);
+            let obj = ordinary_object_create(Some(proto));
             obj.into()
         }
         => sok("[object Object]");
@@ -138,20 +137,20 @@ mod prototype {
         "v not object, even if this is bad"
     )]
     #[test_case(
-        || (ECMAScriptValue::Undefined, ordinary_object_create(None, &[]).into())
+        || (ECMAScriptValue::Undefined, ordinary_object_create(None).into())
         => serr("TypeError: Undefined and null cannot be converted to objects");
         "bad this"
     )]
     #[test_case(
         || (
-            ordinary_object_create(None, &[]).into(),
+            ordinary_object_create(None).into(),
             TestObject::object(&[FunctionId::GetPrototypeOf]).into()
         )
         => serr("TypeError: [[GetPrototypeOf]] called on TestObject");
         "GetPrototypeOf throws"
     )]
     #[test_case(
-        || (ordinary_object_create(None, &[]).into(), ordinary_object_create(None, &[]).into())
+        || (ordinary_object_create(None).into(), ordinary_object_create(None).into())
         => sok("false");
         "No shared prototypes"
     )]
@@ -165,8 +164,8 @@ mod prototype {
             intrinsic(IntrinsicId::ObjectPrototype).into(),
             {
                 let proto = intrinsic(IntrinsicId::ObjectPrototype);
-                let parent = ordinary_object_create(Some(proto), &[]);
-                let child = ordinary_object_create(Some(parent), &[]);
+                let parent = ordinary_object_create(Some(proto));
+                let child = ordinary_object_create(Some(parent));
                 child.into()
             }
         )
@@ -189,11 +188,11 @@ mod prototype {
             ) -> Completion<ECMAScriptValue> {
                 Err(create_type_error("toPrimitive throws"))
             }
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             let to_primitive_method =
                 create_builtin_function(
-                    behavior,
-                    false,
+                    Box::new(behavior),
+                    None,
                     0.0,
                     "f".into(),
                     BUILTIN_FUNCTION_SLOTS,
@@ -220,14 +219,14 @@ mod prototype {
         "GetOwnProperty throws"
     )]
     #[test_case(
-        || ordinary_object_create(None, &[]).into(),
+        || ordinary_object_create(None).into(),
         || 0.into()
         => sok("false");
         "success; no property"
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("prop", 10).unwrap();
             obj.into()
         },
@@ -237,7 +236,7 @@ mod prototype {
     )]
     #[test_case(
         || {
-            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let ppd = PotentialPropertyDescriptor::new().value(10).enumerable(false);
             define_property_or_throw(&obj, "prop", ppd).unwrap();
             obj.into()
@@ -263,23 +262,23 @@ mod constructor {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(|| Some(ordinary_object_create(None, &[])), &[ECMAScriptValue::from(10)] => "10"; "new target but no active function")]
+    #[test_case(|| Some(ordinary_object_create(None)), &[ECMAScriptValue::from(10)] => "10"; "new target but no active function")]
     #[test_case(|| {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let realm = current_realm_record().unwrap();
         push_execution_context(ExecutionContext::new(Some(obj.clone()), realm, None));
         Some(obj)
     }, &[ECMAScriptValue::from(11)] => "11"; "related new target")]
     #[test_case(|| {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let realm = current_realm_record().unwrap();
         push_execution_context(ExecutionContext::new(Some(obj), realm, None));
-        Some(ordinary_object_create(None, &[]))
+        Some(ordinary_object_create(None))
     }, &[ECMAScriptValue::from(12)] => "[object Object]"; "unrelated new target")]
     #[test_case(|| None, &[ECMAScriptValue::Null] => "[object Object]"; "null value")]
     #[test_case(|| None, &[ECMAScriptValue::Undefined] => "[object Object]"; "undefined value")]
     #[test_case(|| {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let realm = current_realm_record().unwrap();
         push_execution_context(ExecutionContext::new(Some(obj), realm, None));
         let nt = TestObject::object(&[FunctionId::Get(None)]);
@@ -302,7 +301,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn fake_keys(_this: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec![PropertyKey::from("once"), PropertyKey::from("twice")])
         }
@@ -311,12 +310,12 @@ mod constructor {
         fn happy() {
             setup_test_agent();
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let target = ordinary_object_create(Some(object_proto.clone()), &[]);
-            let fruits = ordinary_object_create(Some(object_proto.clone()), &[]);
+            let target = ordinary_object_create(Some(object_proto.clone()));
+            let fruits = ordinary_object_create(Some(object_proto.clone()));
             fruits.create_data_property_or_throw("round", "apple").unwrap();
             fruits.create_data_property_or_throw("long", "banana").unwrap();
             fruits.create_data_property_or_throw("bunch", "grapes").unwrap();
-            let limbs = ordinary_object_create(Some(object_proto), &[]);
+            let limbs = ordinary_object_create(Some(object_proto));
             limbs.create_data_property_or_throw("spider", 8).unwrap();
             limbs.create_data_property_or_throw("bee", 6).unwrap();
             limbs.create_data_property_or_throw("dog", 4).unwrap();
@@ -374,12 +373,12 @@ mod constructor {
 
         fn ordinary_obj() -> ECMAScriptValue {
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
-            ECMAScriptValue::from(ordinary_object_create(Some(proto), &[]))
+            ECMAScriptValue::from(ordinary_object_create(Some(proto)))
         }
         fn own_property_keys_throws() -> ECMAScriptValue {
             ECMAScriptValue::from(TestObject::object(&[FunctionId::OwnPropertyKeys]))
         }
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn own_prop_keys(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec![PropertyKey::from("prop")])
         }
@@ -399,11 +398,11 @@ mod constructor {
         }
         fn obj_with_item() -> ECMAScriptValue {
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let obj = ordinary_object_create(Some(proto), &[]);
+            let obj = ordinary_object_create(Some(proto));
             obj.create_data_property_or_throw("something", 782).unwrap();
             ECMAScriptValue::from(obj)
         }
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn get_own_prop_ok(_: &AdaptableObject, _: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
             Ok(Some(PropertyDescriptor {
                 property: PropertyKind::Data(DataProperty { value: ECMAScriptValue::from(22), writable: true }),
@@ -445,23 +444,23 @@ mod constructor {
         use test_case::test_case;
 
         fn normal_obj() -> Object {
-            ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[])
+            ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)))
         }
         fn normal_params() -> ECMAScriptValue {
-            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-            let emotion_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
+            let emotion_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             emotion_descriptor.create_data_property_or_throw("value", "happy").unwrap();
             emotion_descriptor.create_data_property_or_throw("writable", true).unwrap();
             emotion_descriptor.create_data_property_or_throw("enumerable", true).unwrap();
             emotion_descriptor.create_data_property_or_throw("configurable", true).unwrap();
             obj.create_data_property_or_throw("emotion", emotion_descriptor).unwrap();
-            let age_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let age_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             age_descriptor.create_data_property_or_throw("value", 27).unwrap();
             age_descriptor.create_data_property_or_throw("writable", true).unwrap();
             age_descriptor.create_data_property_or_throw("enumerable", true).unwrap();
             age_descriptor.create_data_property_or_throw("configurable", true).unwrap();
             obj.create_data_property_or_throw("age", age_descriptor).unwrap();
-            let favorite_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let favorite_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             favorite_descriptor.create_data_property_or_throw("value", "banana").unwrap();
             favorite_descriptor.create_data_property_or_throw("writable", false).unwrap();
             favorite_descriptor.create_data_property_or_throw("enumerable", true).unwrap();
@@ -507,7 +506,7 @@ mod constructor {
                         ECMAScriptValue::from(obj)
                     } => Err(String::from("[[Get]] called on TestObject")); "get throws")]
         #[test_case(normal_obj, || {
-                        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
                         obj.create_data_property_or_throw("key", "blue").unwrap();
                         ECMAScriptValue::from(obj)
                     } => Err(String::from("Must be an object")); "to_property_descriptor throws")]
@@ -541,8 +540,8 @@ mod constructor {
         #[test_case(|| ECMAScriptValue::from(22), || ECMAScriptValue::Undefined => Err(String::from("Prototype argument for Object.create must be an Object or null.")); "bad proto")]
         #[test_case(|| ECMAScriptValue::from(intrinsic(IntrinsicId::ObjectPrototype)),
                     || {
-                        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-                        let emotion_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
+                        let emotion_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
                         emotion_descriptor.create_data_property_or_throw("value", "happy").unwrap();
                         emotion_descriptor.create_data_property_or_throw("writable", true).unwrap();
                         emotion_descriptor.create_data_property_or_throw("enumerable", true).unwrap();
@@ -582,10 +581,10 @@ mod constructor {
         use test_case::test_case;
 
         #[test_case(|| ECMAScriptValue::Undefined, || ECMAScriptValue::Undefined => Err("Object.defineProperties called on non-object".to_string()); "non-object")]
-        #[test_case(|| ECMAScriptValue::from(ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[])),
+        #[test_case(|| ECMAScriptValue::from(ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)))),
                     || {
-                        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-                        let emotion_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
+                        let emotion_descriptor = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
                         emotion_descriptor.create_data_property_or_throw("value", "happy").unwrap();
                         emotion_descriptor.create_data_property_or_throw("writable", true).unwrap();
                         emotion_descriptor.create_data_property_or_throw("enumerable", true).unwrap();
@@ -593,9 +592,9 @@ mod constructor {
                         obj.create_data_property_or_throw("emotion", emotion_descriptor).unwrap();
                         ECMAScriptValue::from(obj)
                     } => Ok(vec![PropertyInfo { name: PropertyKey::from("emotion"), enumerable: true, configurable: true, kind: PropertyInfoKind::Data{ value: ECMAScriptValue::from("happy"), writable: true } },]); "with props")]
-        #[test_case(|| ECMAScriptValue::from(ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[])),
+        #[test_case(|| ECMAScriptValue::from(ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)))),
                     || {
-                        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+                        let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
                         obj.create_data_property_or_throw("key", "blue").unwrap();
                         ECMAScriptValue::from(obj)
                     } => Err("Must be an object".to_string()); "bad props")]
@@ -624,16 +623,16 @@ mod constructor {
         use test_case::test_case;
 
         fn plain_obj() -> ECMAScriptValue {
-            ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]).into()
+            ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype))).into()
         }
         fn faux_errors(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
             Err(create_type_error("Test Sentinel"))
         }
         fn make_bad_property_key() -> ECMAScriptValue {
-            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             let tostring_func = create_builtin_function(
-                faux_errors,
-                false,
+                Box::new(faux_errors),
+                None,
                 0.0,
                 "toString".into(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -659,12 +658,12 @@ mod constructor {
             ECMAScriptValue::Undefined
         }
         fn frozen_obj() -> ECMAScriptValue {
-            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             obj.o.prevent_extensions().unwrap();
             obj.into()
         }
         fn attrs() -> ECMAScriptValue {
-            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             obj.create_data_property_or_throw("value", 99).unwrap();
             obj.create_data_property_or_throw("writable", true).unwrap();
             obj.create_data_property_or_throw("enumerable", true).unwrap();
@@ -724,7 +723,7 @@ mod constructor {
         fn normal() {
             setup_test_agent();
             let proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let obj = ordinary_object_create(Some(proto), &[]);
+            let obj = ordinary_object_create(Some(proto));
             obj.create_data_property_or_throw("one", 1.0).unwrap();
             obj.create_data_property_or_throw("favorite", "spaghetti").unwrap();
 
@@ -771,7 +770,7 @@ mod constructor {
         #[test]
         fn ok() {
             setup_test_agent();
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("property", "holiday").unwrap();
             let result: Object =
                 object_freeze(&ECMAScriptValue::Undefined, None, &[obj.into()]).unwrap().try_into().unwrap();
@@ -810,7 +809,7 @@ mod constructor {
             vec![ECMAScriptValue::from(entries)]
         } => sok("first:true,second:998"); "typical")]
         #[test_case(|| {
-            let key = ordinary_object_create(None, &[]); // no prototype means no toString
+            let key = ordinary_object_create(None); // no prototype means no toString
             let pair = create_array_from_list(&[ECMAScriptValue::from(key), ECMAScriptValue::from("item")]);
             let entries = create_array_from_list(&[ECMAScriptValue::from(pair)]);
             vec![ECMAScriptValue::from(entries)]
@@ -829,7 +828,7 @@ mod constructor {
     #[test_case(|| create_array_from_list(&[ECMAScriptValue::from("bob"), ECMAScriptValue::from("charlie")]).into(), || ECMAScriptValue::from("0") => sok("value:bob,writable:true,enumerable:true,configurable:true"); "get 0 from array")]
     #[test_case(|| create_array_from_list(&[ECMAScriptValue::from("bob"), ECMAScriptValue::from("charlie")]).into(), || ECMAScriptValue::from("10") => sok("undefined"); "prop not found")]
     #[test_case(|| ECMAScriptValue::Undefined, || ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "to_object throws")]
-    #[test_case(|| ECMAScriptValue::from(true), || ordinary_object_create(None, &[]).into() => serr("TypeError: Cannot convert object to primitive value"); "to_property_key throws")]
+    #[test_case(|| ECMAScriptValue::from(true), || ordinary_object_create(None).into() => serr("TypeError: Cannot convert object to primitive value"); "to_property_key throws")]
     #[test_case(|| DeadObject::object().into(), || ECMAScriptValue::from("prop") => serr("TypeError: get_own_property called on DeadObject"); "get_own_property throws")]
     fn get_own_property_descriptor(
         make_o: impl FnOnce() -> ECMAScriptValue,
@@ -847,7 +846,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
             Ok(vec!["one".into(), "two".into(), "three".into()])
         }
@@ -920,7 +919,7 @@ mod constructor {
 
     #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "get_own_property_keys throws")]
     #[test_case(|| {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         obj.create_data_property_or_throw(wks(WksId::ToStringTag), "test_value").unwrap();
         obj.into()
     } => sok("0:Symbol(Symbol.toStringTag),length:1"); "one-symbol-prop")]
@@ -940,13 +939,13 @@ mod constructor {
             let key = global_symbol("gpo_test".into());
             let objproto = intrinsic(IntrinsicId::ObjectPrototype);
             objproto.create_data_property_or_throw(key, "%ObjectPrototype%").unwrap();
-            ordinary_object_create(Some(objproto), &[]).into()
+            ordinary_object_create(Some(objproto)).into()
         }
 
         #[test_case(object_with_std_proto => vok("%ObjectPrototype%"); "normal object chain")]
         #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Undefined and null cannot be converted to objects"); "to_object throws")]
         #[test_case(|| DeadObject::object().into() => serr("TypeError: get_prototype_of called on DeadObject"); "get_prototype_of throws")]
-        #[test_case(|| ordinary_object_create(None, &[]).into() => vok(ECMAScriptValue::Null); "no prototype")]
+        #[test_case(|| ordinary_object_create(None).into() => vok(ECMAScriptValue::Null); "no prototype")]
         fn call(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
             setup_test_agent();
             let o = make_o();
@@ -989,7 +988,7 @@ mod constructor {
     }
 
     #[test_case(|| ECMAScriptValue::from("hello") => vok(false); "non-object")]
-    #[test_case(|| ordinary_object_create(None, &[]).into() => vok(true); "object")]
+    #[test_case(|| ordinary_object_create(None).into() => vok(true); "object")]
     fn is_extensible(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
         let o = make_o();
@@ -997,7 +996,7 @@ mod constructor {
     }
 
     #[test_case(|| ECMAScriptValue::from("hello") => vok(true); "non-object")]
-    #[test_case(|| ordinary_object_create(None, &[]).into() => vok(false); "object")]
+    #[test_case(|| ordinary_object_create(None).into() => vok(false); "object")]
     fn is_frozen(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
         let o = make_o();
@@ -1005,7 +1004,7 @@ mod constructor {
     }
 
     #[test_case(|| ECMAScriptValue::from("hello") => vok(true); "non-object")]
-    #[test_case(|| ordinary_object_create(None, &[]).into() => vok(false); "object")]
+    #[test_case(|| ordinary_object_create(None).into() => vok(false); "object")]
     fn is_sealed(make_o: impl FnOnce() -> ECMAScriptValue) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
         let o = make_o();
@@ -1046,7 +1045,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn never_locks(_: &AdaptableObject) -> Completion<bool> {
             Ok(false)
         }
@@ -1060,7 +1059,7 @@ mod constructor {
         }
 
         fn ordinary() -> ECMAScriptValue {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("sentinel", "tomato").unwrap();
             obj.into()
         }
@@ -1084,7 +1083,7 @@ mod constructor {
         use super::*;
         use test_case::test_case;
 
-        #[allow(clippy::unnecessary_wraps)]
+        #[expect(clippy::unnecessary_wraps)]
         fn never_locks(_: &AdaptableObject) -> Completion<bool> {
             Ok(false)
         }
@@ -1098,7 +1097,7 @@ mod constructor {
         }
 
         fn ordinary() -> ECMAScriptValue {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("sentinel", "tomato").unwrap();
             obj.into()
         }
@@ -1124,18 +1123,18 @@ mod constructor {
 
         fn sentinel_obj() -> ECMAScriptValue {
             let objproto = intrinsic(IntrinsicId::ObjectPrototype);
-            let obj = ordinary_object_create(Some(objproto), &[]);
+            let obj = ordinary_object_create(Some(objproto));
             obj.create_data_property_or_throw("sentinel", "turtle").unwrap();
             obj.into()
         }
 
         fn ordinary() -> ECMAScriptValue {
-            ordinary_object_create(None, &[]).into()
+            ordinary_object_create(None).into()
         }
 
         fn sentinelized() -> ECMAScriptValue {
             let proto = Object::try_from(sentinel_obj()).unwrap();
-            ordinary_object_create(Some(proto), &[]).into()
+            ordinary_object_create(Some(proto)).into()
         }
 
         fn immutable() -> ECMAScriptValue {
@@ -1204,7 +1203,7 @@ mod get_own_property_keys {
 
     fn test_obj() -> ECMAScriptValue {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(obj_proto), &[]);
+        let obj = ordinary_object_create(Some(obj_proto));
         obj.create_data_property_or_throw("string_key", "blue").unwrap();
         obj.create_data_property_or_throw("other_key", 892).unwrap();
         obj.create_data_property_or_throw(wks(WksId::ToStringTag), "awkward").unwrap();

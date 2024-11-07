@@ -65,7 +65,6 @@ mod normal_completion {
     #[test_case(&NormalCompletion::Value(ECMAScriptValue::from("alice")) => NormalCompletion::Value(ECMAScriptValue::from("alice")); "value")]
     #[test_case(&NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))) => NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "alice", false, None))); "reference")]
     fn clone(orig: &NormalCompletion) -> NormalCompletion {
-        #[allow(clippy::redundant_clone)]
         orig.clone()
     }
 
@@ -101,7 +100,7 @@ mod normal_completion {
         #[test]
         fn object() {
             setup_test_agent();
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             let nc = NormalCompletion::from(obj.clone());
 
             if let NormalCompletion::Value(ECMAScriptValue::Object(result)) = nc {
@@ -245,9 +244,9 @@ mod normal_completion {
 
         #[test_case(
             || {
-                let iterator = ordinary_object_create(None, &[]);
+                let iterator = ordinary_object_create(None);
                 iterator.create_data_property_or_throw("sentinel", 3939).unwrap();
-                let next_method = intrinsic(IntrinsicId::ThrowTypeError);
+                let next_method = ECMAScriptValue::from(intrinsic(IntrinsicId::ThrowTypeError));
                 let done = Cell::new(true);
                 let ir = IteratorRecord { iterator, next_method, done };
                 NormalCompletion::IteratorRecord(Rc::new(ir))
@@ -264,7 +263,7 @@ mod normal_completion {
                 .map(|item| {
                     let IteratorRecord { iterator, next_method, done } = item.as_ref();
                     let name = String::from(to_string(iterator.get(&"sentinel".into()).unwrap()).unwrap());
-                    let method = if next_method == &intrinsic(IntrinsicId::ThrowTypeError) {
+                    let method = if next_method == &ECMAScriptValue::Object(intrinsic(IntrinsicId::ThrowTypeError)) {
                         "throw-type-error"
                     } else {
                         "something-else"
@@ -289,7 +288,7 @@ mod normal_completion {
             #[test]
             fn actual() {
                 setup_test_agent();
-                let obj = ordinary_object_create(None, &[]);
+                let obj = ordinary_object_create(None);
                 let val = ECMAScriptValue::from(obj.clone());
                 let nc = NormalCompletion::from(val);
                 let extracted: Object = nc.try_into().unwrap();
@@ -315,12 +314,12 @@ mod normal_completion {
     fn make_regex_validator(regex: &str) -> impl Fn(String) + '_ {
         move |actual: String| {
             let re = Regex::new(regex).unwrap();
-            assert!(re.is_match(&actual));
+            assert!(re.is_match(&actual), "expected {actual:?} to match {regex}");
         }
     }
 
     #[test_case(|| NormalCompletion::from(create_list_iterator_record(vec![]))
-            => using make_regex_validator(r"^IR\(iter: <Object [0-9]+>; next: <Object [0-9]+>; unfinished\)$")
+            => using make_regex_validator(r"^IR\(iter: <Object [0-9]+>; next: <%GeneratorFunctionPrototypePrototypeNext%>; unfinished\)$")
             ; "iterator record")]
     #[test_case(|| {
             let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();

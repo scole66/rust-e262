@@ -58,7 +58,7 @@ fn provision_reflect_intrinsic() {
     assert_eq!(tag, JSString::from("Reflect"));
 }
 
-#[test_case(|| (ordinary_object_create(None, &[]).into(), ECMAScriptValue::Undefined, ECMAScriptValue::Undefined) => serr("TypeError: Reflect.apply requires a callable target"); "not callable")]
+#[test_case(|| (ordinary_object_create(None).into(), ECMAScriptValue::Undefined, ECMAScriptValue::Undefined) => serr("TypeError: Reflect.apply requires a callable target"); "not callable")]
 #[test_case(|| (intrinsic(IntrinsicId::IsNaN).into(), ECMAScriptValue::Undefined, create_array_from_list(&[100.into()]).into()) => sok("false"); "successful; without this")]
 #[test_case(|| (intrinsic(IntrinsicId::IsNaN).into(), ECMAScriptValue::Undefined, ECMAScriptValue::Null) => serr("TypeError: CreateListFromArrayLike called on non-object"); "bad args")]
 fn reflect_apply(
@@ -107,13 +107,13 @@ fn reflect_construct(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result
 
 #[test_case(Vec::new => serr("TypeError: Reflect.defineProperty: target must be an object"); "no args")]
 #[test_case(
-    || vec![ECMAScriptValue::Object(ordinary_object_create(None, &[]))]
+    || vec![ECMAScriptValue::Object(ordinary_object_create(None))]
     => serr("TypeError: Must be an object");
     "ToPropertyDescriptor fails"
 )]
 #[test_case(
     || vec![
-        ECMAScriptValue::Object(ordinary_object_create(None, &[])),
+        ECMAScriptValue::Object(ordinary_object_create(None)),
         ECMAScriptValue::Object(DeadObject::object())
     ]
     => serr("TypeError: get called on DeadObject");
@@ -124,7 +124,7 @@ fn reflect_construct(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result
         ECMAScriptValue::Object(DeadObject::object()),
         ECMAScriptValue::String(JSString::from("property")),
         ECMAScriptValue::Object({
-            let o = ordinary_object_create(None, &[]);
+            let o = ordinary_object_create(None);
             o.create_data_property_or_throw("writable", true).unwrap();
             o.create_data_property_or_throw("value", 12345).unwrap();
             o.create_data_property_or_throw("enumerable", true).unwrap();
@@ -137,10 +137,10 @@ fn reflect_construct(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result
 )]
 #[test_case(
     || vec![
-        ECMAScriptValue::Object(ordinary_object_create(None, &[])),
+        ECMAScriptValue::Object(ordinary_object_create(None)),
         ECMAScriptValue::String(JSString::from("property")),
         ECMAScriptValue::Object({
-            let o = ordinary_object_create(None, &[]);
+            let o = ordinary_object_create(None);
             o.create_data_property_or_throw("writable", true).unwrap();
             o.create_data_property_or_throw("value", 12345).unwrap();
             o.create_data_property_or_throw("enumerable", true).unwrap();
@@ -175,7 +175,7 @@ fn reflect_define_property(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> 
 #[test_case(Vec::new => serr("TypeError: Reflect.deleteProperty: target must be an object"); "no args")]
 #[test_case(
     || vec![
-        ECMAScriptValue::Object(ordinary_object_create(None, &[])),
+        ECMAScriptValue::Object(ordinary_object_create(None)),
         ECMAScriptValue::Object(DeadObject::object())
     ]
     => serr("TypeError: get called on DeadObject");
@@ -192,7 +192,7 @@ fn reflect_define_property(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> 
 #[test_case(
     || vec![
         ECMAScriptValue::Object({
-            let o = ordinary_object_create(None, &[]);
+            let o = ordinary_object_create(None);
             define_property_or_throw(
                 &o,
                 "key",
@@ -212,7 +212,7 @@ fn reflect_define_property(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> 
 #[test_case(
     || vec![
         ECMAScriptValue::Object({
-            let o = ordinary_object_create(None, &[]);
+            let o = ordinary_object_create(None);
             o.create_data_property("first", 1).unwrap();
             o.create_data_property("second", 2).unwrap();
             o
@@ -246,7 +246,7 @@ fn reflect_delete_property(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> 
 #[test_case(Vec::new => serr("TypeError: Reflect.get: target must be an object"); "no args")]
 #[test_case(
     || vec![
-        ECMAScriptValue::Object(ordinary_object_create(None, &[])),
+        ECMAScriptValue::Object(ordinary_object_create(None)),
         ECMAScriptValue::Object(DeadObject::object()),
     ]
     => serr("TypeError: get called on DeadObject");
@@ -276,9 +276,9 @@ fn reflect_delete_property(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> 
             let result = to_string(title)?.concat(JSString::from(" Bob"));
             Ok(ECMAScriptValue::String(result))
         }
-        let func = create_builtin_function(behavior, false, 0.0, PropertyKey::from("name"), &[], None, None, None);
-        let o = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-        let p = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        let func = create_builtin_function(Box::new(behavior), None, 0.0, PropertyKey::from("name"), &[], None, None, None);
+        let o = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
+        let p = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
         p.create_data_property_or_throw("title", "Mrs.").unwrap();
         o.create_data_property_or_throw("title", "Mr.").unwrap();
         define_property_or_throw(&o, "name", PotentialPropertyDescriptor::new().get(func).configurable(true).enumerable(true)).unwrap();
@@ -303,7 +303,7 @@ fn reflect_get(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<Strin
 #[test_case(
     || {
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(proto), &[]);
+        let obj = ordinary_object_create(Some(proto));
         vec![ECMAScriptValue::Object(obj), ECMAScriptValue::Object(DeadObject::object())]
     }
     => serr("TypeError: get called on DeadObject");
@@ -317,7 +317,7 @@ fn reflect_get(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<Strin
 #[test_case(
     || {
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(proto), &[]);
+        let obj = ordinary_object_create(Some(proto));
         obj.create_data_property_or_throw("test-key", "test-value").unwrap();
         vec![ECMAScriptValue::Object(obj), ECMAScriptValue::from("test-key")]
     }
@@ -328,7 +328,7 @@ fn reflect_get(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<Strin
     || {
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
         proto.create_data_property_or_throw("test-key", "test-value").unwrap();
-        let obj = ordinary_object_create(Some(proto), &[]);
+        let obj = ordinary_object_create(Some(proto));
         vec![ECMAScriptValue::Object(obj), ECMAScriptValue::from("test-key")]
     }
     => sok("undefined");
@@ -349,15 +349,15 @@ fn reflect_get_own_property_descriptor(make_args: impl FnOnce() -> Vec<ECMAScrip
     "[[getPrototypeOf]] throws"
 )]
 #[test_case(
-    || vec![ECMAScriptValue::Object(ordinary_object_create(None, &[]))]
+    || vec![ECMAScriptValue::Object(ordinary_object_create(None))]
     => sok("null");
     "null prototype"
 )]
 #[test_case(
     || {
-        let proto = ordinary_object_create(None, &[]);
+        let proto = ordinary_object_create(None);
         proto.create_data_property_or_throw("test-key", "test-value").unwrap();
-        vec![ECMAScriptValue::Object(ordinary_object_create(Some(proto), &[]))]
+        vec![ECMAScriptValue::Object(ordinary_object_create(Some(proto)))]
     }
     => sok("test-key:test-value");
     "some prototype"
@@ -424,7 +424,7 @@ fn reflect_has(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<Strin
 )]
 #[test_case(
     || vec![{
-        let o = ordinary_object_create(None, &[]);
+        let o = ordinary_object_create(None);
         o.o.prevent_extensions().unwrap();
         ECMAScriptValue::Object(o)
     }]
@@ -447,7 +447,7 @@ fn reflect_is_extensible(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Re
 )]
 #[test_case(
     || vec![{
-        let o = ordinary_object_create(None, &[]);
+        let o = ordinary_object_create(None);
         o.create_data_property_or_throw("test-key-1", "test-value-1").unwrap();
         o.create_data_property_or_throw("test-key-2", "test-value-2").unwrap();
         ECMAScriptValue::Object(o)
@@ -498,7 +498,7 @@ fn reflect_prevent_extensions(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) 
 )]
 #[test_case(
     || vec![
-        ECMAScriptValue::Object(ordinary_object_create(None, &[])),
+        ECMAScriptValue::Object(ordinary_object_create(None)),
         ECMAScriptValue::from("test-key"),
         ECMAScriptValue::from("test-value")
     ]
@@ -508,7 +508,7 @@ fn reflect_prevent_extensions(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) 
 #[test_case(
     || vec![
         {
-            let o = ordinary_object_create(None, &[]);
+            let o = ordinary_object_create(None);
             o.o.prevent_extensions().unwrap();
             ECMAScriptValue::Object(o)
         },
@@ -529,9 +529,9 @@ fn reflect_prevent_extensions(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) 
             obj.create_data_property_or_throw("test-report", result)?;
             Ok(ECMAScriptValue::Boolean(true))
         }
-        let func = create_builtin_function(behavior, false, 0.0, PropertyKey::from("name"), &[], None, None, None);
-        let o = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
-        let p = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+        let func = create_builtin_function(Box::new(behavior), None, 0.0, PropertyKey::from("name"), &[], None, None, None);
+        let o = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
+        let p = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
         p.create_data_property_or_throw("title", "Mrs.").unwrap();
         o.create_data_property_or_throw("title", "Mr.").unwrap();
         define_property_or_throw(&o, "name", PotentialPropertyDescriptor::new().set(func).configurable(true).enumerable(true)).unwrap();
@@ -601,7 +601,7 @@ fn reflect_set(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<Strin
 )]
 #[test_case(
     || vec![
-        ECMAScriptValue::Object(ordinary_object_create(None, &[])),
+        ECMAScriptValue::Object(ordinary_object_create(None)),
         ECMAScriptValue::Object(intrinsic(IntrinsicId::StringPrototype))
     ]
     => sok("true; StringPrototype");
@@ -609,7 +609,7 @@ fn reflect_set(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<Strin
 )]
 #[test_case(
     || vec![
-        ECMAScriptValue::Object(ordinary_object_create(Some(intrinsic(IntrinsicId::BooleanPrototype)), &[])),
+        ECMAScriptValue::Object(ordinary_object_create(Some(intrinsic(IntrinsicId::BooleanPrototype)))),
         ECMAScriptValue::Null
     ]
     => sok("true; null");
@@ -618,7 +618,7 @@ fn reflect_set(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<Strin
 #[test_case(
     || vec![
         {
-            let o = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+            let o = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
             o.o.prevent_extensions().unwrap();
             ECMAScriptValue::Object(o)
         },
@@ -642,7 +642,7 @@ fn reflect_set_prototype_of(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) ->
         if let Some(obj) = target {
             let target_proto = obj.o.get_prototype_of().unwrap();
             let proto_descriptor = if let Some(proto) = &target_proto {
-                let id = which_intrinsic(proto);
+                let id = proto.which_intrinsic();
                 if let Some(which) = id {
                     format!("{which:?}")
                 } else {

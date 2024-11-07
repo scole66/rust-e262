@@ -92,7 +92,7 @@ mod ecmascript_value {
     use test_case::test_case;
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let v1 = ECMAScriptValue::Undefined;
         let v2 = v1.clone();
@@ -144,7 +144,7 @@ mod ecmascript_value {
     #[test]
     fn from_object_ref() {
         setup_test_agent();
-        let o = ordinary_object_create(None, &[]);
+        let o = ordinary_object_create(None);
 
         let val = ECMAScriptValue::from(&o);
         assert!(val.is_object());
@@ -154,7 +154,7 @@ mod ecmascript_value {
     #[test]
     fn from_object() {
         setup_test_agent();
-        let o = ordinary_object_create(None, &[]);
+        let o = ordinary_object_create(None);
         let orig_id = o.o.id();
 
         let val = ECMAScriptValue::from(o);
@@ -248,7 +248,7 @@ mod ecmascript_value {
     #[test]
     fn is_object() {
         setup_test_agent();
-        let o = ordinary_object_create(None, &[]);
+        let o = ordinary_object_create(None);
         assert_eq!(ECMAScriptValue::Undefined.is_object(), false);
         assert_eq!(ECMAScriptValue::from(o).is_object(), true);
         assert_eq!(ECMAScriptValue::Null.is_object(), false);
@@ -265,7 +265,7 @@ mod ecmascript_value {
         // Calling this on our own isn't really do-able; we need to get there via Display or Debug.
         setup_test_agent();
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(obj_proto), &[]);
+        let obj = ordinary_object_create(Some(obj_proto));
         define_property_or_throw(
             &obj,
             PropertyKey::from("Undefined"),
@@ -346,7 +346,7 @@ mod ecmascript_value {
 
         #[test_case(|| ECMAScriptValue::Symbol(wks(WksId::ToPrimitive)) => "Symbol(Symbol.toPrimitive)"; "symbol")]
         #[test_case(|| {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             ECMAScriptValue::Object(obj)
         } => with |s: String| assert!(Regex::new("^<Object [0-9]+>$").unwrap().is_match(&s)); "object")]
         fn complex(maker: fn() -> ECMAScriptValue) -> String {
@@ -494,7 +494,7 @@ mod ecmascript_value {
     #[test_case(|| None => "undefined"; "choose-none")]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("item", 10).unwrap();
             Some(obj)
         }
@@ -510,7 +510,7 @@ mod ecmascript_value {
     #[test_case(|| None => "null"; "choose-none")]
     #[test_case(
         || {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             obj.create_data_property_or_throw("item", 10).unwrap();
             Some(obj)
         }
@@ -560,6 +560,7 @@ mod ecmascript_value {
     #[test_case(2_147_483_648.0 => Ok(-2_147_483_648); "lower rollover")]
     #[test_case(-2_147_483_648.0 => Ok(-2_147_483_648); "lower limit")]
     #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
+    #[test_case(-4_294_967_294.0 => Ok(2); "negative modulo")]
     fn to_int32(arg: impl Into<ECMAScriptValue>) -> Result<i32, String> {
         setup_test_agent();
         arg.into().to_int32().map_err(unwind_any_error)
@@ -616,7 +617,7 @@ mod ecmascript_value {
         assert!(result.is_nan());
     }
     #[test]
-    #[allow(clippy::float_cmp)]
+    #[expect(clippy::float_cmp)]
     fn to_number_02() {
         setup_test_agent();
         let input = ECMAScriptValue::Null;
@@ -625,7 +626,7 @@ mod ecmascript_value {
         assert_eq!(result, 0.0);
     }
     #[test]
-    #[allow(clippy::float_cmp)]
+    #[expect(clippy::float_cmp)]
     fn to_number_03() {
         setup_test_agent();
         let input = ECMAScriptValue::from(true);
@@ -634,7 +635,7 @@ mod ecmascript_value {
         assert_eq!(result, 1.0);
     }
     #[test]
-    #[allow(clippy::float_cmp)]
+    #[expect(clippy::float_cmp)]
     fn to_number_04() {
         setup_test_agent();
         let input = ECMAScriptValue::from(false);
@@ -643,7 +644,7 @@ mod ecmascript_value {
         assert_eq!(result, 0.0);
     }
     #[test]
-    #[allow(clippy::float_cmp)]
+    #[expect(clippy::float_cmp)]
     fn to_number_05() {
         setup_test_agent();
         let input = ECMAScriptValue::from(37.6);
@@ -660,7 +661,7 @@ mod ecmascript_value {
         assert!(result.is_nan());
     }
     #[test]
-    #[allow(clippy::float_cmp)]
+    #[expect(clippy::float_cmp)]
     fn to_number_07() {
         setup_test_agent();
         let testcases = [
@@ -703,7 +704,7 @@ mod ecmascript_value {
     #[test]
     fn to_number_10() {
         setup_test_agent();
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let input = ECMAScriptValue::from(obj);
 
         let result = input.to_number().unwrap_err();
@@ -713,7 +714,7 @@ mod ecmascript_value {
     fn to_number_11() {
         setup_test_agent();
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(obj_proto), &[]);
+        let obj = ordinary_object_create(Some(obj_proto));
         let input = ECMAScriptValue::from(obj);
 
         let result = input.to_number().unwrap();
@@ -743,7 +744,7 @@ mod ecmascript_value {
     fn as_constructor(make_input: impl FnOnce() -> ECMAScriptValue) -> Option<IntrinsicId> {
         setup_test_agent();
         let inp = make_input();
-        inp.as_constructor().and_then(which_intrinsic)
+        inp.as_constructor().and_then(Object::which_intrinsic)
     }
 
     #[test_case(|| ECMAScriptValue::from(10.0) => Ok(10); "in range")]
@@ -778,7 +779,7 @@ fn symbol_display_empty() {
     assert_eq!(format!("{symbol}"), "Symbol()");
 }
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn symbol_clone() {
     setup_test_agent();
     let s1 = wks(WksId::ToPrimitive);
@@ -786,7 +787,7 @@ fn symbol_clone() {
     assert_eq!(s1, s2);
 }
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn symbol_hash() {
     setup_test_agent();
     let s1 = wks(WksId::ToPrimitive);
@@ -807,7 +808,7 @@ fn symbol_hash() {
     assert_ne!(calculate_hash(&f2, &s1), calculate_hash(&f2, &s3));
 }
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn symbol_new() {
     setup_test_agent();
     let s1 = Symbol::new(Some(JSString::from("Symbol #1")));
@@ -833,7 +834,7 @@ fn symbol_internals_debug() {
     assert_ne!(format!("{:?}", SymbolInternals { id: 10, description: Some(JSString::from("description")) }), "");
 }
 #[test]
-#[allow(clippy::redundant_clone)]
+#[expect(clippy::redundant_clone)]
 fn symbol_internals_clone() {
     let si1 = SymbolInternals { id: 10, description: Some(JSString::from("description")) };
     let si2 = si1.clone();
@@ -846,7 +847,7 @@ mod pn {
     use ahash::AHasher;
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn derived_stuff() {
         let pn = PN(());
         let b = pn; // Copy
@@ -886,7 +887,7 @@ mod private_name {
         assert_eq!(pn1 == pn2, false);
     }
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let pn1 = PrivateName::new("a");
         let pn2 = pn1.clone();
@@ -918,7 +919,7 @@ mod private_element_kind {
         assert_ne!(format!("{pek:?}"), "");
     }
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let pek = PrivateElementKind::Field { value: RefCell::new(ECMAScriptValue::from("a")) };
         let pek2 = pek.clone();
@@ -1064,7 +1065,7 @@ fn to_boolean_01() {
 
     setup_test_agent();
     assert_eq!(to_boolean(ECMAScriptValue::from(wks(WksId::ToPrimitive))), true);
-    let o = ordinary_object_create(None, &[]);
+    let o = ordinary_object_create(None);
     assert_eq!(to_boolean(ECMAScriptValue::from(o)), true);
 }
 
@@ -1122,7 +1123,7 @@ mod property_key {
         assert_eq!(format!("{}", PropertyKey::from(sym)), "Symbol(Symbol.hasInstance)");
     }
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let pk1 = PropertyKey::from("a");
         let pk2 = pk1.clone();
@@ -1220,7 +1221,7 @@ mod jsstring {
         #[test_case(|| ECMAScriptValue::BigInt(Rc::new(BigInt::from(1000))) => sok("1000"); "bigint")]
         #[test_case(|| ECMAScriptValue::Symbol(wks(WksId::ToPrimitive)) => serr("Symbols may not be converted to strings"); "symbol")]
         #[test_case(|| {
-            let obj = ordinary_object_create(None, &[]);
+            let obj = ordinary_object_create(None);
             ECMAScriptValue::Object(obj)
         } => serr("Object to string conversions require an agent"); "object")]
         fn ecmasript_value(maker: fn() -> ECMAScriptValue) -> Result<String, String> {
@@ -1248,7 +1249,7 @@ mod jsstring {
     #[test_case("Infinity" => using check_value(0.0); "Infinity")]
     #[test_case("10" => using check_value(10.0); "ten")]
     #[test_case("257" => using check_value(1.0); "one over the modulo")]
-    #[test_case("-513" => using check_value(-1.0); "negative, one beyond")]
+    #[test_case("-513" => using check_value(255.0); "negative, one beyond")]
     fn to_core_int(s: &str) -> f64 {
         let s = JSString::from(s);
         s.to_core_int(256.0)
@@ -1289,7 +1290,7 @@ mod numeric {
 #[test]
 fn to_numeric_01() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let result = to_numeric(ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
@@ -1314,7 +1315,7 @@ fn to_numeric_04() {
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn to_integer_or_infinity_01() {
     setup_test_agent();
     let testcases = &[
@@ -1325,12 +1326,21 @@ fn to_integer_or_infinity_01() {
         (-0.0, 0.0),
         (10.2, 10.0),
         (-10.2, -10.0),
+        (-0.99999, 0.0),
+        (-1.23e-16, 0.0),
     ];
 
     for (val, expected) in testcases {
         let result = to_integer_or_infinity(*val);
         assert_eq!(result, *expected);
+        assert!(result != 0.0 || result.signum() > 0.0, "never returns -0");
     }
+}
+#[test]
+fn to_integer_or_infinity_neg_zero() {
+    let result = to_integer_or_infinity(-0.0);
+    assert_eq!(result, 0.0, "expected 0.0, got {result}");
+    assert_eq!(result.signum(), 1.0, "expected positive sign");
 }
 
 #[test]
@@ -1380,18 +1390,18 @@ fn to_string_07() {
 fn to_string_08() {
     setup_test_agent();
     let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(obj_proto), &[]);
+    let obj = ordinary_object_create(Some(obj_proto));
     let result = to_string(ECMAScriptValue::from(obj)).unwrap();
     assert_eq!(result, "[object Object]");
 }
 #[test]
 fn to_string_09() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
     let result = to_string(ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn tostring_symbol(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1403,9 +1413,17 @@ fn tostring_symbol(
 #[test]
 fn to_string_10() {
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
-    let badtostring =
-        create_builtin_function(tostring_symbol, false, 0_f64, PropertyKey::from("toString"), &[], None, None, None);
+    let obj = ordinary_object_create(None);
+    let badtostring = create_builtin_function(
+        Box::new(tostring_symbol),
+        None,
+        0_f64,
+        PropertyKey::from("toString"),
+        &[],
+        None,
+        None,
+        None,
+    );
     obj.create_data_property("toString", badtostring).unwrap();
 
     let result = to_string(ECMAScriptValue::from(obj)).unwrap_err();
@@ -1445,17 +1463,17 @@ fn to_object_03() {
     let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
 
     let boolean_obj = result.o.to_boolean_obj().unwrap();
-    assert_eq!(*boolean_obj.boolean_data().borrow(), test_value);
+    assert_eq!(*boolean_obj.boolean_data(), test_value);
 }
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn to_object_04() {
     setup_test_agent();
     let test_value = 1337.0;
     let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
 
     let number_obj = result.o.to_number_obj().unwrap();
-    assert_eq!(*number_obj.number_data().borrow(), test_value);
+    assert_eq!(*number_obj.number_data(), test_value);
 }
 #[test]
 fn to_object_05() {
@@ -1485,7 +1503,7 @@ fn to_object_07() {
 #[test]
 fn to_object_08() {
     setup_test_agent();
-    let test_value = ordinary_object_create(None, &[]);
+    let test_value = ordinary_object_create(None);
     let id = test_value.o.id();
     let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
     assert_eq!(result.o.id(), id);
@@ -1498,7 +1516,7 @@ fn to_object_08() {
 // * object value & object string -> type error
 
 // non-object number
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn faux_makes_number(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1507,7 +1525,7 @@ fn faux_makes_number(
     Ok(ECMAScriptValue::from(123_456))
 }
 // non-object string
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn faux_makes_string(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1516,14 +1534,14 @@ fn faux_makes_string(
     Ok(ECMAScriptValue::from("test result"))
 }
 // object value
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn faux_makes_obj(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(object_prototype), &[]);
+    let obj = ordinary_object_create(Some(object_prototype));
     Ok(ECMAScriptValue::from(obj))
 }
 // error
@@ -1544,12 +1562,12 @@ fn make_test_obj(valueof: FauxKind, tostring: FauxKind) -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let connect = |name, length, steps| {
         let key = PropertyKey::from(name);
         let fcn = create_builtin_function(
-            steps,
-            false,
+            Box::new(steps),
+            None,
             length,
             key.clone(),
             BUILTIN_FUNCTION_SLOTS,
@@ -1597,11 +1615,11 @@ pub fn make_tostring_getter_error() -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let key = PropertyKey::from("valueOf");
     let fcn = create_builtin_function(
-        faux_makes_number,
-        false,
+        Box::new(faux_makes_number),
+        None,
         0_f64,
         key.clone(),
         BUILTIN_FUNCTION_SLOTS,
@@ -1624,8 +1642,8 @@ pub fn make_tostring_getter_error() -> Object {
 
     let key = PropertyKey::from("toString");
     let tostring_getter = create_builtin_function(
-        faux_errors,
-        false,
+        Box::new(faux_errors),
+        None,
         0_f64,
         key.clone(),
         BUILTIN_FUNCTION_SLOTS,
@@ -1650,7 +1668,7 @@ pub fn make_tostring_getter_error() -> Object {
 pub fn make_test_obj_uncallable() -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let connect = |name| {
         let key = PropertyKey::from(name);
         define_property_or_throw(
@@ -1783,7 +1801,7 @@ fn to_primitive_prefer_number() {
     let result = to_primitive(test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test result"));
 }
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn exotic_to_prim(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1808,11 +1826,11 @@ fn make_toprimitive_obj(
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let key = PropertyKey::from(wks(WksId::ToPrimitive));
     let fcn = create_builtin_function(
-        steps,
-        false,
+        Box::new(steps),
+        None,
         1_f64,
         key.clone(),
         BUILTIN_FUNCTION_SLOTS,
@@ -1847,7 +1865,7 @@ fn to_primitive_uses_exotics() {
     let result = to_primitive(test_value, Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw string"));
 }
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn exotic_returns_object(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1855,7 +1873,7 @@ fn exotic_returns_object(
 ) -> Completion<ECMAScriptValue> {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     Ok(ECMAScriptValue::from(target))
 }
 #[test]
@@ -1889,11 +1907,11 @@ fn to_primitive_exotic_getter_throws() {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_proto = realm.borrow().intrinsics.function_prototype.clone();
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let key = PropertyKey::from(wks(WksId::ToPrimitive));
     let toprim_getter = create_builtin_function(
-        faux_errors,
-        false,
+        Box::new(faux_errors),
+        None,
         0_f64,
         key.clone(),
         BUILTIN_FUNCTION_SLOTS,
@@ -2005,7 +2023,7 @@ mod array_index {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = ArrayIndex(10);
         let duplicate = item.clone();
@@ -2136,7 +2154,7 @@ mod option_object {
     use test_case::test_case;
 
     fn object_with_marker() -> ECMAScriptValue {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         define_property_or_throw(&obj, "marker", PotentialPropertyDescriptor::new().value("sentinel")).unwrap();
         ECMAScriptValue::Object(obj)
     }
@@ -2194,9 +2212,6 @@ mod agent {
     fn string_a() -> ECMAScriptValue {
         ECMAScriptValue::from("A")
     }
-    fn string_b() -> ECMAScriptValue {
-        ECMAScriptValue::from("B")
-    }
     fn string_10() -> ECMAScriptValue {
         "10".into()
     }
@@ -2209,26 +2224,11 @@ mod agent {
     fn symbol_a() -> ECMAScriptValue {
         wks(WksId::ToPrimitive).into()
     }
-    fn symbol_b() -> ECMAScriptValue {
-        wks(WksId::HasInstance).into()
-    }
-    fn object_a() -> ECMAScriptValue {
-        intrinsic(IntrinsicId::FunctionPrototype).into()
-    }
-    fn object_b() -> ECMAScriptValue {
-        intrinsic(IntrinsicId::ObjectPrototype).into()
-    }
     fn number_10() -> ECMAScriptValue {
         10.into()
     }
-    fn number_100() -> ECMAScriptValue {
-        100.into()
-    }
     fn number_zero() -> ECMAScriptValue {
         0.into()
-    }
-    fn number_neg_zero() -> ECMAScriptValue {
-        (-0.0).into()
     }
     fn number_nan() -> ECMAScriptValue {
         f64::NAN.into()
@@ -2242,25 +2242,22 @@ mod agent {
     fn bigint_a() -> ECMAScriptValue {
         BigInt::from(10).into()
     }
-    fn bigint_b() -> ECMAScriptValue {
-        BigInt::from(-1_097_631).into()
-    }
     fn dead_object() -> ECMAScriptValue {
         DeadObject::object().into()
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn returns_10(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(10.into())
     }
     fn object_10() -> ECMAScriptValue {
         let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let object = ordinary_object_create(Some(object_prototype), &[]);
+        let object = ordinary_object_create(Some(object_prototype));
         let to_primitive = wks(WksId::ToPrimitive);
         let realm = current_realm_record();
         let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
         let to_prim_func = create_builtin_function(
-            returns_10,
-            false,
+            Box::new(returns_10),
+            None,
             0_f64,
             to_primitive.clone().into(),
             BUILTIN_FUNCTION_SLOTS,
@@ -2321,7 +2318,7 @@ mod value_kind {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = ValueKind::Number;
         let duplicate = item.clone();
@@ -2346,7 +2343,7 @@ mod conversion_hint {
     use super::*;
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = ConversionHint::Number;
         let duplicate = item.clone();

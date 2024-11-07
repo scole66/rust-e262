@@ -229,7 +229,10 @@ fn create_list_iterator_record() {
     // done must be false...
     assert!(!ir.done.get());
     // next_method must be the appropriate intrinsic...
-    assert_eq!(ir.next_method, intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext));
+    assert_eq!(
+        ir.next_method,
+        ECMAScriptValue::Object(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext))
+    );
     // and iterator must be a generator object that returns the above list.
     assert!(ir.iterator.o.to_generator_object().is_some());
     let mut results = vec![];
@@ -264,7 +267,7 @@ mod generator_state {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let left = GeneratorState::Executing;
         let right = left.clone();
@@ -309,7 +312,7 @@ mod generator_error {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = GeneratorError::AlreadyActive;
         let copy = item.clone();
@@ -346,14 +349,10 @@ mod generator_object {
         GeneratorObject::object(Some(gp), GeneratorState::Undefined, "TestingBrand")
     }
 
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
-    false_function!(is_error_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
@@ -366,7 +365,6 @@ mod generator_object {
     none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
     none_function!(to_constructable);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_function_obj);
     none_function!(to_number_obj);
@@ -826,7 +824,7 @@ mod get_iterator_from_method {
     fn object() -> ECMAScriptValue {
         ECMAScriptValue::from(intrinsic(IntrinsicId::Object))
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn create_dead_object(
         _: &ECMAScriptValue,
         _: Option<&Object>,
@@ -836,8 +834,8 @@ mod get_iterator_from_method {
     }
     fn dead_func() -> ECMAScriptValue {
         ECMAScriptValue::from(create_builtin_function(
-            create_dead_object,
-            false,
+            Box::new(create_dead_object),
+            None,
             0.0,
             "makedead".into(),
             &[],
@@ -846,7 +844,7 @@ mod get_iterator_from_method {
             None,
         ))
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn silly_iterator(
         this_value: &ECMAScriptValue,
         _: Option<&Object>,
@@ -854,7 +852,7 @@ mod get_iterator_from_method {
     ) -> Completion<ECMAScriptValue> {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let obj = ordinary_object_create(Some(iter_proto));
         let this_sentinel = to_string(this_value.get(&"sentinel".into()).unwrap()).unwrap();
         define_property_or_throw(
             &obj,
@@ -866,7 +864,7 @@ mod get_iterator_from_method {
                 .configurable(true),
         )
         .unwrap();
-        let faux_next = ordinary_object_create(Some(obj_proto), &[]);
+        let faux_next = ordinary_object_create(Some(obj_proto));
         define_property_or_throw(
             &faux_next,
             "sentinel",
@@ -882,7 +880,16 @@ mod get_iterator_from_method {
         Ok(obj.into())
     }
     fn silly_iterator_method_object() -> ECMAScriptValue {
-        let obj = create_builtin_function(silly_iterator, false, 0.0, "silly_iterator".into(), &[], None, None, None);
+        let obj = create_builtin_function(
+            Box::new(silly_iterator),
+            None,
+            0.0,
+            "silly_iterator".into(),
+            &[],
+            None,
+            None,
+            None,
+        );
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -892,7 +899,7 @@ mod get_iterator_from_method {
         ECMAScriptValue::from(obj)
     }
     fn silly_this() -> ECMAScriptValue {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -904,7 +911,7 @@ mod get_iterator_from_method {
 
     #[test_case(undefined, undefined => serr("TypeError: Value not callable"); "uncallable")]
     #[test_case(undefined, number => serr("TypeError: not an object"); "non-object came back from method")]
-    #[test_case(undefined, object => serr("TypeError: Only object values may be converted to true objects"); "no next method")]
+    #[test_case(undefined, object => serr("TypeError: Undefined and null cannot be converted to objects"); "no next method")]
     #[test_case(undefined, dead_func => serr("TypeError: get called on DeadObject"); "get fails")]
     #[test_case(silly_this, silly_iterator_method_object => Ok(("Next".to_string(), "Iterator(This)".to_string(), false)); "something positive")]
     fn call(
@@ -916,12 +923,12 @@ mod get_iterator_from_method {
         let method = make_method();
         let result = super::get_iterator_from_method(&obj, &method);
         result
-            .map(|ir| {
-                (
-                    ir.next_method.get(&"sentinel".into()).unwrap().to_string(),
-                    ir.iterator.get(&"sentinel".into()).unwrap().to_string(),
+            .and_then(|ir| {
+                Ok((
+                    ir.next_method.get(&"sentinel".into())?.to_string(),
+                    ir.iterator.get(&"sentinel".into())?.to_string(),
                     ir.done.get(),
-                )
+                ))
             })
             .map_err(unwind_any_error)
     }
@@ -936,9 +943,9 @@ mod get_iterator {
     }
     fn empty_object() -> ECMAScriptValue {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        ECMAScriptValue::from(ordinary_object_create(Some(obj_proto), &[]))
+        ECMAScriptValue::from(ordinary_object_create(Some(obj_proto)))
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn silly_iterator(
         this_value: &ECMAScriptValue,
         _: Option<&Object>,
@@ -946,7 +953,7 @@ mod get_iterator {
     ) -> Completion<ECMAScriptValue> {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let obj = ordinary_object_create(Some(iter_proto));
         let this_sentinel = to_string(this_value.get(&"sentinel".into()).unwrap()).unwrap();
         define_property_or_throw(
             &obj,
@@ -958,7 +965,7 @@ mod get_iterator {
                 .configurable(true),
         )
         .unwrap();
-        let faux_next = ordinary_object_create(Some(obj_proto), &[]);
+        let faux_next = ordinary_object_create(Some(obj_proto));
         define_property_or_throw(
             &faux_next,
             "sentinel",
@@ -974,7 +981,16 @@ mod get_iterator {
         Ok(obj.into())
     }
     fn silly_iterator_method_object() -> ECMAScriptValue {
-        let obj = create_builtin_function(silly_iterator, false, 0.0, "silly_iterator".into(), &[], None, None, None);
+        let obj = create_builtin_function(
+            Box::new(silly_iterator),
+            None,
+            0.0,
+            "silly_iterator".into(),
+            &[],
+            None,
+            None,
+            None,
+        );
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -984,7 +1000,7 @@ mod get_iterator {
         ECMAScriptValue::from(obj)
     }
     fn silly_this() -> ECMAScriptValue {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -1026,7 +1042,7 @@ mod iterator_record {
     use super::*;
     use test_case::test_case;
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn silly_iterator(
         this_value: &ECMAScriptValue,
         _: Option<&Object>,
@@ -1034,7 +1050,7 @@ mod iterator_record {
     ) -> Completion<ECMAScriptValue> {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let obj = ordinary_object_create(Some(iter_proto));
         let this_sentinel = to_string(this_value.get(&"sentinel".into()).unwrap()).unwrap();
         define_property_or_throw(
             &obj,
@@ -1046,7 +1062,7 @@ mod iterator_record {
                 .configurable(true),
         )
         .unwrap();
-        let faux_next = ordinary_object_create(Some(obj_proto), &[]);
+        let faux_next = ordinary_object_create(Some(obj_proto));
         define_property_or_throw(
             &faux_next,
             "sentinel",
@@ -1061,13 +1077,13 @@ mod iterator_record {
         .unwrap();
         Ok(obj.into())
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn iterator_next(
         this_value: &ECMAScriptValue,
         behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
     ) -> Completion<ECMAScriptValue> {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let obj = ordinary_object_create(Some(iter_proto), &[]);
+        let obj = ordinary_object_create(Some(iter_proto));
         let this_sentinel = to_string(this_value.get(&"sentinel".into()).unwrap()).unwrap();
         define_property_or_throw(
             &obj,
@@ -1080,7 +1096,16 @@ mod iterator_record {
         )
         .unwrap();
         let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
-        let next = create_builtin_function(behavior, false, 1.0, "next".into(), &[], None, Some(function_proto), None);
+        let next = create_builtin_function(
+            Box::new(behavior),
+            None,
+            1.0,
+            "next".into(),
+            &[],
+            None,
+            Some(function_proto),
+            None,
+        );
         define_property_or_throw(
             &next,
             "sentinel",
@@ -1095,7 +1120,7 @@ mod iterator_record {
         .unwrap();
         Ok(obj.into())
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn ok_next(
         this_value: &ECMAScriptValue,
         _: Option<&Object>,
@@ -1114,7 +1139,7 @@ mod iterator_record {
     ) -> Completion<ECMAScriptValue> {
         iterator_next(this_value, ok_next)
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn bad_next(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
@@ -1131,7 +1156,7 @@ mod iterator_record {
             IRKind::NextReturnsNonObject => iterator_bad_next,
             IRKind::NextReturnsObject => iterator_ok_next,
         };
-        let obj = create_builtin_function(func, false, 0.0, "silly_iterator".into(), &[], None, None, None);
+        let obj = create_builtin_function(Box::new(func), None, 0.0, "silly_iterator".into(), &[], None, None, None);
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -1147,7 +1172,7 @@ mod iterator_record {
         NextReturnsObject,
     }
     fn silly_this(kind: IRKind) -> ECMAScriptValue {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         define_property_or_throw(
             &obj,
             "sentinel",
@@ -1180,11 +1205,11 @@ mod iterator_record {
     fn no_value() -> Option<ECMAScriptValue> {
         None
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn undefined() -> Option<ECMAScriptValue> {
         Some(ECMAScriptValue::Undefined)
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn argument() -> Option<ECMAScriptValue> {
         Some(ECMAScriptValue::from("Argument"))
     }
@@ -1215,7 +1240,7 @@ mod iterator_record {
         _: &[ECMAScriptValue],
     ) -> Completion<ECMAScriptValue> {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(obj_proto), &[]);
+        let obj = ordinary_object_create(Some(obj_proto));
         obj.create_data_property_or_throw("value", ECMAScriptValue::from("value"))?;
         let done_getter = intrinsic(IntrinsicId::ThrowTypeError);
         let done_ppd = PotentialPropertyDescriptor::new().get(done_getter).configurable(true).enumerable(true);
@@ -1224,15 +1249,23 @@ mod iterator_record {
     }
     fn create_iterator_object_with_throwing_next() -> Object {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let obj = ordinary_object_create(Some(iter_proto), &[]);
-        let next_method =
-            create_builtin_function(next_returns_broken_iter_result, false, 0.0, "next".into(), &[], None, None, None);
+        let obj = ordinary_object_create(Some(iter_proto));
+        let next_method = create_builtin_function(
+            Box::new(next_returns_broken_iter_result),
+            None,
+            0.0,
+            "next".into(),
+            &[],
+            None,
+            None,
+            None,
+        );
         obj.create_data_property_or_throw("next", next_method).unwrap();
         obj
     }
     fn ir_with_throwing_done() -> IteratorRecord {
         let iterator = create_iterator_object_with_throwing_next();
-        let next_method = Object::try_from(iterator.get(&"next".into()).unwrap()).unwrap();
+        let next_method = iterator.get(&"next".into()).unwrap();
         IteratorRecord { iterator, next_method, done: Cell::new(false) }
     }
     fn instantly_done() -> IteratorRecord {
@@ -1257,7 +1290,7 @@ mod iterator_record {
             .map_err(unwind_any_error)
     }
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn tracker(this_value: &ECMAScriptValue, args: &[ECMAScriptValue], name: &str) -> Completion<ECMAScriptValue> {
         let result = crate::create_iter_result_object(ECMAScriptValue::from(""), true);
         let arg = if args.is_empty() { ECMAScriptValue::Undefined } else { args[0].clone() };
@@ -1283,37 +1316,39 @@ mod iterator_record {
     }
     fn create_tracking_iterator_with_return() -> Object {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let iterator = ordinary_object_create(Some(iter_proto), &[]);
+        let iterator = ordinary_object_create(Some(iter_proto));
         let tracking_array = array_create(0, None).unwrap();
         iterator.create_data_property_or_throw("tracker", tracking_array).unwrap();
-        let next = create_builtin_function(tracking_next, false, 1.0, "next".into(), &[], None, None, None);
+        let next = create_builtin_function(Box::new(tracking_next), None, 1.0, "next".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("next", next).unwrap();
-        let ireturn = create_builtin_function(tracking_return, false, 1.0, "return".into(), &[], None, None, None);
+        let ireturn =
+            create_builtin_function(Box::new(tracking_return), None, 1.0, "return".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("return", ireturn).unwrap();
         iterator
     }
     fn create_tracking_iterator_record() -> IteratorRecord {
         let iterator = create_tracking_iterator_with_return();
-        let next_method = Object::try_from(iterator.get(&"next".into()).unwrap()).unwrap();
+        let next_method = iterator.get(&"next".into()).unwrap();
         IteratorRecord { iterator, next_method, done: Cell::new(false) }
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn invalid_return(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Null)
     }
     fn create_iterator_with_broken_return() -> Object {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
-        let iterator = ordinary_object_create(Some(iter_proto), &[]);
-        let ireturn = create_builtin_function(invalid_return, false, 1.0, "return".into(), &[], None, None, None);
+        let iterator = ordinary_object_create(Some(iter_proto));
+        let ireturn =
+            create_builtin_function(Box::new(invalid_return), None, 1.0, "return".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("return", ireturn).unwrap();
         iterator
     }
 
     #[test_case(|| super::super::super::create_list_iterator_record(vec![]), || Ok(ECMAScriptValue::from("normal")) => Ok((ECMAScriptValue::from("normal"), vec![])); "happy, no return")]
     #[test_case(create_tracking_iterator_record, || Ok(ECMAScriptValue::from("tracker")) => Ok((ECMAScriptValue::from("tracker"), svec(&["return(undefined)"]))); "happy, called return")]
-    #[test_case(|| IteratorRecord {iterator: DeadObject::object(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: Cell::new(false)}, || Ok(ECMAScriptValue::from("thshs")) => serr("TypeError: get called on DeadObject"); "get_method throws")]
-    #[test_case(|| IteratorRecord {iterator: DeadObject::object(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: Cell::new(false)}, || Err(create_type_error("goody")) => serr("TypeError: goody"); "get_method throws, but is overridden")]
-    #[test_case(|| IteratorRecord {iterator: create_iterator_with_broken_return(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext), done: Cell::new(false)}, || Ok(ECMAScriptValue::Undefined) => serr("TypeError: iterator return method returned non object"); "iterator's return method is invalid")]
+    #[test_case(|| IteratorRecord {iterator: DeadObject::object(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext).into(), done: Cell::new(false)}, || Ok(ECMAScriptValue::from("thshs")) => serr("TypeError: get called on DeadObject"); "get_method throws")]
+    #[test_case(|| IteratorRecord {iterator: DeadObject::object(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext).into(), done: Cell::new(false)}, || Err(create_type_error("goody")) => serr("TypeError: goody"); "get_method throws, but is overridden")]
+    #[test_case(|| IteratorRecord {iterator: create_iterator_with_broken_return(), next_method: intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototypeNext).into(), done: Cell::new(false)}, || Ok(ECMAScriptValue::Undefined) => serr("TypeError: iterator return method returned non object"); "iterator's return method is invalid")]
     fn close(
         make_ir: impl FnOnce() -> IteratorRecord,
         make_completion: impl FnOnce() -> Completion<ECMAScriptValue>,
@@ -1356,28 +1391,6 @@ mod iterator_record {
     }
 }
 
-mod iterator_next {
-    use super::iterator_record::makes_good_ir;
-    use super::*;
-    use test_case::test_case;
-
-    #[test_case(makes_good_ir, Some(ECMAScriptValue::from("Argument")) => Ok((ECMAScriptValue::from("Iterator(This)(Argument)"), ECMAScriptValue::from(false))); "next returns ir")]
-    fn call(
-        make_ir: impl FnOnce() -> IteratorRecord,
-        value: Option<ECMAScriptValue>,
-    ) -> Result<(ECMAScriptValue, ECMAScriptValue), String> {
-        setup_test_agent();
-        let ir = make_ir();
-        super::iterator_next(&ir, value)
-            .map(|val| {
-                let value = val.get(&"value".into()).unwrap();
-                let done = val.get(&"done".into()).unwrap();
-                (value, done)
-            })
-            .map_err(unwind_any_error)
-    }
-}
-
 mod iterator_step {
     use super::*;
     use test_case::test_case;
@@ -1411,7 +1424,7 @@ mod iterator_kind {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let a = IteratorKind::Sync;
         let b = a.clone();

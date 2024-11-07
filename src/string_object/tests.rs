@@ -21,7 +21,7 @@ mod string_object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         let so = StringObject {
             common: RefCell::new(CommonObjectData::new(Some(prototype), true, STRING_OBJECT_SLOTS)),
-            string_data: RefCell::new(JSString::from("baloney")),
+            string_data: JSString::from("baloney"),
         };
         assert_ne!(format!("{so:?}"), "");
     }
@@ -36,18 +36,14 @@ mod string_object {
         assert_eq!(length, ECMAScriptValue::from(6));
 
         let sobj = so.o.to_string_obj().unwrap();
-        assert_eq!(*sobj.string_data.borrow(), JSString::from("orange"));
+        assert_eq!(sobj.string_data, JSString::from("orange"));
     }
 
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
-    false_function!(is_error_object);
     false_function!(is_generator_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
@@ -77,7 +73,6 @@ mod string_object {
     none_function!(to_array_object);
     none_function!(to_callable_obj);
     none_function!(to_function_obj);
-    none_function!(to_error_obj);
     none_function!(to_builtin_function_obj);
     none_function!(to_symbol_obj);
     none_function!(to_number_obj);
@@ -469,7 +464,7 @@ fn string_create() {
     assert_eq!(cod.prototype.as_ref().unwrap(), &object_prototype);
 
     let sobj = s.o.to_string_obj().unwrap();
-    assert_eq!(&*sobj.string_data.borrow(), &JSString::from("value"));
+    assert_eq!(&sobj.string_data, &JSString::from("value"));
 }
 
 #[test]
@@ -482,7 +477,7 @@ fn create_string_object_tst() {
     assert_eq!(cod.prototype.as_ref().unwrap(), &string_prototype);
 
     let sobj = s.o.to_string_obj().unwrap();
-    assert_eq!(&*sobj.string_data.borrow(), &JSString::from("value"));
+    assert_eq!(&sobj.string_data, &JSString::from("value"));
 }
 
 mod provision_string_intrinsic {
@@ -517,7 +512,7 @@ mod provision_string_intrinsic {
         // The String prototype object: has a [[StringData]] internal slot whose value is the empty
         // String.
         let sobj = string_proto.o.to_string_obj().unwrap();
-        assert_eq!(&*sobj.string_data.borrow(), &JSString::from(""));
+        assert_eq!(&sobj.string_data, &JSString::from(""));
 
         // The String prototype object: has a "length" property whose initial value is +0𝔽 and whose
         // attributes are { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
@@ -659,7 +654,7 @@ mod provision_string_intrinsic {
 #[test_case(|| ECMAScriptValue::from("blue") => sok("blue"); "string value")]
 #[test_case(|| ECMAScriptValue::from(Object::from(JSString::from("red"))) => sok("red"); "string object value")]
 #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: unit testing requires that 'this' be a String"); "bad value")]
-#[test_case(|| ECMAScriptValue::from(ordinary_object_create(None, &[])) => serr("TypeError: unit testing requires that 'this' be a String"); "bad object value")]
+#[test_case(|| ECMAScriptValue::from(ordinary_object_create(None)) => serr("TypeError: unit testing requires that 'this' be a String"); "bad object value")]
 fn this_string_value(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
     setup_test_agent();
     let val = make_val();
@@ -680,9 +675,7 @@ fn string_constructor_function(
     super::string_constructor_function(&ECMAScriptValue::Undefined, new_target.as_ref(), &arguments)
         .map(|val| match val {
             ECMAScriptValue::String(s) => (false, String::from(s)),
-            ECMAScriptValue::Object(o) => {
-                (true, String::from(o.o.to_string_obj().unwrap().string_data.borrow().clone()))
-            }
+            ECMAScriptValue::Object(o) => (true, String::from(o.o.to_string_obj().unwrap().string_data.clone())),
             _ => panic!("Bad value from string_constructor_function: {val:?}"),
         })
         .map_err(unwind_any_error)
@@ -768,14 +761,11 @@ tbd_function!(string_prototype_replace);
 tbd_function!(string_prototype_replace_all);
 tbd_function!(string_prototype_search);
 tbd_function!(string_prototype_slice);
-tbd_function!(string_prototype_split);
 tbd_function!(string_prototype_starts_with);
 tbd_function!(string_prototype_substring);
 tbd_function!(string_prototype_to_locale_lower_case);
 tbd_function!(string_prototype_to_locale_upper_case);
-tbd_function!(string_prototype_to_lower_case);
 tbd_function!(string_prototype_to_upper_case);
 tbd_function!(string_prototype_trim);
 tbd_function!(string_prototype_trim_end);
 tbd_function!(string_prototype_trim_start);
-tbd_function!(string_prototype_iterator);

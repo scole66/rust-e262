@@ -114,6 +114,13 @@ impl ECMAScriptValue {
             Self::Null
         }
     }
+
+    pub fn to_date_object(&self) -> Option<&DateObject> {
+        match self {
+            ECMAScriptValue::Object(o) => o.o.to_date_obj(),
+            _ => None,
+        }
+    }
 }
 
 impl<X> From<Option<X>> for ECMAScriptValue
@@ -138,6 +145,14 @@ impl From<Object> for ECMAScriptValue {
     fn from(source: Object) -> Self {
         // Consumes the input object, transforming it into a value.
         Self::Object(source)
+    }
+}
+impl From<Option<Object>> for ECMAScriptValue {
+    fn from(source: Option<Object>) -> Self {
+        match source {
+            Some(obj) => Self::Object(obj),
+            None => Self::Null,
+        }
     }
 }
 
@@ -196,7 +211,7 @@ impl From<i32> for ECMAScriptValue {
 }
 
 impl From<u64> for ECMAScriptValue {
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     fn from(val: u64) -> Self {
         if val <= 1 << 53 {
             Self::from(val as f64)
@@ -207,7 +222,7 @@ impl From<u64> for ECMAScriptValue {
 }
 
 impl From<usize> for ECMAScriptValue {
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     fn from(val: usize) -> Self {
         if val <= 1 << 53 {
             Self::from(val as f64)
@@ -217,7 +232,7 @@ impl From<usize> for ECMAScriptValue {
     }
 }
 impl From<i64> for ECMAScriptValue {
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     fn from(val: i64) -> Self {
         if (-(1 << 53)..=1 << 53).contains(&val) {
             Self::from(val as f64)
@@ -979,17 +994,20 @@ impl JSString {
 
 // ToIntegerOrInfinity ( argument )
 //
-// The abstract operation ToIntegerOrInfinity takes argument argument (an ECMAScript language value). It converts
-// argument to an integer representing its Number value with fractional part truncated, or to +∞ or -∞ when that Number
-// value is infinite. It performs the following steps when called:
+// The abstract operation ToIntegerOrInfinity takes argument argument (an ECMAScript language value) and returns either
+// a normal completion containing either an integer, +∞, or -∞, or a throw completion. It converts argument to an
+// integer representing its Number value with fractional part truncated, or to +∞ or -∞ when that Number value is
+// infinite. It performs the following steps when called:
 //
 //  1. Let number be ? ToNumber(argument).
-//  2. If number is NaN, +0𝔽, or -0𝔽, return 0.
+//  2. If number is one of NaN, +0𝔽, or -0𝔽, return 0.
 //  3. If number is +∞𝔽, return +∞.
 //  4. If number is -∞𝔽, return -∞.
-//  5. Let integer be floor(abs(ℝ(number))).
-//  6. If number < +0𝔽, set integer to -integer.
-//  7. Return integer.
+//  5. Return truncate(ℝ(number)).
+//
+// Note
+// 𝔽(ToIntegerOrInfinity(x)) never returns -0𝔽 for any value of x. The truncation of the fractional part is performed
+// after converting x to a mathematical value.
 impl ECMAScriptValue {
     pub fn to_integer_or_infinity(&self) -> Completion<f64> {
         Ok(to_integer_or_infinity(self.to_number()?))
@@ -1002,7 +1020,7 @@ pub fn to_integer_or_infinity(number: f64) -> f64 {
         number
     } else {
         let integer = number.abs().floor();
-        if number < 0.0 {
+        if number < 0.0 && integer != 0.0 {
             -integer
         } else {
             integer
@@ -1010,9 +1028,9 @@ pub fn to_integer_or_infinity(number: f64) -> f64 {
     }
 }
 
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::cast_precision_loss)]
-#[allow(clippy::cast_sign_loss)]
+#[expect(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_precision_loss)]
+#[expect(clippy::cast_sign_loss)]
 pub fn to_usize(arg: f64) -> anyhow::Result<usize> {
     if arg.is_finite() && arg >= 0.0 && arg <= usize::MAX as f64 && arg.fract() == 0.0 {
         Ok(arg as usize)
@@ -1021,7 +1039,7 @@ pub fn to_usize(arg: f64) -> anyhow::Result<usize> {
     }
 }
 
-#[allow(clippy::cast_precision_loss)]
+#[expect(clippy::cast_precision_loss)]
 pub fn to_f64(arg: usize) -> anyhow::Result<f64> {
     if arg <= 1 << 53 {
         Ok(arg as f64)
@@ -1053,7 +1071,7 @@ fn to_core_int_f64(modulo: f64, number: f64) -> f64 {
         0.0
     } else {
         let i = number.signum() * number.abs().floor();
-        i % modulo
+        i.rem_euclid(modulo)
     }
 }
 impl ECMAScriptValue {
@@ -1080,7 +1098,7 @@ impl ECMAScriptValue {
         Ok(to_core_signed_f64(modulo, self.to_number()?))
     }
 }
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 pub fn to_int32_f64(number: f64) -> i32 {
     to_core_signed_f64(4_294_967_296.0, number) as i32
 }
@@ -1109,7 +1127,7 @@ impl ECMAScriptValue {
 //      | * ToUint32(ToInt32(x)) is the same value as ToUint32(x) for all values of x. (It is to preserve this latter
 //      |   property that +∞𝔽 and -∞𝔽 are mapped to +0𝔽.)
 //      | * ToUint32 maps -0𝔽 to +0𝔽.
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 pub fn to_uint32_f64(number: f64) -> u32 {
     let i = to_core_int_f64(4_294_967_296.0, number) as i64;
     (if i < 0 { i + 4_294_967_296 } else { i }).try_into().expect("Math results in in-bounds calculation")
@@ -1135,7 +1153,7 @@ impl JSString {
 //  3. Let int be the mathematical value whose sign is the sign of number and whose magnitude is floor(abs(ℝ(number))).
 //  4. Let int16bit be int modulo 2**16.
 //  5. If int16bit ≥ 2**15, return 𝔽(int16bit - 2**16); otherwise return 𝔽(int16bit).
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 pub fn to_int16_f64(number: f64) -> i16 {
     to_core_signed_f64(65536.0, number) as i16
 }
@@ -1160,7 +1178,7 @@ impl ECMAScriptValue {
 //      |
 //      | * The substitution of 2**16 for 2**32 in step 4 is the only difference between ToUint32 and ToUint16.
 //      | * ToUint16 maps -0𝔽 to +0𝔽.
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 pub fn to_uint16_f64(number: f64) -> u16 {
     let i = to_core_int_f64(65536.0, number) as i64;
     (if i < 0 { i + 65536 } else { i }).try_into().expect("Math results in in-bounds calculation")
@@ -1182,7 +1200,7 @@ impl ECMAScriptValue {
 //  4. Let int8bit be int modulo 2**8.
 //  5. If int8bit ≥ 2**7, return 𝔽(int8bit - 2**8); otherwise return 𝔽(int8bit).
 impl ECMAScriptValue {
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation)]
     pub fn to_int8(&self) -> Completion<i8> {
         Ok(self.to_core_signed(256.0)? as i8)
     }
@@ -1199,7 +1217,7 @@ impl ECMAScriptValue {
 //  4. Let int8bit be int modulo 2**8.
 //  5. Return 𝔽(int8bit).
 impl ECMAScriptValue {
-    #[allow(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_possible_truncation)]
     pub fn to_uint8(&self) -> Completion<u8> {
         let i = self.to_core_int(256.0)? as i64;
         Ok((if i < 0 { i + 256 } else { i }).try_into().expect("Math results in in-bounds calculation"))
@@ -1344,7 +1362,7 @@ pub fn to_property_key(argument: ECMAScriptValue) -> Completion<PropertyKey> {
 //  1. Let len be ? ToIntegerOrInfinity(argument).
 //  2. If len ≤ 0, return +0𝔽.
 //  3. Return 𝔽(min(len, 2**53 - 1)).
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 impl ECMAScriptValue {
     pub fn to_length(&self) -> Completion<i64> {
         let len = self.to_integer_or_infinity()?;
@@ -1402,7 +1420,7 @@ pub fn to_index(value: impl Into<ECMAScriptValue>) -> Completion<i64> {
     } else {
         let integer = value.to_integer_or_infinity()?;
         let clamped = to_length(integer).unwrap();
-        #[allow(clippy::cast_precision_loss)]
+        #[expect(clippy::cast_precision_loss)]
         if clamped as f64 == integer {
             Ok(clamped)
         } else {
@@ -1427,7 +1445,12 @@ pub fn number_same_value_zero(x: f64, y: f64) -> bool {
 //  2. If argument has a [[Call]] internal method, return true.
 //  3. Return false.
 pub fn is_callable(value: &ECMAScriptValue) -> bool {
-    to_callable(value).is_some()
+    value.is_callable()
+}
+impl ECMAScriptValue {
+    pub fn is_callable(&self) -> bool {
+        to_callable(self).is_some()
+    }
 }
 
 // IsConstructor ( argument )

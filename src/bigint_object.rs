@@ -19,8 +19,8 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let bigint_constructor = create_builtin_function(
-        bigint_constructor_function,
-        true,
+        Box::new(bigint_constructor_function),
+        Some(ConstructorKind::Base),
         1.0,
         PropertyKey::from("BigInt"),
         BUILTIN_FUNCTION_SLOTS,
@@ -33,8 +33,8 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 f64::from($length),
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -66,7 +66,7 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //  * has a [[Prototype]] internal slot whose value is %Object.prototype%.
     //  * The phrase “this BigInt value” within the specification of a method refers to the result returned by calling
     //    the abstract operation ThisBigIntValue with the this value of the method invocation passed as the argument.
-    let bigint_prototype = ordinary_object_create(Some(object_prototype.clone()), &[]);
+    let bigint_prototype = ordinary_object_create(Some(object_prototype.clone()));
     define_property_or_throw(
         &bigint_constructor,
         "prototype",
@@ -83,8 +83,8 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 f64::from($length),
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,

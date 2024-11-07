@@ -29,7 +29,6 @@ pub enum ClassName {
     String(JSString),
     Symbol(Symbol),
     Private(PrivateName),
-    Empty,
 }
 
 impl<T> From<T> for ClassName
@@ -41,16 +40,16 @@ where
     }
 }
 
-impl TryFrom<NormalCompletion> for ClassName {
+impl TryFrom<NormalCompletion> for Option<ClassName> {
     type Error = anyhow::Error;
 
     fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
         match value {
-            NormalCompletion::Empty => Ok(Self::Empty),
-            NormalCompletion::PrivateName(pn) => Ok(Self::Private(pn)),
+            NormalCompletion::Empty => Ok(None),
+            NormalCompletion::PrivateName(pn) => Ok(Some(ClassName::Private(pn))),
             NormalCompletion::Value(v) => match v {
-                ECMAScriptValue::String(s) => Ok(Self::String(s)),
-                ECMAScriptValue::Symbol(sym) => Ok(Self::Symbol(sym)),
+                ECMAScriptValue::String(s) => Ok(Some(ClassName::String(s))),
+                ECMAScriptValue::Symbol(sym) => Ok(Some(ClassName::Symbol(sym))),
                 ECMAScriptValue::Undefined
                 | ECMAScriptValue::Null
                 | ECMAScriptValue::Boolean(_)
@@ -61,7 +60,8 @@ impl TryFrom<NormalCompletion> for ClassName {
             NormalCompletion::Reference(_)
             | NormalCompletion::Environment(_)
             | NormalCompletion::IteratorRecord(_)
-            | NormalCompletion::PrivateElement(_) => Err(anyhow::anyhow!("Not a class name")),
+            | NormalCompletion::PrivateElement(_)
+            | NormalCompletion::ClassItem(_) => Err(anyhow::anyhow!("Not a class name")),
         }
     }
 }
@@ -72,13 +72,102 @@ impl From<ClassName> for NormalCompletion {
             ClassName::String(s) => s.into(),
             ClassName::Symbol(sym) => sym.into(),
             ClassName::Private(pn) => pn.into(),
-            ClassName::Empty => NormalCompletion::Empty,
         }
     }
 }
 
-#[derive(Debug)]
-pub struct ClassFieldDefinitionRecord {}
+impl From<Option<ClassName>> for NormalCompletion {
+    fn from(value: Option<ClassName>) -> Self {
+        match value {
+            Some(cn) => cn.into(),
+            None => NormalCompletion::Empty,
+        }
+    }
+}
+
+impl fmt::Display for ClassName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClassName::String(s) => write!(f, "{s}"),
+            ClassName::Symbol(sym) => write!(f, "{sym}"),
+            ClassName::Private(pn) => write!(f, "{pn}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassFieldDefinitionRecord {
+    pub name: ClassName,
+    pub initializer: Option<Object>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ClassStaticBlockDefinitionRecord {
+    pub body_function: Object,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ClassItem {
+    StaticPrivateElement(PrivateElement),
+    PrivateElement(PrivateElement),
+    StaticClassFieldDefinition(ClassFieldDefinitionRecord),
+    ClassFieldDefinition(ClassFieldDefinitionRecord),
+    ClassStaticBlockDefinition(ClassStaticBlockDefinitionRecord),
+}
+
+impl TryFrom<NormalCompletion> for ClassItem {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::ClassItem(ci) => Ok(*ci),
+            NormalCompletion::PrivateElement(pi) => Ok(Self::PrivateElement(*pi)),
+            _ => bail!("Not a ClassItem"),
+        }
+    }
+}
+
+impl TryFrom<NormalCompletion> for Option<ClassItem> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::ClassItem(ci) => Ok(Some(*ci)),
+            NormalCompletion::PrivateElement(pi) => Ok(Some(ClassItem::PrivateElement(*pi))),
+            NormalCompletion::Empty => Ok(None),
+            _ => bail!(format!("{value:?} Not a ClassItem")),
+        }
+    }
+}
+
+impl fmt::Display for ClassItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClassItem::StaticPrivateElement(pe) => {
+                write!(f, "Static({pe})")
+            }
+            ClassItem::PrivateElement(_) => todo!(),
+            ClassItem::StaticClassFieldDefinition(ClassFieldDefinitionRecord {
+                name,
+                initializer: Some(initializer),
+            }) => {
+                write!(f, "Static Field({name}: {initializer})")
+            }
+            ClassItem::StaticClassFieldDefinition(ClassFieldDefinitionRecord { name, initializer: None }) => {
+                write!(f, "Static Field({name})")
+            }
+            ClassItem::ClassFieldDefinition(ClassFieldDefinitionRecord { name, initializer: Some(initializer) }) => {
+                write!(f, "Field({name}: {initializer})")
+            }
+            ClassItem::ClassFieldDefinition(ClassFieldDefinitionRecord { name, initializer: None }) => {
+                write!(f, "Field({name})")
+            }
+            ClassItem::ClassStaticBlockDefinition(ClassStaticBlockDefinitionRecord { body_function }) => {
+                write!(f, "Block({body_function})")
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum BodySource {
@@ -412,6 +501,7 @@ pub enum FunctionSource {
     ClassStaticBlock(Rc<ClassStaticBlock>),
     FunctionDeclaration(Rc<FunctionDeclaration>),
     GeneratorDeclaration(Rc<GeneratorDeclaration>),
+    GeneratorMethod(Rc<GeneratorMethod>),
 }
 
 impl fmt::Display for FunctionSource {
@@ -429,6 +519,7 @@ impl fmt::Display for FunctionSource {
             FunctionSource::ClassStaticBlock(node) => node.fmt(f),
             FunctionSource::FunctionDeclaration(node) => node.fmt(f),
             FunctionSource::GeneratorDeclaration(node) => node.fmt(f),
+            FunctionSource::GeneratorMethod(node) => node.fmt(f),
         }
     }
 }
@@ -448,6 +539,7 @@ impl PartialEq for FunctionSource {
             (Self::ClassStaticBlock(l0), Self::ClassStaticBlock(r0)) => Rc::ptr_eq(l0, r0),
             (Self::FunctionDeclaration(l0), Self::FunctionDeclaration(r0)) => Rc::ptr_eq(l0, r0),
             (Self::GeneratorDeclaration(l0), Self::GeneratorDeclaration(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::GeneratorMethod(l0), Self::GeneratorMethod(r0)) => Rc::ptr_eq(l0, r0),
             (
                 Self::FunctionExpression(_)
                 | Self::GeneratorExpression(_)
@@ -460,7 +552,8 @@ impl PartialEq for FunctionSource {
                 | Self::FieldDefinition(_)
                 | Self::ClassStaticBlock(_)
                 | Self::FunctionDeclaration(_)
-                | Self::GeneratorDeclaration(_),
+                | Self::GeneratorDeclaration(_)
+                | Self::GeneratorMethod(_),
                 _,
             ) => false,
         }
@@ -504,6 +597,11 @@ impl From<Rc<MethodDefinition>> for FunctionSource {
 impl From<Rc<GeneratorDeclaration>> for FunctionSource {
     fn from(value: Rc<GeneratorDeclaration>) -> Self {
         Self::GeneratorDeclaration(value)
+    }
+}
+impl From<Rc<GeneratorMethod>> for FunctionSource {
+    fn from(value: Rc<GeneratorMethod>) -> Self {
+        Self::GeneratorMethod(value)
     }
 }
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
@@ -556,6 +654,16 @@ impl TryFrom<FunctionSource> for Rc<GeneratorDeclaration> {
         }
     }
 }
+impl TryFrom<FunctionSource> for Rc<GeneratorMethod> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::GeneratorMethod(gm) => Ok(gm),
+            _ => bail!("GeneratorMethod expected"),
+        }
+    }
+}
 impl TryFrom<FunctionSource> for Rc<FieldDefinition> {
     type Error = anyhow::Error;
 
@@ -600,9 +708,9 @@ pub struct FunctionObjectData {
     strict: bool,
     pub home_object: Option<Object>,
     pub source_text: String,
-    fields: Vec<ClassFieldDefinitionRecord>,
-    private_methods: Vec<Rc<PrivateElement>>,
-    pub class_field_initializer_name: ClassName,
+    pub fields: Vec<ClassFieldDefinitionRecord>,
+    pub private_methods: Vec<PrivateElement>,
+    pub class_field_initializer_name: Option<ClassName>,
     is_class_constructor: bool,
     is_constructor: bool,
 }
@@ -668,6 +776,9 @@ impl ObjectInterface for FunctionObject {
     }
     fn is_callable_obj(&self) -> bool {
         true
+    }
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Function
     }
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let is_c = self.function_data().borrow().is_constructor;
@@ -848,7 +959,7 @@ impl CallableObject for FunctionObject {
         //  8. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
         let kind = self.function_data().borrow().constructor_kind;
         let this_argument = if kind == ConstructorKind::Base {
-            let ta = new_target.ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, &[]);
+            let ta = new_target.ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, ordinary_object_create);
             match ta {
                 Err(err) => {
                     ec_push(Err(err));
@@ -904,14 +1015,34 @@ pub fn initialize_instance_elements(this_argument: &Object, constructor: &Object
     //  4. For each element fieldRecord of fields, do
     //      a. Perform ? DefineField(O, fieldRecord).
     //  5. Return unused.
-    let data = constructor.o.to_function_obj().unwrap().function_data().borrow();
-    for method in &data.private_methods {
-        private_method_or_accessor_add(this_argument, method.clone())?;
+    fn work(
+        this_argument: &Object,
+        methods: &Vec<PrivateElement>,
+        fields: &Vec<ClassFieldDefinitionRecord>,
+    ) -> Completion<()> {
+        for method in methods {
+            private_method_or_accessor_add(this_argument, method.clone())?;
+        }
+        for field_record in fields {
+            define_field(this_argument, field_record)?;
+        }
+        Ok(())
     }
-    for field_record in &data.fields {
-        define_field(this_argument, field_record)?;
+    match constructor.o.to_function_obj() {
+        Some(func) => {
+            let data = func.function_data().borrow();
+            work(this_argument, &data.private_methods, &data.fields)
+        }
+        None => match constructor.o.to_builtin_function_obj() {
+            Some(bif) => {
+                let data = bif.builtin_function_data().borrow();
+                work(this_argument, &data.private_methods, &data.fields)
+            }
+            None => {
+                panic!("Function object or Builtin Function object expected");
+            }
+        },
     }
-    Ok(())
 }
 
 impl FunctionInterface for FunctionObject {
@@ -921,7 +1052,7 @@ impl FunctionInterface for FunctionObject {
 }
 
 impl FunctionObject {
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn new(
         prototype: Option<Object>,
         environment: Rc<dyn EnvironmentRecord>,
@@ -936,8 +1067,8 @@ impl FunctionObject {
         home_object: Option<Object>,
         source_text: &str,
         fields: Vec<ClassFieldDefinitionRecord>,
-        private_methods: Vec<Rc<PrivateElement>>,
-        class_field_initializer_name: ClassName,
+        private_methods: Vec<PrivateElement>,
+        class_field_initializer_name: Option<ClassName>,
         is_class_constructor: bool,
         compiled: Rc<Chunk>,
     ) -> Self {
@@ -965,7 +1096,7 @@ impl FunctionObject {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     pub fn object(
         prototype: Option<Object>,
         environment: Rc<dyn EnvironmentRecord>,
@@ -980,8 +1111,8 @@ impl FunctionObject {
         home_object: Option<Object>,
         source_text: &str,
         fields: Vec<ClassFieldDefinitionRecord>,
-        private_methods: Vec<Rc<PrivateElement>>,
-        class_field_initializer_name: ClassName,
+        private_methods: Vec<PrivateElement>,
+        class_field_initializer_name: Option<ClassName>,
         is_class_constructor: bool,
         compiled: Rc<Chunk>,
     ) -> Object {
@@ -1279,6 +1410,9 @@ impl<'a> FuncArgs<'a> {
     pub fn remaining(&mut self) -> &mut std::slice::Iter<'a, ECMAScriptValue> {
         &mut self.iterator
     }
+    pub fn next_if_exists(&mut self) -> Option<ECMAScriptValue> {
+        self.iterator.next().cloned()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1326,6 +1460,16 @@ impl From<&str> for FunctionName {
     }
 }
 
+impl From<ClassName> for FunctionName {
+    fn from(source: ClassName) -> Self {
+        match source {
+            ClassName::String(jsstring) => FunctionName::String(jsstring),
+            ClassName::Symbol(symbol) => FunctionName::Symbol(symbol),
+            ClassName::Private(private_name) => FunctionName::PrivateName(private_name),
+        }
+    }
+}
+
 impl TryFrom<ECMAScriptValue> for FunctionName {
     type Error = anyhow::Error;
     fn try_from(value: ECMAScriptValue) -> Result<Self, Self::Error> {
@@ -1367,16 +1511,22 @@ impl TryFrom<NormalCompletion> for FunctionName {
             | NormalCompletion::Reference(_)
             | NormalCompletion::Environment(_)
             | NormalCompletion::IteratorRecord(_)
-            | NormalCompletion::PrivateElement(_) => bail!("Completion type not valid for FunctionName"),
+            | NormalCompletion::PrivateElement(_)
+            | NormalCompletion::ClassItem(_) => bail!("Completion type not valid for FunctionName"),
         }
     }
 }
 
+pub type BuiltInFcn = Box<dyn Fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>>;
+
 pub struct BuiltInFunctionData {
     pub realm: Rc<RefCell<Realm>>,
     pub initial_name: Option<FunctionName>,
-    pub steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
-    pub is_constructor: bool,
+    pub steps: BuiltInFcn,
+    pub constructor_kind: Option<ConstructorKind>,
+    pub fields: Vec<ClassFieldDefinitionRecord>,
+    pub private_methods: Vec<PrivateElement>,
+    pub source_text: Option<String>,
 }
 
 impl fmt::Debug for BuiltInFunctionData {
@@ -1385,7 +1535,10 @@ impl fmt::Debug for BuiltInFunctionData {
             .field("realm", &self.realm)
             .field("initial_name", &self.initial_name)
             .field("steps", &"<steps>")
-            .field("is_constructor", &self.is_constructor)
+            .field("constructor_kind", &self.constructor_kind)
+            .field("fields", &self.fields)
+            .field("private_methods", &self.private_methods)
+            .field("source_text", &self.source_text)
             .finish()
     }
 }
@@ -1394,10 +1547,18 @@ impl BuiltInFunctionData {
     pub fn new(
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
-        is_constructor: bool,
+        steps: BuiltInFcn,
+        constructor_kind: Option<ConstructorKind>,
     ) -> Self {
-        Self { realm, initial_name, steps, is_constructor }
+        Self {
+            realm,
+            initial_name,
+            steps,
+            constructor_kind,
+            fields: vec![],
+            private_methods: vec![],
+            source_text: None,
+        }
     }
 }
 
@@ -1425,12 +1586,12 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
-        is_constructor: bool,
+        steps: BuiltInFcn,
+        constructor_kind: Option<ConstructorKind>,
     ) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(prototype, extensible, BUILTIN_FUNCTION_SLOTS)),
-            builtin_data: RefCell::new(BuiltInFunctionData::new(realm, initial_name, steps, is_constructor)),
+            builtin_data: RefCell::new(BuiltInFunctionData::new(realm, initial_name, steps, constructor_kind)),
         }
     }
 
@@ -1439,10 +1600,10 @@ impl BuiltInFunctionObject {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
-        is_constructor: bool,
+        steps: BuiltInFcn,
+        constructor_kind: Option<ConstructorKind>,
     ) -> Object {
-        Object { o: Rc::new(Self::new(prototype, extensible, realm, initial_name, steps, is_constructor)) }
+        Object { o: Rc::new(Self::new(prototype, extensible, realm, initial_name, steps, constructor_kind)) }
     }
 }
 
@@ -1467,8 +1628,9 @@ impl ObjectInterface for BuiltInFunctionObject {
         Some(self)
     }
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
-        let is_c = self.builtin_function_data().borrow().is_constructor;
-        if is_c {
+        let data = self.builtin_function_data().borrow();
+        let me = data.constructor_kind.as_ref();
+        if me.is_some() {
             Some(self)
         } else {
             None
@@ -1479,6 +1641,9 @@ impl ObjectInterface for BuiltInFunctionObject {
     }
     fn is_callable_obj(&self) -> bool {
         true
+    }
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Function
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
@@ -1612,10 +1777,10 @@ impl CallableObject for BuiltInFunctionObject {
 //
 // Each built-in function defined in this specification is created by calling the CreateBuiltinFunction abstract
 // operation.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn create_builtin_function(
-    behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
-    is_constructor: bool,
+    behavior: BuiltInFcn,
+    constructor_kind: Option<ConstructorKind>,
     length: f64,
     name: PropertyKey,
     _internal_slots_list: &[InternalSlotName],
@@ -1626,7 +1791,7 @@ pub fn create_builtin_function(
     let realm_to_use = realm.unwrap_or_else(|| current_realm_record().unwrap());
     let prototype_to_use = prototype.unwrap_or_else(|| realm_to_use.borrow().intrinsics.function_prototype.clone());
     let func =
-        BuiltInFunctionObject::object(Some(prototype_to_use), true, realm_to_use, None, behavior, is_constructor);
+        BuiltInFunctionObject::object(Some(prototype_to_use), true, realm_to_use, None, behavior, constructor_kind);
     set_function_length(&func, length);
     set_function_name(&func, FunctionName::from(name), prefix);
     func
@@ -1795,7 +1960,7 @@ impl GeneratorDeclaration {
         set_function_name(&closure, name.into(), None);
 
         let protoproto = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-        let prototype = ordinary_object_create(Some(protoproto), &[]);
+        let prototype = ordinary_object_create(Some(protoproto));
         define_property_or_throw(
             &closure,
             "prototype",
@@ -1808,7 +1973,7 @@ impl GeneratorDeclaration {
 }
 
 impl AsyncFunctionDeclaration {
-    #[allow(unused_variables, clippy::needless_pass_by_value)]
+    #[expect(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
         &self,
 
@@ -1823,7 +1988,7 @@ impl AsyncFunctionDeclaration {
 }
 
 impl AsyncGeneratorDeclaration {
-    #[allow(unused_variables, clippy::needless_pass_by_value)]
+    #[expect(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
         &self,
 
@@ -1840,7 +2005,7 @@ impl AsyncGeneratorDeclaration {
 /// Create a ECMAScript Function Object, as though from source code
 ///
 /// See [OrdinaryFunctionCreate](https://tc39.es/ecma262/#sec-ordinaryfunctioncreate) from ECMA-262.
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn ordinary_function_create(
     function_prototype: Object,
     source_text: &str,
@@ -1915,8 +2080,8 @@ pub fn ordinary_function_create(
         None,
         source_text,
         Vec::<ClassFieldDefinitionRecord>::new(),
-        Vec::<Rc<PrivateElement>>::new(),
-        ClassName::Empty,
+        Vec::<PrivateElement>::new(),
+        None,
         false,
         compiled,
     );
@@ -1966,8 +2131,7 @@ pub fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
         None => match func.o.to_builtin_function_obj() {
             Some(bi_obj) => {
                 let mut bi_data = bi_obj.builtin_function_data().borrow_mut();
-                bi_data.is_constructor = true;
-                //bi_data.constructor_kind = ConstructorKind::Base;
+                bi_data.constructor_kind = Some(ConstructorKind::Base);
             }
             None => unreachable!(),
         },
@@ -1977,7 +2141,7 @@ pub fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
         Some(p) => p,
         None => {
             let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let p = ordinary_object_create(Some(obj_proto), &[]);
+            let p = ordinary_object_create(Some(obj_proto));
             define_property_or_throw(
                 &p,
                 "constructor",
@@ -2057,8 +2221,8 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     // * has a "length" property whose value is 1𝔽.
     let function_constructor = create_builtin_function(
-        function_constructor_function,
-        true,
+        Box::new(function_constructor_function),
+        Some(ConstructorKind::Base),
         1.0,
         PropertyKey::from("Function"),
         BUILTIN_FUNCTION_SLOTS,
@@ -2085,8 +2249,8 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 f64::from($length),
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -2121,8 +2285,8 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
     define_property_or_throw(&function_prototype, "constructor", ppd).unwrap();
 
     let has_instance = create_builtin_function(
-        function_prototype_has_instance,
-        false,
+        Box::new(function_prototype_has_instance),
+        None,
         1.0,
         "[Symbol.hasInstance]".into(),
         BUILTIN_FUNCTION_SLOTS,
@@ -2279,7 +2443,7 @@ pub fn create_dynamic_function(
     };
     let compilation_status = match &body {
         BodySource::Function(fb) => fb.compile_body(&mut compiled, &source_text, &function_data),
-        BodySource::Generator(gb) => gb.compile_body(&mut compiled, &source_text, &function_data),
+        BodySource::Generator(gb) => gb.evaluate_generator_body(&mut compiled, &source_text, &function_data),
         BodySource::AsyncFunction(_) => todo!(),
         BodySource::AsyncGenerator(_) => todo!(),
         _ => unreachable!(),
@@ -2309,8 +2473,7 @@ pub fn create_dynamic_function(
             make_constructor(&f, None);
         }
         FunctionKind::Generator => {
-            let prototype =
-                ordinary_object_create(Some(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype)), &[]);
+            let prototype = ordinary_object_create(Some(intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype)));
             define_property_or_throw(
                 &f,
                 "prototype",
@@ -2325,7 +2488,7 @@ pub fn create_dynamic_function(
         FunctionKind::Async => {}
         FunctionKind::AsyncGenerator => {
             let prototype =
-                ordinary_object_create(Some(intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype)), &[]);
+                ordinary_object_create(Some(intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype)));
             define_property_or_throw(
                 &f,
                 "prototype",
@@ -2375,11 +2538,73 @@ fn function_prototype_apply(
 }
 
 fn function_prototype_bind(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Function.prototype.bind ( thisArg, ...args )
+    // This method performs the following steps when called:
+    //
+    // 1. Let Target be the this value.
+    // 2. If IsCallable(Target) is false, throw a TypeError exception.
+    // 3. Let F be ? BoundFunctionCreate(Target, thisArg, args).
+    // 4. Let L be 0.
+    // 5. Let targetHasLength be ? HasOwnProperty(Target, "length").
+    // 6. If targetHasLength is true, then
+    //    a. Let targetLen be ? Get(Target, "length").
+    //    b. If targetLen is a Number, then
+    //       i. If targetLen is +∞𝔽, then
+    //          1. Set L to +∞.
+    //       ii. Else if targetLen is -∞𝔽, then
+    //           1. Set L to 0.
+    //       iii. Else,
+    //            1. Let targetLenAsInt be ! ToIntegerOrInfinity(targetLen).
+    //            2. Assert: targetLenAsInt is finite.
+    //            3. Let argCount be the number of elements in args.
+    //            4. Set L to max(targetLenAsInt - argCount, 0).
+    // 7. Perform SetFunctionLength(F, L).
+    // 8. Let targetName be ? Get(Target, "name").
+    // 9. If targetName is not a String, set targetName to the empty String.
+    // 10. Perform SetFunctionName(F, targetName, "bound").
+    // 11. Return F.
+    //
+    // Note 1 | Function objects created using Function.prototype.bind are exotic objects. They also do not have a
+    //        | "prototype" property.
+    //
+    // Note 2 | If Target is either an arrow function or a bound function exotic object, then the thisArg passed to this
+    //        | method will not be used by subsequent calls to F.
+    let mut arg_getter = FuncArgs::from(arguments);
+    let this_arg = arg_getter.next_arg();
+    let args = arg_getter.remaining().cloned().collect::<Vec<_>>();
+    let target = this_value;
+    if !target.is_callable() {
+        return Err(create_type_error("Bind must be called on a function"));
+    }
+    let target = Object::try_from(target).expect("Callable items should be objects");
+    let f = BoundFunctionObject::create(target.clone(), this_arg, &args)?;
+    let mut l = 0.0;
+    let target_has_length = target.has_own_property(&"length".into())?;
+    if target_has_length {
+        let target_len = target.get(&"length".into())?;
+        if let ECMAScriptValue::Number(target_len) = target_len {
+            l = if target_len == f64::INFINITY {
+                f64::INFINITY
+            } else if target_len == f64::NEG_INFINITY {
+                0.0
+            } else {
+                let target_len_as_int = to_integer_or_infinity(target_len);
+                let arg_count = to_f64(args.len()).expect("in bounds math");
+                (target_len_as_int - arg_count).max(0.0)
+            };
+        }
+    }
+    set_function_length(&f, l);
+    let target_name = match target.get(&"name".into())? {
+        ECMAScriptValue::String(s) => s,
+        _ => JSString::from(""),
+    };
+    set_function_name(&f, target_name.into(), Some("bound".into()));
+    Ok(ECMAScriptValue::Object(f))
 }
 
 fn function_prototype_to_string(
@@ -2420,15 +2645,16 @@ fn function_prototype_to_string(
                 Ok(fdata.source_text.clone().into())
             } else if let Some(bif) = obj.o.to_builtin_function_obj() {
                 let bif_data = bif.builtin_function_data().borrow();
-                if let Some(initial_name) = &bif_data.initial_name {
+                if let Some(text) = &bif_data.source_text {
+                    Ok(text.clone().into())
+                } else if let Some(initial_name) = &bif_data.initial_name {
                     Ok(format!("function {initial_name}() {{ [native code] }}").into())
                 } else {
                     Ok("function () { [native code] }".into())
                 }
-            //} else if is_callable(&obj.into()) {
-            //    Nothing currently does this (maybe bound function objects will?)
-            //    Relying on test-262 to tell me when I finally build something that needs this.
-            //    Ok("function () { [native code] }".into())
+            } else if is_callable(&obj.into()) {
+                // Bound function objects do this.
+                Ok("function () { [native code] }".into())
             } else {
                 Err(create_type_error(ERRMSG))
             }
@@ -2466,6 +2692,48 @@ pub fn make_method(f: &dyn FunctionInterface, home_object: Object) {
     // 1. Set F.[[HomeObject]] to homeObject.
     // 2. Return UNUSED.
     f.function_data().borrow_mut().home_object = Some(home_object);
+}
+
+pub fn make_class_constructor(f: &Object) {
+    // MakeClassConstructor ( F )
+    // The abstract operation MakeClassConstructor takes argument F (an ECMAScript function object) and returns unused.
+    // It performs the following steps when called:
+    //
+    //  1. Assert: F.[[IsClassConstructor]] is false.
+    //  2. Set F.[[IsClassConstructor]] to true.
+    //  3. Return unused.
+    match f.o.to_function_obj() {
+        Some(fo) => {
+            let mut fd = fo.function_data().borrow_mut();
+            fd.is_class_constructor = true;
+        }
+        None => {
+            if let Some(bi) = f.o.to_builtin_function_obj() {
+                let mut data = bi.builtin_function_data().borrow_mut();
+                data.constructor_kind = Some(ConstructorKind::Base);
+            }
+        }
+    }
+}
+
+pub fn get_super_constructor() -> Result<ECMAScriptValue, InternalRuntimeError> {
+    // GetSuperConstructor ( )
+    // The abstract operation GetSuperConstructor takes no arguments and returns an ECMAScript language value. It
+    // performs the following steps when called:
+    //
+    // 1. Let envRec be GetThisEnvironment().
+    // 2. Assert: envRec is a Function Environment Record.
+    // 3. Let activeFunction be envRec.[[FunctionObject]].
+    // 4. Assert: activeFunction is an ECMAScript function object.
+    // 5. Let superConstructor be ! activeFunction.[[GetPrototypeOf]]().
+    // 6. Return superConstructor.
+    let env_rec = get_this_environment();
+    let fer: &FunctionEnvironmentRecord = TryFrom::try_from(&env_rec)?;
+    let active_function = fer.get_function_object().ok_or(InternalRuntimeError::FunctionExpected)?;
+    let super_constructor =
+        active_function.o.get_prototype_of().map_err(|_| InternalRuntimeError::GetPrototypeOfFailed)?;
+    let result = ECMAScriptValue::from(super_constructor);
+    Ok(result)
 }
 
 #[cfg(test)]

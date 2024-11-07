@@ -215,7 +215,7 @@ mod agent {
         super::typeof_operator(expr).map_err(unwind_any_error)
     }
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn superproperty() -> FullCompletion {
         // For example: ({method() { delete super.test_property; }}).method()
         // 1. Let F be OrdinaryFunctionCreate(intrinsics.[[%FunctionPrototype%]], source_text, ParameterList, Body, thisMode, env, privateenv).
@@ -224,13 +224,13 @@ mod agent {
         // 3. Let fenv be NewFunctionEnvironment(F, undefined).
         // 4. Let actualThis be fenv.GetThisBinding().
         // 5. Return MakeSuperPropertyReference(actualThis, "test_property", true)
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let copy = obj.clone();
         let myref = Reference::new(Base::Value(obj.into()), "item", true, Some(copy.into()));
         Ok(NormalCompletion::from(myref))
     }
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn bool_proto_ref(strict: bool) -> FullCompletion {
         let bool_obj = intrinsic(IntrinsicId::Boolean);
         let myref = Reference::new(Base::Value(bool_obj.into()), "prototype", strict, None);
@@ -242,17 +242,17 @@ mod agent {
     fn nonstrict_proto_ref() -> FullCompletion {
         bool_proto_ref(false)
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn dead_ref() -> FullCompletion {
         let dead = DeadObject::object();
         Ok(NormalCompletion::from(Reference::new(Base::Value(dead.into()), "anything", true, None)))
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn ref_to_undefined() -> FullCompletion {
         let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         Ok(NormalCompletion::from(Reference::new(Base::Environment(env), "undefined", true, None)))
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn dead_env() -> FullCompletion {
         let outer = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let dead = DeadObject::object();
@@ -479,23 +479,6 @@ mod agent {
         String::from(super::wks(id).description().unwrap())
     }
 
-    #[test]
-    fn two_values() {
-        setup_test_agent();
-        AGENT.with(|agent| {
-            let index = agent.execution_context_stack.borrow().len() - 1;
-            agent.execution_context_stack.borrow_mut()[index]
-                .stack
-                .push(Ok(NormalCompletion::from(ECMAScriptValue::Null)));
-            agent.execution_context_stack.borrow_mut()[index]
-                .stack
-                .push(Ok(NormalCompletion::from(ECMAScriptValue::from("test"))));
-            let (left, right) = agent.two_values(index);
-            assert_eq!(left, ECMAScriptValue::Null);
-            assert_eq!(right, ECMAScriptValue::from("test"));
-        });
-    }
-
     fn no_primitive_val() -> ECMAScriptValue {
         make_test_obj_uncallable().into()
     }
@@ -604,7 +587,7 @@ mod agent {
             assert_eq!(callee.enumerable, false);
             assert_eq!(callee.configurable, false);
 
-            assert!(ao.o.is_arguments_object());
+            assert!(ao.o.to_arguments_object().is_some());
         }
 
         #[test]
@@ -636,15 +619,21 @@ mod agent {
         use super::*;
         use test_case::test_case;
 
-        #[test_case(&[]; "empty")]
-        #[test_case(&[10.into(), 20.into()]; "multiple")]
-        fn normal(values: &[ECMAScriptValue]) {
+        #[test_case(&[], &[]; "empty")]
+        #[test_case(&["x", "y"], &[10.into(), 20.into()]; "multiple")]
+        fn normal(names: &[&str], values: &[ECMAScriptValue]) {
             setup_test_agent();
             let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
-            let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "create_mapped_arguments_object test"));
-            super::set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
+            let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "create_mapped_arguments_object test"))
+                as Rc<dyn EnvironmentRecord>;
+            super::set_lexical_environment(Some(lexenv.clone()));
 
-            let func_obj = ordinary_object_create(None, &[]);
+            let func_obj = ordinary_object_create(None);
+
+            for (idx, name) in names.iter().enumerate() {
+                let value = values.get(idx).cloned().unwrap_or(ECMAScriptValue::Undefined);
+                lexenv.set_mutable_binding(JSString::from(*name), value, false).unwrap();
+            }
 
             let num_values = values.len();
             let index = AGENT.with(|agent| {
@@ -734,7 +723,7 @@ fn prepare_for_execution() {
 type ValueMaker = fn() -> ECMAScriptValue;
 fn empty_object() -> ECMAScriptValue {
     let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    ECMAScriptValue::from(ordinary_object_create(Some(obj_proto), &[]))
+    ECMAScriptValue::from(ordinary_object_create(Some(obj_proto)))
 }
 fn bool_class() -> ECMAScriptValue {
     let boolean = intrinsic(IntrinsicId::Boolean);
@@ -769,12 +758,12 @@ fn test_has_instance(
 }
 fn faux_class() -> ECMAScriptValue {
     let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(obj_proto), &[]);
+    let obj = ordinary_object_create(Some(obj_proto));
     let realm = current_realm_record();
     let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
     let has_instance = create_builtin_function(
-        test_has_instance,
-        false,
+        Box::new(test_has_instance),
+        None,
         1_f64,
         PropertyKey::from("[Symbol.hasInstance]"),
         BUILTIN_FUNCTION_SLOTS,
@@ -795,16 +784,16 @@ fn faux_class() -> ECMAScriptValue {
 #[test_case(empty_object, undef => serr("TypeError: Right-hand side of 'instanceof' is not an object"); "class is not object")]
 #[test_case(empty_object, dead_object => serr("TypeError: get called on DeadObject"); "GetMethod throws for class")]
 #[test_case(empty_object, empty_object => serr("TypeError: Right-hand side of 'instanceof' is not callable"); "class is not callable")]
-#[test_case(empty_object, bool_class => Ok(false.into()); "defer to ordinary")]
-#[test_case(empty_object, faux_class => Ok(false.into()); "[Symbol.hasInstance] returns false")]
-#[test_case(number, faux_class => Ok(true.into()); "[Symbol.hasInstance] returns true")]
+#[test_case(empty_object, bool_class => Ok(false); "defer to ordinary")]
+#[test_case(empty_object, faux_class => Ok(false); "[Symbol.hasInstance] returns false")]
+#[test_case(number, faux_class => Ok(true); "[Symbol.hasInstance] returns true")]
 #[test_case(string, faux_class => serr("TypeError: Test Sentinel"); "[Symbol.hasInstance] throws")]
-fn instanceof_operator(make_v: ValueMaker, make_target: ValueMaker) -> Result<ECMAScriptValue, String> {
+fn instanceof_operator(make_v: ValueMaker, make_target: ValueMaker) -> Result<bool, String> {
     setup_test_agent();
     let v = make_v();
     let target = make_target();
 
-    super::instanceof_operator(v, &target).map_err(unwind_any_error).map(|nc| nc.try_into().unwrap())
+    super::instanceof_operator(v, &target).map_err(unwind_any_error)
 }
 
 #[test]
@@ -822,7 +811,7 @@ fn wksid_eq() {
     assert_eq!(w2 == w3, false);
 }
 #[test]
-#[allow(clippy::clone_on_copy)]
+#[expect(clippy::clone_on_copy)]
 fn wksid_clone() {
     let w1 = WksId::ToPrimitive;
     let w2 = w1.clone();
@@ -1182,10 +1171,10 @@ mod process_error {
         ProcessError::RuntimeError { error }
     }
     fn runtime_err_non_err_obj() -> ProcessError {
-        let error = ordinary_object_create(None, &[]).into();
+        let error = ordinary_object_create(None).into();
         ProcessError::RuntimeError { error }
     }
-    #[allow(clippy::needless_pass_by_value)]
+    #[expect(clippy::needless_pass_by_value)]
     fn matches_object(s: String) {
         lazy_static! {
             static ref MATCH: Regex = Regex::new("^Thrown: <Object [0-9]+>$").expect("Valid regex");
@@ -1277,7 +1266,7 @@ mod current_script_or_module {
     }
 }
 
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)]
 mod create_per_iteration_environment {
     use super::*;
     use test_case::test_case;
@@ -1450,7 +1439,7 @@ mod begin_call_evaluation {
     use super::*;
     use test_case::test_case;
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn test_reporter(
         this_value: &ECMAScriptValue,
         _new_target: Option<&Object>,
@@ -1468,8 +1457,8 @@ mod begin_call_evaluation {
 
     fn good_func() -> ECMAScriptValue {
         ECMAScriptValue::from(create_builtin_function(
-            test_reporter,
-            false,
+            Box::new(test_reporter),
+            None,
             2.0,
             "test_reporter".into(),
             &[],
@@ -1480,9 +1469,9 @@ mod begin_call_evaluation {
     }
 
     fn object_this() -> NormalCompletion {
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         obj.set("marker", "legitimate this", true).unwrap();
-        let base = ECMAScriptValue::from(ordinary_object_create(None, &[]));
+        let base = ECMAScriptValue::from(ordinary_object_create(None));
         let r = Reference::new(Base::Value(base), "callee", true, Some(ECMAScriptValue::from(obj)));
         NormalCompletion::from(r)
     }
@@ -1497,7 +1486,7 @@ mod begin_call_evaluation {
 
     fn with_env() -> NormalCompletion {
         let objproto = intrinsic(IntrinsicId::ObjectPrototype);
-        let obj = ordinary_object_create(Some(objproto), &[]);
+        let obj = ordinary_object_create(Some(objproto));
         obj.create_data_property_or_throw("marker", "with-object").unwrap();
         let we = ObjectEnvironmentRecord::new(obj, true, None, "with_env test");
         Reference::new(Base::Environment(Rc::new(we)), "test_report", true, None).into()
@@ -1567,15 +1556,11 @@ mod for_in_iterator_object {
     default_delete_test!();
     default_own_property_keys_test!();
     default_id_test!();
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
-    false_function!(is_error_object);
     false_function!(is_generator_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
@@ -1588,7 +1573,6 @@ mod for_in_iterator_object {
     none_function!(to_builtin_function_obj);
     none_function!(to_callable_obj);
     none_function!(to_constructable);
-    none_function!(to_error_obj);
     none_function!(to_function_obj);
     none_function!(to_generator_object);
     none_function!(to_number_obj);
@@ -1603,7 +1587,7 @@ mod for_in_iterator_internals {
     #[test]
     fn debug() {
         setup_test_agent();
-        let obj = ordinary_object_create(None, &[]);
+        let obj = ordinary_object_create(None);
         let item = ForInIteratorInternals {
             object: obj,
             object_was_visited: false,
@@ -1618,7 +1602,7 @@ mod for_in_iterator_internals {
 fn create_for_in_iterator() {
     setup_test_agent();
     let proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(proto), &[]);
+    let obj = ordinary_object_create(Some(proto));
 
     let fii = super::create_for_in_iterator(obj.clone());
     let fii_obj = fii.o.to_for_in_iterator().expect("object should be f-i iterator");
@@ -1649,13 +1633,13 @@ mod for_in_iterator_prototype_next {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
         object_proto.create_data_property_or_throw("proto_prop", 67).unwrap();
         object_proto.create_data_property_or_throw("masked", 0).unwrap();
-        let object = ordinary_object_create(Some(object_proto), &[]);
+        let object = ordinary_object_create(Some(object_proto));
         object.create_data_property_or_throw("on_object", 999).unwrap();
         object.create_data_property_or_throw(wks(WksId::ToStringTag), "TestObject").unwrap();
         object.create_data_property_or_throw("masked", 99).unwrap();
         crate::agent::create_for_in_iterator(object).into()
     }
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn lying_ownprops(_: &AdaptableObject) -> Completion<Vec<PropertyKey>> {
         Ok(vec!["one".into(), "two".into(), "three".into()])
     }
@@ -1683,7 +1667,7 @@ mod for_in_iterator_prototype_next {
         crate::agent::create_for_in_iterator(o).into()
     }
 
-    #[test_case(|| crate::agent::create_for_in_iterator(ordinary_object_create(None, &[])).into() => Ok(vec![]); "empty object")]
+    #[test_case(|| crate::agent::create_for_in_iterator(ordinary_object_create(None)).into() => Ok(vec![]); "empty object")]
     #[test_case(make_busy_object => Ok(vec!["on_object".into(), "masked".into(), "proto_prop".into()]); "busy object")]
     #[test_case(|| crate::agent::create_for_in_iterator(DeadObject::object()).into() => serr("TypeError: own_property_keys called on DeadObject"); "own_property_keys fails")]
     #[test_case(lyingkeys => Ok(vec![]); "own_property_keys lies")]
@@ -1717,8 +1701,8 @@ mod evaluate_initialized_class_field_definition {
         let src = "sum = 10+20";
         let fd = Maker::new(src).field_definition();
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let home = ordinary_object_create(Some(proto), &[]);
-        let name = ClassName::from("class_name");
+        let home = ordinary_object_create(Some(proto));
+        let name = Some(ClassName::from("class_name"));
         let info = StashedFunctionData {
             source_text: String::new(),
             params: Rc::new(FormalParameters::Empty(Location::default())).into(),
@@ -1731,7 +1715,7 @@ mod evaluate_initialized_class_field_definition {
         let obj = evaluate_initialized_class_field_definition(&info, home.clone(), name, src).unwrap();
 
         let fdata = obj.o.to_function_obj().unwrap().function_data().borrow();
-        assert_eq!(fdata.class_field_initializer_name, ClassName::from("class_name"));
+        assert_eq!(fdata.class_field_initializer_name, Some(ClassName::from("class_name")));
         assert_eq!(fdata.home_object.as_ref().unwrap().o.id(), home.o.id());
     }
 
@@ -1745,8 +1729,8 @@ mod evaluate_initialized_class_field_definition {
         let src = "sum = @@# + 10+20";
         let fd = Maker::new(src).field_definition();
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let home = ordinary_object_create(Some(proto), &[]);
-        let name = ClassName::from("class_name");
+        let home = ordinary_object_create(Some(proto));
+        let name = Some(ClassName::from("class_name"));
         let info = StashedFunctionData {
             source_text: String::new(),
             params: Rc::new(FormalParameters::Empty(Location::default())).into(),
@@ -1772,7 +1756,7 @@ mod define_method_property {
     }
 
     fn ordinary() -> Object {
-        ordinary_object_create(None, &[])
+        ordinary_object_create(None)
     }
 
     #[test_case(
@@ -1813,7 +1797,7 @@ mod define_method_property {
         setup_test_agent();
         let home_object = make_home_object();
         let closure = make_closure();
-        let opt_pe = define_method_property(&home_object, key.clone(), closure.clone(), enumerable);
+        let opt_pe = define_method_property(&home_object, key.clone(), closure.clone(), enumerable).unwrap();
         match opt_pe {
             None => {
                 let pk = PropertyKey::try_from(key).unwrap();
@@ -1841,77 +1825,6 @@ mod define_method_property {
                 }
             }
         }
-    }
-}
-
-mod define_method {
-    use super::*;
-    use test_case::test_case;
-
-    fn ordinary() -> Object {
-        ordinary_object_create(None, &[])
-    }
-    fn std_data() -> (StashedFunctionData, String) {
-        let source = String::from("bob() {}");
-        let md = Maker::new(&source).method_definition();
-        let MethodDefinition::NamedFunction(_name, params, body, _) = md.as_ref() else { panic!() };
-        let data = StashedFunctionData {
-            source_text: source.clone(),
-            params: ParamSource::from(params.clone()),
-            body: BodySource::from(body.clone()),
-            to_compile: FunctionSource::from(md.clone()),
-            strict: false,
-            this_mode: ThisLexicality::NonLexicalThis,
-        };
-        (data, source)
-    }
-    fn fcn_too_big() -> (StashedFunctionData, String) {
-        let source = String::from("bob() {while (true) {@@@;}}");
-        let md = Maker::new(&source).method_definition();
-        let MethodDefinition::NamedFunction(_name, params, body, _) = md.as_ref() else { panic!() };
-        let data = StashedFunctionData {
-            source_text: source.clone(),
-            params: ParamSource::from(params.clone()),
-            body: BodySource::from(body.clone()),
-            to_compile: FunctionSource::from(md.clone()),
-            strict: false,
-            this_mode: ThisLexicality::NonLexicalThis,
-        };
-        (data, source)
-    }
-    fn not_named_method() -> (StashedFunctionData, String) {
-        let source = String::from("get bob() {}");
-        let md = Maker::new(&source).method_definition();
-        let MethodDefinition::Getter(_name, body, _) = md.as_ref() else { panic!() };
-        let data = StashedFunctionData {
-            source_text: source.clone(),
-            params: ParamSource::from(Maker::new("").unique_formal_parameters()),
-            body: BodySource::from(body.clone()),
-            to_compile: FunctionSource::from(md.clone()),
-            strict: false,
-            this_mode: ThisLexicality::NonLexicalThis,
-        };
-        (data, source)
-    }
-
-    #[test_case(ordinary, || None, std_data => sok("length:0"); "typical")]
-    #[test_case(ordinary, || None, fcn_too_big => serr("out of range integral type conversion attempted"); "function compilation fails")]
-    #[test_case(ordinary, || None, not_named_method => panics "entered unreachable code"; "reach the unreachable")]
-    fn f(
-        make_object: impl FnOnce() -> Object,
-        make_proto: impl FnOnce() -> Option<Object>,
-        make_info: impl FnOnce() -> (StashedFunctionData, String),
-    ) -> Result<String, String> {
-        setup_test_agent();
-        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
-        set_lexical_environment(Some(env));
-
-        let object = make_object();
-        let prototype = make_proto();
-        let (info, src) = make_info();
-        define_method(object, prototype, &info, &src)
-            .map_err(|e| e.to_string())
-            .map(|obj| ECMAScriptValue::from(obj).test_result_string())
     }
 }
 

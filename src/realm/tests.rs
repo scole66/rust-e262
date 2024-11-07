@@ -15,6 +15,8 @@ const ALL_INTRINSIC_IDS: &[IntrinsicId] = &[
     IntrinsicId::BigIntPrototype,
     IntrinsicId::Boolean,
     IntrinsicId::BooleanPrototype,
+    IntrinsicId::Date,
+    IntrinsicId::DatePrototype,
     IntrinsicId::DecodeURI,
     IntrinsicId::DecodeURIComponent,
     IntrinsicId::EncodeURI,
@@ -87,7 +89,7 @@ fn intrinsic_id_hash() {
     }
 }
 #[test]
-#[allow(clippy::clone_on_copy)]
+#[expect(clippy::clone_on_copy)]
 fn intrinsic_id_clone() {
     let id1 = IntrinsicId::Object;
     let id2 = id1.clone();
@@ -227,7 +229,7 @@ mod intrinsics {
     #[test_case(|| intrinsic(IntrinsicId::TypeErrorPrototype) => Some(IntrinsicId::TypeErrorPrototype); "id: TypeErrorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::URIError) => Some(IntrinsicId::URIError); "id: URIError")]
     #[test_case(|| intrinsic(IntrinsicId::URIErrorPrototype) => Some(IntrinsicId::URIErrorPrototype); "id: URIErrorPrototype")]
-    #[test_case(|| ordinary_object_create(None, &[]) => None; "not an intrinsic")]
+    #[test_case(|| ordinary_object_create(None) => None; "not an intrinsic")]
     fn which(make_object: fn() -> Object) -> Option<IntrinsicId> {
         setup_test_agent();
         let obj = make_object();
@@ -258,10 +260,30 @@ fn throw_type_error_test() {
 #[test_case(super::encode_uri => panics "not yet implemented"; "encode_uri")]
 #[test_case(super::encode_uri_component => panics "not yet implemented"; "encode_uri_component")]
 #[test_case(super::parse_float => panics "not yet implemented"; "parse_float")]
-#[test_case(super::parse_int => panics "not yet implemented"; "parse_int")]
 fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
     f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
+}
+
+#[test_case(|| vec!["1Z:".into(), 36.into()] => sok("71"); "ignores trailing")]
+#[test_case(|| vec![wks(WksId::ToPrimitive).into()] => serr("TypeError: Symbols may not be converted to strings"); "to_string throws")]
+#[test_case(|| vec!["   +10".into()] => sok("10"); "leading whitespace and + sign")]
+#[test_case(|| vec!["\n\n-32".into()] => sok("-32"); "leading newlines and - sign")]
+#[test_case(|| vec!["-&".into()] => sok("NaN"); "leading - sign, but no number")]
+#[test_case(|| vec!["\n\n-32".into(), wks(WksId::ToPrimitive).into()] => serr("TypeError: Symbol values cannot be converted to Number values"); "bad radix")]
+#[test_case(|| vec!["56".into(), 99.into()] => sok("NaN"); "radix out of range")]
+#[test_case(|| vec!["0x661".into(), 0.into()] => sok("1633"); "intuits hex")]
+#[test_case(|| vec!["0X11abc".into()] => sok("72380"); "hex with capital")]
+#[test_case(|| vec!["ABCD".into(), 16.into()] => sok("43981"); "radix 16")]
+#[test_case(|| vec!["-20".into()] => sok("-20"); "negative")]
+#[test_case(|| vec!["0".into()] => sok("0"); "zero")]
+#[test_case(|| vec!["-0".into()] => sok("-0"); "negative zero")]
+fn parse_int(make_vals: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<String, String> {
+    setup_test_agent();
+    let arguments = make_vals();
+    super::parse_int(&ECMAScriptValue::Undefined, None, arguments.as_slice())
+        .map_err(unwind_any_error)
+        .map(|v| v.test_result_string())
 }
 
 #[test_case(

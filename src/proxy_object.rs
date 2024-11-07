@@ -44,6 +44,11 @@ impl ObjectInterface for ProxyObject {
 
         proxy_items.as_ref().map_or(false, |items| items.proxy_target.o.is_callable_obj())
     }
+    fn kind(&self) -> ObjectTag {
+        let proxy_items = self.proxy_items.borrow();
+
+        proxy_items.as_ref().map_or(ObjectTag::Object, |items| items.proxy_target.o.kind())
+    }
 
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let proxy_items = self.proxy_items.borrow();
@@ -985,8 +990,8 @@ pub fn provision_proxy_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //    that requires initialization.
 
     let proxy_constructor = create_builtin_function(
-        proxy_constructor_function,
-        true,
+        Box::new(proxy_constructor_function),
+        Some(ConstructorKind::Base),
         2_f64,
         PropertyKey::from("Proxy"),
         BUILTIN_FUNCTION_SLOTS,
@@ -1001,8 +1006,8 @@ pub fn provision_proxy_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -1072,7 +1077,7 @@ fn proxy_revocable(
     //  6. Perform ! CreateDataPropertyOrThrow(result, "proxy", proxy).
     //  7. Perform ! CreateDataPropertyOrThrow(result, "revoke", revoker).
     //  8. Return result.
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn revoker_closure(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         let f = active_function_object().expect("A function should be running.");
         let f = f.o.to_builtin_function_with_revocable_proxy_slot().expect("This should be a revokable proxy");
@@ -1088,9 +1093,13 @@ fn proxy_revocable(
     let target = args.next_arg();
     let handler = args.next_arg();
     let proxy = to_object(proxy_create(target, handler)?).expect("Proxy should already be an object");
-    let revoker =
-        BuiltinFunctionWithRevokableProxySlot::create(revoker_closure, 0.0, PropertyKey::from(""), proxy.clone());
-    let result = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+    let revoker = BuiltinFunctionWithRevokableProxySlot::create(
+        Box::new(revoker_closure),
+        0.0,
+        PropertyKey::from(""),
+        proxy.clone(),
+    );
+    let result = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
     result.create_data_property_or_throw("proxy", proxy)?;
     result.create_data_property_or_throw("revoke", revoker)?;
     Ok(ECMAScriptValue::Object(result))
@@ -1116,12 +1125,12 @@ impl BuiltinFunctionWithRevokableProxySlot {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
-        is_constructor: bool,
+        steps: BuiltInFcn,
+        constructor_kind: Option<ConstructorKind>,
         revokable_proxy: Option<Object>,
     ) -> Self {
         Self {
-            func: BuiltInFunctionObject::new(prototype, extensible, realm, initial_name, steps, is_constructor),
+            func: BuiltInFunctionObject::new(prototype, extensible, realm, initial_name, steps, constructor_kind),
             revokable_proxy: RefCell::new(revokable_proxy),
         }
     }
@@ -1131,24 +1140,19 @@ impl BuiltinFunctionWithRevokableProxySlot {
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
-        steps: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
-        is_constructor: bool,
+        steps: BuiltInFcn,
+        constructor_kind: Option<ConstructorKind>,
         revokable_proxy: Option<Object>,
     ) -> Object {
         Object {
-            o: Rc::new(Self::new(prototype, extensible, realm, initial_name, steps, is_constructor, revokable_proxy)),
+            o: Rc::new(Self::new(prototype, extensible, realm, initial_name, steps, constructor_kind, revokable_proxy)),
         }
     }
 
-    pub fn create(
-        behavior: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>,
-        length: f64,
-        name: PropertyKey,
-        proxy: Object,
-    ) -> Object {
+    pub fn create(behavior: BuiltInFcn, length: f64, name: PropertyKey, proxy: Object) -> Object {
         let realm_to_use = current_realm_record().unwrap();
         let prototype_to_use = realm_to_use.borrow().intrinsics.function_prototype.clone();
-        let func = Self::object(Some(prototype_to_use), true, realm_to_use, None, behavior, false, Some(proxy));
+        let func = Self::object(Some(prototype_to_use), true, realm_to_use, None, behavior, None, Some(proxy));
         set_function_length(&func, length);
         set_function_name(&func, FunctionName::from(name), None);
         func
@@ -1227,6 +1231,13 @@ impl ObjectInterface for BuiltinFunctionWithRevokableProxySlot {
     }
     fn is_callable_obj(&self) -> bool {
         self.func.is_callable_obj()
+    }
+    fn kind(&self) -> ObjectTag {
+        if self.is_callable_obj() {
+            ObjectTag::Function
+        } else {
+            ObjectTag::Object
+        }
     }
 }
 

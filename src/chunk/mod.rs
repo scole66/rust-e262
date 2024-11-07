@@ -99,7 +99,7 @@ impl Chunk {
         self.opcodes.len() - 1
     }
 
-    #[allow(clippy::cast_sign_loss)]
+    #[expect(clippy::cast_sign_loss)]
     pub fn op_jump_back(&mut self, opcode: Insn, location: usize) -> anyhow::Result<()> {
         self.opcodes.push(opcode.into());
         let delta = isize::try_from(location).expect("a hope and a prayer")
@@ -110,7 +110,7 @@ impl Chunk {
         Ok(())
     }
 
-    #[allow(clippy::cast_sign_loss)]
+    #[expect(clippy::cast_sign_loss)]
     pub fn fixup(&mut self, mark: usize) -> anyhow::Result<()> {
         let len = self.opcodes.len();
         if mark >= len {
@@ -125,7 +125,7 @@ impl Chunk {
         self.opcodes.len()
     }
 
-    #[allow(clippy::cast_possible_wrap)]
+    #[expect(clippy::cast_possible_wrap)]
     pub fn insn_repr_at(&self, starting_idx: usize) -> (usize, String) {
         let mut idx = starting_idx;
         let insn = Insn::try_from(self.opcodes[idx]).unwrap();
@@ -142,12 +142,15 @@ impl Chunk {
             | Insn::GetLexBinding
             | Insn::InitializeVarBinding
             | Insn::SetMutableVarBinding
+            | Insn::CreatePrivateNameIfMissing
             | Insn::TargetedContinue
             | Insn::TargetedBreak
             | Insn::HandleTargetedBreak
-            | Insn::PrivateIdLookup => {
+            | Insn::PrivateIdLookup
+            | Insn::AttachSourceText
+            | Insn::MakePrivateReference => {
                 let arg = self.opcodes[idx] as usize;
-                (2, format!("    {:<24}{} ({})", insn, arg, self.strings[arg]))
+                (2, format!("    {:<24}{} ({})", insn, arg, String::from(&self.strings[arg]).escape_debug()))
             }
             Insn::Float => {
                 let arg = self.opcodes[idx] as usize;
@@ -162,15 +165,19 @@ impl Chunk {
             | Insn::RotateUp
             | Insn::RotateDown
             | Insn::RotateDownList
+            | Insn::RotateListDown
+            | Insn::RotateListUp
             | Insn::PopOutList
             | Insn::InstantiateIdFreeFunctionExpression
             | Insn::InstantiateArrowFunctionExpression
             | Insn::InstantiateGeneratorFunctionExpression
             | Insn::InstantiateOrdinaryFunctionExpression
             | Insn::EvaluateInitializedClassFieldDefinition
+            | Insn::EvaluateInitializedClassStaticFieldDefinition
             | Insn::EvaluateClassStaticBlockDefinition
             | Insn::DefineMethod
-            | Insn::DefineMethodProperty => {
+            | Insn::DefineMethodProperty
+            | Insn::AttachElements => {
                 let arg = self.opcodes[idx] as usize;
                 (2, format!("    {insn:<24}{arg}"))
             }
@@ -186,6 +193,11 @@ impl Chunk {
             | Insn::PushNewVarEnvFromLex
             | Insn::PushNewLexEnvFromVar
             | Insn::SetLexEnvToVarEnv
+            | Insn::SetAsideLexEnv
+            | Insn::RestoreLexEnv
+            | Insn::PushNewPrivateEnv
+            | Insn::PopPrivateEnv
+            | Insn::PushWithEnv
             | Insn::CreateDataProperty
             | Insn::SetPrototype
             | Insn::ToPropertyKey
@@ -198,10 +210,12 @@ impl Chunk {
             | Insn::False
             | Insn::Empty
             | Insn::EmptyIfNotError
+            | Insn::UndefinedIfEmpty
             | Insn::Zero
             | Insn::GetValue
             | Insn::PutValue
             | Insn::FunctionPrototype
+            | Insn::ObjectPrototype
             | Insn::Call
             | Insn::StrictCall
             | Insn::EndFunction
@@ -267,6 +281,7 @@ impl Chunk {
             | Insn::RequireConstructor
             | Insn::Construct
             | Insn::Object
+            | Insn::ObjectWithProto
             | Insn::Array
             | Insn::IteratorAccumulate
             | Insn::IterateArguments
@@ -284,8 +299,21 @@ impl Chunk {
             | Insn::EnumerateObjectProperties
             | Insn::ListToArray
             | Insn::SetFunctionName
+            | Insn::GetParentsFromSuperclass
             | Insn::GeneratorStartFromFunction
-            | Insn::Yield => (1, format!("    {insn}")),
+            | Insn::Yield
+            | Insn::CreateDefaultConstructor
+            | Insn::MakeClassConstructorAndSetName
+            | Insn::MakeConstructor
+            | Insn::MakeConstructorWithProto
+            | Insn::SetDerived
+            | Insn::NameOnlyFieldRecord
+            | Insn::NameOnlyStaticFieldRecord
+            | Insn::GetNewTarget
+            | Insn::GetSuperConstructor
+            | Insn::ConstructorCheck
+            | Insn::BindThisAndInit
+            | Insn::StaticClassItem => (1, format!("    {insn}")),
             Insn::JumpIfAbrupt
             | Insn::Jump
             | Insn::JumpIfNormal
@@ -312,10 +340,14 @@ impl Chunk {
                 let flags_arg = self.opcodes[idx + 1] as usize;
                 (3, format!("    {insn:<24}/{}/{}", self.strings[pattern_arg], self.strings[flags_arg]))
             }
-            Insn::DefineGetter | Insn::DefineSetter => {
+            Insn::DefineGetter | Insn::DefineSetter | Insn::InstantiateGeneratorMethod => {
                 let arg = self.opcodes[idx] as usize;
                 let flag = self.opcodes[idx + 1] != 0;
                 (3, format!("    {:<24}{} {}", insn, arg, if flag { "enumerable" } else { "hidden" }))
+            }
+            Insn::MakeSuperPropertyReference => {
+                let flag = self.opcodes[idx] != 0;
+                (2, format!("    {:<24}{}", insn, if flag { "strict" } else { "non-strict" }))
             }
             Insn::LoopContinues | Insn::CreatePerIterationEnvironment => {
                 let string_set_idx = self.opcodes[idx] as usize;

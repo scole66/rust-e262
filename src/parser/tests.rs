@@ -1,4 +1,4 @@
-#![allow(clippy::clone_on_copy)]
+#![expect(clippy::clone_on_copy)]
 use super::*;
 use crate::testhelp::*;
 use crate::tests::*;
@@ -121,7 +121,7 @@ mod pe_code {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let code_a = PECode::TryBlockError;
         let code_b = code_a.clone();
@@ -143,7 +143,7 @@ mod pe_code {
 
 #[test]
 fn parse_goal_01() {
-    format!("{:?} {:?}", ParseGoal::Script, ParseGoal::Module);
+    assert_ne!(format!("{:?} {:?}", ParseGoal::Script, ParseGoal::Module), "");
 }
 #[test]
 fn parse_goal_02() {
@@ -179,7 +179,7 @@ fn yield_await_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{left:?}");
+    assert_ne!(format!("{left:?}"), "");
 }
 #[test]
 fn yield_await_tagged_key_01() {
@@ -200,7 +200,7 @@ fn yield_await_tagged_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{left:?}");
+    assert_ne!(format!("{left:?}"), "");
 }
 #[test]
 fn in_yield_await_key_01() {
@@ -221,7 +221,7 @@ fn in_yield_await_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{left:?}");
+    assert_ne!(format!("{left:?}"), "");
 }
 #[test]
 fn in_key_01() {
@@ -232,7 +232,7 @@ fn in_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{left:?}");
+    assert_ne!(format!("{left:?}"), "");
 }
 #[test]
 fn in_await_key_01() {
@@ -245,7 +245,7 @@ fn in_await_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{left:?}");
+    assert_ne!(format!("{left:?}"), "");
 }
 #[test]
 fn yield_await_return_key_01() {
@@ -266,7 +266,7 @@ fn yield_await_return_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{left:?}");
+    assert_ne!(format!("{left:?}"), "");
 }
 #[test]
 fn yield_key_01() {
@@ -277,7 +277,7 @@ fn yield_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{left:?}");
+    assert_ne!(format!("{left:?}"), "");
 }
 #[test]
 fn yield_await_default_key_01() {
@@ -298,7 +298,7 @@ fn yield_await_default_key_01() {
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
     assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    format!("{left:?}");
+    assert_ne!(format!("{left:?}"), "");
 }
 
 #[test]
@@ -403,7 +403,7 @@ fn otherwise_05() {
 
 #[test]
 fn attkind_01() {
-    format!("{:?} {:?}", ATTKind::Invalid, ATTKind::Simple);
+    assert_ne!(format!("{:?} {:?}", ATTKind::Invalid, ATTKind::Simple), "");
     let a = ATTKind::Invalid;
     let b = a.clone();
     assert_eq!(a, b);
@@ -880,7 +880,7 @@ mod parse_error {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let e1 = ParseError::new(PECode::Generic, 1);
         let e2 = ParseError::new(PECode::OneOfKeywordExpected(vec![Keyword::For, Keyword::Const]), 1);
@@ -1057,7 +1057,7 @@ mod await_allowed {
     use test_case::test_case;
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = AwaitAllowed::Yes;
         let duplicate = item.clone();
@@ -1088,7 +1088,7 @@ mod yield_allowed {
     use test_case::test_case;
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let item = YieldAllowed::Yes;
         let duplicate = item.clone();

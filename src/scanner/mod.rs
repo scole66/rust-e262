@@ -1459,7 +1459,7 @@ fn int_to_number(src: &str, radix: u32) -> f64 {
     match u64::from_str_radix(src, radix) {
         Ok(x) =>
         {
-            #[allow(clippy::cast_precision_loss)]
+            #[expect(clippy::cast_precision_loss)]
             if x < 1 << 53 {
                 x as f64
             } else {

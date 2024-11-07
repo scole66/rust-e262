@@ -12,7 +12,7 @@ pub fn provision_reflect_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //  * does not have a [[Call]] internal method; it cannot be invoked as a function.
 
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
-    let reflect = ordinary_object_create(Some(object_prototype), &[]);
+    let reflect = ordinary_object_create(Some(object_prototype));
     realm.borrow_mut().intrinsics.reflect = reflect.clone();
 
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
@@ -20,8 +20,8 @@ pub fn provision_reflect_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 f64::from($length),
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,

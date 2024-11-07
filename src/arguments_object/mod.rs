@@ -76,8 +76,8 @@ impl ObjectInterface for ArgumentsObject {
     fn id(&self) -> usize {
         self.common.borrow().objid
     }
-    fn is_arguments_object(&self) -> bool {
-        true
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Arguments
     }
     fn to_arguments_object(&self) -> Option<&ArgumentsObject> {
         Some(self)
@@ -198,11 +198,16 @@ impl ObjectInterface for ArgumentsObject {
                 if allowed {
                     let mut map = map.borrow_mut();
                     if let Some(idx) = map.to_index(&key) {
-                        if desc.is_accessor_descriptor() || (desc.value.is_none() && desc.writable == Some(false)) {
+                        if desc.is_accessor_descriptor() {
                             map.delete(idx);
-                        } else if let Some(value) = desc.value {
-                            map.set(idx, value)
-                                .expect("formal parameters mapped by arguments objects are always writable");
+                        } else {
+                            if let Some(value) = desc.value {
+                                map.set(idx, value)
+                                    .expect("formal parameters mapped by arguments objects are always writable");
+                            }
+                            if desc.writable == Some(false) {
+                                map.delete(idx);
+                            }
                         }
                     }
                 }

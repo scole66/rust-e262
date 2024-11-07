@@ -14,7 +14,7 @@ pub fn provision_math_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //  * does not have a [[Call]] internal method; it cannot be invoked as a function.
 
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
-    let math = ordinary_object_create(Some(object_prototype), &[]);
+    let math = ordinary_object_create(Some(object_prototype));
     realm.borrow_mut().intrinsics.math = math.clone();
 
     macro_rules! data_property {
@@ -53,8 +53,8 @@ pub fn provision_math_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 f64::from($length),
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -489,7 +489,7 @@ fn math_floor(
     Ok(args.next_arg().to_number()?.floor().into())
 }
 
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 fn math_fround(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -751,7 +751,7 @@ fn math_pow(
     Ok(exponentiate(base, exponent).into())
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn math_random(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,

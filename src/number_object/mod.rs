@@ -4,13 +4,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 pub trait NumberObjectInterface: ObjectInterface {
-    fn number_data(&self) -> &RefCell<f64>;
+    fn number_data(&self) -> &f64;
 }
 
 #[derive(Debug)]
 pub struct NumberObject {
     common: RefCell<CommonObjectData>,
-    number_data: RefCell<f64>,
+    number_data: f64,
 }
 
 impl<'a> From<&'a NumberObject> for &'a dyn ObjectInterface {
@@ -32,8 +32,8 @@ impl ObjectInterface for NumberObject {
     fn to_number_obj(&self) -> Option<&dyn NumberObjectInterface> {
         Some(self)
     }
-    fn is_number_object(&self) -> bool {
-        true
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Number
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
@@ -142,20 +142,17 @@ impl ObjectInterface for NumberObject {
 }
 
 impl NumberObjectInterface for NumberObject {
-    fn number_data(&self) -> &RefCell<f64> {
+    fn number_data(&self) -> &f64 {
         &self.number_data
     }
 }
 
 impl NumberObject {
-    pub fn new(prototype: Option<Object>) -> Self {
-        Self {
-            common: RefCell::new(CommonObjectData::new(prototype, true, NUMBER_OBJECT_SLOTS)),
-            number_data: RefCell::new(0_f64),
-        }
+    pub fn new(prototype: Option<Object>, number: f64) -> Self {
+        Self { common: RefCell::new(CommonObjectData::new(prototype, true, NUMBER_OBJECT_SLOTS)), number_data: number }
     }
-    pub fn object(prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self::new(prototype)) }
+    pub fn object(prototype: Option<Object>, number: f64) -> Object {
+        Object { o: Rc::new(Self::new(prototype, number)) }
     }
 }
 
@@ -181,8 +178,8 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //
     //      * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let number_constructor = create_builtin_function(
-        number_constructor_function,
-        true,
+        Box::new(number_constructor_function),
+        Some(ConstructorKind::Base),
         1_f64,
         PropertyKey::from("Number"),
         BUILTIN_FUNCTION_SLOTS,
@@ -196,8 +193,8 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -308,7 +305,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // The initial value of Number.prototype is the Number prototype object.
     //
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }.
-    let number_prototype = ordinary_object_create(Some(object_prototype), &[InternalSlotName::NumberData]);
+    let number_prototype = NumberObject::object(Some(object_prototype), 0.0);
     constructor_data!(&number_prototype, "prototype");
 
     // Properties of the Number Prototype Object
@@ -345,8 +342,8 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -383,11 +380,9 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
 impl From<f64> for Object {
     fn from(n: f64) -> Self {
         let constructor = intrinsic(IntrinsicId::Number);
-        let o = constructor
-            .ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])
-            .unwrap();
-        *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
-        o
+        constructor
+            .ordinary_create_from_constructor(IntrinsicId::NumberPrototype, |proto| NumberObject::object(proto, n))
+            .unwrap()
     }
 }
 
@@ -425,9 +420,9 @@ fn number_constructor_function(
     match new_target {
         None => Ok(ECMAScriptValue::from(n)),
         Some(nt) => {
-            let o =
-                nt.ordinary_create_from_constructor(IntrinsicId::NumberPrototype, &[InternalSlotName::NumberData])?;
-            *o.o.to_number_obj().unwrap().number_data().borrow_mut() = n;
+            let o = nt.ordinary_create_from_constructor(IntrinsicId::NumberPrototype, |proto| {
+                NumberObject::object(proto, n)
+            })?;
             Ok(ECMAScriptValue::from(o))
         }
     }
@@ -440,7 +435,7 @@ fn number_constructor_function(
 //      1. If Type(number) is not Number, return false.
 //      2. If number is NaN, +∞𝔽, or -∞𝔽, return false.
 //      3. Otherwise, return true.
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn number_is_finite(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -459,7 +454,7 @@ fn number_is_finite(
 // When Number.isInteger is called with one argument number, the following steps are taken:
 //
 //      1. Return ! IsIntegralNumber(number).
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn number_is_integer(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -480,7 +475,7 @@ fn number_is_integer(
 //
 // NOTE     This function differs from the global isNaN function (19.2.3) in that it does not convert its argument to a
 //          Number before determining whether it is NaN.
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn number_is_nan(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -501,7 +496,7 @@ fn number_is_nan(
 //      1. If ! IsIntegralNumber(number) is true, then
 //          a. If abs(ℝ(number)) ≤ 2**53 - 1, return true.
 //      2. Return false.
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn number_is_safe_integer(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -528,14 +523,11 @@ fn number_is_safe_integer(
 // abstract operation thisNumberValue with the this value of the method invocation passed as the argument.
 fn this_number_value(value: &ECMAScriptValue) -> Completion<f64> {
     match value {
-        ECMAScriptValue::Number(x) => Ok(*x),
-        ECMAScriptValue::Object(o) if o.o.is_number_object() => {
-            let no = o.o.to_number_obj().unwrap();
-            let n = *no.number_data().borrow();
-            Ok(n)
-        }
-        _ => Err(create_type_error("Number method called with non-number receiver")),
+        ECMAScriptValue::Number(x) => Some(*x),
+        ECMAScriptValue::Object(o) => o.o.to_number_obj().map(|no| *no.number_data()),
+        _ => None,
     }
+    .ok_or_else(|| create_type_error("Number method called with non-number receiver"))
 }
 
 // Number.prototype.toExponential ( fractionDigits )
@@ -959,9 +951,9 @@ fn double_exponent(dbl: f64) -> i32 {
     }
 }
 
-#[allow(clippy::float_cmp)]
-#[allow(unused_assignments)] // Remove this when the Condition B panic is removed
-#[allow(unreachable_code)] // Remove this when the Condition B panic is removed
+#[expect(clippy::float_cmp)]
+#[expect(unused_assignments)] // Remove this when the Condition B panic is removed
+#[expect(unreachable_code)] // Remove this when the Condition B panic is removed
 pub fn double_to_radix_string(val: f64, radix: u32) -> String {
     const KBUFFERSIZE: usize = 2200;
 
@@ -1011,7 +1003,7 @@ pub fn double_to_radix_string(val: f64, radix: u32) -> String {
             );
             if (fraction > 0.5 || (fraction == 0.5 && digit & 1 != 0)) && fraction + delta > 1.0 {
                 // We need to back trace already written digits in case of carry-over.
-                #[allow(clippy::never_loop)]
+                #[expect(clippy::never_loop)]
                 loop {
                     fraction_cursor -= 1;
                     if fraction_cursor == KBUFFERSIZE / 2 {

@@ -2301,7 +2301,7 @@ impl fmt::Display for Numeric {
 }
 
 impl Numeric {
-    #[allow(clippy::unused_self)]
+    #[expect(clippy::unused_self)]
     fn has_legacy_octal_syntax(&self) -> bool {
         // Need to actually implement legacy octal before this makes any sense at all
         false
@@ -2688,7 +2688,7 @@ impl PrettyPrint for SubstitutionTemplate {
         writeln!(writer, "{first}SubstitutionTemplate: {self}")?;
         pprint_token(
             writer,
-            &format!("`{}${{", self.template_head),
+            format!("`{}${{", self.template_head),
             TokenType::TemplateHead,
             &successive,
             Spot::NotFinal,
@@ -2834,13 +2834,13 @@ impl PrettyPrint for TemplateSpans {
     {
         match self {
             TemplateSpans::Tail { data: td, .. } => {
-                pprint_token(writer, &format!("}}{}`", td.trv), TokenType::TemplateTail, pad, state)
+                pprint_token(writer, format!("}}{}`", td.trv), TokenType::TemplateTail, pad, state)
             }
             TemplateSpans::List { tml, data: td, .. } => {
                 let (first, successive) = prettypad(pad, state);
                 writeln!(writer, "{first}TemplateSpans: {self}")?;
                 tml.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("}}{td}`"), TokenType::TemplateTail, &successive, Spot::Final)
+                pprint_token(writer, format!("}}{td}`"), TokenType::TemplateTail, &successive, Spot::Final)
             }
         }
     }
@@ -3035,12 +3035,12 @@ impl PrettyPrint for TemplateMiddleList {
         writeln!(writer, "{first}TemplateMiddleList: {self}")?;
         match self {
             TemplateMiddleList::ListHead { data: td, exp, .. } => {
-                pprint_token(writer, &format!("}}{td}${{"), TokenType::TemplateMiddle, &successive, Spot::NotFinal)?;
+                pprint_token(writer, format!("}}{td}${{"), TokenType::TemplateMiddle, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
             TemplateMiddleList::ListMid(tml, td, exp, _) => {
                 tml.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
-                pprint_token(writer, &format!("}}{td}${{"), TokenType::TemplateMiddle, &successive, Spot::NotFinal)?;
+                pprint_token(writer, format!("}}{td}${{"), TokenType::TemplateMiddle, &successive, Spot::NotFinal)?;
                 exp.concise_with_leftpad(writer, &successive, Spot::Final)
             }
         }

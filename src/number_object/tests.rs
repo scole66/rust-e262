@@ -7,32 +7,32 @@ fn number_object_debug() {
     setup_test_agent();
     let no = NumberObject {
         common: RefCell::new(CommonObjectData::new(None, false, NUMBER_OBJECT_SLOTS)),
-        number_data: RefCell::new(0.0),
+        number_data: 0.0,
     };
 
     assert_ne!(format!("{no:?}"), "");
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn number_object_object() {
     setup_test_agent();
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
-    let no = NumberObject::object(Some(number_prototype.clone()));
+    let no = NumberObject::object(Some(number_prototype.clone()), 0.0);
 
     assert_eq!(no.o.common_object_data().borrow().prototype, Some(number_prototype));
-    assert_eq!(*no.o.to_number_obj().unwrap().number_data().borrow(), 0.0);
+    assert_eq!(*no.o.to_number_obj().unwrap().number_data(), 0.0);
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn create_number_object_01() {
     setup_test_agent();
     let no = Object::from(100.0);
 
     let number_prototype = intrinsic(IntrinsicId::NumberPrototype);
     assert_eq!(no.o.get_prototype_of().unwrap(), Some(number_prototype));
-    assert_eq!(*no.o.to_number_obj().unwrap().number_data().borrow(), 100.0);
+    assert_eq!(*no.o.to_number_obj().unwrap().number_data(), 100.0);
 }
 
 #[test]
@@ -73,15 +73,6 @@ fn number_object_to_number_object() {
 
     let result = no.o.to_number_obj();
     assert!(result.is_some());
-}
-#[test]
-fn number_object_is_number_object() {
-    setup_test_agent();
-    let no = Object::from(100.0);
-
-    let result = no.o.is_number_object();
-
-    assert!(result);
 }
 #[test]
 fn number_object_get_prototype_of() {
@@ -182,18 +173,14 @@ fn number_object_other_automatic_functions() {
     setup_test_agent();
     let no = Object::from(100.0);
 
-    assert!(!no.o.is_error_object());
     assert!(no.o.to_function_obj().is_none());
-    assert!(!no.o.is_boolean_object());
     assert!(!no.o.is_string_object());
     assert!(!no.o.is_regexp_object());
     assert!(no.o.to_builtin_function_obj().is_none());
     assert!(!no.o.is_callable_obj());
     assert!(no.o.to_boolean_obj().is_none());
-    assert!(no.o.to_error_obj().is_none());
     assert!(no.o.to_callable_obj().is_none());
     assert!(no.o.to_constructable().is_none());
-    assert!(!no.o.is_arguments_object());
     assert!(!no.o.is_date_object());
     assert!(!no.o.is_proxy_object());
     assert!(!no.o.is_symbol_object());
@@ -286,7 +273,7 @@ fn number_constructor_called_as_function_04() {
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn number_constructor_as_constructor_01() {
     // No arguments:
     //   > new Number()
@@ -298,13 +285,12 @@ fn number_constructor_as_constructor_01() {
 
     assert!(result.is_object());
     if let ECMAScriptValue::Object(o) = result {
-        assert!(o.o.is_number_object());
-        let data = *o.o.to_number_obj().unwrap().number_data().borrow();
+        let data = *o.o.to_number_obj().unwrap().number_data();
         assert_eq!(data, 0.0);
     }
 }
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn number_constructor_as_constructor_02() {
     // Argument needing conversion:
     //   > new Number("0xbadfade")
@@ -317,14 +303,13 @@ fn number_constructor_as_constructor_02() {
 
     assert!(result.is_object());
     if let ECMAScriptValue::Object(o) = result {
-        assert!(o.o.is_number_object());
-        let data = *o.o.to_number_obj().unwrap().number_data().borrow();
+        let data = *o.o.to_number_obj().unwrap().number_data();
         assert_eq!(data, 195_951_326.0);
     }
 }
 #[test]
 fn number_constructor_throws() {
-    // ordinary_create_from_contructor throws.
+    // ordinary_create_from_constructor throws.
     // This looks to be difficult to make happen, but I can imagine some class shenanigans that could do it.
     setup_test_agent();
     let number_constructor = intrinsic(IntrinsicId::Number);
@@ -468,7 +453,7 @@ fn number_is_safe_integer_one_arg() {
     let is_safe_integer = number_constructor.get(&PropertyKey::from("isSafeInteger")).unwrap();
     let this_value = ECMAScriptValue::from(number_constructor);
 
-    #[allow(clippy::cast_precision_loss)]
+    #[expect(clippy::cast_precision_loss)]
     for (arg, expected) in [
         (f64::INFINITY, false),
         (f64::NAN, false),
@@ -491,7 +476,7 @@ fn number_is_safe_integer_one_arg() {
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn this_number_value_01() {
     // called with number object
     setup_test_agent();
@@ -502,7 +487,7 @@ fn this_number_value_01() {
     assert_eq!(result, 123.0);
 }
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn this_number_value_02() {
     // called with number value
     setup_test_agent();
@@ -514,7 +499,7 @@ fn this_number_value_02() {
 fn this_number_value_03() {
     // called with non-number object
     setup_test_agent();
-    let obj = ordinary_object_create(None, &[]);
+    let obj = ordinary_object_create(None);
 
     let result = this_number_value(&ECMAScriptValue::from(obj)).unwrap_err();
     assert_eq!(unwind_type_error(result), "Number method called with non-number receiver");
@@ -971,7 +956,7 @@ fn double_exponent_test() {
 }
 
 #[test]
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 fn next_double_test() {
     // Infinity -> Infinity
     assert_eq!(next_double(f64::INFINITY), f64::INFINITY);

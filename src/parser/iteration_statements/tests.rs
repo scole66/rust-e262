@@ -27,7 +27,7 @@ fn iteration_statement_test_01() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn iteration_statement_test_02() {
@@ -40,7 +40,7 @@ fn iteration_statement_test_02() {
         "WhileStatement: while ( true ) { }",
         &["Keyword: while", "Punctuator: (", "Keyword: true", "Punctuator: )", "Block: { }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn iteration_statement_test_03() {
@@ -53,7 +53,7 @@ fn iteration_statement_test_03() {
         "ForStatement: for ( ; ; ) { }",
         &["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Block: { }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn iteration_statement_test_04() {
@@ -74,7 +74,7 @@ fn iteration_statement_test_04() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn iteration_statement_test_err_01() {
@@ -347,7 +347,7 @@ fn do_while_statement_test_01() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn do_while_statement_test_02() {
@@ -368,7 +368,7 @@ fn do_while_statement_test_02() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn do_while_statement_test_err_01() {
@@ -525,7 +525,7 @@ fn while_statement_test_01() {
         "WhileStatement: while ( 0 ) ;",
         &["Keyword: while", "Punctuator: (", "Numeric: 0", "Punctuator: )", "Punctuator: ;"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn while_statement_test_err_01() {
@@ -674,7 +674,7 @@ fn for_statement_test_01() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_02() {
@@ -695,7 +695,7 @@ fn for_statement_test_02() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_03() {
@@ -716,7 +716,7 @@ fn for_statement_test_03() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_04() {
@@ -737,7 +737,7 @@ fn for_statement_test_04() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_05() {
@@ -757,7 +757,7 @@ fn for_statement_test_05() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_06() {
@@ -777,7 +777,7 @@ fn for_statement_test_06() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_07() {
@@ -797,7 +797,7 @@ fn for_statement_test_07() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_08() {
@@ -809,7 +809,7 @@ fn for_statement_test_08() {
         "ForStatement: for ( ; ; ) ;",
         &["Keyword: for", "Punctuator: (", "Punctuator: ;", "Punctuator: ;", "Punctuator: )", "Punctuator: ;"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_09() {
@@ -837,7 +837,7 @@ fn for_statement_test_09() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_10() {
@@ -864,7 +864,7 @@ fn for_statement_test_10() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_11() {
@@ -891,7 +891,7 @@ fn for_statement_test_11() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_12() {
@@ -912,7 +912,7 @@ fn for_statement_test_12() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_13() {
@@ -938,7 +938,7 @@ fn for_statement_test_13() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_14() {
@@ -963,7 +963,7 @@ fn for_statement_test_14() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_15() {
@@ -988,7 +988,7 @@ fn for_statement_test_15() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_16() {
@@ -1007,7 +1007,7 @@ fn for_statement_test_16() {
             "Punctuator: ;",
         ],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_statement_test_err_01() {
@@ -2201,7 +2201,7 @@ fn for_in_of_statement_test_contains_duplicate_labels() {
     for_in_of_cdl_check("for await(let a of b){t:;}");
 }
 
-#[allow(clippy::type_complexity)]
+#[expect(clippy::type_complexity)]
 mod for_in_of_statement {
     use super::*;
     use test_case::test_case;
@@ -2546,7 +2546,7 @@ fn for_declaration_test_01() {
     chk_scan(&scanner, 5);
     pretty_check(&*node, "ForDeclaration: let a", &["LetOrConst: let", "ForBinding: a"]);
     concise_check(&*node, "ForDeclaration: let a", &["Keyword: let", "IdentifierName: a"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_declaration_test_02() {
@@ -2554,7 +2554,7 @@ fn for_declaration_test_02() {
     chk_scan(&scanner, 7);
     pretty_check(&*node, "ForDeclaration: const a", &["LetOrConst: const", "ForBinding: a"]);
     concise_check(&*node, "ForDeclaration: const a", &["Keyword: const", "IdentifierName: a"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_declaration_test_err_01() {
@@ -2647,7 +2647,7 @@ fn for_binding_test_01() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "ForBinding: a", &["BindingIdentifier: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_binding_test_02() {
@@ -2655,7 +2655,7 @@ fn for_binding_test_02() {
     chk_scan(&scanner, 3);
     pretty_check(&*node, "ForBinding: { a }", &["BindingPattern: { a }"]);
     concise_check(&*node, "ObjectBindingPattern: { a }", &["Punctuator: {", "IdentifierName: a", "Punctuator: }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn for_binding_test_err_01() {

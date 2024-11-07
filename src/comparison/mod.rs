@@ -59,7 +59,7 @@ where
 //  2. If argument is NaN, +∞𝔽, or -∞𝔽, return false.
 //  3. If floor(abs(ℝ(argument))) ≠ abs(ℝ(argument)), return false.
 //  4. Return true.
-#[allow(clippy::float_cmp)]
+#[expect(clippy::float_cmp)]
 pub fn is_integral_number(argument: &ECMAScriptValue) -> bool {
     match argument {
         ECMAScriptValue::Number(n) => {

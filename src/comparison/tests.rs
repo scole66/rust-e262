@@ -18,7 +18,7 @@ fn is_integral_number_test() {
 #[test_case(|| "green".into() => Ok(()); "string")]
 #[test_case(|| wks(WksId::Species).into() => Ok(()); "symbol")]
 #[test_case(|| BigInt::from(10).into() => Ok(()); "bigint")]
-#[test_case(|| ordinary_object_create(None, &[]).into() => Ok(()); "object")]
+#[test_case(|| ordinary_object_create(None).into() => Ok(()); "object")]
 fn require_object_coercible(make_arg: fn() -> ECMAScriptValue) -> Result<(), String> {
     setup_test_agent();
     let arg = make_arg();

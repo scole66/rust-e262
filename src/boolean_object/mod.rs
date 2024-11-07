@@ -3,13 +3,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 pub trait BooleanObjectInterface: ObjectInterface {
-    fn boolean_data(&self) -> &RefCell<bool>;
+    fn boolean_data(&self) -> &bool;
 }
 
 #[derive(Debug)]
 pub struct BooleanObject {
     common: RefCell<CommonObjectData>,
-    boolean_data: RefCell<bool>,
+    boolean_data: bool,
 }
 
 impl<'a> From<&'a BooleanObject> for &'a dyn ObjectInterface {
@@ -31,8 +31,8 @@ impl ObjectInterface for BooleanObject {
     fn to_boolean_obj(&self) -> Option<&dyn BooleanObjectInterface> {
         Some(self)
     }
-    fn is_boolean_object(&self) -> bool {
-        true
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Boolean
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
@@ -141,20 +141,17 @@ impl ObjectInterface for BooleanObject {
 }
 
 impl BooleanObjectInterface for BooleanObject {
-    fn boolean_data(&self) -> &RefCell<bool> {
+    fn boolean_data(&self) -> &bool {
         &self.boolean_data
     }
 }
 
 impl BooleanObject {
-    pub fn new(prototype: Option<Object>) -> Self {
-        Self {
-            common: RefCell::new(CommonObjectData::new(prototype, true, BOOLEAN_OBJECT_SLOTS)),
-            boolean_data: RefCell::new(false),
-        }
+    pub fn new(prototype: Option<Object>, value: bool) -> Self {
+        Self { common: RefCell::new(CommonObjectData::new(prototype, true, BOOLEAN_OBJECT_SLOTS)), boolean_data: value }
     }
-    pub fn object(prototype: Option<Object>) -> Object {
-        Object { o: Rc::new(Self::new(prototype)) }
+    pub fn object(prototype: Option<Object>, value: bool) -> Object {
+        Object { o: Rc::new(Self::new(prototype, value)) }
     }
 }
 
@@ -168,11 +165,9 @@ impl BooleanObject {
 impl From<bool> for Object {
     fn from(b: bool) -> Self {
         let constructor = intrinsic(IntrinsicId::Boolean);
-        let o = constructor
-            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, &[InternalSlotName::BooleanData])
-            .unwrap();
-        *o.o.to_boolean_obj().unwrap().boolean_data().borrow_mut() = b;
-        o
+        constructor
+            .ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, |proto| BooleanObject::object(proto, b))
+            .unwrap()
     }
 }
 
@@ -190,7 +185,7 @@ pub fn this_boolean_value(value: &ECMAScriptValue) -> Completion<bool> {
         ECMAScriptValue::Object(o) => {
             let bool_obj = o.o.to_boolean_obj();
             if let Some(b_obj) = bool_obj {
-                let b = *b_obj.boolean_data().borrow();
+                let b = *b_obj.boolean_data();
                 Ok(b)
             } else {
                 Err(create_type_error("Object has no boolean value"))
@@ -204,7 +199,7 @@ pub fn provision_boolean_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
-    let boolean_prototype = BooleanObject::object(Some(object_prototype));
+    let boolean_prototype = BooleanObject::object(Some(object_prototype), false);
     realm.borrow_mut().intrinsics.boolean_prototype = boolean_prototype.clone();
 
     // The Boolean constructor:
@@ -223,8 +218,8 @@ pub fn provision_boolean_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //
     //  * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let bool_constructor = create_builtin_function(
-        boolean_constructor_function,
-        true,
+        Box::new(boolean_constructor_function),
+        Some(ConstructorKind::Base),
         1_f64,
         PropertyKey::from("Boolean"),
         BUILTIN_FUNCTION_SLOTS,
@@ -270,8 +265,8 @@ pub fn provision_boolean_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -314,10 +309,9 @@ fn boolean_constructor_function(
     match new_target {
         None => Ok(b.into()),
         Some(obj) => {
-            let o =
-                obj.ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, &[InternalSlotName::BooleanData])?;
-            let bool_obj = o.o.to_boolean_obj().expect("we just crafted a boolean object");
-            *bool_obj.boolean_data().borrow_mut() = b;
+            let o = obj.ordinary_create_from_constructor(IntrinsicId::BooleanPrototype, |proto| {
+                BooleanObject::object(proto, b)
+            })?;
             Ok(o.into())
         }
     }

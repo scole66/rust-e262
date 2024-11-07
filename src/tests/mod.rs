@@ -72,7 +72,7 @@ where
 }
 
 pub fn unwind_error_object(kind: &str, err: &Object) -> String {
-    assert!(err.o.to_error_obj().is_some());
+    assert!(err.is_error_object());
     let name = err.get(&PropertyKey::from("name")).expect("Error object was missing 'name' property");
     assert!(matches!(name, ECMAScriptValue::String(_)));
     if let ECMAScriptValue::String(name_value) = name {
@@ -100,6 +100,7 @@ pub fn unwind_type_error(completion: AbruptCompletion) -> String {
     unwind_error("TypeError", completion)
 }
 
+#[expect(dead_code)]
 pub fn unwind_syntax_error(completion: AbruptCompletion) -> String {
     unwind_error("SyntaxError", completion)
 }
@@ -112,6 +113,7 @@ pub fn unwind_reference_error(completion: AbruptCompletion) -> String {
     unwind_error("ReferenceError", completion)
 }
 
+#[expect(dead_code)]
 pub fn unwind_reference_error_object(err: &Object) -> String {
     unwind_error_object("ReferenceError", err)
 }
@@ -120,6 +122,7 @@ pub fn unwind_range_error(completion: AbruptCompletion) -> String {
     unwind_error("RangeError", completion)
 }
 
+#[expect(dead_code)]
 pub fn unwind_range_error_object(err: &Object) -> String {
     unwind_error_object("RangeError", err)
 }
@@ -318,11 +321,8 @@ impl TestObject {
         throwers: &[FunctionId],
     ) -> (ThrowsOrNot, Option<PropertyKey>) {
         for item in throwers {
-            match matcher(item) {
-                (true, rval) => {
-                    return (ThrowsOrNot::Throws, rval);
-                }
-                (false, _) => {}
+            if let (true, rval) = matcher(item) {
+                return (ThrowsOrNot::Throws, rval);
             }
         }
         (ThrowsOrNot::BehavesNormally, None)
@@ -491,7 +491,7 @@ impl ObjectInterface for AdaptableObject {
 }
 
 #[derive(Default)]
-#[allow(clippy::struct_field_names)]
+#[expect(clippy::struct_field_names)]
 pub struct AdaptableMethods {
     pub get_prototype_of_override: Option<GetPrototypeOfFunction>,
     pub set_prototype_of_override: Option<SetPrototypeOfFunction>,
@@ -543,12 +543,12 @@ pub fn make_toprimitive_throw_obj() -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
     let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
-    let target = ordinary_object_create(Some(object_prototype), &[]);
+    let target = ordinary_object_create(Some(object_prototype));
     let to_prim_sym = wks(WksId::ToPrimitive);
     let key = PropertyKey::from(to_prim_sym);
     let fcn = create_builtin_function(
-        faux_errors,
-        false,
+        Box::new(faux_errors),
+        None,
         0_f64,
         "[Symbol toPrimitive]".into(),
         BUILTIN_FUNCTION_SLOTS,
@@ -594,17 +594,17 @@ pub fn serr<T>(msg: &str) -> Result<T, String> {
     Err(msg.to_string())
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 pub fn sok<T>(msg: &str) -> Result<String, T> {
     Ok(msg.to_string())
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 pub fn ssok<T>(msg: &str) -> Result<Option<String>, T> {
     Ok(Some(msg.to_string()))
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
     Ok(val.into())
 }
@@ -1071,12 +1071,6 @@ impl ECMAScriptValue {
             }
         }
     }
-}
-
-pub fn which_intrinsic(to_be_checked: &Object) -> Option<IntrinsicId> {
-    let realm_ref = current_realm_record().unwrap();
-    let realm = realm_ref.borrow();
-    realm.intrinsics.which(to_be_checked)
 }
 
 // This is really for debugging. It's the output structure from propdump.

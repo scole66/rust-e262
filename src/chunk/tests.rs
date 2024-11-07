@@ -246,7 +246,7 @@ mod chunk {
         use super::*;
 
         #[test]
-        #[allow(clippy::cast_sign_loss)]
+        #[expect(clippy::cast_sign_loss)]
         fn normal() {
             let mut c = Chunk::new("op_jump_back");
 
@@ -415,7 +415,7 @@ mod stashed_function_data {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let src = "function func_name(param1, param2, param3) { let a = thing1(param1); return a + param2 + param3; }";
         let fd = Maker::new(src).function_declaration();
@@ -433,7 +433,7 @@ mod stashed_function_data {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn eq() {
         let src = "function func_name(param1, param2, param3) { let a = thing1(param1); return a + param2 + param3; }";
         let fd = Maker::new(src).function_declaration();

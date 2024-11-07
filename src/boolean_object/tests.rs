@@ -11,7 +11,7 @@ fn create_boolean_object_01() {
     assert!(maybe_native.is_some());
 
     let native = maybe_native.unwrap();
-    assert_eq!(*native.boolean_data().borrow(), true);
+    assert_eq!(*native.boolean_data(), true);
 }
 
 #[test]
@@ -23,7 +23,7 @@ fn create_boolean_object_02() {
     assert!(maybe_native.is_some());
 
     let native = maybe_native.unwrap();
-    assert_eq!(*native.boolean_data().borrow(), false);
+    assert_eq!(*native.boolean_data(), false);
 }
 
 #[test]
@@ -69,7 +69,7 @@ fn this_boolean_value_05() {
 fn this_boolean_value_06() {
     setup_test_agent();
     let proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let other_obj = ordinary_object_create(Some(proto), &[]);
+    let other_obj = ordinary_object_create(Some(proto));
     let result = this_boolean_value(&ECMAScriptValue::Object(other_obj));
     assert!(result.is_err());
     let msg = unwind_type_error(result.unwrap_err());
@@ -191,17 +191,12 @@ fn uses_ordinary_get_prototype_of_01() {
 fn bool_object_checks() {
     setup_test_agent();
     let bool_obj = Object::from(true);
-    assert_eq!(bool_obj.o.is_boolean_object(), true);
     assert_eq!(bool_obj.o.is_callable_obj(), false);
     assert_eq!(bool_obj.o.is_string_object(), false);
     assert_eq!(bool_obj.o.is_regexp_object(), false);
-    assert_eq!(bool_obj.o.is_arguments_object(), false);
-    assert_eq!(bool_obj.o.is_error_object(), false);
     assert!(bool_obj.o.to_function_obj().is_none());
     assert!(bool_obj.o.to_builtin_function_obj().is_none());
-    assert_eq!(bool_obj.o.is_number_object(), false);
     assert_eq!(bool_obj.o.is_date_object(), false);
-    assert!(bool_obj.o.to_error_obj().is_none());
     assert!(bool_obj.o.to_callable_obj().is_none());
     assert!(!bool_obj.o.is_proxy_object());
     assert!(bool_obj.o.to_proxy_object().is_none());
@@ -273,7 +268,7 @@ fn boolean_constructor_function(
             ECMAScriptValue::Boolean(b) => (*b, format!("Boolean({b})")),
             ECMAScriptValue::Object(o) => {
                 let bo = o.o.to_boolean_obj().unwrap();
-                let b = *bo.boolean_data().borrow();
+                let b = *bo.boolean_data();
                 (b, format!("Object({b}): {}", v.test_result_string()))
             }
             _ => panic!("Bad value back"),
@@ -301,7 +296,7 @@ fn provision_boolean_intrinsic() {
     let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
     let boolean_prototype_prototype = prototype.o.get_prototype_of().unwrap().unwrap();
     assert_eq!(boolean_prototype_prototype, object_prototype);
-    assert!(prototype.o.is_boolean_object());
+    assert!(prototype.o.to_boolean_obj().is_some());
 
     func_validation(prototype.o.get_own_property(&"toString".into()).unwrap().unwrap(), "toString", 0);
     func_validation(prototype.o.get_own_property(&"valueOf".into()).unwrap().unwrap(), "valueOf", 0);

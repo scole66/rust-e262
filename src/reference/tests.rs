@@ -14,12 +14,11 @@ mod base {
     #[test_case(&Base::Unresolvable => Base::Unresolvable; "unresolvable")]
     #[test_case(&Base::Value(ECMAScriptValue::from("regurgitate")) => Base::Value(ECMAScriptValue::from("regurgitate")); "value")]
     fn clone(b: &Base) -> Base {
-        #[allow(clippy::redundant_clone)]
         b.clone()
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone_with_environment() {
         let env = Rc::new(DeclarativeEnvironmentRecord::new(None, "test"));
         let base = Base::Environment(env);
@@ -81,13 +80,12 @@ mod referenced_name {
 
     #[test]
     fn debug() {
-        let rn = ReferencedName::String(JSString::from("apple"));
+        let rn = ReferencedName::Value(ECMAScriptValue::from("apple"));
         assert_ne!(format!("{rn:?}"), "");
     }
 
     #[test_case(&ReferencedName::from("popsicle") => ReferencedName::from("popsicle"); "string")]
     fn clone(rn: &ReferencedName) -> ReferencedName {
-        #[allow(clippy::redundant_clone)]
         rn.clone()
     }
 
@@ -96,9 +94,9 @@ mod referenced_name {
 
         fn setup() -> (ReferencedName, ReferencedName, ReferencedName) {
             (
-                ReferencedName::String(JSString::from("apple")),
+                ReferencedName::Value(ECMAScriptValue::from("apple")),
                 ReferencedName::PrivateName(PrivateName::new("apple")),
-                ReferencedName::String(JSString::from("apple")),
+                ReferencedName::Value(ECMAScriptValue::from("apple")),
             )
         }
 
@@ -124,24 +122,24 @@ mod referenced_name {
         #[test]
         fn str_slice() {
             let rn = ReferencedName::from("orange");
-            assert_eq!(rn, ReferencedName::String(JSString::from("orange")));
+            assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::from("orange")));
         }
         #[test]
         fn string() {
             let rn = ReferencedName::from(String::from("orange"));
-            assert_eq!(rn, ReferencedName::String(JSString::from("orange")));
+            assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::from("orange")));
         }
         #[test]
         fn jsstring() {
             let rn = ReferencedName::from(JSString::from("orange"));
-            assert_eq!(rn, ReferencedName::String(JSString::from("orange")));
+            assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::from("orange")));
         }
         #[test]
         fn symbol() {
             setup_test_agent();
             let sym = Symbol::new(None);
             let rn = ReferencedName::from(sym.clone());
-            assert_eq!(rn, ReferencedName::Symbol(sym));
+            assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::Symbol(sym)));
         }
         #[test]
         fn privatename() {
@@ -155,7 +153,7 @@ mod referenced_name {
             fn string() {
                 let pk = PropertyKey::from("a");
                 let rn = ReferencedName::from(pk);
-                assert_eq!(rn, ReferencedName::String(JSString::from("a")));
+                assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::from("a")));
             }
             #[test]
             fn symbol() {
@@ -163,7 +161,7 @@ mod referenced_name {
                 let sym = Symbol::new(Some(JSString::from("crazy")));
                 let pk = PropertyKey::from(sym.clone());
                 let rn = ReferencedName::from(pk);
-                assert_eq!(rn, ReferencedName::Symbol(sym));
+                assert_eq!(rn, ReferencedName::Value(ECMAScriptValue::Symbol(sym)));
             }
         }
     }
@@ -184,14 +182,14 @@ mod referenced_name {
                 setup_test_agent();
                 let sym = Symbol::new(None);
                 let rn = ReferencedName::from(sym);
-                let err = JSString::try_from(rn).unwrap_err();
-                assert_eq!(err, "invalid string");
+                let err = JSString::try_from(rn).unwrap_err().to_string();
+                assert_eq!(&err, "Symbols may not be converted to strings");
             }
             #[test]
             fn privatename() {
                 let rn = ReferencedName::PrivateName(PrivateName::new("blue"));
-                let err = JSString::try_from(rn).unwrap_err();
-                assert_eq!(err, "invalid string");
+                let err = JSString::try_from(rn).unwrap_err().to_string();
+                assert_eq!(&err, "string value expected");
             }
         }
 
@@ -215,8 +213,8 @@ mod referenced_name {
             #[test]
             fn privatename() {
                 let rn = ReferencedName::PrivateName(PrivateName::new("blue"));
-                let err = PropertyKey::try_from(rn).unwrap_err();
-                assert_eq!(err, "invalid property key");
+                let err = PropertyKey::try_from(rn).unwrap_err().to_string();
+                assert_eq!(&err, "property key (string or symbol) expected");
             }
         }
     }
@@ -249,7 +247,7 @@ mod reference {
     fn debug() {
         let r = Reference {
             base: Base::Unresolvable,
-            referenced_name: ReferencedName::String(JSString::from("name")),
+            referenced_name: ReferencedName::Value(ECMAScriptValue::from("name")),
             strict: false,
             this_value: None,
         };
@@ -257,11 +255,11 @@ mod reference {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let r = Reference {
             base: Base::Unresolvable,
-            referenced_name: ReferencedName::String(JSString::from("name")),
+            referenced_name: ReferencedName::Value(ECMAScriptValue::from("name")),
             strict: false,
             this_value: None,
         };
@@ -270,17 +268,17 @@ mod reference {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn eq() {
         let r1 = Reference {
             base: Base::Unresolvable,
-            referenced_name: ReferencedName::String(JSString::from("name")),
+            referenced_name: ReferencedName::Value(ECMAScriptValue::from("name")),
             strict: false,
             this_value: None,
         };
         let r2 = Reference {
             base: Base::Value(true.into()),
-            referenced_name: ReferencedName::String(JSString::from("name")),
+            referenced_name: ReferencedName::Value(ECMAScriptValue::from("name")),
             strict: false,
             this_value: None,
         };
@@ -386,7 +384,7 @@ mod reference {
         fn value_has_this() {
             setup_test_agent();
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-            let normal_object = ordinary_object_create(Some(object_proto), &[]);
+            let normal_object = ordinary_object_create(Some(object_proto));
             let this_value = ECMAScriptValue::from(normal_object);
             let value = ECMAScriptValue::from("Gatsby turned out all right at the end");
             let reference = Reference::new(Base::Value(value), "phrase", true, Some(this_value.clone()));
@@ -448,7 +446,7 @@ mod get_value {
     fn value_base() {
         setup_test_agent();
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         let value = ECMAScriptValue::from("value_base test value");
         let descriptor = PotentialPropertyDescriptor {
             writable: Some(true),
@@ -475,7 +473,7 @@ mod get_value {
         setup_test_agent();
         let pn = PrivateName::new("test name");
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         let value = ECMAScriptValue::from("test value for private identifier");
         private_field_add(&normal_object, pn.clone(), value.clone()).unwrap();
         let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object)), pn, true, None);
@@ -486,7 +484,7 @@ mod get_value {
     fn environment() {
         setup_test_agent();
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let global = ordinary_object_create(Some(object_proto), &[]);
+        let global = ordinary_object_create(Some(object_proto));
         let this_obj = global.clone();
         let env = GlobalEnvironmentRecord::new(global, this_obj, "test-global");
         let value = ECMAScriptValue::from("sentinel string for environment test");
@@ -584,7 +582,7 @@ mod put_value {
         let value = ECMAScriptValue::from("In my younger and more vulnerable years");
         let pn = PrivateName::new("test name");
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         private_field_add(&normal_object, pn.clone(), ECMAScriptValue::Undefined).unwrap();
         let reference =
             Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), pn.clone(), true, None);
@@ -592,6 +590,8 @@ mod put_value {
         put_value(Ok(NormalCompletion::from(reference)), Ok(value.clone())).unwrap();
 
         let from_private = private_get(&normal_object, &pn).unwrap();
+        println!("Expected value {value:#?}");
+        println!("Observed value {from_private:#?}");
         assert_eq!(from_private, value);
     }
 
@@ -607,7 +607,7 @@ mod put_value {
         setup_test_agent();
         let value = ECMAScriptValue::from("my father gave me some advice");
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         let key = PropertyKey::from("phrase");
         let reference =
             Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), key.clone(), true, None);
@@ -623,7 +623,7 @@ mod put_value {
         let value = ECMAScriptValue::from("that I’ve been turning over in my mind ever since.");
         let thrower = ECMAScriptValue::from(intrinsic(IntrinsicId::ThrowTypeError));
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         let key = PropertyKey::from("phrase");
         let reference =
             Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), key.clone(), true, None);
@@ -648,7 +648,7 @@ mod put_value {
         setup_test_agent();
         let value = ECMAScriptValue::from("“Whenever you feel like criticizing anyone,”");
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let normal_object = ordinary_object_create(Some(object_proto), &[]);
+        let normal_object = ordinary_object_create(Some(object_proto));
         let key = PropertyKey::from("phrase");
         define_property_or_throw(
             &normal_object,

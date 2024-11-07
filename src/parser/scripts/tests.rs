@@ -49,7 +49,7 @@ mod var_scope_decl {
     }
 
     #[test]
-    #[allow(clippy::redundant_clone)]
+    #[expect(clippy::redundant_clone)]
     fn clone() {
         let vsd = VarScopeDecl::FunctionDeclaration(Maker::new("function a(){grape;}").function_declaration());
         let copy = vsd.clone();
@@ -71,7 +71,7 @@ fn script_test_01() {
         "LexicalDeclaration: let a = 1 ;",
         &["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn script_test_02() {
@@ -79,7 +79,7 @@ fn script_test_02() {
     chk_scan(&scanner, 0);
     pretty_check(&*node, "Script: ", &[]);
     concise_check(&*node, "Script:", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn script_test_err_01() {
@@ -188,7 +188,7 @@ fn script_body_test_01() {
         "LexicalDeclaration: let a = 1 ;",
         &["Keyword: let", "LexicalBinding: a = 1", "Punctuator: ;"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn script_body_test_err_01() {

@@ -16,7 +16,7 @@ mod relational_expression {
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
         pretty_check(&*se, "RelationalExpression: a", &["ShiftExpression: a"]);
         concise_check(&*se, "IdentifierName: a", &[]);
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -31,7 +31,7 @@ mod relational_expression {
             "RelationalExpression: a < b",
             &["IdentifierName: a", "Punctuator: <", "IdentifierName: b"],
         );
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -46,7 +46,7 @@ mod relational_expression {
             "RelationalExpression: a > b",
             &["IdentifierName: a", "Punctuator: >", "IdentifierName: b"],
         );
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -61,7 +61,7 @@ mod relational_expression {
             "RelationalExpression: a <= b",
             &["IdentifierName: a", "Punctuator: <=", "IdentifierName: b"],
         );
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -76,7 +76,7 @@ mod relational_expression {
             "RelationalExpression: a >= b",
             &["IdentifierName: a", "Punctuator: >=", "IdentifierName: b"],
         );
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -91,7 +91,7 @@ mod relational_expression {
             "RelationalExpression: a instanceof b",
             &["IdentifierName: a", "Keyword: instanceof", "IdentifierName: b"],
         );
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -102,7 +102,7 @@ mod relational_expression {
         assert!(matches!(&*se, RelationalExpression::In(_, _)));
         pretty_check(&*se, "RelationalExpression: a in b", &["RelationalExpression: a", "ShiftExpression: b"]);
         concise_check(&*se, "RelationalExpression: a in b", &["IdentifierName: a", "Keyword: in", "IdentifierName: b"]);
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -113,7 +113,7 @@ mod relational_expression {
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
         pretty_check(&*se, "RelationalExpression: a", &["ShiftExpression: a"]);
         concise_check(&*se, "IdentifierName: a", &[]);
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -124,7 +124,7 @@ mod relational_expression {
         assert!(matches!(&*se, RelationalExpression::ShiftExpression(_)));
         pretty_check(&*se, "RelationalExpression: a", &["ShiftExpression: a"]);
         concise_check(&*se, "IdentifierName: a", &[]);
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]
@@ -148,7 +148,7 @@ mod relational_expression {
             "RelationalExpression: #a in b",
             &["PrivateIdentifier: #a", "Keyword: in", "IdentifierName: b"],
         );
-        format!("{se:?}");
+        assert_ne!(format!("{se:?}"), "");
         assert_eq!(se.is_function_definition(), false);
     }
     #[test]

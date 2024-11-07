@@ -17,7 +17,7 @@ fn try_statement_test_01() {
         "TryStatement: try { a ; } catch { }",
         &["Keyword: try", "Block: { a ; }", "Catch: catch { }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn try_statement_test_02() {
@@ -30,7 +30,7 @@ fn try_statement_test_02() {
         "TryStatement: try { a ; } finally { }",
         &["Keyword: try", "Block: { a ; }", "Finally: finally { }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn try_statement_test_03() {
@@ -52,7 +52,7 @@ fn try_statement_test_03() {
         "TryStatement: try { a ; } catch { b ; } finally { c ; }",
         &["Keyword: try", "Block: { a ; }", "Catch: catch { b ; }", "Finally: finally { c ; }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn try_statement_test_err_01() {
@@ -272,7 +272,7 @@ fn catch_test_01() {
     chk_scan(&scanner, 8);
     pretty_check(&*node, "Catch: catch { }", &["Block: { }"]);
     concise_check(&*node, "Catch: catch { }", &["Keyword: catch", "Block: { }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn catch_test_02() {
@@ -284,7 +284,7 @@ fn catch_test_02() {
         "Catch: catch ( e ) { }",
         &["Keyword: catch", "Punctuator: (", "IdentifierName: e", "Punctuator: )", "Block: { }"],
     );
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn catch_test_err_01() {
@@ -430,7 +430,7 @@ fn finally_test_01() {
     chk_scan(&scanner, 10);
     pretty_check(&*node, "Finally: finally { }", &["Block: { }"]);
     concise_check(&*node, "Finally: finally { }", &["Keyword: finally", "Block: { }"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn finally_test_err_01() {
@@ -526,7 +526,7 @@ fn catch_parameter_test_01() {
     chk_scan(&scanner, 1);
     pretty_check(&*node, "CatchParameter: a", &["BindingIdentifier: a"]);
     concise_check(&*node, "IdentifierName: a", &[]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn catch_parameter_test_02() {
@@ -534,7 +534,7 @@ fn catch_parameter_test_02() {
     chk_scan(&scanner, 3);
     pretty_check(&*node, "CatchParameter: [ a ]", &["BindingPattern: [ a ]"]);
     concise_check(&*node, "ArrayBindingPattern: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
-    format!("{node:?}");
+    assert_ne!(format!("{node:?}"), "");
 }
 #[test]
 fn catch_parameter_test_err_01() {

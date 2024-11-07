@@ -188,18 +188,14 @@ mod arguments_object {
     }
 
     #[test_case(|ao| ao.o.is_proxy_object() => false; "is_proxy_object")]
-    #[test_case(|ao| ao.o.is_number_object() => false; "is_number_object")]
     #[test_case(|ao| ao.o.is_date_object() => false; "is_date_object")]
-    #[test_case(|ao| ao.o.is_boolean_object() => false; "is_boolean_object")]
     #[test_case(|ao| ao.o.is_regexp_object() => false; "is_regexp_object")]
     #[test_case(|ao| ao.o.is_callable_obj() => false; "is_callable_obj")]
     #[test_case(|ao| ao.o.is_plain_object() => false; "is_plain_object")]
     #[test_case(|ao| ao.o.is_symbol_object() => false; "is_symbol_object")]
     #[test_case(|ao| ao.o.is_string_object() => false; "is_string_object")]
     #[test_case(|ao| ao.o.is_array_object() => false; "is_array_object")]
-    #[test_case(|ao| ao.o.is_error_object() => false; "is_error_object")]
     #[test_case(|ao| ao.o.uses_ordinary_get_prototype_of() => true; "uses_ordinary_get_prototype_of")]
-    #[test_case(|ao| ao.o.is_arguments_object() => true; "is_arguments_object")]
     fn bool_stub(op: impl FnOnce(&Object) -> bool) -> bool {
         setup_test_agent();
         let ao = test_ao();
@@ -220,12 +216,6 @@ mod arguments_object {
         assert!(ao.o.to_boolean_obj().is_none());
     }
 
-    #[test]
-    fn to_error_obj() {
-        setup_test_agent();
-        let ao = test_ao();
-        assert!(ao.o.to_error_obj().is_none());
-    }
     #[test]
     fn to_symbol_obj() {
         setup_test_agent();

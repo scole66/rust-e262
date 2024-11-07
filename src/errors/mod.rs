@@ -8,12 +8,12 @@ fn create_native_error_object_internal(
     proto_id: IntrinsicId,
     location: Option<Location>,
 ) -> Object {
-    let o = error_constructor.ordinary_create_from_constructor(proto_id, &[InternalSlotName::ErrorData]).unwrap();
+    let o = error_constructor.ordinary_create_from_constructor(proto_id, ErrorObject::object).unwrap();
     let desc = PotentialPropertyDescriptor::new().value(message).writable(true).enumerable(false).configurable(true);
     define_property_or_throw(&o, "message", desc).unwrap();
     if let Some(location) = location {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-        let loc = ordinary_object_create(Some(obj_proto), &[]);
+        let loc = ordinary_object_create(Some(obj_proto));
         define_property_or_throw(
             &loc,
             "line",
@@ -136,11 +136,8 @@ impl ObjectInterface for ErrorObject {
     fn id(&self) -> usize {
         self.common.borrow().objid
     }
-    fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
-        Some(self)
-    }
-    fn is_error_object(&self) -> bool {
-        true
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Error
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
@@ -202,8 +199,8 @@ pub fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //    * has a [[Prototype]] internal slot whose value is %Function.prototype%.
 
     let error_constructor = create_builtin_function(
-        error_constructor_function,
-        true,
+        Box::new(error_constructor_function),
+        Some(ConstructorKind::Base),
         1_f64,
         PropertyKey::from("Error"),
         BUILTIN_FUNCTION_SLOTS,
@@ -231,7 +228,7 @@ pub fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //    * is an ordinary object.
     //    * is not an Error instance and does not have an [[ErrorData]] internal slot.
     //    * has a [[Prototype]] internal slot whose value is %Object.prototype%.
-    let error_prototype = ordinary_object_create(Some(object_prototype), &[]);
+    let error_prototype = ordinary_object_create(Some(object_prototype));
 
     // Error.prototype
     //
@@ -271,8 +268,8 @@ pub fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -384,8 +381,8 @@ fn provision_native_error_intrinsics(
     //    * has a "name" property whose value is the String value "NativeError".
 
     let native_error_constructor = create_builtin_function(
-        native_error_constructor_function,
-        true,
+        Box::new(native_error_constructor_function),
+        Some(ConstructorKind::Base),
         1_f64,
         PropertyKey::from(name),
         BUILTIN_FUNCTION_SLOTS,
@@ -412,7 +409,7 @@ fn provision_native_error_intrinsics(
     //    * is an ordinary object.
     //    * is not an Error instance and does not have an [[ErrorData]] internal slot.
     //    * has a [[Prototype]] internal slot whose value is %Error.prototype%.
-    let native_error_prototype = ordinary_object_create(Some(error_prototype), &[]);
+    let native_error_prototype = ordinary_object_create(Some(error_prototype));
 
     // NativeError.prototype
     //
@@ -487,7 +484,7 @@ fn native_error_constructor_function(
             &afo
         }
     };
-    let o = nt.ordinary_create_from_constructor(intrinsic_id, &[InternalSlotName::ErrorData])?;
+    let o = nt.ordinary_create_from_constructor(intrinsic_id, ErrorObject::object)?;
     if !message.is_undefined() {
         let msg = to_string(message)?;
         let msg_desc =

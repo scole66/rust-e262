@@ -84,7 +84,7 @@ mod function_declaration {
             assert_eq!(function.source_text, src);
             assert!(function.fields.is_empty());
             assert!(function.private_methods.is_empty());
-            assert!(matches!(function.class_field_initializer_name, ClassName::Empty));
+            assert!(function.class_field_initializer_name.is_none());
             assert!(!function.is_class_constructor);
             assert!(function.is_constructor);
 
@@ -177,7 +177,7 @@ mod this_lexicality {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let l1 = ThisLexicality::LexicalThis;
         let l2 = l1.clone();
@@ -202,7 +202,7 @@ mod constructor_kind {
     }
 
     #[test]
-    #[allow(clippy::clone_on_copy)]
+    #[expect(clippy::clone_on_copy)]
     fn clone() {
         let l1 = ConstructorKind::Derived;
         let l2 = l1.clone();
@@ -221,12 +221,6 @@ fn function_prototype_call(
     super::function_prototype_call(&this_value, None, args).map_err(unwind_any_error)
 }
 
-#[test_case(super::function_prototype_bind => panics "not yet implemented"; "function_prototype_bind")]
-fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
-    setup_test_agent();
-    f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
-}
-
 #[test_case(|| intrinsic(IntrinsicId::IsNaN) => sok("function isNaN() { [native code] }"); "builtin fcn")]
 #[test_case(|| ECMAScriptValue::Undefined => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (undefined)")]
 #[test_case(|| ECMAScriptValue::Null => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (null)")]
@@ -235,7 +229,7 @@ fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completi
 #[test_case(|| 0 => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Number)")]
 #[test_case(|| BigInt::from(0) => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (BigInt)")]
 #[test_case(|| wks(WksId::Unscopables) => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Symbol)")]
-#[test_case(|| ordinary_object_create(None, &[]) => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Object)")]
+#[test_case(|| ordinary_object_create(None) => serr("TypeError: Function.prototype.toString requires that 'this' be a Function"); "non-function (Object)")]
 #[test_case(
     || {
         let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
@@ -257,7 +251,7 @@ fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completi
             "function(a, b, c) { return a+b+c; }",
             vec![],
             vec![],
-            ClassName::Empty,
+            None,
             false,
             Rc::new(Chunk::new("tester")),
         )
@@ -266,7 +260,7 @@ fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completi
     "standard function object"
 )]
 #[test_case(
-    || BuiltInFunctionObject::object(None, true, current_realm_record().unwrap(), None, do_nothing, false)
+    || BuiltInFunctionObject::object(None, true, current_realm_record().unwrap(), None, Box::new(do_nothing), None)
     => sok("function () { [native code] }");
     "built-in without InitialName"
 )]
@@ -460,7 +454,7 @@ mod make_method {
         let fobj = Object::try_from(fvalue).unwrap();
         let f_funobj = fobj.o.to_function_obj().unwrap();
 
-        let home = ordinary_object_create(None, &[]);
+        let home = ordinary_object_create(None);
 
         assert!(f_funobj.function_data().borrow().home_object.is_none());
 
@@ -476,11 +470,11 @@ mod class_name {
 
     #[test]
     fn fmt_debug() {
-        let cn = ClassName::Empty;
+        let cn = ClassName::String(JSString::from("bob"));
         assert_ne!(format!("{cn:?}"), "");
     }
 
-    #[test_case(&ClassName::Empty => ClassName::Empty; "empty")]
+    #[test_case(&ClassName::String(JSString::from("alice")) => ClassName::String(JSString::from("alice")); "string")]
     fn clone(a: &ClassName) -> ClassName {
         a.clone()
     }
@@ -512,15 +506,15 @@ mod class_name {
         setup_test_agent();
         let nc = make_nc();
         let pn = if let NormalCompletion::PrivateName(pn) = &nc { Some(pn) } else { None };
-        let cn = ClassName::try_from(nc.clone()).map_err(|e| e.to_string())?;
+        let cn: Option<ClassName> = TryFrom::try_from(nc.clone()).map_err(|e: anyhow::Error| e.to_string())?;
 
         match cn {
-            ClassName::String(s) => Ok(format!("String({s})")),
-            ClassName::Symbol(sym) => Ok(format!("Symbol({sym})")),
-            ClassName::Private(cnpn) => {
+            Some(ClassName::String(s)) => Ok(format!("String({s})")),
+            Some(ClassName::Symbol(sym)) => Ok(format!("Symbol({sym})")),
+            Some(ClassName::Private(cnpn)) => {
                 Ok(format!("PrivateName({})", if &cnpn == pn.unwrap() { "matches" } else { "doesn't match" }))
             }
-            ClassName::Empty => Ok(String::from("Empty")),
+            None => Ok(String::from("Empty")),
         }
     }
 }
@@ -883,7 +877,7 @@ fn make_working_function_object() -> Object {
         &source_text,
         vec![],
         vec![],
-        ClassName::Empty,
+        None,
         false,
         Rc::new(compiled),
     );
@@ -937,7 +931,7 @@ fn make_strict_function_object() -> Object {
         &source_text,
         vec![],
         vec![],
-        ClassName::Empty,
+        None,
         false,
         Rc::new(compiled),
     );
@@ -986,7 +980,7 @@ fn make_arrow_function_object() -> Object {
         &source_text,
         vec![],
         vec![],
-        ClassName::Empty,
+        None,
         false,
         Rc::new(compiled),
     );
@@ -1021,20 +1015,16 @@ mod function_object {
             "function(a, b, c) { return a+b+c; }",
             vec![],
             vec![],
-            ClassName::Empty,
+            None,
             false,
             Rc::new(Chunk::new("tester")),
         )
     }
 
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_date_object);
-    false_function!(is_error_object);
     false_function!(is_generator_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
@@ -1044,7 +1034,6 @@ mod function_object {
     none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_generator_object);
     none_function!(to_number_obj);
@@ -1306,12 +1295,12 @@ mod built_in_function_object {
     use super::*;
     use test_case::test_case;
 
-    #[allow(clippy::unnecessary_wraps)]
+    #[expect(clippy::unnecessary_wraps)]
     fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         Ok(ECMAScriptValue::Undefined)
     }
     fn make() -> Object {
-        let o = create_builtin_function(behavior, false, 0.0, PropertyKey::from("f"), &[], None, None, None);
+        let o = create_builtin_function(Box::new(behavior), None, 0.0, PropertyKey::from("f"), &[], None, None, None);
         let proto = o.o.get_prototype_of().unwrap().unwrap();
         proto.set("proto_sentinel", true, true).unwrap();
         o
@@ -1328,14 +1317,10 @@ mod built_in_function_object {
     default_get_own_property_test!();
     default_get_test!(|| PropertyKey::from("proto_sentinel"), ECMAScriptValue::from(true));
 
-    false_function!(is_arguments_object);
     false_function!(is_array_object);
     false_function!(is_bigint_object);
-    false_function!(is_boolean_object);
     false_function!(is_date_object);
-    false_function!(is_error_object);
     false_function!(is_generator_object);
-    false_function!(is_number_object);
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
@@ -1345,7 +1330,6 @@ mod built_in_function_object {
     none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
-    none_function!(to_error_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_function_obj);
     none_function!(to_generator_object);
@@ -1602,7 +1586,7 @@ mod built_in_function_object {
     #[test_case(
         || (
             intrinsic(IntrinsicId::Object),
-            ordinary_object_create(None, &[]),
+            ordinary_object_create(None),
             ECMAScriptValue::Undefined,
             vec![]
         )
@@ -1649,9 +1633,9 @@ mod built_in_function_object {
     #[test_case(
         || (
             intrinsic(IntrinsicId::Object),
-            ordinary_object_create(None, &[]),
+            ordinary_object_create(None),
             vec![],
-            ordinary_object_create(None, &[])
+            ordinary_object_create(None)
         )
         => panics "self and self_object must refer to the same object";
         "self != self_object"
@@ -1830,7 +1814,6 @@ mod normal_completion {
         => NormalCompletion::Value(ECMAScriptValue::Symbol(wks(WksId::Unscopables)));
         "Symbol"
     )]
-    #[test_case(|| ClassName::Empty => NormalCompletion::Empty; "empty")]
     fn from(make_cn: impl FnOnce() -> ClassName) -> NormalCompletion {
         setup_test_agent();
         NormalCompletion::from(make_cn())
@@ -1875,13 +1858,13 @@ mod initialize_instance_elements {
     use test_case::test_case;
 
     #[test_case(
-        || ordinary_object_create(None, &[]),
+        || ordinary_object_create(None),
         make_working_function_object
-        => Ok(Vec::new());
-        "No private fields/methods"
+        => Ok((Vec::new(), Vec::new()));
+        "No fields/methods"
     )]
     #[test_case(
-        || ordinary_object_create(None, &[]),
+        || ordinary_object_create(None),
         || {
             let cstr = make_working_function_object();
             let dup = cstr.clone();
@@ -1890,14 +1873,14 @@ mod initialize_instance_elements {
                 key: PrivateName::new("test-key"),
                 kind: PrivateElementKind::Method{ value: ECMAScriptValue::from("test-value") }, // not really a method
             };
-            data.private_methods.push(Rc::new(method));
+            data.private_methods.push(method);
             cstr
         }
-        => Ok(svec(&["PrivateElement{PN[test-key]: Method(test-value)}"]));
+        => Ok((svec(&["PrivateElement{PN[test-key]: Method(test-value)}"]), svec(&[])));
         "One private method"
     )]
     #[test_case(
-        || ordinary_object_create(None, &[]),
+        || ordinary_object_create(None),
         || {
             let cstr = make_working_function_object();
             let dup = cstr.clone();
@@ -1906,47 +1889,55 @@ mod initialize_instance_elements {
                 key: PrivateName::new("test-key"),
                 kind: PrivateElementKind::Method{ value: ECMAScriptValue::from("test-value") }, // not really a method
             };
-            data.private_methods.push(Rc::new(method.clone()));
-            data.private_methods.push(Rc::new(method));
+            data.private_methods.push(method.clone());
+            data.private_methods.push(method);
             cstr
         }
         => serr("TypeError: PrivateName already defined");
         "Duplicate private method"
     )]
     #[test_case(
-        || ordinary_object_create(None, &[]),
+        || ordinary_object_create(None),
         || {
             let cstr = make_working_function_object();
             let dup = cstr.clone();
             let mut data = dup.o.to_function_obj().unwrap().function_data().borrow_mut();
-            let field = ClassFieldDefinitionRecord {};
+            let field = ClassFieldDefinitionRecord { name: ClassName::String(JSString::from("a_field")), initializer: None };
             data.fields.push(field);
             cstr
         }
-        => panics "not yet implemented";
-        "One private field"
+        => Ok((svec(&[]), svec(&["a_field: { undefined wec }"])));
+        "One field"
     )]
     #[test_case(
-        // This test only works on the "todo" form of define_field. Rewrite this when the todo goes away.
         DeadObject::object,
         || {
             let cstr = make_working_function_object();
             let dup = cstr.clone();
             let mut data = dup.o.to_function_obj().unwrap().function_data().borrow_mut();
-            let field = ClassFieldDefinitionRecord {};
+            let field = ClassFieldDefinitionRecord { name: ClassName::String(JSString::from("my_field")), initializer: None};
             data.fields.push(field);
             cstr
         }
-        => serr("TypeError: get called on DeadObject");
+        => serr("TypeError: define_own_property called on DeadObject");
         "Field setting fails"
     )]
-    fn f(make_this: impl FnOnce() -> Object, make_cstr: impl FnOnce() -> Object) -> Result<Vec<String>, String> {
+    fn f(
+        make_this: impl FnOnce() -> Object,
+        make_cstr: impl FnOnce() -> Object,
+    ) -> Result<(Vec<String>, Vec<String>), String> {
         setup_test_agent();
         let this = make_this();
         let cstr = make_cstr();
         initialize_instance_elements(&this, &cstr).map_err(unwind_any_error).map(|()| {
             let data = this.o.common_object_data().borrow();
-            data.private_elements.iter().map(|item| format!("{item}")).collect::<Vec<_>>()
+            (
+                data.private_elements.iter().map(|item| format!("{item}")).collect::<Vec<_>>(),
+                data.properties
+                    .iter()
+                    .map(|(key, value)| format!("{key}: {:?}", ConcisePropertyDescriptor::from(value)))
+                    .collect::<Vec<_>>(),
+            )
         })
     }
 }

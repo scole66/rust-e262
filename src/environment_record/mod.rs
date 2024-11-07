@@ -859,7 +859,7 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
         match self.this_binding_status.get() {
             BindingStatus::Lexical => panic!("lexical functions never have a this binding"),
             BindingStatus::Initialized => Ok(self.this_value.borrow().clone()),
-            BindingStatus::Uninitialized => Err(create_reference_error("This binding uninitialized")),
+            BindingStatus::Uninitialized => Err(create_reference_error("Must call super constructor in derived class before accessing 'this' or returning from derived constructor")),
         }
     }
 
@@ -985,6 +985,30 @@ impl FunctionEnvironmentRecord {
 
     pub fn get_new_target(&self) -> Option<&Object> {
         self.new_target.as_ref()
+    }
+}
+
+/// GetNewTarget ( )
+///
+/// The abstract operation GetNewTarget takes no arguments and returns an Object or undefined. It determines the
+/// NewTarget value using the LexicalEnvironment of the running execution context.
+///
+/// See [ECMA-262: GetNewTarget ( )](https://tc39.es/ecma262/multipage/executable-code-and-execution-contexts.html#sec-getnewtarget).
+pub fn get_new_target() -> Result<Option<Object>, InternalRuntimeError> {
+    //  1. Let envRec be GetThisEnvironment().
+    //  2. Assert: envRec has a [[NewTarget]] field.
+    //  3. Return envRec.[[NewTarget]].
+    let env_rev = get_this_environment();
+    let fer: &FunctionEnvironmentRecord = TryFrom::try_from(&env_rev)?;
+    let nt = fer.get_new_target();
+    Ok(nt.cloned())
+}
+
+impl<'a> TryFrom<&'a Rc<dyn EnvironmentRecord>> for &'a FunctionEnvironmentRecord {
+    type Error = InternalRuntimeError;
+
+    fn try_from(value: &'a Rc<dyn EnvironmentRecord>) -> Result<Self, Self::Error> {
+        value.as_function_environment_record().ok_or(InternalRuntimeError::FunctionEnvironmentExpected)
     }
 }
 

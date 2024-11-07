@@ -1,16 +1,15 @@
-#![allow(dead_code)]
-#![allow(clippy::bool_assert_comparison)]
-#![allow(clippy::enum_variant_names)]
-#![allow(clippy::similar_names)]
 #![allow(clippy::wildcard_imports)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::too_many_lines)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::single_match_else)]
-#![allow(clippy::float_cmp)]
-#![allow(clippy::module_name_repetitions)]
-#![allow(clippy::doc_markdown)]
+#![expect(clippy::bool_assert_comparison)]
+#![expect(clippy::doc_markdown)]
+#![expect(clippy::enum_variant_names)]
+#![expect(clippy::float_cmp)]
+#![expect(clippy::missing_errors_doc)]
+#![expect(clippy::missing_panics_doc)]
+#![expect(clippy::module_name_repetitions)]
+#![expect(clippy::must_use_candidate)]
+#![expect(clippy::similar_names)]
+#![expect(clippy::single_match_else)]
+#![expect(clippy::too_many_lines)]
 // nursery denies.
 #![deny(clippy::empty_line_after_doc_comments)]
 
@@ -19,11 +18,13 @@ mod arguments_object;
 mod arrays;
 mod bigint_object;
 mod boolean_object;
+mod bound_function;
 mod chunk;
 mod comparison;
 mod compiler;
 mod control_abstraction;
 mod cr;
+mod date_object;
 mod dtoa_r;
 mod environment_record;
 mod errors;
@@ -52,11 +53,13 @@ pub use crate::arguments_object::*;
 pub use crate::arrays::*;
 pub use crate::bigint_object::*;
 pub use crate::boolean_object::*;
+pub use crate::bound_function::*;
 pub use crate::chunk::*;
 pub use crate::comparison::*;
 pub use crate::compiler::*;
 pub use crate::control_abstraction::*;
 pub use crate::cr::*;
+pub use crate::date_object::*;
 pub use crate::dtoa_r::*;
 pub use crate::environment_record::*;
 pub use crate::errors::*;
@@ -90,6 +93,7 @@ const GOODOBJ: &str = "algorithmically created objects should not have strange b
 const GOODCSTR: &str = "built-in contructors should not have strange behaviors";
 
 #[derive(Debug)]
+#[expect(dead_code)]
 struct VM {
     // Holds the state for the virtual machine. Anything shared between agents winds up here.
     symbols: Rc<RefCell<SymbolRegistry>>,
@@ -100,7 +104,7 @@ impl VM {
         let sym_registry = Rc::new(RefCell::new(SymbolRegistry::new()));
         AGENT.with(|agent| {
             agent.set_global_symbol_registry(sym_registry.clone());
-            initialize_host_defined_realm(0, false);
+            initialize_host_defined_realm(0, true);
         });
         VM { symbols: sym_registry }
     }
@@ -189,5 +193,5 @@ fn main() {
 }
 
 #[cfg(test)]
-#[allow(hidden_glob_reexports)]
+#[expect(hidden_glob_reexports)]
 mod tests;

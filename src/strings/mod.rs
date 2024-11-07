@@ -1,3 +1,4 @@
+use super::*;
 use num::BigInt;
 use std::fmt;
 use std::ops::Index;
@@ -183,12 +184,13 @@ pub fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
 //  9. Set cp to ! UTF16SurrogatePairToCodePoint(first, second).
 //  10. Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 2, [[IsUnpairedSurrogate]]: false }.
 #[derive(PartialEq, Eq)]
-struct CodePointAtResult {
-    code_point: u32,
-    code_unit_count: u8,
-    is_unpaired_surrogate: bool,
+pub struct CodePointAtResult {
+    pub code_point: u32,
+    pub code_unit_count: u8,
+    pub is_unpaired_surrogate: bool,
 }
-fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
+
+pub fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
     let size = string.len();
     let first = string[position];
     let cp: u32 = u32::from(first);
@@ -222,7 +224,7 @@ fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
 //      c. Set position to position + cp.[[CodeUnitCount]].
 //  5. Return codePoints.
 impl JSString {
-    fn to_code_points(&self) -> Vec<u32> {
+    pub fn to_code_points(&self) -> Vec<u32> {
         // Note that this happily glosses over encoding errors. Storing in a Vec<u32> for now.
         let size = self.len();
         let mut code_points: Vec<u32> = Vec::with_capacity(size);
@@ -236,7 +238,30 @@ impl JSString {
     }
 }
 
-fn is_str_whitespace(ch: u16) -> bool {
+#[allow(clippy::cast_possible_truncation)]
+pub fn utf16_encode_code_point(cp: u32, dst: &mut [u16; 2]) -> anyhow::Result<&mut [u16]> {
+    // Static Semantics: UTF16EncodeCodePoint ( cp )
+    // The abstract operation UTF16EncodeCodePoint takes argument cp (a Unicode code point) and returns a String. It performs the following steps when called:
+    //
+    // 1. Assert: 0 ≤ cp ≤ 0x10FFFF.
+    // 2. If cp ≤ 0xFFFF, return the String value consisting of the code unit whose numeric value is cp.
+    // 3. Let cu1 be the code unit whose numeric value is floor((cp - 0x10000) / 0x400) + 0xD800.
+    // 4. Let cu2 be the code unit whose numeric value is ((cp - 0x10000) modulo 0x400) + 0xDC00.
+    // 5. Return the string-concatenation of cu1 and cu2.
+    if cp <= 0xFFFF {
+        dst[0] = cp as u16;
+        Ok(&mut dst[0..1])
+    } else if cp <= 0x10_FFFF {
+        let c = (cp - 0x10_0000) as u16;
+        dst[0] = c / 0x400 + 0xD800;
+        dst[1] = c % 0x400 + 0xDC00;
+        Ok(&mut dst[0..2])
+    } else {
+        Err(InternalRuntimeError::CodePointOutOfRange)?
+    }
+}
+
+pub fn is_str_whitespace(ch: u16) -> bool {
     (0x09..=0x0d).contains(&ch)
         || ch == 0x20
         || ch == 0x00a0
@@ -248,6 +273,18 @@ fn is_str_whitespace(ch: u16) -> bool {
         || ch == 0x202f
         || ch == 0x205f
         || ch == 0x3000
+}
+
+pub fn is_radix_digit(ch: u16, radix: i32) -> bool {
+    assert!((2..=36).contains(&radix));
+    let radix = u16::try_from(radix).unwrap();
+    if radix <= 10 {
+        (0x30..(0x30 + radix)).contains(&ch)
+    } else {
+        (0x30..=0x39).contains(&ch)
+            || (0x61..(0x61 + radix - 10)).contains(&ch)
+            || (0x41..(0x41 + radix - 10)).contains(&ch)
+    }
 }
 
 impl JSString {
@@ -296,11 +333,54 @@ impl JSString {
         let digits = code_units.iter().map(|word| u8::try_from(*word).ok()).collect::<Option<Vec<u8>>>()?;
         BigInt::parse_bytes(&digits, radix).map(Rc::new)
     }
+
+    pub fn to_bigint_radix(&self, radix: u32) -> BigInt {
+        let digits = self.as_slice().iter().map(|word| u8::try_from(*word).unwrap()).collect::<Vec<u8>>();
+        BigInt::parse_bytes(digits.as_slice(), radix).unwrap()
+    }
 }
 
 impl From<Rc<BigInt>> for JSString {
     fn from(value: Rc<BigInt>) -> Self {
         JSString::from(value.to_str_radix(10))
+    }
+}
+
+impl JSString {
+    pub fn string_index_of(&self, search_value: &JSString, from_index: usize) -> Option<usize> {
+        // StringIndexOf ( string, searchValue, fromIndex )
+        // The abstract operation StringIndexOf takes arguments string (a String), searchValue (a String), and
+        // fromIndex (a non-negative integer) and returns a non-negative integer or not-found. It performs the
+        // following steps when called:
+        //
+        //  1. Let len be the length of string.
+        //  2. If searchValue is the empty String and fromIndex ≤ len, return fromIndex.
+        //  3. Let searchLen be the length of searchValue.
+        //  4. For each integer i such that fromIndex ≤ i ≤ len - searchLen, in ascending order, do
+        //      a. Let candidate be the substring of string from i to i + searchLen.
+        //      b. If candidate is searchValue, return i.
+        //  5. Return not-found.
+        //
+        // Note 1 | If searchValue is the empty String and fromIndex ≤ the length of string, this algorithm
+        //        | returns fromIndex. The empty String is effectively found at every position within a
+        //        | string, including after the last code unit.
+        //
+        // Note 2 | This algorithm always returns not-found if fromIndex + the length of searchValue > the
+        //        | length of string.
+        let len = self.len();
+        if search_value.is_empty() && from_index <= len {
+            return Some(from_index);
+        }
+        let search_len = search_value.len();
+        if from_index <= len - search_len {
+            for i in from_index..=len - search_len {
+                let candidate = &self.as_slice()[i..i + search_len];
+                if candidate == search_value.as_slice() {
+                    return Some(i);
+                }
+            }
+        }
+        None
     }
 }
 

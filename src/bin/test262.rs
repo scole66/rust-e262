@@ -54,7 +54,7 @@ struct Source {
     source: String,
     mark: Marker,
 }
-#[allow(dead_code)]
+#[expect(dead_code)]
 #[derive(Debug)]
 struct TestInfo {
     source: Vec<Source>,
@@ -208,7 +208,7 @@ struct Arguments {
 }
 
 fn main() -> Result<()> {
-    let ignored_features = ["caller", "async", "cross-realm", "class"];
+    let ignored_features = ["caller", "async", "async-iteration", "async-functions", "iterator-helpers"];
     color_eyre::install()?;
 
     let args = Arguments::parse();

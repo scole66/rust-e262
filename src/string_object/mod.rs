@@ -1,4 +1,5 @@
 use super::*;
+use genawaiter::rc::Co;
 use std::cell::RefCell;
 
 /// String Objects
@@ -26,7 +27,7 @@ use std::cell::RefCell;
 #[derive(Debug)]
 pub struct StringObject {
     common: RefCell<CommonObjectData>,
-    string_data: RefCell<JSString>,
+    string_data: JSString,
 }
 
 impl<'a> From<&'a StringObject> for &'a dyn ObjectInterface {
@@ -54,6 +55,9 @@ impl ObjectInterface for StringObject {
 
     fn is_string_object(&self) -> bool {
         true
+    }
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::String
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
@@ -146,7 +150,7 @@ impl ObjectInterface for StringObject {
         //      a. Add P as the last element of keys.
         //  9. Return keys.
         let mut keys = vec![];
-        let string = self.string_data.borrow();
+        let string = &self.string_data;
         let len = string.len();
         for idx in 0..len {
             keys.push(PropertyKey::from(idx));
@@ -200,10 +204,7 @@ impl From<&str> for Object {
 
 impl StringObject {
     pub fn new(value: JSString, prototype: Option<Object>) -> Self {
-        Self {
-            common: RefCell::new(CommonObjectData::new(prototype, true, STRING_OBJECT_SLOTS)),
-            string_data: RefCell::new(value),
-        }
+        Self { common: RefCell::new(CommonObjectData::new(prototype, true, STRING_OBJECT_SLOTS)), string_data: value }
     }
 
     pub fn object(value: JSString, prototype: Option<Object>) -> Object {
@@ -258,9 +259,9 @@ impl StringObject {
             let index = canonical_numeric_index_string(p)?;
             is_integral_number(&index.into()).then_some(())?;
             (index != 0.0 || index.signum() != -1.0).then_some(())?;
-            let string = self.string_data.borrow();
+            let string = &self.string_data;
             let len = string.len();
-            #[allow(clippy::cast_precision_loss)]
+            #[expect(clippy::cast_precision_loss)]
             (index >= 0.0 && index < len as f64).then_some(())?;
             let idx = to_usize(index).expect("index should be a valid integer");
             let value = JSString::from(&string.as_slice()[idx..=idx]);
@@ -295,8 +296,8 @@ pub fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //
     // * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let string_constructor = create_builtin_function(
-        string_constructor_function,
-        true,
+        Box::new(string_constructor_function),
+        Some(ConstructorKind::Base),
         1.0,
         PropertyKey::from("String"),
         BUILTIN_FUNCTION_SLOTS,
@@ -310,8 +311,8 @@ pub fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -367,8 +368,8 @@ pub fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -490,7 +491,7 @@ fn this_string_value(value: ECMAScriptValue, from_where: &str) -> Completion<JSS
         ECMAScriptValue::String(s) => Ok(s),
         ECMAScriptValue::Object(obj) if obj.o.is_string_object() => {
             let sobj = obj.o.to_string_obj().unwrap();
-            Ok(sobj.string_data.borrow().clone())
+            Ok(sobj.string_data.clone())
         }
         _ => Err(create_type_error(format!("{from_where} requires that 'this' be a String"))),
     }
@@ -621,7 +622,6 @@ fn string_prototype_index_of(
     let pos = position.to_integer_or_infinity()?;
     let len = s.len();
     let max = to_f64(len).expect("len should fit within a float");
-    #[allow(clippy::cast_precision_loss)]
     let start = to_usize(pos.clamp(0.0, max)).expect("start should be within the string's length, which fits a usize");
     Ok(s.index_of(&search_str, start).into())
 }
@@ -682,6 +682,64 @@ fn string_prototype_pad_start(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum PadPlacement {
+    Start,
+    End,
+}
+
+impl JSString {
+    #[must_use]
+    pub fn string_pad(&self, max_length: usize, fill_string: &JSString, placement: PadPlacement) -> JSString {
+        // StringPad ( S, maxLength, fillString, placement )
+        // The abstract operation StringPad takes arguments S (a String), maxLength (a non-negative integer), fillString
+        // (a String), and placement (start or end) and returns a String. It performs the following steps when called:
+        //
+        //  1. Let stringLength be the length of S.
+        //  2. If maxLength ≤ stringLength, return S.
+        //  3. If fillString is the empty String, return S.
+        //  4. Let fillLen be maxLength - stringLength.
+        //  5. Let truncatedStringFiller be the String value consisting of repeated concatenations of fillString
+        //     truncated to length fillLen.
+        //  6. If placement is start, return the string-concatenation of truncatedStringFiller and S.
+        //  7. Else, return the string-concatenation of S and truncatedStringFiller.
+        //
+        // Note 1
+        // The argument maxLength will be clamped such that it can be no smaller than the length of S.
+        //
+        // Note 2
+        // The argument fillString defaults to " " (the String value consisting of the code unit 0x0020 SPACE).
+        let string_length = self.len();
+        if max_length <= string_length || fill_string.is_empty() {
+            return self.clone();
+        }
+        let fill_len = max_length - string_length;
+        let mut truncated_string_filler = JSString::from("");
+        while truncated_string_filler.len() < fill_len {
+            truncated_string_filler = truncated_string_filler.concat(fill_string.clone());
+        }
+        if truncated_string_filler.len() > fill_len {
+            truncated_string_filler = JSString::from(&truncated_string_filler.as_slice()[0..fill_len]);
+        }
+        match placement {
+            PadPlacement::Start => truncated_string_filler.concat(self.clone()),
+            PadPlacement::End => self.concat(truncated_string_filler),
+        }
+    }
+}
+
+pub fn to_zero_padded_decimal_string(n: usize, min_length: usize) -> JSString {
+    // ToZeroPaddedDecimalString ( n, minLength )
+    // The abstract operation ToZeroPaddedDecimalString takes arguments n (a non-negative integer) and minLength (a
+    // non-negative integer) and returns a String. It performs the following steps when called:
+    //
+    // 1. Let S be the String representation of n, formatted as a decimal number.
+    // 2. Return StringPad(S, minLength, "0", start).
+    let s = JSString::from(format!("{n}"));
+    s.string_pad(min_length, &JSString::from("0"), PadPlacement::Start)
+}
+
 // 22.1.3.17 String.prototype.repeat ( count )
 fn string_prototype_repeat(
     _: &ECMAScriptValue,
@@ -722,14 +780,124 @@ fn string_prototype_slice(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
 // 22.1.3.22 String.prototype.split ( separator, limit )
+#[expect(clippy::many_single_char_names)]
 fn string_prototype_split(
-    _: &ECMAScriptValue,
+    this: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.prototype.split ( separator, limit )
+    // This method returns an Array into which substrings of the result of converting this object to a String
+    // have been stored. The substrings are determined by searching from left to right for occurrences of
+    // separator; these occurrences are not part of any String in the returned array, but serve to divide up
+    // the String value. The value of separator may be a String of any length or it may be an object, such as
+    // a RegExp, that has a %Symbol.split% method.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let O be ? RequireObjectCoercible(this value).
+    //  2. If separator is neither undefined nor null, then
+    //      a. Let splitter be ? GetMethod(separator, %Symbol.split%).
+    //      b. If splitter is not undefined, then
+    //          i. Return ? Call(splitter, separator, « O, limit »).
+    //  3. Let S be ? ToString(O).
+    //  4. If limit is undefined, let lim be 2**32 - 1; else let lim be ℝ(? ToUint32(limit)).
+    //  5. Let R be ? ToString(separator).
+    //  6. If lim = 0, then
+    //      a. Return CreateArrayFromList(« »).
+    //  7. If separator is undefined, then
+    //      a. Return CreateArrayFromList(« S »).
+    //  8. Let separatorLength be the length of R.
+    //  9. If separatorLength = 0, then
+    //      a. Let strLen be the length of S.
+    //      b. Let outLen be the result of clamping lim between 0 and strLen.
+    //      c. Let head be the substring of S from 0 to outLen.
+    //      d. Let codeUnits be a List consisting of the sequence of code units that are the elements of head.
+    //      e. Return CreateArrayFromList(codeUnits).
+    //  10. If S is the empty String, return CreateArrayFromList(« S »).
+    //  11. Let substrings be a new empty List.
+    //  12. Let i be 0.
+    //  13. Let j be StringIndexOf(S, R, 0).
+    //  14. Repeat, while j is not not-found,
+    //      a. Let T be the substring of S from i to j.
+    //      b. Append T to substrings.
+    //      c. If the number of elements in substrings is lim, return CreateArrayFromList(substrings).
+    //      d. Set i to j + separatorLength.
+    //      e. Set j to StringIndexOf(S, R, i).
+    //  15. Let T be the substring of S from i.
+    //  16. Append T to substrings.
+    //  17. Return CreateArrayFromList(substrings).
+    //
+    // Note 1 | The value of separator may be an empty String. In this case, separator does not match the
+    //        | empty substring at the beginning or end of the input String, nor does it match the empty
+    //        | substring at the end of the previous separator match. If separator is the empty String, the
+    //        | String is split up into individual code unit elements; the length of the result array equals
+    //        | the length of the String, and each substring contains one code unit.
+    //        |
+    //        | If the this value is (or converts to) the empty String, the result depends on whether
+    //        | separator can match the empty String. If it can, the result array contains no elements.
+    //        | Otherwise, the result array contains one element, which is the empty String.
+    //        |
+    //        | If separator is undefined, then the result array contains just one String, which is the this
+    //        | value (converted to a String). If limit is not undefined, then the output array is truncated
+    //        | so that it contains no more than limit elements.
+    //
+    // Note 2 | This method is intentionally generic; it does not require that its this value be a String
+    //        | object. Therefore, it can be transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let separator = args.next_arg();
+    let limit = args.next_arg();
+    require_object_coercible(this)?;
+    let o = this.clone();
+    if ![ECMAScriptValue::Undefined, ECMAScriptValue::Null].contains(&separator) {
+        let splitter = separator.get_method(&PropertyKey::from(wks(WksId::Split)))?;
+        if splitter != ECMAScriptValue::Undefined {
+            return call(&splitter, &separator, &[o, limit]);
+        }
+    }
+    let s = to_string(o)?;
+    let lim = if limit == ECMAScriptValue::Undefined { 4_294_967_295 } else { limit.to_uint32()? };
+    let r = to_string(separator.clone())?;
+    if lim == 0 {
+        return Ok(ECMAScriptValue::Object(create_array_from_list(&[])));
+    }
+    if separator == ECMAScriptValue::Undefined {
+        return Ok(ECMAScriptValue::Object(create_array_from_list(&[ECMAScriptValue::String(s)])));
+    }
+    let separator_length = r.len();
+    if separator_length == 0 {
+        let str_len = u32::try_from(s.len()).unwrap_or(u32::MAX);
+        let out_len = lim.clamp(0, str_len);
+        let head = s.as_slice()[0..out_len as usize]
+            .iter()
+            .map(|num| ECMAScriptValue::from(JSString::from(&[*num] as &[u16])))
+            .collect::<Vec<_>>();
+        return Ok(ECMAScriptValue::Object(create_array_from_list(&head)));
+    }
+
+    if s.is_empty() {
+        return Ok(ECMAScriptValue::Object(create_array_from_list(&[ECMAScriptValue::from(s)])));
+    }
+
+    let mut substrings = vec![];
+    let mut i = 0;
+    let mut maybe_j = s.string_index_of(&r, 0);
+    while let Some(j) = maybe_j {
+        let t = ECMAScriptValue::String(JSString::from(&s.as_slice()[i..j]));
+        substrings.push(t);
+        if substrings.len() == lim as usize {
+            return Ok(ECMAScriptValue::Object(create_array_from_list(&substrings)));
+        }
+        i = j + separator_length;
+        maybe_j = s.string_index_of(&r, i);
+    }
+    let t = ECMAScriptValue::String(JSString::from(&s.as_slice()[i..]));
+    substrings.push(t);
+    Ok(ECMAScriptValue::Object(create_array_from_list(&substrings)))
 }
+
 // 22.1.3.23 String.prototype.startsWith ( searchString [ , position ] )
 fn string_prototype_starts_with(
     _: &ECMAScriptValue,
@@ -764,12 +932,59 @@ fn string_prototype_to_locale_upper_case(
 }
 // 22.1.3.27 String.prototype.toLowerCase ( )
 fn string_prototype_to_lower_case(
-    _: &ECMAScriptValue,
+    this: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.prototype.toLowerCase ( )
+    // This method interprets a String value as a sequence of UTF-16 encoded code points, as described in 6.1.4.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let O be ? RequireObjectCoercible(this value).
+    //  2. Let S be ? ToString(O).
+    //  3. Let sText be StringToCodePoints(S).
+    //  4. Let lowerText be toLowercase(sText), according to the Unicode Default Case Conversion algorithm.
+    //  5. Let L be CodePointsToString(lowerText).
+    //  6. Return L.
+    //
+    // The result must be derived according to the locale-insensitive case mappings in the Unicode Character Database
+    // (this explicitly includes not only the file UnicodeData.txt, but also all locale-insensitive mappings in the file
+    // SpecialCasing.txt that accompanies it).
+    //
+    // Note 1 The case mapping of some code points may produce multiple code points. In this case the result String may
+    // not be the same length as the source String. Because both toUpperCase and toLowerCase have context-sensitive
+    // behaviour, the methods are not symmetrical. In other words, s.toUpperCase().toLowerCase() is not necessarily
+    // equal to s.toLowerCase().
+    //
+    // Note 2 This method is intentionally generic; it does not require that its this value be a String object.
+    // Therefore, it can be transferred to other kinds of objects for use as a method.
+    require_object_coercible(this)?;
+    let s = to_string(this.clone())?;
+    let stext = s.to_code_points();
+
+    let mut result = vec![];
+    for c in stext {
+        match char::try_from(c) {
+            Ok(ch) => {
+                let chars = ch.to_lowercase().collect::<Vec<_>>();
+                let mut buf = [0; 2];
+                for c in chars {
+                    let encoded = c.encode_utf16(&mut buf);
+                    result.extend_from_slice(encoded);
+                }
+            }
+            Err(_) => {
+                let mut buf = [0; 2];
+                let encoded = utf16_encode_code_point(c, &mut buf).expect("char points should be in range");
+                result.extend_from_slice(encoded);
+            }
+        }
+    }
+
+    Ok(ECMAScriptValue::String(JSString::from(result)))
 }
+
 // 22.1.3.28 String.prototype.toString ( )
 fn string_prototype_to_string(
     this_value: &ECMAScriptValue,
@@ -799,6 +1014,53 @@ fn string_prototype_trim(
 ) -> Completion<ECMAScriptValue> {
     todo!()
 }
+
+#[derive(Copy, Clone, PartialEq)]
+pub enum TrimHint {
+    Start,
+    End,
+    Both,
+}
+
+pub fn trim_string(string: ECMAScriptValue, hint: TrimHint) -> Completion<JSString> {
+    // TrimString ( string, where )
+    // The abstract operation TrimString takes arguments string (an ECMAScript language value) and where
+    // (start, end, or start+end) and returns either a normal completion containing a String or a throw
+    // completion. It interprets string as a sequence of UTF-16 encoded code points, as described in 6.1.4. It
+    // performs the following steps when called:
+    //
+    // 1. Let str be ? RequireObjectCoercible(string).
+    // 2. Let S be ? ToString(str).
+    // 3. If where is start, then
+    //    a. Let T be the String value that is a copy of S with leading white space removed.
+    // 4. Else if where is end, then
+    //    a. Let T be the String value that is a copy of S with trailing white space removed.
+    // 5. Else,
+    //    a. Assert: where is start+end.
+    //    b. Let T be the String value that is a copy of S with both leading and trailing white space removed.
+    // 6. Return T.
+    //
+    // The definition of white space is the union of WhiteSpace and LineTerminator. When determining whether a
+    // Unicode code point is in Unicode general category “Space_Separator” (“Zs”), code unit sequences are
+    // interpreted as UTF-16 encoded code point sequences as specified in 6.1.4.
+
+    require_object_coercible(&string)?;
+    let s = to_string(string)?;
+    let mut start = 0;
+    let mut final_idx = s.len();
+    if hint == TrimHint::Start || hint == TrimHint::Both {
+        while start < s.len() && is_str_whitespace(s[start]) {
+            start += 1;
+        }
+    }
+    if hint == TrimHint::End || hint == TrimHint::Both {
+        while final_idx > 0 && is_str_whitespace(s[final_idx - 1]) {
+            final_idx -= 1;
+        }
+    }
+    Ok(JSString::from(&s.as_slice()[start..final_idx]))
+}
+
 // 22.1.3.31 String.prototype.trimEnd ( )
 fn string_prototype_trim_end(
     _: &ECMAScriptValue,
@@ -829,12 +1091,131 @@ fn string_prototype_value_of(
     Ok(s.into())
 }
 
+async fn string_iterator(
+    co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
+    s: JSString,
+) -> Completion<ECMAScriptValue> {
+    //  1. Let len be the length of s.
+    //  2. Let position be 0.
+    //  3. Repeat, while position < len,
+    //     a. Let cp be CodePointAt(s, position).
+    //     b. Let nextIndex be position + cp.[[CodeUnitCount]].
+    //     c. Let resultString be the substring of s from position to nextIndex.
+    //     d. Set position to nextIndex.
+    //     e. Perform ? GeneratorYield(CreateIteratorResultObject(resultString, false)).
+    //  4. Return undefined.
+    let len = s.len();
+    let mut position = 0;
+    while position < len {
+        let cp = code_point_at(&s, position);
+        let next_index = position + usize::from(cp.code_unit_count);
+        let result_string = JSString::from(&s.as_slice()[position..next_index]);
+        position = next_index;
+        let res = ECMAScriptValue::from(create_iter_result_object(ECMAScriptValue::from(result_string), false));
+        generator_yield(&co, res).await?;
+    }
+    Ok(ECMAScriptValue::Undefined)
+}
+
 fn string_prototype_iterator(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.prototype [ %Symbol.iterator% ] ( )
+    // This method returns an Iterator object (27.1.1.2) that iterates over the code points of a String value,
+    // returning each code point as a String value.
+    //
+    // It performs the following steps when called:
+    //
+    //  1. Let O be ? RequireObjectCoercible(this value).
+    //  2. Let s be ? ToString(O).
+    //  3. Let closure be a new Abstract Closure with no parameters that captures s and performs the following
+    //     steps when called:
+    //     a. Let len be the length of s.
+    //     b. Let position be 0.
+    //     c. Repeat, while position < len,
+    //        i. Let cp be CodePointAt(s, position).
+    //        ii. Let nextIndex be position + cp.[[CodeUnitCount]].
+    //        iii. Let resultString be the substring of s from position to nextIndex.
+    //        iv. Set position to nextIndex.
+    //        v. Perform ? GeneratorYield(CreateIteratorResultObject(resultString, false)).
+    //     d. Return undefined.
+    //  4. Return CreateIteratorFromClosure(closure, "%StringIteratorPrototype%", %StringIteratorPrototype%).
+    require_object_coercible(this_value)?;
+    let s = to_string(this_value.clone())?;
+    let closure = move |co| string_iterator(co, s);
+
+    Ok(ECMAScriptValue::Object(create_iterator_from_closure(
+        asyncfn_wrap(closure),
+        "%StringIteratorPrototype%",
+        Some(intrinsic(IntrinsicId::StringIteratorPrototype)),
+    )))
+}
+
+pub fn provision_string_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
+    // The %StringIteratorPrototype% object:
+    //
+    //  * has properties that are inherited by all String Iterator Objects.
+    //  * is an ordinary object.
+    //  * has a [[Prototype]] internal slot whose value is %Iterator.prototype%.
+    let string_iterator_prototype = ordinary_object_create(Some(realm.borrow().intrinsics.iterator_prototype.clone()));
+
+    // %StringIteratorPrototype% [ %Symbol.toStringTag% ]
+    // The initial value of the %Symbol.toStringTag% property is the String value "String Iterator".
+    //
+    // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }.
+    define_property_or_throw(
+        &string_iterator_prototype,
+        wks(WksId::ToStringTag),
+        PotentialPropertyDescriptor::new()
+            .value("String Iterator")
+            .writable(false)
+            .enumerable(false)
+            .configurable(true),
+    )
+    .expect("internal object");
+
+    let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
+    macro_rules! prototype_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(
+                Box::new($steps),
+                None,
+                f64::from($length),
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+            define_property_or_throw(
+                &string_iterator_prototype,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
+        };
+    }
+
+    prototype_function!(string_iterator_prototype_next, "next", 0);
+
+    realm.borrow_mut().intrinsics.string_iterator_prototype = string_iterator_prototype;
+}
+
+fn string_iterator_prototype_next(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // %StringIteratorPrototype%.next ( )
+    //  1. Return ? GeneratorResume(this value, empty, "%StringIteratorPrototype%").
+    generator_resume(this_value, ECMAScriptValue::Undefined, "%StringIteratorPrototype%")
 }
 
 #[cfg(test)]

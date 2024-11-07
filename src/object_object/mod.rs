@@ -55,27 +55,7 @@ pub fn object_prototype_to_string(
         return Ok(ECMAScriptValue::from("[object Null]"));
     }
     let o = to_object(this_value.clone()).unwrap();
-    let builtin_tag = if o.is_array()? {
-        "Array"
-    } else if o.o.is_arguments_object() {
-        "Arguments"
-    } else if o.o.is_callable_obj() {
-        "Function"
-    } else if o.o.is_error_object() {
-        "Error"
-    } else if o.o.is_boolean_object() {
-        "Boolean"
-    } else if o.o.is_number_object() {
-        "Number"
-    } else if o.o.is_string_object() {
-        "String"
-    } else if o.o.is_date_object() {
-        "Date"
-    } else if o.o.is_regexp_object() {
-        "RegExp"
-    } else {
-        "Object"
-    };
+    let builtin_tag = if o.is_array()? { ARRAY_TAG } else { &o.o.kind().to_string() };
     let to_string_tag_symbol = wks(WksId::ToStringTag);
     let tag = o.get(&PropertyKey::from(to_string_tag_symbol))?;
     let tag_string = match tag {
@@ -108,8 +88,8 @@ pub fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //
     //      * has a [[Prototype]] internal slot whose value is %Function.prototype%.
     let object_constructor = create_builtin_function(
-        object_constructor_function,
-        true,
+        Box::new(object_constructor_function),
+        Some(ConstructorKind::Base),
         1.0,
         PropertyKey::from("Object"),
         BUILTIN_FUNCTION_SLOTS,
@@ -123,8 +103,8 @@ pub fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -188,8 +168,8 @@ pub fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
         ( $steps:expr, $name:expr, $length:expr ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
-                $steps,
-                false,
+                Box::new($steps),
+                None,
                 $length,
                 key.clone(),
                 BUILTIN_FUNCTION_SLOTS,
@@ -256,7 +236,7 @@ fn object_constructor_function(
         if let Some(afo) = active_function_object() {
             if *nt != afo {
                 return nt
-                    .ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, &[])
+                    .ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, ordinary_object_create)
                     .map(ECMAScriptValue::from);
             }
         }
@@ -264,7 +244,7 @@ fn object_constructor_function(
     let mut args = FuncArgs::from(arguments);
     let value = args.next_arg();
     let obj = if value.is_null() || value.is_undefined() {
-        ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[])
+        ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)))
     } else {
         to_object(value).unwrap()
     };
@@ -341,7 +321,7 @@ fn object_create(
         }
     };
     let properties = args.next_arg();
-    let obj = ordinary_object_create(o, &[]);
+    let obj = ordinary_object_create(o);
     if properties.is_undefined() {
         Ok(ECMAScriptValue::from(obj))
     } else {
@@ -555,7 +535,7 @@ fn object_from_entries(
     let iterable = args.next_arg();
     require_object_coercible(&iterable)?;
     let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let obj = ordinary_object_create(Some(obj_proto), &[]);
+    let obj = ordinary_object_create(Some(obj_proto));
     let closure = |this: &ECMAScriptValue, _: Option<&Object>, args: &[ECMAScriptValue]| {
         let this_obj = Object::try_from(this).expect("'this' should be an object");
         let mut args = FuncArgs::from(args);
@@ -566,7 +546,7 @@ fn object_from_entries(
         let result: Completion<ECMAScriptValue> = Ok(ECMAScriptValue::Undefined);
         result
     };
-    let adder = create_builtin_function(closure, false, 2.0, "".into(), &[], None, None, None);
+    let adder = create_builtin_function(Box::new(closure), None, 2.0, "".into(), &[], None, None, None);
     add_entries_from_iterable(&obj.into(), &iterable, &adder.into())
         .map(|nc| nc.try_into().expect("outside the compiler, this should always return a value"))
 }
@@ -618,7 +598,7 @@ fn object_get_own_property_descriptors(
     let obj = to_object(o)?;
     let own_keys = obj.o.own_property_keys()?;
     let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
-    let descriptors = ordinary_object_create(Some(object_proto), &[]);
+    let descriptors = ordinary_object_create(Some(object_proto));
     for key in own_keys {
         let desc = obj.o.get_own_property(&key)?;
         let descriptor = from_property_descriptor(desc);
@@ -723,7 +703,7 @@ fn object_has_own(
     obj.has_own_property(&key).map(ECMAScriptValue::from)
 }
 
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn object_is(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,

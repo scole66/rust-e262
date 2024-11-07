@@ -1,5 +1,5 @@
 use super::*;
-use ahash::{AHashMap, AHashSet};
+use ahash::AHashMap;
 use anyhow::anyhow;
 use std::cell::RefCell;
 use std::convert::TryFrom;
@@ -38,7 +38,7 @@ pub struct PropertyDescriptor {
     pub spot: usize,
 }
 
-struct ConcisePropertyDescriptor<'a>(&'a PropertyDescriptor);
+pub struct ConcisePropertyDescriptor<'a>(&'a PropertyDescriptor);
 impl<'a> fmt::Debug for ConcisePropertyDescriptor<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{{ ")?;
@@ -311,7 +311,7 @@ where
 //      a. Perform ! CreateDataPropertyOrThrow(obj, "configurable", Desc.[[Configurable]]).
 //  10. Return obj.
 fn fpd(d: PotentialPropertyDescriptor) -> Object {
-    let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)), &[]);
+    let obj = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
     if let Some(value) = d.value {
         obj.create_data_property_or_throw("value", value).unwrap();
     }
@@ -467,7 +467,7 @@ fn ospo_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> bool {
         return false;
     }
     let mut p = val.clone();
-    #[allow(clippy::assigning_clones)] // clippy is actually _wrong_ here.
+    #[expect(clippy::assigning_clones)] // clippy is actually _wrong_ here.
     while let Some(pp) = p {
         if pp.o.id() == obj.id() {
             return false;
@@ -1092,17 +1092,62 @@ pub fn array_index_key(item: &PropertyKey) -> u32 {
     }
 }
 
+pub const ARRAY_TAG: &str = "Array";
+pub const OBJECT_TAG: &str = "Object";
+pub const NUMBER_TAG: &str = "Number";
+pub const BOOLEAN_TAG: &str = "Boolean";
+pub const STRING_TAG: &str = "String";
+pub const ARGUMENTS_TAG: &str = "Arguments";
+pub const DATE_TAG: &str = "Date";
+pub const REGEXP_TAG: &str = "RegExp";
+pub const FUNCTION_TAG: &str = "Function";
+pub const ERROR_TAG: &str = "Error";
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ObjectTag {
+    Array,
+    Object,
+    Number,
+    Boolean,
+    String,
+    Arguments,
+    Date,
+    RegExp,
+    Function,
+    Error,
+}
+impl fmt::Display for ObjectTag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                ObjectTag::Array => ARRAY_TAG,
+                ObjectTag::Object => OBJECT_TAG,
+                ObjectTag::Number => NUMBER_TAG,
+                ObjectTag::Boolean => BOOLEAN_TAG,
+                ObjectTag::String => STRING_TAG,
+                ObjectTag::Arguments => ARGUMENTS_TAG,
+                ObjectTag::Date => DATE_TAG,
+                ObjectTag::RegExp => REGEXP_TAG,
+                ObjectTag::Function => FUNCTION_TAG,
+                ObjectTag::Error => ERROR_TAG,
+            }
+        )
+    }
+}
+
 pub trait ObjectInterface: Debug {
     fn common_object_data(&self) -> &RefCell<CommonObjectData>;
     fn uses_ordinary_get_prototype_of(&self) -> bool; // True if implements ordinary defintion of GetPrototypeOf
-    fn id(&self) -> usize; // Unique object id. Used for object "is_same" detection.
+    fn id(&self) -> usize {
+        // Unique object id. Used for object "is_same" detection.
+        self.common_object_data().borrow().objid
+    }
     fn to_boolean_obj(&self) -> Option<&dyn BooleanObjectInterface> {
         None
     }
     fn to_number_obj(&self) -> Option<&dyn NumberObjectInterface> {
-        None
-    }
-    fn to_error_obj(&self) -> Option<&dyn ObjectInterface> {
         None
     }
     fn to_symbol_obj(&self) -> Option<&dyn SymbolObjectInterface> {
@@ -1134,23 +1179,20 @@ pub trait ObjectInterface: Debug {
     fn to_proxy_object(&self) -> Option<&ProxyObject> {
         None
     }
+    fn to_bound_function_object(&self) -> Option<&BoundFunctionObject> {
+        None
+    }
+    fn to_date_obj(&self) -> Option<&DateObject> {
+        None
+    }
     /// True if this object has no special behavior and no additional slots
     fn is_plain_object(&self) -> bool {
         false
     }
-    fn is_arguments_object(&self) -> bool {
-        false
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::Object
     }
     fn is_callable_obj(&self) -> bool {
-        false
-    }
-    fn is_error_object(&self) -> bool {
-        false
-    }
-    fn is_boolean_object(&self) -> bool {
-        false
-    }
-    fn is_number_object(&self) -> bool {
         false
     }
     fn is_string_object(&self) -> bool {
@@ -1486,7 +1528,16 @@ impl Object {
         OrdinaryObject::object(prototype, extensible)
     }
     pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<Object {}>", self.o.id())
+        match self.which_intrinsic() {
+            None => write!(f, "<Object {}>", self.o.id()),
+            Some(int) => write!(f, "<%{int:?}%>"),
+        }
+    }
+
+    pub fn which_intrinsic(&self) -> Option<IntrinsicId> {
+        let realm_ref = current_realm_record()?;
+        let realm = realm_ref.borrow();
+        realm.intrinsics.which(self)
     }
 
     // IsArray ( argument )
@@ -1609,6 +1660,14 @@ impl Object {
     pub fn is_constructor(&self) -> bool {
         self.o.to_constructable().is_some()
     }
+
+    pub fn is_error_object(&self) -> bool {
+        self.o.kind() == ObjectTag::Error
+    }
+
+    pub fn date_value(&self) -> Option<f64> {
+        self.o.to_date_obj().map(DateObject::date_value)
+    }
 }
 
 // MakeBasicObject ( internalSlotsList )
@@ -1669,6 +1728,12 @@ pub enum InternalSlotName {
     // Proxy Objects
     ProxyTarget,
     ProxyHandler,
+    // Bound Function Objects
+    BoundTargetFunction,
+    BoundThis,
+    BoundArguments,
+    // Date Object
+    DateValue,
     // Regexp
     OriginalSource,
     OriginalFlags,
@@ -1707,6 +1772,8 @@ pub const FUNCTION_OBJECT_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::ClassFieldInitializerName,
     InternalSlotName::IsClassConstructor,
 ];
+pub const BOUND_FUNCTION_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::BoundTargetFunction, InternalSlotName::BoundThis, InternalSlotName::BoundArguments];
 pub const NUMBER_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
 pub const BIGINT_OBJECT_SLOTS: &[InternalSlotName] =
@@ -1733,6 +1800,8 @@ pub const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::RemainingKeys,
 ];
 pub const PROXY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::ProxyTarget, InternalSlotName::ProxyHandler];
+pub const DATE_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::DateValue];
 pub const REGEXP_OBJECT_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::Prototype,
     InternalSlotName::Extensible,
@@ -1741,52 +1810,6 @@ pub const REGEXP_OBJECT_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::RegExpRecord,
     InternalSlotName::RegExpMatcher,
 ];
-
-pub fn slot_match(slot_list: &[InternalSlotName], slot_set: &AHashSet<&InternalSlotName>) -> bool {
-    if slot_list.len() != slot_set.len() {
-        return false;
-    }
-    for slot_id in slot_list {
-        if !slot_set.contains(slot_id) {
-            return false;
-        }
-    }
-    true
-}
-
-pub fn make_basic_object(internal_slots_list: &[InternalSlotName], prototype: Option<Object>) -> Object {
-    let mut slot_set = AHashSet::with_capacity(internal_slots_list.len());
-    for slot in internal_slots_list {
-        slot_set.insert(slot);
-    }
-
-    if slot_match(ORDINARY_OBJECT_SLOTS, &slot_set) {
-        // Ordinary Objects
-        Object::new(prototype, true)
-    } else if slot_match(BOOLEAN_OBJECT_SLOTS, &slot_set) {
-        BooleanObject::object(prototype)
-    } else if slot_match(ERROR_OBJECT_SLOTS, &slot_set) {
-        ErrorObject::object(prototype)
-    } else if slot_match(NUMBER_OBJECT_SLOTS, &slot_set) {
-        NumberObject::object(prototype)
-    } else if slot_match(ARRAY_OBJECT_SLOTS, &slot_set) {
-        ArrayObject::object(prototype)
-    } else if slot_match(SYMBOL_OBJECT_SLOTS, &slot_set) {
-        SymbolObject::object(prototype)
-    } else if slot_match(FUNCTION_OBJECT_SLOTS, &slot_set) {
-        //FunctionObject::object(prototype)
-        panic!("More items are needed for initialization. Use FunctionObject::object directly instead")
-    } else if slot_match(ARGUMENTS_OBJECT_SLOTS, &slot_set) {
-        panic!("Additional info needed for arguments object; use direct constructor");
-    } else if slot_match(GENERATOR_OBJECT_SLOTS, &slot_set) {
-        GeneratorObject::object(prototype, GeneratorState::Undefined, "")
-    } else if slot_match(REGEXP_OBJECT_SLOTS, &slot_set) {
-        RegExpObject::object(prototype)
-    } else {
-        // Unknown combination of slots
-        panic!("Unknown object for slots {slot_set:?}");
-    }
-}
 
 impl ECMAScriptValue {
     /// Convert a value to an object, and then do a property lookup
@@ -2281,9 +2304,12 @@ pub fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Comple
     if !is_callable(c) {
         return Ok(false);
     }
-    // todo: bound target function nonsense
 
     let c = to_object(c.clone()).expect("Callables must be objects");
+    if let Some(bf) = c.o.to_bound_function_object() {
+        let bc = &bf.bound_target_function;
+        return instanceof_operator(o.clone(), &ECMAScriptValue::Object(bc.clone()));
+    }
     match o {
         ECMAScriptValue::Object(obj) => {
             let p = c.get(&"prototype".into())?;
@@ -2373,11 +2399,8 @@ pub fn enumerable_own_properties(obj: &Object, kind: KeyValueKind) -> Completion
 //          to create an ordinary object, and not an exotic one. Thus, within this specification, it is not called by
 //          any algorithm that subsequently modifies the internal methods of the object in ways that would make the
 //          result non-ordinary. Operations that create exotic objects invoke MakeBasicObject directly.
-pub fn ordinary_object_create(proto: Option<Object>, additional_internal_slots_list: &[InternalSlotName]) -> Object {
-    let mut slots = vec![InternalSlotName::Prototype, InternalSlotName::Extensible];
-    slots.extend_from_slice(additional_internal_slots_list);
-    let o = make_basic_object(slots.as_slice(), proto);
-    o
+pub fn ordinary_object_create(proto: Option<Object>) -> Object {
+    Object::new(proto, true)
 }
 
 // OrdinaryCreateFromConstructor ( constructor, intrinsicDefaultProto [ , internalSlotsList ] )
@@ -2397,10 +2420,10 @@ impl Object {
     pub fn ordinary_create_from_constructor(
         &self,
         intrinsic_default_proto: IntrinsicId,
-        internal_slots_list: &[InternalSlotName],
+        factory: impl FnOnce(Option<Object>) -> Object,
     ) -> Completion<Object> {
         let proto = self.get_prototype_from_constructor(intrinsic_default_proto)?;
-        Ok(ordinary_object_create(Some(proto), internal_slots_list))
+        Ok(factory(Some(proto)))
     }
 }
 
@@ -2686,14 +2709,13 @@ impl Object {
         } else if let Some(po) = self.o.to_proxy_object() {
             let (target, _) = po.validate_non_revoked()?;
             target.get_function_realm()
+        } else if let Some(bo) = self.o.to_bound_function_object() {
+            let target = &bo.bound_target_function;
+            target.get_function_realm()
         } else {
             // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
             // a realm slot was _not_ present.
             assert!(!self.o.common_object_data().borrow().slots.contains(&InternalSlotName::Realm));
-
-            // Add the bound-function check
-            eprintln!("GetFunctionRealm: Skipping over bound-function checks...");
-
             Ok(current_realm_record().unwrap())
         }
     }
@@ -2749,20 +2771,46 @@ pub fn private_field_add(obj: &Object, p: PrivateName, value: ECMAScriptValue) -
 //
 // NOTE: The values for private methods and accessors are shared across instances. This step does not create a new copy
 // of the method or accessor.
-pub fn private_method_or_accessor_add(obj: &Object, method: Rc<PrivateElement>) -> Completion<()> {
+pub fn private_method_or_accessor_add(obj: &Object, method: PrivateElement) -> Completion<()> {
     if private_element_find(obj, &method.key).is_some() {
         Err(create_type_error("PrivateName already defined"))
     } else {
-        obj.o.common_object_data().borrow_mut().private_elements.push(method);
+        obj.o.common_object_data().borrow_mut().private_elements.push(Rc::new(method));
         Ok(())
     }
 }
 
-#[allow(unused_variables)]
 pub fn define_field(obj: &Object, field: &ClassFieldDefinitionRecord) -> Completion<()> {
-    // for coverage testing:
-    obj.get(&PropertyKey::from("should_error"))?;
-    todo!()
+    // DefineField ( receiver, fieldRecord )
+    // The abstract operation DefineField takes arguments receiver (an Object) and fieldRecord (a ClassFieldDefinition
+    // Record) and returns either a normal completion containing unused or a throw completion. It performs the following
+    // steps when called:
+    //
+    //  1. Let fieldName be fieldRecord.[[Name]].
+    //  2. Let initializer be fieldRecord.[[Initializer]].
+    //  3. If initializer is not empty, then
+    //      a. Let initValue be ? Call(initializer, receiver).
+    //  4. Else,
+    //      a. Let initValue be undefined.
+    //  5. If fieldName is a Private Name, then
+    //      a. Perform ? PrivateFieldAdd(receiver, fieldName, initValue).
+    //  6. Else,
+    //      a. Assert: fieldName is a property key.
+    //      b. Perform ? CreateDataPropertyOrThrow(receiver, fieldName, initValue).
+    //  7. Return unused.
+    let field_name = &field.name;
+    let initializer = &field.initializer;
+    let init_value = if let Some(initializer) = initializer {
+        call(&ECMAScriptValue::Object(initializer.clone()), &ECMAScriptValue::Object(obj.clone()), &[])?
+    } else {
+        ECMAScriptValue::Undefined
+    };
+    match field_name {
+        ClassName::String(string) => obj.create_data_property_or_throw(string, init_value)?,
+        ClassName::Symbol(symbol) => obj.create_data_property_or_throw(symbol.clone(), init_value)?,
+        ClassName::Private(pn) => private_field_add(obj, pn.clone(), init_value)?,
+    }
+    Ok(())
 }
 
 // PrivateGet ( O, P )
