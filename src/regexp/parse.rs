@@ -1,3 +1,4 @@
+#![expect(dead_code)]
 use super::*;
 
 const PREVIOUSLY_SCANNED: &str = "previously scanned char should still exist";
@@ -68,10 +69,9 @@ impl<'src> Scanner<'src> {
     }
 
     pub fn consume_any(&mut self) -> Option<char> {
-        self.all.get(self.read_idx..).and_then(|s| s.chars().next()).map(|ch| {
+        self.all.get(self.read_idx..).and_then(|s| s.chars().next()).inspect(|ch| {
             let ch_len = ch.len_utf8();
             self.read_idx += ch_len;
-            ch
         })
     }
 

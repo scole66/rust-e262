@@ -4,12 +4,12 @@ pub fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
-    let regexp_prototype = ordinary_object_create(Some(object_prototype), &[]);
+    let regexp_prototype = ordinary_object_create(Some(object_prototype));
     realm.borrow_mut().intrinsics.reg_exp_prototype = regexp_prototype.clone();
 
     let regexp_constructor = create_builtin_function(
-        regexp_constructor_function,
-        true,
+        Box::new(regexp_constructor_function),
+        Some(ConstructorKind::Base),
         1_f64,
         PropertyKey::from("RegExp"),
         BUILTIN_FUNCTION_SLOTS,
@@ -222,7 +222,7 @@ fn reg_exp_alloc(new_target: &Object) -> Completion<Object> {
     //  2. Perform ! DefinePropertyOrThrow(obj, "lastIndex", PropertyDescriptor { [[Writable]]: true, [[Enumerable]]:
     //     false, [[Configurable]]: false }).
     //  3. Return obj.
-    let obj = new_target.ordinary_create_from_constructor(IntrinsicId::RegExpPrototype, REGEXP_OBJECT_SLOTS)?;
+    let obj = new_target.ordinary_create_from_constructor(IntrinsicId::RegExpPrototype, RegExpObject::object)?;
     define_property_or_throw(
         &obj,
         "lastIndex",
