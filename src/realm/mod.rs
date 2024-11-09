@@ -41,6 +41,7 @@ pub enum IntrinsicId {
     GeneratorFunctionPrototype,
     GeneratorFunctionPrototypePrototype,
     GeneratorFunctionPrototypePrototypeNext,
+    Map,
     Math,
     Number,
     NumberPrototype,
@@ -304,6 +305,7 @@ impl Intrinsics {
             IntrinsicId::GeneratorFunctionPrototype => &self.generator_function_prototype,
             IntrinsicId::GeneratorFunctionPrototypePrototype => &self.generator_function_prototype_prototype,
             IntrinsicId::GeneratorFunctionPrototypePrototypeNext => &self.generator_function_prototype_prototype_next,
+            IntrinsicId::Map => &self.map,
             IntrinsicId::Math => &self.math,
             IntrinsicId::Number => &self.number,
             IntrinsicId::NumberPrototype => &self.number_prototype,
@@ -370,6 +372,7 @@ impl Intrinsics {
             o if o == &self.generator_function_prototype_prototype_next => {
                 Some(IntrinsicId::GeneratorFunctionPrototypePrototypeNext)
             }
+            o if o == &self.map => Some(IntrinsicId::Map),
             o if o == &self.math => Some(IntrinsicId::Math),
             o if o == &self.number => Some(IntrinsicId::Number),
             o if o == &self.number_prototype => Some(IntrinsicId::NumberPrototype),
@@ -525,6 +528,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     provision_reflect_intrinsic(realm_rec);
     provision_regexp_intrinsic(realm_rec);
     provision_date_intrinsic(realm_rec);
+    provision_map_intrinsic(realm_rec);
 
     macro_rules! intrinsic_function {
         ( $intrinsicid:ident, $name:expr, $length:expr ) => {
