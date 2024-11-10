@@ -29,6 +29,21 @@ pub fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
             .configurable(false),
     )
     .expect(GOODOBJ);
+
+    let species_sym = wks(WksId::Species);
+
+    let species_fcn = create_builtin_function(
+        Box::new(regexp_species),
+        None,
+        0.0,
+        species_sym.clone().into(),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        Some("get".into()),
+    );
+    let species_ppd = PotentialPropertyDescriptor::new().get(species_fcn).enumerable(false).configurable(true);
+    define_property_or_throw(&regexp_constructor, species_sym, species_ppd).expect(GOODOBJ);
 }
 
 #[derive(Debug)]
@@ -63,9 +78,6 @@ impl ObjectInterface for RegExpObject {
     fn uses_ordinary_get_prototype_of(&self) -> bool {
         true
     }
-    fn id(&self) -> usize {
-        self.common.borrow().objid
-    }
     fn to_regexp_object(&self) -> Option<&RegExpObject> {
         Some(self)
     }
@@ -73,6 +85,12 @@ impl ObjectInterface for RegExpObject {
         true
     }
 
+    // [[GetPrototypeOf]] ( )
+    //
+    // The [[GetPrototypeOf]] internal method of an ordinary object O takes no arguments. It performs the following
+    // steps when called:
+    //
+    //  1. Return ! OrdinaryGetPrototypeOf(O).
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
     }
@@ -311,6 +329,24 @@ fn regexp_constructor_function(
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     todo!()
+}
+
+fn regexp_species(
+    this_value: &ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // get RegExp [ %Symbol.species% ]
+    // RegExp[%Symbol.species%] is an accessor property whose set accessor function is undefined. Its get
+    // accessor function performs the following steps when called:
+    //
+    // 1. Return the this value.
+    //
+    // Note
+    // RegExp prototype methods normally use their this value's constructor to create a derived object.
+    // However, a subclass constructor may over-ride that default behaviour by redefining its %Symbol.species%
+    // property.
+    Ok(this_value.clone())
 }
 
 mod parse;
