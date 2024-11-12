@@ -756,24 +756,65 @@ fn array_from(
     if using_iterator != ECMAScriptValue::Undefined {
         let a = if c.is_constructor() {
             let cstr: &Object = c.try_into().expect("things that are constructors should be objects");
-            construct(cstr, &[], None)?
+            TryInto::<Object>::try_into(construct(cstr, &[], None)?)
+                .expect("things constructors make should be objects")
         } else {
-            ECMAScriptValue::Object(
-                array_create(0, None).expect("arrays of length zero should always be constructable"),
-            )
+            array_create(0, None).expect("arrays of length zero should always be constructable")
         };
         let iterator_record = get_iterator_from_method(&items, &using_iterator)?;
-        let mut k = 0;
+        let mut k: usize = 0;
         loop {
             if k >= (2 ^ 53) - 1 {
                 let error = Err(create_type_error("Array.from: iterable too long"));
                 return iterator_close(&iterator_record, error);
-
+            }
+            let pk = PropertyKey::from(k);
+            let next = iterator_step_value(&iterator_record)?;
+            if let Some(next) = next {
+                let mapped_value = if mapping {
+                    match call(&mapper, &this_arg, &[next.clone(), ECMAScriptValue::from(k)]) {
+                        Err(err) => {
+                            return iterator_close(&iterator_record, Err(err));
+                        }
+                        Ok(val) => val,
+                    }
+                } else {
+                    next
+                };
+                let define_status = a.create_data_property_or_throw(pk, mapped_value);
+                if let Err(err) = define_status {
+                    return iterator_close(&iterator_record, Err(err));
+                }
+                k += 1;
+            } else {
+                a.set("length", k, true)?;
+                return Ok(ECMAScriptValue::Object(a));
             }
         }
     }
-    todo!()
+    let array_like = to_object(items).expect("we should have already aborted if this isn't convertable to an object");
+    let len = length_of_array_like(&array_like)?;
+    let a = if c.is_constructor() {
+        let cstr: &Object = c.try_into().expect("things that are constructors should be objects");
+        TryInto::<Object>::try_into(construct(cstr, &[ECMAScriptValue::from(len)], None)?)
+            .expect("things constructors make should be objects")
+    } else {
+        array_create(u64::try_from(len).expect("length should fit in a u64"), None)?
+    };
+    let mut k = 0;
+    while k < len {
+        let pk = PropertyKey::from(k);
+        let kvalue = array_like.get(&pk)?;
+        let mapped_value =
+            if mapping { call(&mapper, &this_arg.clone(), &[kvalue, ECMAScriptValue::from(k)])? } else { kvalue };
+        a.create_data_property_or_throw(pk, mapped_value)?;
+        k += 1;
+    }
+    a.set("length", k, true)?;
+
+    Ok(ECMAScriptValue::Object(a))
 }
+
 fn array_is_array(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
