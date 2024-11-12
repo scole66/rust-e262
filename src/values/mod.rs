@@ -11,7 +11,7 @@ use std::io;
 use std::rc::Rc;
 use uid::Id as IdT;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub enum ECMAScriptValue {
     Undefined,
     Null,
@@ -21,6 +21,46 @@ pub enum ECMAScriptValue {
     BigInt(Rc<BigInt>),
     Symbol(Symbol),
     Object(Object),
+}
+
+impl PartialEq for ECMAScriptValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.same_value(other)
+    }
+}
+
+impl Eq for ECMAScriptValue {}
+
+impl Hash for ECMAScriptValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        core::mem::discriminant(self).hash(state);
+        match self {
+            ECMAScriptValue::Undefined | ECMAScriptValue::Null => {}
+            ECMAScriptValue::Boolean(b) => {
+                b.hash(state);
+            }
+            ECMAScriptValue::String(s) => {
+                s.hash(state);
+            }
+            ECMAScriptValue::Number(n) => {
+                if n.is_nan() {
+                    state.write_u8(1);
+                } else {
+                    state.write_u8(2);
+                    n.to_bits().hash(state);
+                }
+            }
+            ECMAScriptValue::BigInt(rc) => {
+                rc.hash(state);
+            }
+            ECMAScriptValue::Symbol(symbol) => {
+                symbol.hash(state);
+            }
+            ECMAScriptValue::Object(object) => {
+                object.o.id().hash(state);
+            }
+        }
+    }
 }
 
 impl fmt::Display for ECMAScriptValue {
@@ -118,6 +158,13 @@ impl ECMAScriptValue {
     pub fn to_date_object(&self) -> Option<&DateObject> {
         match self {
             ECMAScriptValue::Object(o) => o.o.to_date_obj(),
+            _ => None,
+        }
+    }
+
+    pub fn to_map_object(&self) -> Option<&MapObject> {
+        match self {
+            ECMAScriptValue::Object(o) => o.o.to_map_obj(),
             _ => None,
         }
     }

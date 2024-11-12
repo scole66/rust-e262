@@ -1102,6 +1102,7 @@ pub const DATE_TAG: &str = "Date";
 pub const REGEXP_TAG: &str = "RegExp";
 pub const FUNCTION_TAG: &str = "Function";
 pub const ERROR_TAG: &str = "Error";
+pub const MAP_TAG: &str = "Map";
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ObjectTag {
@@ -1115,6 +1116,7 @@ pub enum ObjectTag {
     RegExp,
     Function,
     Error,
+    Map,
 }
 impl fmt::Display for ObjectTag {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1132,6 +1134,7 @@ impl fmt::Display for ObjectTag {
                 ObjectTag::RegExp => REGEXP_TAG,
                 ObjectTag::Function => FUNCTION_TAG,
                 ObjectTag::Error => ERROR_TAG,
+                ObjectTag::Map => MAP_TAG,
             }
         )
     }
@@ -1183,6 +1186,9 @@ pub trait ObjectInterface: Debug {
         None
     }
     fn to_date_obj(&self) -> Option<&DateObject> {
+        None
+    }
+    fn to_map_obj(&self) -> Option<&MapObject> {
         None
     }
     /// True if this object has no special behavior and no additional slots
@@ -1476,6 +1482,8 @@ impl PartialEq for Object {
         self.o.id() == other.o.id()
     }
 }
+
+impl Eq for Object {}
 
 impl TryFrom<ECMAScriptValue> for Object {
     type Error = anyhow::Error;
