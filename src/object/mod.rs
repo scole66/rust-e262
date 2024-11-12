@@ -1495,6 +1495,16 @@ impl TryFrom<ECMAScriptValue> for Object {
         }
     }
 }
+impl<'a> TryFrom<&'a ECMAScriptValue> for &'a Object {
+    type Error = anyhow::Error;
+    fn try_from(source: &'a ECMAScriptValue) -> Result<Self, Self::Error> {
+        if let ECMAScriptValue::Object(o) = source {
+            Ok(o)
+        } else {
+            Err(anyhow!("Only object values may be converted to true objects"))
+        }
+    }
+}
 
 impl TryFrom<&ECMAScriptValue> for Object {
     type Error = &'static str;
