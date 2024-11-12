@@ -965,7 +965,7 @@ pub enum IteratorKind {
     Async,
 }
 
-fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> Completion<IteratorRecord> {
+pub fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> Completion<IteratorRecord> {
     // GetIteratorFromMethod ( obj, method )
     //
     // The abstract operation GetIteratorFromMethod takes arguments obj (an
