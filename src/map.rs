@@ -314,7 +314,7 @@ pub fn provision_map_intrinsic(realm: &Rc<RefCell<Realm>>) {
     realm.borrow_mut().intrinsics.map_iterator_prototype = map_iterator_prototype;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct MapEntry {
     key: ECMAScriptValue,
     value: ECMAScriptValue,
@@ -685,15 +685,16 @@ fn map_prototype_foreach(
     if !callback.is_callable() {
         return Err(create_type_error("Map.prototype.forEach: callable must be a function"));
     }
-    let map_data = m.map_data.borrow();
-    let mut num_entries = map_data.write_index;
+    let mut num_entries = m.map_data.borrow().write_index;
     let mut index = 0;
     while index < num_entries {
-        let map_data = m.map_data.borrow();
-        let entry = map_data.map.get(&index);
+        let entry = {
+            let map_data = m.map_data.borrow();
+            map_data.map.get(&index).cloned()
+        };
         index += 1;
         if let Some(e) = entry {
-            call(&callback, &this_value, &[e.key.clone(), e.value.clone(), m_obj.clone()])?;
+            call(&callback, &this_value, &[e.value, e.key, m_obj.clone()])?;
             num_entries = m.map_data.borrow().write_index;
         }
     }
