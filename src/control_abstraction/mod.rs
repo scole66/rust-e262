@@ -965,7 +965,7 @@ pub enum IteratorKind {
     Async,
 }
 
-fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> Completion<IteratorRecord> {
+pub fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> Completion<IteratorRecord> {
     // GetIteratorFromMethod ( obj, method )
     //
     // The abstract operation GetIteratorFromMethod takes arguments obj (an
@@ -1077,7 +1077,10 @@ impl IteratorRecord {
         }
     }
 
-    fn close(&self, completion: FullCompletion) -> FullCompletion {
+    pub fn close<X>(&self, completion: Completion<X>) -> Completion<X>
+    where
+        X: From<ECMAScriptValue>,
+    {
         // IteratorClose ( iteratorRecord, completion )
         // The abstract operation IteratorClose takes arguments iteratorRecord (an Iterator Record) and completion (a
         // Completion Record) and returns a Completion Record. It is used to notify an iterator that it should perform
@@ -1109,7 +1112,7 @@ impl IteratorRecord {
             return completion;
         }
         if matches!(inner_result, Err(AbruptCompletion::Throw { .. })) {
-            return inner_result.map(NormalCompletion::from);
+            return inner_result.map(X::from);
         }
         let value = inner_result.expect("result from call should be throw or value");
         if !value.is_object() {
@@ -1174,7 +1177,10 @@ pub fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Obje
     iterator_record.step()
 }
 
-pub fn iterator_close(iterator_record: &IteratorRecord, completion: FullCompletion) -> FullCompletion {
+pub fn iterator_close<X>(iterator_record: &IteratorRecord, completion: Completion<X>) -> Completion<X>
+where
+    X: From<ECMAScriptValue>,
+{
     iterator_record.close(completion)
 }
 

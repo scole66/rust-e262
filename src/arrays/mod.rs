@@ -676,12 +676,145 @@ fn array_constructor_function(
 }
 
 fn array_from(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.from ( items [ , mapper [ , thisArg ] ] )
+    // This method performs the following steps when called:
+    //
+    // 1. Let C be the this value.
+    // 2. If mapper is undefined, then
+    //    a. Let mapping be false.
+    // 3. Else,
+    //    a. If IsCallable(mapper) is false, throw a TypeError exception.
+    //    b. Let mapping be true.
+    // 4. Let usingIterator be ? GetMethod(items, %Symbol.iterator%).
+    // 5. If usingIterator is not undefined, then
+    //    a. If IsConstructor(C) is true, then
+    //       i. Let A be ? Construct(C).
+    //    b. Else,
+    //       i. Let A be ! ArrayCreate(0).
+    //    c. Let iteratorRecord be ? GetIteratorFromMethod(items, usingIterator).
+    //    d. Let k be 0.
+    //    e. Repeat,
+    //       i. If k ≥ 2**53 - 1, then
+    //          1. Let error be ThrowCompletion(a newly created TypeError object).
+    //          2. Return ? IteratorClose(iteratorRecord, error).
+    //       ii. Let Pk be ! ToString(𝔽(k)).
+    //       iii. Let next be ? IteratorStepValue(iteratorRecord).
+    //       iv. If next is done, then
+    //           1. Perform ? Set(A, "length", 𝔽(k), true).
+    //           2. Return A.
+    //       v. If mapping is true, then
+    //          1. Let mappedValue be Completion(Call(mapper, thisArg, « next, 𝔽(k) »)).
+    //          2. IfAbruptCloseIterator(mappedValue, iteratorRecord).
+    //       vi. Else,
+    //           1. Let mappedValue be next.
+    //       vii. Let defineStatus be Completion(CreateDataPropertyOrThrow(A, Pk, mappedValue)).
+    //       viii. IfAbruptCloseIterator(defineStatus, iteratorRecord).
+    //       ix. Set k to k + 1.
+    // 6. NOTE: items is not iterable so assume it is an array-like object.
+    // 7. Let arrayLike be ! ToObject(items).
+    // 8. Let len be ? LengthOfArrayLike(arrayLike).
+    // 9. If IsConstructor(C) is true, then
+    //    a. Let A be ? Construct(C, « 𝔽(len) »).
+    // 10. Else,
+    //     a. Let A be ? ArrayCreate(len).
+    // 11. Let k be 0.
+    // 12. Repeat, while k < len,
+    //     a. Let Pk be ! ToString(𝔽(k)).
+    //     b. Let kValue be ? Get(arrayLike, Pk).
+    //     c. If mapping is true, then
+    //        i. Let mappedValue be ? Call(mapper, thisArg, « kValue, 𝔽(k) »).
+    //     d. Else,
+    //        i. Let mappedValue be kValue.
+    //     e. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+    //     f. Set k to k + 1.
+    // 13. Perform ? Set(A, "length", 𝔽(len), true).
+    // 14. Return A.
+    //
+    // Note
+    // This method is an intentionally generic factory method; it does not require that its this value be the Array
+    // constructor. Therefore it can be transferred to or inherited by any other constructors that may be called with a
+    // single numeric argument.
+    let mut args = FuncArgs::from(arguments);
+    let items = args.next_arg();
+    let mapper = args.next_arg();
+    let this_arg = args.next_arg();
+
+    let c = this_value;
+    let mapping = if mapper == ECMAScriptValue::Undefined {
+        false
+    } else {
+        if !mapper.is_callable() {
+            return Err(create_type_error("Array.prototype.from requires a callable mapper"));
+        }
+        true
+    };
+    let using_iterator = items.get_method(&PropertyKey::from(wks(WksId::Iterator)))?;
+    if using_iterator != ECMAScriptValue::Undefined {
+        let a = if c.is_constructor() {
+            let cstr: &Object = c.try_into().expect("things that are constructors should be objects");
+            TryInto::<Object>::try_into(construct(cstr, &[], None)?)
+                .expect("things constructors make should be objects")
+        } else {
+            array_create(0, None).expect("arrays of length zero should always be constructable")
+        };
+        let iterator_record = get_iterator_from_method(&items, &using_iterator)?;
+        let mut k: usize = 0;
+        loop {
+            if k >= (2 ^ 53) - 1 {
+                let error = Err(create_type_error("Array.from: iterable too long"));
+                return iterator_close(&iterator_record, error);
+            }
+            let pk = PropertyKey::from(k);
+            let next = iterator_step_value(&iterator_record)?;
+            if let Some(next) = next {
+                let mapped_value = if mapping {
+                    match call(&mapper, &this_arg, &[next.clone(), ECMAScriptValue::from(k)]) {
+                        Err(err) => {
+                            return iterator_close(&iterator_record, Err(err));
+                        }
+                        Ok(val) => val,
+                    }
+                } else {
+                    next
+                };
+                let define_status = a.create_data_property_or_throw(pk, mapped_value);
+                if let Err(err) = define_status {
+                    return iterator_close(&iterator_record, Err(err));
+                }
+                k += 1;
+            } else {
+                a.set("length", k, true)?;
+                return Ok(ECMAScriptValue::Object(a));
+            }
+        }
+    }
+    let array_like = to_object(items).expect("we should have already aborted if this isn't convertable to an object");
+    let len = length_of_array_like(&array_like)?;
+    let a = if c.is_constructor() {
+        let cstr: &Object = c.try_into().expect("things that are constructors should be objects");
+        TryInto::<Object>::try_into(construct(cstr, &[ECMAScriptValue::from(len)], None)?)
+            .expect("things constructors make should be objects")
+    } else {
+        array_create(u64::try_from(len).expect("length should fit in a u64"), None)?
+    };
+    let mut k = 0;
+    while k < len {
+        let pk = PropertyKey::from(k);
+        let kvalue = array_like.get(&pk)?;
+        let mapped_value =
+            if mapping { call(&mapper, &this_arg.clone(), &[kvalue, ECMAScriptValue::from(k)])? } else { kvalue };
+        a.create_data_property_or_throw(pk, mapped_value)?;
+        k += 1;
+    }
+    a.set("length", k, true)?;
+
+    Ok(ECMAScriptValue::Object(a))
 }
+
 fn array_is_array(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
