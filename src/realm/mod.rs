@@ -42,6 +42,8 @@ pub enum IntrinsicId {
     GeneratorFunctionPrototypePrototype,
     GeneratorFunctionPrototypePrototypeNext,
     Map,
+    MapPrototype,
+    MapIteratorPrototype,
     Math,
     Number,
     NumberPrototype,
@@ -121,6 +123,7 @@ pub struct Intrinsics {
     pub iterator_prototype: Object, // An object that all standard built-in iterator objects indirectly inherit from
     pub json: Object,               // JSON	The JSON object (25.5)
     pub map: Object,                // Map	The Map constructor (24.1.1)
+    pub map_prototype: Object,      // Map's prototype object
     pub map_iterator_prototype: Object, // The prototype of Map iterator objects (24.1.5)
     pub math: Object,               // Math	The Math object (21.3)
     pub number: Object,             // Number	The Number constructor (21.1.1)
@@ -224,6 +227,7 @@ impl Intrinsics {
             iterator_prototype: dead.clone(),
             json: dead.clone(),
             map: dead.clone(),
+            map_prototype: dead.clone(),
             map_iterator_prototype: dead.clone(),
             math: dead.clone(),
             number: dead.clone(),
@@ -302,6 +306,8 @@ impl Intrinsics {
             IntrinsicId::GeneratorFunctionPrototypePrototype => &self.generator_function_prototype_prototype,
             IntrinsicId::GeneratorFunctionPrototypePrototypeNext => &self.generator_function_prototype_prototype_next,
             IntrinsicId::Map => &self.map,
+            IntrinsicId::MapPrototype => &self.map_prototype,
+            IntrinsicId::MapIteratorPrototype => &self.map_iterator_prototype,
             IntrinsicId::Math => &self.math,
             IntrinsicId::Number => &self.number,
             IntrinsicId::NumberPrototype => &self.number_prototype,
@@ -367,6 +373,8 @@ impl Intrinsics {
                 Some(IntrinsicId::GeneratorFunctionPrototypePrototypeNext)
             }
             o if o == &self.map => Some(IntrinsicId::Map),
+            o if o == &self.map_prototype => Some(IntrinsicId::MapPrototype),
+            o if o == &self.map_iterator_prototype => Some(IntrinsicId::MapIteratorPrototype),
             o if o == &self.math => Some(IntrinsicId::Math),
             o if o == &self.number => Some(IntrinsicId::Number),
             o if o == &self.number_prototype => Some(IntrinsicId::NumberPrototype),
