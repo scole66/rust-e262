@@ -10,6 +10,7 @@ use std::process::{Command, Stdio};
 use std::str::from_utf8;
 use std::str::FromStr;
 use yaml_rust::{Yaml, YamlLoader};
+use config::{Config, FileFormat};
 
 #[derive(Debug)]
 enum Phase {
@@ -65,7 +66,7 @@ struct TestInfo {
     async_test: bool,
 }
 
-fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
+fn construct_test(root: &str, path: &Path, can_block: bool) -> Result<TestInfo> {
     const METASTART: &str = "/*---";
     const METAEND: &str = "---*/";
 
@@ -142,13 +143,13 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
                     if strict {
                         test_source.push_str("\"use strict\";\n");
                     }
-                    test_source.push_str(&load_harness_file("assert.js")?);
-                    test_source.push_str(&load_harness_file("sta.js")?);
+                    test_source.push_str(&load_harness_file(root, "assert.js")?);
+                    test_source.push_str(&load_harness_file(root, "sta.js")?);
                     if flag_async {
-                        test_source.push_str(&load_harness_file("doneprintHandle.js")?);
+                        test_source.push_str(&load_harness_file(root, "doneprintHandle.js")?);
                     }
                     for item in &includes {
-                        test_source.push_str(&load_harness_file(item)?);
+                        test_source.push_str(&load_harness_file(root, item)?);
                     }
                     test_source.push_str(&contents);
                     source.push(Source {
@@ -172,10 +173,8 @@ fn construct_test(path: &Path, can_block: bool) -> Result<TestInfo> {
     }
 }
 
-fn load_harness_file(filename: &str) -> Result<String> {
-    const HARNESS_ROOT: &str = "/home/scole/rustplay/test262/harness";
-    //const HARNESS_ROOT: &str = "/Users/scole/fun/test262/harness";
-    let path = Path::new(HARNESS_ROOT).join(filename);
+fn load_harness_file(root: &str, filename: &str) -> Result<String> {
+    let path = Path::new(root).join(filename);
     let file = File::open(&path).context(format!("Opening {}", path.to_string_lossy()))?;
     let mut buf_reader = BufReader::new(file);
     let mut contents = String::new();
@@ -208,12 +207,19 @@ struct Arguments {
 }
 
 fn main() -> Result<()> {
-    let ignored_features = ["caller", "async", "async-iteration", "async-functions", "iterator-helpers"];
+    let config = Config::builder()
+        .add_source(config::File::new("test262-config.yaml", FileFormat::Yaml))
+        .add_source(config::Environment::with_prefix("TEST262"))
+        .build()?;
+    let ignored_features = config.get_array("skipped_features")?.into_iter()
+        .map(|v| v.into_string()).collect::<std::result::Result<Vec<_>, _>>()?;
+    let harness_path = config.get_string("harness_root")?;
+    
     color_eyre::install()?;
 
     let args = Arguments::parse();
     let test_name = args.path;
-    let info = construct_test(Path::new(&test_name), false)?;
+    let info = construct_test(&harness_path, Path::new(&test_name), false)?;
 
     if !ignored_features.iter().map(ToString::to_string).any(|f| info.features.contains(&f)) {
         for source in &info.source {

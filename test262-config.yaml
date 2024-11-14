@@ -1,0 +1,9 @@
+---
+  harness_root: /Users/scole/fun/test262/harness
+  skipped_features:
+  - caller
+  - async
+  - async-iteration
+  - async-functions
+  - iterator-helpers
+  - TypedArray
