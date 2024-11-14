@@ -1,5 +1,5 @@
 ---
-  harness_root: /Users/scole/fun/test262/harness
+  harness_root: ../test262/harness
   skipped_features:
   - caller
   - async
