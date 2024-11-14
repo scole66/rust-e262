@@ -1,6 +1,7 @@
 use clap::Parser;
 use color_eyre::eyre::Context;
 use color_eyre::eyre::{eyre, Result};
+use config::{Config, FileFormat};
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
@@ -10,7 +11,6 @@ use std::process::{Command, Stdio};
 use std::str::from_utf8;
 use std::str::FromStr;
 use yaml_rust::{Yaml, YamlLoader};
-use config::{Config, FileFormat};
 
 #[derive(Debug)]
 enum Phase {
@@ -211,10 +211,13 @@ fn main() -> Result<()> {
         .add_source(config::File::new("test262-config.yaml", FileFormat::Yaml))
         .add_source(config::Environment::with_prefix("TEST262"))
         .build()?;
-    let ignored_features = config.get_array("skipped_features")?.into_iter()
-        .map(|v| v.into_string()).collect::<std::result::Result<Vec<_>, _>>()?;
+    let ignored_features = config
+        .get_array("skipped_features")?
+        .into_iter()
+        .map(config::Value::into_string)
+        .collect::<std::result::Result<Vec<_>, _>>()?;
     let harness_path = config.get_string("harness_root")?;
-    
+
     color_eyre::install()?;
 
     let args = Arguments::parse();
