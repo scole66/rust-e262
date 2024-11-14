@@ -4,8 +4,31 @@ pub fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
+    // The RegExp prototype object:
+    //
+    // * is %RegExp.prototype%.
+    // * is an ordinary object.
+    // * is not a RegExp instance and does not have a [[RegExpMatcher]] internal slot or any of the other
+    //   internal slots of RegExp instance objects.
+    // * has a [[Prototype]] internal slot whose value is %Object.prototype%.
     let regexp_prototype = ordinary_object_create(Some(object_prototype));
     realm.borrow_mut().intrinsics.reg_exp_prototype = regexp_prototype.clone();
+
+    // The RegExp Constructor
+    //
+    // * is %RegExp%.
+    // * is the initial value of the "RegExp" property of the global object.
+    // * creates and initializes a new RegExp object when called as a constructor.
+    // * when called as a function rather than as a constructor, returns either a new RegExp object, or the
+    //   argument itself if the only argument is a RegExp object.
+    // * may be used as the value of an extends clause of a class definition. Subclass constructors that
+    //   intend to inherit the specified RegExp behaviour must include a super call to the RegExp constructor
+    //   to create and initialize subclass instances with the necessary internal slots.
+
+    // Properties of the RegExp Constructor
+    // The RegExp constructor:
+    //
+    // * has a [[Prototype]] internal slot whose value is %Function.prototype%.
 
     let regexp_constructor = create_builtin_function(
         Box::new(regexp_constructor_function),
@@ -19,6 +42,11 @@ pub fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
     );
     realm.borrow_mut().intrinsics.reg_exp = regexp_constructor.clone();
 
+    // RegExp.prototype
+    // The initial value of RegExp.prototype is the RegExp prototype object.
+    //
+    // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false
+    // }.
     define_property_or_throw(
         &regexp_constructor,
         "prototype",
@@ -30,8 +58,13 @@ pub fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
     )
     .expect(GOODOBJ);
 
+    // get RegExp [ %Symbol.species% ]
+    // RegExp[%Symbol.species%] is an accessor property whose set accessor function is undefined. Its get
+    // accessor function performs the following steps when called:
+    //
+    // 1. Return the this value.
+    // The value of the "name" property of this function is "get [Symbol.species]".
     let species_sym = wks(WksId::Species);
-
     let species_fcn = create_builtin_function(
         Box::new(regexp_species),
         None,
@@ -44,6 +77,15 @@ pub fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
     );
     let species_ppd = PotentialPropertyDescriptor::new().get(species_fcn).enumerable(false).configurable(true);
     define_property_or_throw(&regexp_constructor, species_sym, species_ppd).expect(GOODOBJ);
+
+    // RegExp.prototype.constructor
+    // The initial value of RegExp.prototype.constructor is %RegExp%.
+    let prototype_ppd = PotentialPropertyDescriptor::new()
+        .value(regexp_constructor.clone())
+        .writable(true)
+        .enumerable(false)
+        .configurable(true);
+    define_property_or_throw(&regexp_prototype, "constructor", prototype_ppd).expect(GOODOBJ);
 }
 
 #[derive(Debug)]
