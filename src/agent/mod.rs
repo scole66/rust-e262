@@ -1805,7 +1805,7 @@ mod insn_impl {
         push_value(ECMAScriptValue::Object(o))
     }
     pub fn array() -> anyhow::Result<()> {
-        let array = array_create(0, None).expect("Arrays of length zero are not too large");
+        let array = array_create(0.0, None).expect("Arrays of length zero are not too large");
         push_value(ECMAScriptValue::Object(array))
     }
     pub fn create_data_property() -> anyhow::Result<()> {
@@ -2665,7 +2665,7 @@ mod insn_impl {
                                 array
                                     .create_data_property_or_throw(JSString::from(next_index), next_value)
                                     .expect("props should store ok");
-                                next_index += 1;
+                                next_index += 1.0;
                             }
                         }
                     }
@@ -2846,7 +2846,7 @@ mod insn_impl {
         //      f. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
         //      g. Set n to n + 1.
         let ir = pop_ir()?;
-        let a = array_create(0, None).expect("0 should fit in ram");
+        let a = array_create(0.0, None).expect("0 should fit in ram");
         let mut n = 0;
         loop {
             if ir.done.get() {

@@ -3820,8 +3820,8 @@ mod internal_slot_name {
         o.create_data_property_or_throw("length", sym).unwrap();
         o
     } => serr("TypeError: Symbol values cannot be converted to Number values"); "tolength throws")]
-#[test_case(|| array_create(0, None).unwrap() => Ok(0); "empty array")]
-fn length_of_array_like(make_obj: impl FnOnce() -> Object) -> Result<i64, String> {
+#[test_case(|| array_create(0.0, None).unwrap() => Ok(0.0); "empty array")]
+fn length_of_array_like(make_obj: impl FnOnce() -> Object) -> Result<f64, String> {
     setup_test_agent();
     let obj = make_obj();
     super::length_of_array_like(&obj).map_err(unwind_any_error)

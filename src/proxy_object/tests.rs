@@ -1380,7 +1380,7 @@ mod proxy_object {
                 let message = handler.get(&"callback_message".into()).unwrap();
                 let arguments = ECMAScriptValue::from(match handler.get(&"arguments".into()).unwrap() {
                     ECMAScriptValue::Object(o) => o,
-                    _ => array_create(0, None).unwrap(),
+                    _ => array_create(0.0, None).unwrap(),
                 });
                 (
                     b,
@@ -1591,7 +1591,7 @@ mod proxy_object {
                 let message = handler.get(&"callback_message".into()).unwrap();
                 let arguments = ECMAScriptValue::from(match handler.get(&"arguments".into()).unwrap() {
                     ECMAScriptValue::Object(o) => o,
-                    _ => array_create(0, None).unwrap(),
+                    _ => array_create(0.0, None).unwrap(),
                 });
                 (
                     v.test_result_string(),
@@ -1804,7 +1804,7 @@ mod proxy_object {
                 let message = handler.get(&"callback_message".into()).unwrap();
                 let arguments = ECMAScriptValue::from(match handler.get(&"arguments".into()).unwrap() {
                     ECMAScriptValue::Object(o) => o,
-                    _ => array_create(0, None).unwrap(),
+                    _ => array_create(0.0, None).unwrap(),
                 });
                 (
                     v,
@@ -1991,7 +1991,7 @@ mod proxy_object {
                 let message = handler.get(&"callback_message".into()).unwrap();
                 let arguments = ECMAScriptValue::from(match handler.get(&"arguments".into()).unwrap() {
                     ECMAScriptValue::Object(o) => o,
-                    _ => array_create(0, None).unwrap(),
+                    _ => array_create(0.0, None).unwrap(),
                 });
                 (
                     v,
@@ -2028,7 +2028,7 @@ mod proxy_object {
         fn fn_returns_empty_no_checks() -> Object {
             #[expect(clippy::unnecessary_wraps)]
             fn behavior(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
-                Ok(array_create(0, None).expect("creation works").into())
+                Ok(array_create(0.0, None).expect("creation works").into())
             }
             cbf(behavior)
         }
@@ -2254,7 +2254,7 @@ mod proxy_object {
                 let message = handler.get(&"callback_message".into()).unwrap();
                 let arguments = ECMAScriptValue::from(match handler.get(&"arguments".into()).unwrap() {
                     ECMAScriptValue::Object(o) => o,
-                    _ => array_create(0, None).unwrap(),
+                    _ => array_create(0.0, None).unwrap(),
                 });
                 (
                     v.into_iter().map(|pk| ECMAScriptValue::from(pk).test_result_string()).collect::<Vec<_>>(),

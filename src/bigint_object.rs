@@ -171,7 +171,7 @@ fn bigint_as_int_n(
     let mut args = FuncArgs::from(arguments);
     let bits = args.next_arg();
     let bigint = args.next_arg();
-    let bits = to_index(bits)?;
+    let bits = to_isize(to_index(bits)?).unwrap();
     let bigint = to_big_int(bigint)?;
     if bits == 0 {
         return Ok(Rc::new(BigInt::from(0)).into());
@@ -195,7 +195,7 @@ fn bigint_as_uint_n(
     let mut args = FuncArgs::from(arguments);
     let bits = args.next_arg();
     let bigint = args.next_arg();
-    let bits = to_index(bits)?;
+    let bits = to_isize(to_index(bits)?).unwrap();
     let bigint = to_big_int(bigint)?;
     Ok(Rc::new(bigint.mod_floor(&(BigInt::from(1) << bits))).into())
 }
