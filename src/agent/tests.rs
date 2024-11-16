@@ -1519,7 +1519,7 @@ mod for_in_iterator_object {
     fn to_for_in_iterator() {
         setup_test_agent();
         let proto = intrinsic(IntrinsicId::ForInIteratorPrototype);
-        let a = array_create(0, None).unwrap();
+        let a = array_create(0.0, None).unwrap();
         let o = ForInIteratorObject::object(Some(proto), a);
 
         assert_eq!(o.o.to_for_in_iterator().unwrap().id(), o.o.id());
@@ -1529,14 +1529,14 @@ mod for_in_iterator_object {
     fn debug() {
         setup_test_agent();
         let proto = intrinsic(IntrinsicId::ForInIteratorPrototype);
-        let a = array_create(0, None).unwrap();
+        let a = array_create(0.0, None).unwrap();
         let o = ForInIteratorObject::object(Some(proto), a);
         assert_ne!(format!("{o:?}"), "");
     }
 
     fn make() -> Object {
         let proto = intrinsic(IntrinsicId::ForInIteratorPrototype);
-        let a = array_create(0, None);
+        let a = array_create(0.0, None);
         let o = ForInIteratorObject::object(Some(proto), a.unwrap());
         let proto = o.o.get_prototype_of().unwrap().unwrap();
         proto.set("proto_sentinel", true, true).unwrap();

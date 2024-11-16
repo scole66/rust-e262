@@ -269,7 +269,7 @@ impl From<usize> for ECMAScriptValue {
 impl From<i64> for ECMAScriptValue {
     #[expect(clippy::cast_precision_loss)]
     fn from(val: i64) -> Self {
-        if (-(1 << 53)..=1 << 53).contains(&val) {
+        if ((-((1 << 53) - 1))..(1 << 53)).contains(&val) {
             Self::from(val as f64)
         } else {
             Self::from(BigInt::from(val))
@@ -444,6 +444,14 @@ impl From<i32> for PropertyKey {
 impl From<i64> for PropertyKey {
     fn from(num: i64) -> Self {
         Self::from(num.to_string())
+    }
+}
+
+impl From<f64> for PropertyKey {
+    fn from(num: f64) -> Self {
+        let mut s = Vec::new();
+        number_to_string(&mut s, num).unwrap();
+        Self::from(JSString::from(s))
     }
 }
 
@@ -1074,6 +1082,16 @@ pub fn to_usize(arg: f64) -> anyhow::Result<usize> {
     }
 }
 
+#[expect(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_precision_loss)]
+pub fn to_isize(arg: f64) -> anyhow::Result<isize> {
+    if arg.is_finite() && arg >= isize::MIN as f64 && arg <= isize::MAX as f64 && arg.fract() == 0.0 {
+        Ok(arg as isize)
+    } else {
+        Err(anyhow!("invalid conversion of {arg} to isize"))
+    }
+}
+
 #[expect(clippy::cast_precision_loss)]
 pub fn to_f64(arg: usize) -> anyhow::Result<f64> {
     if arg <= 1 << 53 {
@@ -1372,6 +1390,15 @@ pub fn to_object(val: ECMAScriptValue) -> Completion<Object> {
     }
 }
 
+impl ECMAScriptValue {
+    pub fn object_ref(&self) -> Option<&Object> {
+        match self {
+            ECMAScriptValue::Object(o) => Some(o),
+            _ => None,
+        }
+    }
+}
+
 // ToPropertyKey ( argument )
 //
 // The abstract operation ToPropertyKey takes argument argument. It converts argument to a value that can be used as a
@@ -1397,14 +1424,13 @@ pub fn to_property_key(argument: ECMAScriptValue) -> Completion<PropertyKey> {
 //  1. Let len be ? ToIntegerOrInfinity(argument).
 //  2. If len ≤ 0, return +0𝔽.
 //  3. Return 𝔽(min(len, 2**53 - 1)).
-#[expect(clippy::cast_possible_truncation)]
 impl ECMAScriptValue {
-    pub fn to_length(&self) -> Completion<i64> {
+    pub fn to_length(&self) -> Completion<f64> {
         let len = self.to_integer_or_infinity()?;
-        Ok(len.clamp(0.0, 9_007_199_254_740_991.0) as i64)
+        Ok(len.clamp(0.0, 9_007_199_254_740_991.0))
     }
 }
-pub fn to_length(argument: impl Into<ECMAScriptValue>) -> Completion<i64> {
+pub fn to_length(argument: impl Into<ECMAScriptValue>) -> Completion<f64> {
     argument.into().to_length()
 }
 
@@ -1448,15 +1474,14 @@ pub fn canonical_numeric_index_string(argument: &JSString) -> Option<f64> {
 //      c. If ! SameValue(𝔽(integer), clamped) is false, throw a RangeError exception.
 //      d. Assert: 0 ≤ integer ≤ 2**53 - 1.
 //      e. Return integer.
-pub fn to_index(value: impl Into<ECMAScriptValue>) -> Completion<i64> {
+pub fn to_index(value: impl Into<ECMAScriptValue>) -> Completion<f64> {
     let value = value.into();
     if value == ECMAScriptValue::Undefined {
-        Ok(0)
+        Ok(0.0)
     } else {
         let integer = value.to_integer_or_infinity()?;
         let clamped = to_length(integer).unwrap();
-        #[expect(clippy::cast_precision_loss)]
-        if clamped as f64 == integer {
+        if clamped == integer {
             Ok(clamped)
         } else {
             Err(create_range_error(format!("{integer} out of range for index").as_str()))

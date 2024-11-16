@@ -322,7 +322,7 @@ mod ecmascript_value {
     #[test]
     fn is_array() {
         setup_test_agent();
-        let a = array_create(0, None).unwrap();
+        let a = array_create(0.0, None).unwrap();
         let v1: ECMAScriptValue = a.into();
         let v2 = ECMAScriptValue::Null;
         assert!(v1.is_array().unwrap());
@@ -747,13 +747,13 @@ mod ecmascript_value {
         inp.as_constructor().and_then(Object::which_intrinsic)
     }
 
-    #[test_case(|| ECMAScriptValue::from(10.0) => Ok(10); "in range")]
-    #[test_case(|| ECMAScriptValue::from(0.0) => Ok(0); "bottom edge")]
-    #[test_case(|| ECMAScriptValue::from(-1.0) => Ok(0); "under")]
-    #[test_case(|| ECMAScriptValue::from(9_007_199_254_740_991.0) => Ok(9_007_199_254_740_991); "top edge")]
-    #[test_case(|| ECMAScriptValue::from(9_007_199_254_740_992.0) => Ok(9_007_199_254_740_991); "over")]
+    #[test_case(|| ECMAScriptValue::from(10.0) => Ok(10.0); "in range")]
+    #[test_case(|| ECMAScriptValue::from(0.0) => Ok(0.0); "bottom edge")]
+    #[test_case(|| ECMAScriptValue::from(-1.0) => Ok(0.0); "under")]
+    #[test_case(|| ECMAScriptValue::from(9_007_199_254_740_991.0) => Ok(9_007_199_254_740_991.0); "top edge")]
+    #[test_case(|| ECMAScriptValue::from(9_007_199_254_740_992.0) => Ok(9_007_199_254_740_991.0); "over")]
     #[test_case(|| ECMAScriptValue::from(Symbol::new(Some("test".into()))) => Err("Symbol values cannot be converted to Number values".to_string()); "not a number")]
-    fn to_length(make_arg: fn() -> ECMAScriptValue) -> Result<i64, String> {
+    fn to_length(make_arg: fn() -> ECMAScriptValue) -> Result<f64, String> {
         setup_test_agent();
         let arg = make_arg();
 
@@ -1961,13 +1961,13 @@ mod to_property_key {
     }
 }
 
-#[test_case(|| ECMAScriptValue::from(10.0) => Ok(10); "in range")]
-#[test_case(|| ECMAScriptValue::from(0.0) => Ok(0); "bottom edge")]
-#[test_case(|| ECMAScriptValue::from(-1.0) => Ok(0); "under")]
-#[test_case(|| ECMAScriptValue::from(9_007_199_254_740_991.0) => Ok(9_007_199_254_740_991); "top edge")]
-#[test_case(|| ECMAScriptValue::from(9_007_199_254_740_992.0) => Ok(9_007_199_254_740_991); "over")]
+#[test_case(|| ECMAScriptValue::from(10.0) => Ok(10.0); "in range")]
+#[test_case(|| ECMAScriptValue::from(0.0) => Ok(0.0); "bottom edge")]
+#[test_case(|| ECMAScriptValue::from(-1.0) => Ok(0.0); "under")]
+#[test_case(|| ECMAScriptValue::from(9_007_199_254_740_991.0) => Ok(9_007_199_254_740_991.0); "top edge")]
+#[test_case(|| ECMAScriptValue::from(9_007_199_254_740_992.0) => Ok(9_007_199_254_740_991.0); "over")]
 #[test_case(|| ECMAScriptValue::from(Symbol::new(Some("test".into()))) => Err("Symbol values cannot be converted to Number values".to_string()); "not a number")]
-fn to_length(make_arg: fn() -> ECMAScriptValue) -> Result<i64, String> {
+fn to_length(make_arg: fn() -> ECMAScriptValue) -> Result<f64, String> {
     setup_test_agent();
     let arg = make_arg();
 
@@ -1998,15 +1998,15 @@ mod to_index {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(ECMAScriptValue::Undefined => Ok(0); "undefined")]
-    #[test_case(ECMAScriptValue::from(10_i32) => Ok(10); "simple")]
-    #[test_case(ECMAScriptValue::from(10.33) => Ok(10); "round down")]
-    #[test_case(ECMAScriptValue::from(10.78) => Ok(10); "still rounding down")]
+    #[test_case(ECMAScriptValue::Undefined => Ok(0.0); "undefined")]
+    #[test_case(ECMAScriptValue::from(10_i32) => Ok(10.0); "simple")]
+    #[test_case(ECMAScriptValue::from(10.33) => Ok(10.0); "round down")]
+    #[test_case(ECMAScriptValue::from(10.78) => Ok(10.0); "still rounding down")]
     #[test_case(ECMAScriptValue::from(f64::INFINITY) => Err("RangeError: inf out of range for index".to_string()); "Infinity")]
     #[test_case(ECMAScriptValue::from(-100.3) => Err("RangeError: -100 out of range for index".to_string()); "Negative")]
-    #[test_case(ECMAScriptValue::from(-0.0) => Ok(0); "Negative zero")]
+    #[test_case(ECMAScriptValue::from(-0.0) => Ok(0.0); "Negative zero")]
     #[test_case(ECMAScriptValue::from(BigInt::from(10_i32)) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "non-number")]
-    fn f(arg: ECMAScriptValue) -> Result<i64, String> {
+    fn f(arg: ECMAScriptValue) -> Result<f64, String> {
         setup_test_agent();
         to_index(arg).map_err(unwind_any_error)
     }

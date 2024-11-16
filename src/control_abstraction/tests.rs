@@ -1317,7 +1317,7 @@ mod iterator_record {
     fn create_tracking_iterator_with_return() -> Object {
         let iter_proto = intrinsic(IntrinsicId::IteratorPrototype);
         let iterator = ordinary_object_create(Some(iter_proto));
-        let tracking_array = array_create(0, None).unwrap();
+        let tracking_array = array_create(0.0, None).unwrap();
         iterator.create_data_property_or_throw("tracker", tracking_array).unwrap();
         let next = create_builtin_function(Box::new(tracking_next), None, 1.0, "next".into(), &[], None, None, None);
         iterator.create_data_property_or_throw("next", next).unwrap();

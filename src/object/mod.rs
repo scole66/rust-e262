@@ -2192,7 +2192,7 @@ pub fn test_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<boo
 //      b. Set n to n + 1.
 //  4. Return array.
 pub fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
-    let array = array_create(0, None).unwrap();
+    let array = array_create(0.0, None).unwrap();
     for (n, e) in elements.iter().enumerate() {
         let key = PropertyKey::from(u64::try_from(n).unwrap());
         array.create_data_property_or_throw(key, e.clone()).unwrap();
@@ -2203,7 +2203,7 @@ pub fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
 /// Returns the value of the `"length"` property of an array-like object.
 ///
 /// See [LengthOfArrayLike](https://tc39.es/ecma262/#sec-lengthofarraylike) from ECMA-262.
-pub fn length_of_array_like(obj: &Object) -> Completion<i64> {
+pub fn length_of_array_like(obj: &Object) -> Completion<f64> {
     // LengthOfArrayLike ( obj )
     //
     // The abstract operation LengthOfArrayLike takes argument obj (an Object) and returns either a normal
@@ -2252,7 +2252,7 @@ pub fn create_list_from_array_like(
         ValueKind::Object,
     ]);
     let obj = Object::try_from(obj).map_err(|_| create_type_error("CreateListFromArrayLike called on non-object"))?;
-    let len = usize::try_from(length_of_array_like(&obj)?).expect("array lengths should fit");
+    let len = to_usize(length_of_array_like(&obj)?).expect("array lengths should fit");
     let mut list = Vec::new();
     for index in 0..len {
         let index_name = PropertyKey::from(index);

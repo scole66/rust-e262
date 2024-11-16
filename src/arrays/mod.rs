@@ -23,6 +23,8 @@ use std::rc::Rc;
 // following implementation, and its other essential internal methods use the definitions found in 10.1. These methods
 // are installed in ArrayCreate.
 
+const ARRAY_INDEX_LIMIT: f64 = 9_007_199_254_740_991.0; // (2 ^ 53) - 1
+
 #[derive(Debug)]
 pub struct ArrayObject {
     common: RefCell<CommonObjectData>,
@@ -143,7 +145,7 @@ impl ObjectInterface for ArrayObject {
     }
 }
 
-pub fn array_create(length: u64, proto: Option<Object>) -> Completion<Object> {
+pub fn array_create(length: f64, proto: Option<Object>) -> Completion<Object> {
     ArrayObject::create(length, proto)
 }
 
@@ -160,11 +162,10 @@ impl ArrayObject {
     //  5. Set A.[[DefineOwnProperty]] as specified in 10.4.2.1.
     //  6. Perform ! OrdinaryDefineOwnProperty(A, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
     //  7. Return A.
-    pub fn create(length: u64, proto: Option<Object>) -> Completion<Object> {
-        if length > 4_294_967_295 {
+    pub fn create(length: f64, proto: Option<Object>) -> Completion<Object> {
+        if length > 4_294_967_295.0 {
             return Err(create_range_error("Array lengths greater than 4294967295 are not allowed"));
         }
-        let length: u32 = length.try_into().unwrap();
         let proto = proto.unwrap_or_else(|| intrinsic(IntrinsicId::ArrayPrototype));
         let a = ArrayObject::object(Some(proto));
         ordinary_define_own_property(
@@ -308,7 +309,7 @@ impl ArrayObject {
 //      |   realm of the running execution context, then a new Array is created using the realm of the running
 //      |   execution context. This maintains compatibility with Web browsers that have historically had that behaviour
 //      |   for the Array.prototype methods that now are defined using ArraySpeciesCreate.
-pub fn array_species_create(original_array: &Object, length: u64) -> Completion<ECMAScriptValue> {
+pub fn array_species_create(original_array: &Object, length: f64) -> Completion<ECMAScriptValue> {
     let is_array = original_array.is_array()?;
     if !is_array {
         return Ok(ArrayObject::create(length, None)?.into());
@@ -318,7 +319,7 @@ pub fn array_species_create(original_array: &Object, length: u64) -> Completion<
         let c_obj = Object::try_from(&c).unwrap();
         let this_realm = current_realm_record().unwrap();
         let realm_c = c_obj.get_function_realm()?;
-        if Rc::ptr_eq(&this_realm, &realm_c) && c_obj == realm_c.borrow().intrinsics.array {
+        if !Rc::ptr_eq(&this_realm, &realm_c) && c_obj == realm_c.borrow().intrinsics.array {
             c = ECMAScriptValue::Undefined;
         }
     }
@@ -432,7 +433,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //
     // NOTE |   The Array prototype object is specified to be an Array exotic object to ensure compatibility with
     //          ECMAScript code that was created prior to the ECMAScript 2015 specification.
-    let array_prototype = ArrayObject::create(0, Some(object_prototype)).unwrap();
+    let array_prototype = ArrayObject::create(0.0, Some(object_prototype)).unwrap();
 
     // Array.prototype
     //
@@ -641,10 +642,10 @@ fn array_constructor_function(
     let proto = nt.get_prototype_from_constructor(IntrinsicId::ArrayPrototype)?;
     let number_of_args = arguments.len();
     match number_of_args {
-        0 => array_create(0, Some(proto)).map(ECMAScriptValue::from),
+        0 => array_create(0.0, Some(proto)).map(ECMAScriptValue::from),
         1 => {
             let len = arguments[0].clone();
-            let array = array_create(0, Some(proto)).expect("Array creation with zero length should succeed");
+            let array = array_create(0.0, Some(proto)).expect("Array creation with zero length should succeed");
             let int_len = match len {
                 ECMAScriptValue::Number(len) => {
                     let int_len = to_uint32_f64(len);
@@ -662,11 +663,9 @@ fn array_constructor_function(
             Ok(array.into())
         }
         _ => {
-            let array = array_create(
-                u64::try_from(number_of_args).expect("number of array elements should fit in a usize"),
-                Some(proto),
-            )
-            .expect("it takes 96 GB to hold a number of args big enough to fail. we won't get there.");
+            let arg_count = to_f64(number_of_args).unwrap();
+            let array = array_create(arg_count, Some(proto))
+                .expect("it takes 96 GB to hold a number of args big enough to fail. we won't get there.");
             for (k, arg) in arguments.iter().enumerate().take(number_of_args) {
                 array.create_data_property_or_throw(k, arg.clone()).expect("property creation should succeed");
             }
@@ -759,7 +758,7 @@ fn array_from(
             TryInto::<Object>::try_into(construct(cstr, &[], None)?)
                 .expect("things constructors make should be objects")
         } else {
-            array_create(0, None).expect("arrays of length zero should always be constructable")
+            array_create(0.0, None).expect("arrays of length zero should always be constructable")
         };
         let iterator_record = get_iterator_from_method(&items, &using_iterator)?;
         let mut k: usize = 0;
@@ -799,16 +798,16 @@ fn array_from(
         TryInto::<Object>::try_into(construct(cstr, &[ECMAScriptValue::from(len)], None)?)
             .expect("things constructors make should be objects")
     } else {
-        array_create(u64::try_from(len).expect("length should fit in a u64"), None)?
+        array_create(len, None)?
     };
-    let mut k = 0;
+    let mut k = 0.0;
     while k < len {
         let pk = PropertyKey::from(k);
         let kvalue = array_like.get(&pk)?;
         let mapped_value =
             if mapping { call(&mapper, &this_arg.clone(), &[kvalue, ECMAScriptValue::from(k)])? } else { kvalue };
         a.create_data_property_or_throw(pk, mapped_value)?;
-        k += 1;
+        k += 1.0;
     }
     a.set("length", k, true)?;
 
@@ -829,11 +828,52 @@ fn array_is_array(
     arg.is_array().map(ECMAScriptValue::from)
 }
 fn array_of(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.of ( ...items )
+    // This method performs the following steps when called:
+    //
+    // 1. Let len be the number of elements in items.
+    // 2. Let lenNumber be 𝔽(len).
+    // 3. Let C be the this value.
+    // 4. If IsConstructor(C) is true, then
+    //    a. Let A be ? Construct(C, « lenNumber »).
+    // 5. Else,
+    //    a. Let A be ? ArrayCreate(len).
+    // 6. Let k be 0.
+    // 7. Repeat, while k < len,
+    //    a. Let kValue be items[k].
+    //    b. Let Pk be ! ToString(𝔽(k)).
+    //    c. Perform ? CreateDataPropertyOrThrow(A, Pk, kValue).
+    //    d. Set k to k + 1.
+    // 8. Perform ? Set(A, "length", lenNumber, true).
+    // 9. Return A.
+    //
+    // Note
+    // This method is an intentionally generic factory method; it does not require that its this value be the Array
+    // constructor. Therefore it can be transferred to or inherited by other constructors that may be called with a
+    // single numeric argument.
+    let len = arguments.len();
+    let len_number = ECMAScriptValue::from(len);
+    let c = this_value;
+    let a = if c.is_constructor() {
+        let cstr: &Object = c.try_into().expect("things that are constructors should be objects");
+        TryInto::<Object>::try_into(construct(cstr, &[len_number], None)?)
+            .expect("things constructors make should be objects")
+    } else {
+        array_create(to_f64(len).unwrap(), None)?
+    };
+    let mut k = 0;
+    while k < len {
+        let kvalue = &arguments[k];
+        let pk = PropertyKey::from(k);
+        a.create_data_property_or_throw(pk, kvalue.clone())?;
+        k += 1;
+    }
+    a.set("length", len, true)?;
+    Ok(ECMAScriptValue::Object(a))
 }
 
 #[expect(clippy::unnecessary_wraps)]
@@ -851,19 +891,134 @@ fn array_species(
 }
 
 fn array_prototype_at(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.at ( index )
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let relativeIndex be ? ToIntegerOrInfinity(index).
+    // 4. If relativeIndex ≥ 0, then
+    //    a. Let k be relativeIndex.
+    // 5. Else,
+    //    a. Let k be len + relativeIndex.
+    // 6. If k < 0 or k ≥ len, return undefined.
+    // 7. Return ? Get(O, ! ToString(𝔽(k))).
+    let mut args = FuncArgs::from(arguments);
+    let index = args.next_arg();
+    let o = to_object(this_value.clone())?;
+    let len = length_of_array_like(&o)?;
+    let relative_index = index.to_integer_or_infinity()?;
+    let k = if relative_index >= 0.0 { relative_index } else { len + relative_index };
+    if k < 0.0 || k >= len {
+        return Ok(ECMAScriptValue::Undefined);
+    }
+    o.get(&PropertyKey::from(k))
 }
+
 fn array_prototype_concat(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.concat ( ...items )
+    // This method returns an array containing the array elements of the object followed by the array elements of each
+    // argument.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let A be ? ArraySpeciesCreate(O, 0).
+    // 3. Let n be 0.
+    // 4. Prepend O to items.
+    // 5. For each element E of items, do
+    //    a. Let spreadable be ? IsConcatSpreadable(E).
+    //    b. If spreadable is true, then
+    //       i. Let len be ? LengthOfArrayLike(E).
+    //       ii. If n + len > 2**53 - 1, throw a TypeError exception.
+    //       iii. Let k be 0.
+    //       iv. Repeat, while k < len,
+    //           1. Let Pk be ! ToString(𝔽(k)).
+    //           2. Let exists be ? HasProperty(E, Pk).
+    //           3. If exists is true, then
+    //              a. Let subElement be ? Get(E, Pk).
+    //              b. Perform ? CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), subElement).
+    //           4. Set n to n + 1.
+    //           5. Set k to k + 1.
+    //    c. Else,
+    //       i. NOTE: E is added as a single item rather than spread.
+    //       ii. If n ≥ 2**53 - 1, throw a TypeError exception.
+    //       iii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), E).
+    //       iv. Set n to n + 1.
+    // 6. Perform ? Set(A, "length", 𝔽(n), true).
+    // 7. Return A.
+    // The "length" property of this method is 1𝔽.
+    //
+    // Note 1
+    // The explicit setting of the "length" property in step 6 is intended to ensure the length is correct when the
+    // final non-empty element of items has trailing holes or when A is not a built-in Array.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let obj = to_object(this_value.clone())?;
+    let array = array_species_create(&obj, 0.0)?;
+    let array_obj = array.object_ref().expect("species of array should be objects");
+    let mut output_index = 0.0;
+    for elem in [ECMAScriptValue::Object(obj)].iter().chain(arguments.iter()) {
+        let spreadable = elem.is_concat_spreadable()?;
+        if spreadable {
+            let elem_obj = elem.object_ref().expect("spreadable things should be objects");
+            let len = length_of_array_like(elem_obj)?;
+            if len + output_index > ARRAY_INDEX_LIMIT {
+                return Err(create_type_error("Array.prototype.concat: iterable too long"));
+            }
+            let mut k = 0.0;
+            while k < len {
+                let pk = PropertyKey::from(k);
+                if elem_obj.o.has_property(&pk)? {
+                    let sub_element = elem_obj.get(&pk)?;
+                    array_obj.create_data_property_or_throw(PropertyKey::from(output_index), sub_element)?;
+                }
+                output_index += 1.0;
+                k += 1.0;
+            }
+        } else {
+            if output_index >= ARRAY_INDEX_LIMIT {
+                return Err(create_type_error("Array.prototype.concat: iterable too long"));
+            }
+            array_obj.create_data_property_or_throw(PropertyKey::from(output_index), elem.clone())?;
+            output_index += 1.0;
+        }
+    }
+    array_obj.set("length", output_index, true)?;
+    Ok(array)
 }
+
+impl ECMAScriptValue {
+    pub fn is_concat_spreadable(&self) -> Completion<bool> {
+        // IsConcatSpreadable ( O )
+        // The abstract operation IsConcatSpreadable takes argument O (an ECMAScript language value) and returns either
+        // a normal completion containing a Boolean or a throw completion. It performs the following steps when called:
+        //
+        //  1. If O is not an Object, return false.
+        //  2. Let spreadable be ? Get(O, %Symbol.isConcatSpreadable%).
+        //  3. If spreadable is not undefined, return ToBoolean(spreadable).
+        //  4. Return ? IsArray(O).
+        match self {
+            ECMAScriptValue::Object(o) => {
+                let spreadable = o.get(&PropertyKey::from(wks(WksId::IsConcatSpreadable)))?;
+                match spreadable {
+                    ECMAScriptValue::Undefined => o.is_array(),
+                    _ => Ok(to_boolean(spreadable)),
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
 fn array_prototype_copy_within(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -998,13 +1153,15 @@ fn array_prototype_for_each(
     if !is_callable(&callbackfn) {
         return Err(create_type_error("Array.prototoype.forEach requires a callable first argument"));
     }
-    for k in 0..len {
+    let mut k = 0.0;
+    while k < len {
         let pk = PropertyKey::from(format!("{k}"));
         let kpresent = has_property(&o, &pk)?;
         if kpresent {
             let kvalue = o.get(&pk)?;
             call(&callbackfn, &this_arg, &[kvalue, ECMAScriptValue::from(k), ECMAScriptValue::from(o.clone())])?;
         }
+        k += 1.0;
     }
     Ok(ECMAScriptValue::Undefined)
 }
@@ -1065,11 +1222,9 @@ fn array_prototype_index_of(
 
     let o = to_object(this_value.clone())?;
     let len = length_of_array_like(&o)?;
-    if len == 0 {
+    if len == 0.0 {
         return Ok(ECMAScriptValue::from(-1));
     }
-    #[expect(clippy::cast_precision_loss)]
-    let len = len as f64;
     let n = from_index.to_integer_or_infinity()?;
     if n == f64::INFINITY {
         return Ok(ECMAScriptValue::from(-1));
@@ -1122,15 +1277,15 @@ fn array_prototype_join(
 
     let sep = if separator.is_undefined() { JSString::from(",") } else { to_string(separator)? };
     let mut r = JSString::from("");
-    let mut k = 0;
+    let mut k = 0.0;
     while k < len {
-        if k > 0 {
+        if k > 0.0 {
             r = r.concat(sep.clone());
         }
         let element = o.get(&JSString::from(k).into())?;
         let next = if element.is_undefined() || element.is_null() { JSString::from("") } else { to_string(element)? };
         r = r.concat(next);
-        k += 1;
+        k += 1.0;
     }
     Ok(ECMAScriptValue::from(r))
 }
@@ -1203,12 +1358,13 @@ fn array_prototype_map(
     let this_arg = args.next_arg();
 
     let o = to_object(this_value.clone())?;
-    let len = u64::try_from(length_of_array_like(&o)?).expect("length should be >= 0");
+    let len = length_of_array_like(&o)?;
     if !is_callable(&callbackfn) {
         return Err(create_type_error("Array.prototype.map: callback function was not callable"));
     }
     let a = to_object(array_species_create(&o, len)?).expect("array creation should make object");
-    for k in 0..len {
+    let mut k = 0.0;
+    while k < len {
         let pk = PropertyKey::from(k);
         let k_present = has_property(&o, &pk)?;
         if k_present {
@@ -1216,6 +1372,7 @@ fn array_prototype_map(
             let mapped_value = call(&callbackfn, &this_arg, &[k_value, k.into(), o.clone().into()])?;
             a.create_data_property_or_throw(pk, mapped_value)?;
         }
+        k += 1.0;
     }
 
     Ok(a.into())
@@ -1248,11 +1405,11 @@ fn array_prototype_pop(
     // Therefore it can be transferred to other kinds of objects for use as a method.
     let o = to_object(this_value.clone())?;
     let len = length_of_array_like(&o)?;
-    if len == 0 {
+    if len == 0.0 {
         o.set("length", 0.0, true)?;
         Ok(ECMAScriptValue::Undefined)
     } else {
-        let newlen = len - 1;
+        let newlen = len - 1.0;
         let index = PropertyKey::from(format!("{newlen}"));
         let element = o.get(&index)?;
         o.delete_property_or_throw(&index)?;
@@ -1286,14 +1443,16 @@ fn array_prototype_push(
     // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
     // Therefore it can be transferred to other kinds of objects for use as a method.
     let o = to_object(this_value.clone())?;
-    let len = u64::try_from(length_of_array_like(&o)?).expect("Array lengths should be positive and fit in 64 bits");
-    let arg_count = arguments.len() as u64;
+    let len = length_of_array_like(&o)?;
+    let arg_count = to_f64(arguments.len())
+        .map_err(|_| ())
+        .and_then(|arg_count| if len > 9_007_199_254_740_991.0 - arg_count { Err(()) } else { Ok(arg_count) })
+        .map_err(|()| create_type_error("Array too large"))?;
     let new_len = len + arg_count;
-    if new_len >= 1 << 53 {
-        return Err(create_type_error("Array too large"));
-    }
-    for (idx, e) in arguments.iter().cloned().enumerate() {
-        o.set(len + idx as u64, e, true)?;
+    for (idx, e) in
+        arguments.iter().cloned().enumerate().map(|(idx, e)| (to_f64(idx).expect("limits should be in range"), e))
+    {
+        o.set(len + idx, e, true)?;
     }
     o.set("length", new_len, true)?;
     Ok(new_len.into())
@@ -1481,7 +1640,7 @@ async fn array_iterator(
     //             b. Let result be CreateArrayFromList(« 𝔽(index), elementValue »).
     //             c. Perform ? GeneratorYield(CreateIterResultObject(result, false)).
     //    vi. Set index to index + 1.
-    let mut index = 0;
+    let mut index = 0.0;
     loop {
         assert!(!array.is_typed_array()); // when typed arrays are added, this needs to be accounted for
         let len = length_of_array_like(&array)?;
@@ -1504,7 +1663,7 @@ async fn array_iterator(
                 generator_yield(&co, res).await?;
             }
         }
-        index += 1;
+        index += 1.0;
     }
 }
 
