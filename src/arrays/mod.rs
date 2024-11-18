@@ -1020,12 +1020,96 @@ impl ECMAScriptValue {
 }
 
 fn array_prototype_copy_within(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.copyWithin ( target, start [ , end ] )
+    // Note 1
+    // The end argument is optional. If it is not provided, the length of the this value is used.
+    //
+    // Note 2
+    // If target is negative, it is treated as length + target where length is the length of the array. If start is
+    // negative, it is treated as length + start. If end is negative, it is treated as length + end.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let relativeTarget be ? ToIntegerOrInfinity(target).
+    // 4. If relativeTarget = -∞, let to be 0.
+    // 5. Else if relativeTarget < 0, let to be max(len + relativeTarget, 0).
+    // 6. Else, let to be min(relativeTarget, len).
+    // 7. Let relativeStart be ? ToIntegerOrInfinity(start).
+    // 8. If relativeStart = -∞, let from be 0.
+    // 9. Else if relativeStart < 0, let from be max(len + relativeStart, 0).
+    // 10. Else, let from be min(relativeStart, len).
+    // 11. If end is undefined, let relativeEnd be len; else let relativeEnd be ? ToIntegerOrInfinity(end).
+    // 12. If relativeEnd = -∞, let final be 0.
+    // 13. Else if relativeEnd < 0, let final be max(len + relativeEnd, 0).
+    // 14. Else, let final be min(relativeEnd, len).
+    // 15. Let count be min(final - from, len - to).
+    // 16. If from < to and to < from + count, then
+    //     a. Let direction be -1.
+    //     b. Set from to from + count - 1.
+    //     c. Set to to to + count - 1.
+    // 17. Else,
+    //     a. Let direction be 1.
+    // 18. Repeat, while count > 0,
+    //     a. Let fromKey be ! ToString(𝔽(from)).
+    //     b. Let toKey be ! ToString(𝔽(to)).
+    //     c. Let fromPresent be ? HasProperty(O, fromKey).
+    //     d. If fromPresent is true, then
+    //        i. Let fromValue be ? Get(O, fromKey).
+    //        ii. Perform ? Set(O, toKey, fromValue, true).
+    //     e. Else,
+    //        i. Assert: fromPresent is false.
+    //        ii. Perform ? DeletePropertyOrThrow(O, toKey).
+    //     f. Set from to from + direction.
+    //     g. Set to to to + direction.
+    //     h. Set count to count - 1.
+    // 19. Return O.
+    //
+    // Note 3
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let target = args.next_arg();
+    let start = args.next_arg();
+    let end = args.next_arg();
+
+    let o = to_object(this_value.clone())?;
+    let len = length_of_array_like(&o)?;
+    let relative_target = target.to_integer_or_infinity()?;
+    let to = if relative_target < 0.0 { (len + relative_target).max(0.0) } else { relative_target.min(len) };
+    let relative_start = start.to_integer_or_infinity()?;
+    let from = if relative_start < 0.0 { (len + relative_start).max(0.0) } else { relative_start.min(len) };
+    let relative_end = if end.is_undefined() { len } else { end.to_integer_or_infinity()? };
+    let final_spot = if relative_end < 0.0 { (len + relative_end).max(0.0) } else { relative_end.min(len) };
+    let mut count = (final_spot - from).min(len - to);
+    let (direction, mut from, mut to) = if ((from + 1.0)..(from + count)).contains(&to) {
+        (-1.0, from + count - 1.0, to + count - 1.0)
+    } else {
+        (1.0, from, to)
+    };
+    while count > 0.0 {
+        let from_key = PropertyKey::from(from);
+        let to_key = PropertyKey::from(to);
+        let from_present = o.o.has_property(&from_key)?;
+        if from_present {
+            let from_value = o.get(&from_key)?;
+            o.set(to_key, from_value, true)?;
+        } else {
+            o.delete_property_or_throw(&to_key)?;
+        }
+        from += direction;
+        to += direction;
+        count -= 1.0;
+    }
+
+    Ok(ECMAScriptValue::Object(o))
 }
+
 fn array_prototype_entries(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,

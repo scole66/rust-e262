@@ -683,7 +683,6 @@ fn defaults() {
     assert_eq!(a.o.is_proxy_object(), false);
 }
 
-#[test_case(super::array_prototype_copy_within => panics "not yet implemented"; "array_prototype_copy_within")]
 #[test_case(super::array_prototype_entries => panics "not yet implemented"; "array_prototype_entries")]
 #[test_case(super::array_prototype_every => panics "not yet implemented"; "array_prototype_every")]
 #[test_case(super::array_prototype_fill => panics "not yet implemented"; "array_prototype_fill")]
