@@ -1358,7 +1358,7 @@ fn date_constructor_function(
                     let tv = match value.to_date_object() {
                         Some(date_obj) => date_obj.date_value(),
                         None => {
-                            let v = to_primitive(value, None)?;
+                            let v = value.to_primitive(None)?;
                             match v {
                                 ECMAScriptValue::String(s) => parse_date(&s),
                                 _ => v.to_number()?,
@@ -2784,11 +2784,11 @@ fn date_prototype_tojson(
     // This method is intentionally generic; it does not require that its this value be a Date. Therefore, it can be
     // transferred to other kinds of objects for use as a method. However, it does require that any such object have a
     // toISOString method.
-    let o = to_object(this_value.clone())?;
-    let tv = to_primitive(ECMAScriptValue::Object(o.clone()), Some(ConversionHint::Number))?;
+    let o = ECMAScriptValue::Object(to_object(this_value.clone())?);
+    let tv = o.to_primitive(Some(ConversionHint::Number))?;
     match tv {
         ECMAScriptValue::Number(v) if !v.is_finite() => Ok(ECMAScriptValue::Null),
-        _ => ECMAScriptValue::Object(o).invoke(&PropertyKey::from("toISOString"), &[]),
+        _ => o.invoke(&PropertyKey::from("toISOString"), &[]),
     }
 }
 

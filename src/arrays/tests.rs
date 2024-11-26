@@ -683,34 +683,11 @@ fn defaults() {
     assert_eq!(a.o.is_proxy_object(), false);
 }
 
-#[test_case(super::array_prototype_copy_within => panics "not yet implemented"; "array_prototype_copy_within")]
-#[test_case(super::array_prototype_entries => panics "not yet implemented"; "array_prototype_entries")]
-#[test_case(super::array_prototype_every => panics "not yet implemented"; "array_prototype_every")]
-#[test_case(super::array_prototype_fill => panics "not yet implemented"; "array_prototype_fill")]
-#[test_case(super::array_prototype_filter => panics "not yet implemented"; "array_prototype_filter")]
-#[test_case(super::array_prototype_find => panics "not yet implemented"; "array_prototype_find")]
-#[test_case(super::array_prototype_find_index => panics "not yet implemented"; "array_prototype_find_index")]
-#[test_case(super::array_prototype_find_last => panics "not yet implemented"; "array_prototype_find_last")]
-#[test_case(super::array_prototype_find_last_index => panics "not yet implemented"; "array_prototype_find_last_index")]
-#[test_case(super::array_prototype_flat => panics "not yet implemented"; "array_prototype_flat")]
-#[test_case(super::array_prototype_flat_map => panics "not yet implemented"; "array_prototype_flat_map")]
-#[test_case(super::array_prototype_includes => panics "not yet implemented"; "array_prototype_includes")]
-#[test_case(super::array_prototype_keys => panics "not yet implemented"; "array_prototype_keys")]
-#[test_case(super::array_prototype_last_index_of => panics "not yet implemented"; "array_prototype_last_index_of")]
-#[test_case(super::array_prototype_reduce => panics "not yet implemented"; "array_prototype_reduce")]
-#[test_case(super::array_prototype_reduce_right => panics "not yet implemented"; "array_prototype_reduce_right")]
-#[test_case(super::array_prototype_reverse => panics "not yet implemented"; "array_prototype_reverse")]
-#[test_case(super::array_prototype_shift => panics "not yet implemented"; "array_prototype_shift")]
-#[test_case(super::array_prototype_slice => panics "not yet implemented"; "array_prototype_slice")]
-#[test_case(super::array_prototype_some => panics "not yet implemented"; "array_prototype_some")]
-#[test_case(super::array_prototype_sort => panics "not yet implemented"; "array_prototype_sort")]
-#[test_case(super::array_prototype_splice => panics "not yet implemented"; "array_prototype_splice")]
 #[test_case(super::array_prototype_to_locale_string => panics "not yet implemented"; "array_prototype_to_locale_string")]
 #[test_case(super::array_prototype_to_reversed => panics "not yet implemented"; "array_prototype_to_reversed")]
 #[test_case(super::array_prototype_to_sorted => panics "not yet implemented"; "array_prototype_to_sorted")]
 #[test_case(super::array_prototype_to_spliced => panics "not yet implemented"; "array_prototype_to_spliced")]
 #[test_case(super::array_prototype_unshift => panics "not yet implemented"; "array_prototype_unshift")]
-#[test_case(super::array_prototype_with => panics "not yet implemented"; "array_prototype_with")]
 fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
     f(&ECMAScriptValue::Undefined, None, &[]).unwrap();

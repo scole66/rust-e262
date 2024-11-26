@@ -279,7 +279,7 @@ pub fn get_value(v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
                     ReferencedName::PrivateName(private) => private_get(&base_obj, private),
                     ReferencedName::Value(value) => {
                         let this_value = reference.get_this_value();
-                        let key = PropertyKey::try_from(value.clone()).or_else(|_| to_property_key(value.clone()))?;
+                        let key = PropertyKey::try_from(value.clone()).or_else(|_| value.to_property_key())?;
 
                         base_obj.o.get(&key, &this_value)
                     }
@@ -360,8 +360,7 @@ pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScri
                     ReferencedName::PrivateName(pn) => private_set(&base_obj, pn, w),
                     ReferencedName::Value(v) => {
                         let this_value = r.get_this_value();
-                        let propkey_ref: &PropertyKey =
-                            &v.clone().try_into().or_else(|_| to_property_key(v.clone()))?;
+                        let propkey_ref: &PropertyKey = &v.clone().try_into().or_else(|_| v.to_property_key())?;
                         let succeeded = base_obj.o.set(propkey_ref.clone(), w, &this_value)?;
                         if !succeeded && r.strict {
                             Err(create_type_error("Invalid Assignment Target"))

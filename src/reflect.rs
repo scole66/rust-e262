@@ -152,7 +152,7 @@ fn reflect_define_property(
     // 4. Return ? target.[[DefineOwnProperty]](key, desc).
     let mut args = FuncArgs::from(arguments);
     if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = to_property_key(args.next_arg())?;
+        let key = args.next_arg().to_property_key()?;
         let desc = to_property_descriptor(&args.next_arg())?;
         Ok(ECMAScriptValue::from(target.o.define_own_property(key, desc)?))
     } else {
@@ -173,7 +173,7 @@ fn reflect_delete_property(
     // 3. Return ? target.[[Delete]](key).
     let mut args = FuncArgs::from(arguments);
     if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = to_property_key(args.next_arg())?;
+        let key = args.next_arg().to_property_key()?;
         Ok(ECMAScriptValue::from(target.o.delete(&key)?))
     } else {
         Err(create_type_error("Reflect.deleteProperty: target must be an object"))
@@ -196,7 +196,7 @@ fn reflect_get(
     let num_args = arguments.len();
     let mut args = FuncArgs::from(arguments);
     if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = to_property_key(args.next_arg())?;
+        let key = args.next_arg().to_property_key()?;
         let receiver = if num_args < 3 { ECMAScriptValue::Object(target.clone()) } else { args.next_arg() };
         target.o.get(&key, &receiver)
     } else {
@@ -218,7 +218,7 @@ fn reflect_get_own_property_descriptor(
     // 4. Return FromPropertyDescriptor(desc).
     let mut args = FuncArgs::from(arguments);
     if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = to_property_key(args.next_arg())?;
+        let key = args.next_arg().to_property_key()?;
         let desc = target.o.get_own_property(&key)?;
         Ok(ECMAScriptValue::to_obj_or_undefined(from_property_descriptor(desc)))
     } else {
@@ -257,7 +257,7 @@ fn reflect_has(
     // 3. Return ? target.[[HasProperty]](key).
     let mut args = FuncArgs::from(arguments);
     if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = to_property_key(args.next_arg())?;
+        let key = args.next_arg().to_property_key()?;
         Ok(ECMAScriptValue::from(target.o.has_property(&key)?))
     } else {
         Err(create_type_error("Reflect.has: target must be an object"))
@@ -336,7 +336,7 @@ fn reflect_set(
     let num_args = arguments.len();
     let mut args = FuncArgs::from(arguments);
     if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = to_property_key(args.next_arg())?;
+        let key = args.next_arg().to_property_key()?;
         let v = args.next_arg();
         let receiver = if num_args < 4 { ECMAScriptValue::from(target.clone()) } else { args.next_arg() };
         Ok(ECMAScriptValue::from(target.o.set(key, v, &receiver)?))

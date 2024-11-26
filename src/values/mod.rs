@@ -870,11 +870,18 @@ impl Object {
         ordinary_to_primitive(self, pt)
     }
 }
-pub fn to_primitive(input: ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
-    if let ECMAScriptValue::Object(obj) = &input {
-        obj.to_primitive(preferred_type)
-    } else {
-        Ok(input)
+
+pub fn to_primitive(input: &ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
+    input.to_primitive(preferred_type)
+}
+
+impl ECMAScriptValue {
+    pub fn to_primitive(&self, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
+        if let ECMAScriptValue::Object(obj) = self {
+            obj.to_primitive(preferred_type)
+        } else {
+            Ok(self.clone())
+        }
     }
 }
 
@@ -912,6 +919,11 @@ impl From<ECMAScriptValue> for bool {
 pub fn to_boolean(val: impl Into<ECMAScriptValue>) -> bool {
     bool::from(val.into())
 }
+impl ECMAScriptValue {
+    pub fn to_boolean(self) -> bool {
+        bool::from(self)
+    }
+}
 
 // ToNumeric ( value )
 //
@@ -926,12 +938,14 @@ pub enum Numeric {
     Number(f64),
     BigInt(Rc<BigInt>),
 }
-pub fn to_numeric(value: ECMAScriptValue) -> Completion<Numeric> {
-    let prim_value = to_primitive(value, Some(ConversionHint::Number))?;
-    if let ECMAScriptValue::BigInt(bi) = prim_value {
-        Ok(Numeric::BigInt(bi))
-    } else {
-        Ok(Numeric::Number(prim_value.to_number()?))
+impl ECMAScriptValue {
+    pub fn to_numeric(&self) -> Completion<Numeric> {
+        let prim_value = self.to_primitive(Some(ConversionHint::Number))?;
+        if let ECMAScriptValue::BigInt(bi) = prim_value {
+            Ok(Numeric::BigInt(bi))
+        } else {
+            Ok(Numeric::Number(prim_value.to_number()?))
+        }
     }
 }
 
@@ -972,9 +986,7 @@ impl ECMAScriptValue {
             ECMAScriptValue::String(s) => Ok(s.to_number()),
             ECMAScriptValue::BigInt(_) => Err(create_type_error("BigInt values cannot be converted to Number values")),
             ECMAScriptValue::Symbol(_) => Err(create_type_error("Symbol values cannot be converted to Number values")),
-            ECMAScriptValue::Object(o) => {
-                to_primitive(ECMAScriptValue::from(o), Some(ConversionHint::Number))?.to_number()
-            }
+            ECMAScriptValue::Object(_) => self.to_primitive(Some(ConversionHint::Number))?.to_number(),
         }
     }
 }
@@ -1313,7 +1325,7 @@ impl Object {
 }
 pub fn to_string(val: ECMAScriptValue) -> Completion<JSString> {
     if val.is_object() {
-        let prim_value = to_primitive(val, Some(ConversionHint::String))?;
+        let prim_value = val.to_primitive(Some(ConversionHint::String))?;
         to_string(prim_value)
     } else {
         JSString::try_from(val).map_err(|e| create_type_error(e.to_string()))
@@ -1408,11 +1420,16 @@ impl ECMAScriptValue {
 //  2. If Type(key) is Symbol, then
 //      a. Return key.
 //  3. Return ! ToString(key).
-pub fn to_property_key(argument: ECMAScriptValue) -> Completion<PropertyKey> {
-    let key = to_primitive(argument, Some(ConversionHint::String))?;
-    match key {
-        ECMAScriptValue::Symbol(sym) => Ok(PropertyKey::from(sym)),
-        _ => Ok(PropertyKey::from(to_string(key).unwrap())),
+pub fn to_property_key(argument: &ECMAScriptValue) -> Completion<PropertyKey> {
+    argument.to_property_key()
+}
+impl ECMAScriptValue {
+    pub fn to_property_key(&self) -> Completion<PropertyKey> {
+        let key = self.to_primitive(Some(ConversionHint::String))?;
+        match key {
+            ECMAScriptValue::Symbol(sym) => Ok(PropertyKey::from(sym)),
+            _ => Ok(PropertyKey::from(to_string(key).unwrap())),
+        }
     }
 }
 
@@ -1656,7 +1673,7 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
             | ECMAScriptValue::Symbol(_),
             ECMAScriptValue::Object(_),
         ) => {
-            let new_y = to_primitive(y.clone(), None)?;
+            let new_y = y.to_primitive(None)?;
             is_loosely_equal(x, &new_y)
         }
         (
@@ -1666,7 +1683,7 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
             | ECMAScriptValue::BigInt(_)
             | ECMAScriptValue::Symbol(_),
         ) => {
-            let new_x = to_primitive(x.clone(), None)?;
+            let new_x = x.to_primitive(None)?;
             is_loosely_equal(&new_x, y)
         }
         (&ECMAScriptValue::Number(n), ECMAScriptValue::BigInt(b))

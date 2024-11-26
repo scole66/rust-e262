@@ -1291,26 +1291,26 @@ mod numeric {
 fn to_numeric_01() {
     setup_test_agent();
     let obj = ordinary_object_create(None);
-    let result = to_numeric(ECMAScriptValue::from(obj)).unwrap_err();
+    let result = ECMAScriptValue::from(obj).to_numeric().unwrap_err();
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
 #[test]
 fn to_numeric_02() {
     setup_test_agent();
-    let result = to_numeric(ECMAScriptValue::from(BigInt::from(4_747_474))).unwrap();
+    let result = ECMAScriptValue::from(BigInt::from(4_747_474)).to_numeric().unwrap();
     assert_eq!(result, Numeric::BigInt(Rc::new(BigInt::from(4_747_474))));
 }
 #[test]
 fn to_numeric_03() {
     setup_test_agent();
-    let result = to_numeric(ECMAScriptValue::from(10)).unwrap();
+    let result = ECMAScriptValue::from(10).to_numeric().unwrap();
     assert_eq!(result, Numeric::Number(10.0));
 }
 #[test]
 fn to_numeric_04() {
     setup_test_agent();
     let sym = Symbol::new(None);
-    let result = to_numeric(ECMAScriptValue::from(sym)).unwrap_err();
+    let result = ECMAScriptValue::from(sym).to_numeric().unwrap_err();
     assert_eq!(unwind_type_error(result), "Symbol values cannot be converted to Number values");
 }
 
@@ -1765,27 +1765,27 @@ fn ordinary_to_primitive_uncallables() {
 fn to_primitive_no_change() {
     setup_test_agent();
     // Undefined
-    let result = to_primitive(ECMAScriptValue::Undefined, None).unwrap();
+    let result = ECMAScriptValue::Undefined.to_primitive(None).unwrap();
     assert!(result.is_undefined());
     // Null
-    let result = to_primitive(ECMAScriptValue::Null, None).unwrap();
+    let result = ECMAScriptValue::Null.to_primitive(None).unwrap();
     assert!(result.is_null());
     // Boolean
-    let result = to_primitive(ECMAScriptValue::from(true), None).unwrap();
+    let result = ECMAScriptValue::from(true).to_primitive(None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(true));
     // Number
-    let result = to_primitive(ECMAScriptValue::from(20), None).unwrap();
+    let result = ECMAScriptValue::from(20).to_primitive(None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(20));
     // String
-    let result = to_primitive(ECMAScriptValue::from("test"), None).unwrap();
+    let result = ECMAScriptValue::from("test").to_primitive(None).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test"));
     // Symbol
     let sym = Symbol::new(Some(JSString::from("Symbolic")));
-    let result = to_primitive(ECMAScriptValue::from(sym.clone()), None).unwrap();
+    let result = ECMAScriptValue::from(sym.clone()).to_primitive(None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(sym));
     // BigInt
     let bi = "123456789012345678901234567890".parse::<BigInt>().unwrap();
-    let result = to_primitive(ECMAScriptValue::from(bi), None).unwrap();
+    let result = ECMAScriptValue::from(bi).to_primitive(None).unwrap();
     assert_eq!(result, ECMAScriptValue::from("123456789012345678901234567890".parse::<BigInt>().unwrap()));
 }
 #[test]
@@ -1794,11 +1794,11 @@ fn to_primitive_prefer_number() {
     let test_obj = make_test_obj(FauxKind::Primitive, FauxKind::Primitive);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(test_value.clone(), None).unwrap();
+    let result = test_value.to_primitive(None).unwrap();
     assert_eq!(result, ECMAScriptValue::from(123_456));
-    let result = to_primitive(test_value.clone(), Some(ConversionHint::Number)).unwrap();
+    let result = test_value.to_primitive(Some(ConversionHint::Number)).unwrap();
     assert_eq!(result, ECMAScriptValue::from(123_456));
-    let result = to_primitive(test_value, Some(ConversionHint::String)).unwrap();
+    let result = test_value.to_primitive(Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("test result"));
 }
 #[expect(clippy::unnecessary_wraps)]
@@ -1858,11 +1858,11 @@ fn to_primitive_uses_exotics() {
     let test_obj = make_toprimitive_obj(exotic_to_prim);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(test_value.clone(), None).unwrap();
+    let result = test_value.to_primitive(None).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw default"));
-    let result = to_primitive(test_value.clone(), Some(ConversionHint::Number)).unwrap();
+    let result = test_value.to_primitive(Some(ConversionHint::Number)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw number"));
-    let result = to_primitive(test_value, Some(ConversionHint::String)).unwrap();
+    let result = test_value.to_primitive(Some(ConversionHint::String)).unwrap();
     assert_eq!(result, ECMAScriptValue::from("Saw string"));
 }
 #[expect(clippy::unnecessary_wraps)]
@@ -1882,7 +1882,7 @@ fn to_primitive_exotic_returns_object() {
     let test_obj = make_toprimitive_obj(exotic_returns_object);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(test_value, None).unwrap_err();
+    let result = test_value.to_primitive(None).unwrap_err();
     assert_eq!(unwind_type_error(result), "Cannot convert object to primitive value");
 }
 fn exotic_throws(
@@ -1898,7 +1898,7 @@ fn to_primitive_exotic_throws() {
     let test_obj = make_toprimitive_obj(exotic_throws);
     let test_value = ECMAScriptValue::from(test_obj);
 
-    let result = to_primitive(test_value, None).unwrap_err();
+    let result = test_value.to_primitive(None).unwrap_err();
     assert_eq!(unwind_type_error(result), "Test Sentinel");
 }
 #[test]
@@ -1932,7 +1932,7 @@ fn to_primitive_exotic_getter_throws() {
     .unwrap();
     let test_value = ECMAScriptValue::from(target);
 
-    let result = to_primitive(test_value, None).unwrap_err();
+    let result = test_value.to_primitive(None).unwrap_err();
     assert_eq!(unwind_type_error(result), "Test Sentinel");
 }
 
@@ -1946,7 +1946,7 @@ mod to_property_key {
     fn simple(make_value: fn() -> ECMAScriptValue) -> Result<PropertyKey, String> {
         setup_test_agent();
         let arg = make_value();
-        match to_property_key(arg) {
+        match arg.to_property_key() {
             Ok(key) => Ok(key),
             Err(err) => Err(unwind_type_error(err)),
         }
@@ -1957,7 +1957,7 @@ mod to_property_key {
         setup_test_agent();
         let sym = Symbol::new(Some("test symbol".into()));
         let argument = ECMAScriptValue::from(sym.clone());
-        assert_eq!(to_property_key(argument).unwrap(), PropertyKey::from(sym));
+        assert_eq!(argument.to_property_key().unwrap(), PropertyKey::from(sym));
     }
 }
 

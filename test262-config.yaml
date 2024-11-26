@@ -6,4 +6,6 @@
   - async-iteration
   - async-functions
   - iterator-helpers
+  - resizable-arraybuffer
   - TypedArray
+  - Int32Array

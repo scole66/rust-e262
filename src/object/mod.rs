@@ -1982,7 +1982,12 @@ impl Object {
 //  2. Assert: IsPropertyKey(P) is true.
 //  3. Return ? O.[[HasProperty]](P).
 pub fn has_property(obj: &Object, p: &PropertyKey) -> Completion<bool> {
-    obj.o.has_property(p)
+    obj.has_property(p)
+}
+impl Object {
+    pub fn has_property(&self, p: &PropertyKey) -> Completion<bool> {
+        self.o.has_property(p)
+    }
 }
 
 // HasOwnProperty ( O, P )
@@ -2203,17 +2208,19 @@ pub fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
 /// Returns the value of the `"length"` property of an array-like object.
 ///
 /// See [LengthOfArrayLike](https://tc39.es/ecma262/#sec-lengthofarraylike) from ECMA-262.
-pub fn length_of_array_like(obj: &Object) -> Completion<f64> {
-    // LengthOfArrayLike ( obj )
-    //
-    // The abstract operation LengthOfArrayLike takes argument obj (an Object) and returns either a normal
-    // completion containing a non-negative integer or a throw completion. It returns the value of the "length"
-    // property of an array-like object. It performs the following steps when called:
-    //
-    //  1. Return ℝ(? ToLength(? Get(obj, "length"))).
-    //
-    // An array-like object is any object for which this operation returns a normal completion.
-    to_length(obj.get(&"length".into())?)
+impl Object {
+    pub fn length_of_array_like(&self) -> Completion<f64> {
+        // LengthOfArrayLike ( obj )
+        //
+        // The abstract operation LengthOfArrayLike takes argument obj (an Object) and returns either a normal
+        // completion containing a non-negative integer or a throw completion. It returns the value of the "length"
+        // property of an array-like object. It performs the following steps when called:
+        //
+        //  1. Return ℝ(? ToLength(? Get(obj, "length"))).
+        //
+        // An array-like object is any object for which this operation returns a normal completion.
+        self.get(&"length".into())?.to_length()
+    }
 }
 
 pub fn create_list_from_array_like(
@@ -2252,7 +2259,7 @@ pub fn create_list_from_array_like(
         ValueKind::Object,
     ]);
     let obj = Object::try_from(obj).map_err(|_| create_type_error("CreateListFromArrayLike called on non-object"))?;
-    let len = to_usize(length_of_array_like(&obj)?).expect("array lengths should fit");
+    let len = to_usize(obj.length_of_array_like()?).expect("array lengths should fit");
     let mut list = Vec::new();
     for index in 0..len {
         let index_name = PropertyKey::from(index);

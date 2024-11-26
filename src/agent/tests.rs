@@ -523,7 +523,7 @@ mod agent {
         setup_test_agent();
         let x = make_x();
         let y = make_y();
-        super::is_less_than(x, y, left_first).map_err(unwind_any_error)
+        x.is_less_than(&y, left_first).map_err(unwind_any_error)
     }
 
     mod create_unmapped_arguments_object {
