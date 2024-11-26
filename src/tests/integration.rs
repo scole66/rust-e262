@@ -1031,6 +1031,17 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     Object.getOwnPropertyNames(o).join(', ')
     "
     => vok("1"); "delete o[1]: value-style property reference works in a delete")]
+// 11/26/2024: strict in function expressions
+#[test_case("
+    var this_seen = 'not yet set';
+    (function() { 'use strict'; this_seen = this; })();
+    this_seen
+    " => Ok(ECMAScriptValue::Undefined); "strict in function expressions")]
+#[test_case("
+    var this_seen = 'not yet set';
+    (function a() { 'use strict'; this_seen = this; })();
+    this_seen
+    " => Ok(ECMAScriptValue::Undefined); "strict in function expressions (named)")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

@@ -8,3 +8,4 @@
   - iterator-helpers
   - resizable-arraybuffer
   - TypedArray
+  - Int32Array

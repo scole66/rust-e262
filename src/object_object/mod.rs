@@ -414,7 +414,7 @@ fn object_define_property(
             let p = args.next_arg();
             let attributes = args.next_arg();
 
-            let key = to_property_key(p)?;
+            let key = p.to_property_key()?;
             let desc = to_property_descriptor(&attributes)?;
 
             define_property_or_throw(&o, key, desc)?;
@@ -541,7 +541,7 @@ fn object_from_entries(
         let mut args = FuncArgs::from(args);
         let key = args.next_arg();
         let value = args.next_arg();
-        let property_key = to_property_key(key)?;
+        let property_key = key.to_property_key()?;
         this_obj.create_data_property_or_throw(property_key, value).unwrap();
         let result: Completion<ECMAScriptValue> = Ok(ECMAScriptValue::Undefined);
         result
@@ -567,7 +567,7 @@ fn object_get_own_property_descriptor(
     let o = args.next_arg();
     let p = args.next_arg();
     let obj = to_object(o)?;
-    let key = to_property_key(p)?;
+    let key = p.to_property_key()?;
     let desc = obj.o.get_own_property(&key)?;
     let result = from_property_descriptor(desc);
     Ok(match result {
@@ -699,7 +699,7 @@ fn object_has_own(
     let o = args.next_arg();
     let p = args.next_arg();
     let obj = to_object(o)?;
-    let key = to_property_key(p)?;
+    let key = p.to_property_key()?;
     obj.has_own_property(&key).map(ECMAScriptValue::from)
 }
 
@@ -956,7 +956,7 @@ fn object_prototype_has_own_property(
     // is undefined or null.
     let mut args = FuncArgs::from(arguments);
     let v = args.next_arg();
-    let p = to_property_key(v)?;
+    let p = v.to_property_key()?;
     let o = to_object(this_value.clone())?;
     o.has_own_property(&p).map(ECMAScriptValue::from)
 }
@@ -1019,7 +1019,7 @@ fn object_prototype_property_is_enumerable(
     // is undefined or null.
     let mut args = FuncArgs::from(arguments);
     let v = args.next_arg();
-    let p = to_property_key(v)?;
+    let p = v.to_property_key()?;
     let o = to_object(this_value.clone())?;
     let desc = o.o.get_own_property(&p)?;
     Ok(match desc {

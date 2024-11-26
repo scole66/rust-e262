@@ -965,7 +965,7 @@ fn group_by(
                 }
                 Ok(key) => {
                     let key = match key_coercion {
-                        Coercion::Property => match to_property_key(key) {
+                        Coercion::Property => match key.to_property_key() {
                             Err(err) => {
                                 let result = iterator_record.close::<ECMAScriptValue>(Err(err)).unwrap_err();
                                 return Err(result);

@@ -341,6 +341,11 @@ pub fn array_species_create(original_array: &Object, length: f64) -> Completion<
     let c_obj = Object::try_from(&c).unwrap();
     construct(&c_obj, &[length.into()], None)
 }
+impl Object {
+    pub fn array_species_create(&self, length: f64) -> Completion<ECMAScriptValue> {
+        array_species_create(self, length)
+    }
+}
 
 pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
@@ -792,7 +797,7 @@ fn array_from(
         }
     }
     let array_like = to_object(items).expect("we should have already aborted if this isn't convertable to an object");
-    let len = length_of_array_like(&array_like)?;
+    let len = array_like.length_of_array_like()?;
     let a = if c.is_constructor() {
         let cstr: &Object = c.try_into().expect("things that are constructors should be objects");
         TryInto::<Object>::try_into(construct(cstr, &[ECMAScriptValue::from(len)], None)?)
@@ -908,7 +913,7 @@ fn array_prototype_at(
     let mut args = FuncArgs::from(arguments);
     let index = args.next_arg();
     let o = to_object(this_value.clone())?;
-    let len = length_of_array_like(&o)?;
+    let len = o.length_of_array_like()?;
     let relative_index = index.to_integer_or_infinity()?;
     let k = if relative_index >= 0.0 { relative_index } else { len + relative_index };
     if k < 0.0 || k >= len {
@@ -970,7 +975,7 @@ fn array_prototype_concat(
         let spreadable = elem.is_concat_spreadable()?;
         if spreadable {
             let elem_obj = elem.object_ref().expect("spreadable things should be objects");
-            let len = length_of_array_like(elem_obj)?;
+            let len = elem_obj.length_of_array_like()?;
             if len + output_index > ARRAY_INDEX_LIMIT {
                 return Err(create_type_error("Array.prototype.concat: iterable too long"));
             }
@@ -1079,7 +1084,7 @@ fn array_prototype_copy_within(
     let end = args.next_arg();
 
     let o = to_object(this_value.clone())?;
-    let len = length_of_array_like(&o)?;
+    let len = o.length_of_array_like()?;
     let relative_target = target.to_integer_or_infinity()?;
     let to = if relative_target < 0.0 { (len + relative_target).max(0.0) } else { relative_target.min(len) };
     let relative_start = start.to_integer_or_infinity()?;
@@ -1111,74 +1116,587 @@ fn array_prototype_copy_within(
 }
 
 fn array_prototype_entries(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.entries ( )
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Return CreateArrayIterator(O, key+value).
+    let o = to_object(this_value.clone())?;
+    Ok(ECMAScriptValue::Object(create_array_iterator(o, KeyValueKind::KeyValue)))
 }
 fn array_prototype_every(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.every ( callback [ , thisArg ] )
+    // Note 1
+    // callback should be a function that accepts three arguments and returns a value that is coercible to a Boolean
+    // value. every calls callback once for each element present in the array, in ascending order, until it finds one
+    // where callback returns false. If such an element is found, every immediately returns false. Otherwise, every
+    // returns true. callback is called only for elements of the array which actually exist; it is not called for
+    // missing elements of the array.
+    //
+    // If a thisArg parameter is provided, it will be used as the this value for each invocation of callback. If it is
+    // not provided, undefined is used instead.
+    //
+    // callback is called with three arguments: the value of the element, the index of the element, and the object being
+    // traversed.
+    //
+    // every does not directly mutate the object on which it is called but the object may be mutated by the calls to
+    // callback.
+    //
+    // The range of elements processed by every is set before the first call to callback. Elements which are appended to
+    // the array after the call to every begins will not be visited by callback. If existing elements of the array are
+    // changed, their value as passed to callback will be the value at the time every visits them; elements that are
+    // deleted after the call to every begins and before being visited are not visited. every acts like the "for all"
+    // quantifier in mathematics. In particular, for an empty array, it returns true.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. If IsCallable(callback) is false, throw a TypeError exception.
+    // 4. Let k be 0.
+    // 5. Repeat, while k < len,
+    //    a. Let Pk be ! ToString(𝔽(k)).
+    //    b. Let kPresent be ? HasProperty(O, Pk).
+    //    c. If kPresent is true, then
+    //       i. Let kValue be ? Get(O, Pk).
+    //       ii. Let testResult be ToBoolean(? Call(callback, thisArg, « kValue, 𝔽(k), O »)).
+    //       iii. If testResult is false, return false.
+    //    d. Set k to k + 1.
+    // 6. Return true.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let callback = args.next_arg();
+    let this_arg = args.next_arg();
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    if !callback.is_callable() {
+        return Err(create_type_error("Array.prototype.every: callback is not callable"));
+    }
+    let mut k = 0.0;
+    while k < len {
+        let pk = PropertyKey::from(k);
+        if o.o.has_property(&pk)? {
+            let k_value = o.get(&pk)?;
+            let test_result =
+                call(&callback, &this_arg, &[k_value, ECMAScriptValue::from(k), ECMAScriptValue::from(o.clone())])?
+                    .to_boolean();
+            if !test_result {
+                return Ok(ECMAScriptValue::Boolean(false));
+            }
+        }
+        k += 1.0;
+    }
+    Ok(ECMAScriptValue::Boolean(true))
 }
+
 fn array_prototype_fill(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.fill ( value [ , start [ , end ] ] )
+    // Note 1
+    // The start argument is optional. If it is not provided, +0𝔽 is used.
+    //
+    // The end argument is optional. If it is not provided, the length of the this value is used.
+    //
+    // Note 2
+    // If start is negative, it is treated as length + start where length is the length of the array. If end is
+    // negative, it is treated as length + end.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let relativeStart be ? ToIntegerOrInfinity(start).
+    // 4. If relativeStart = -∞, let k be 0.
+    // 5. Else if relativeStart < 0, let k be max(len + relativeStart, 0).
+    // 6. Else, let k be min(relativeStart, len).
+    // 7. If end is undefined, let relativeEnd be len; else let relativeEnd be ? ToIntegerOrInfinity(end).
+    // 8. If relativeEnd = -∞, let final be 0.
+    // 9. Else if relativeEnd < 0, let final be max(len + relativeEnd, 0).
+    // 10. Else, let final be min(relativeEnd, len).
+    // 11. Repeat, while k < final,
+    //     a. Let Pk be ! ToString(𝔽(k)).
+    //     b. Perform ? Set(O, Pk, value, true).
+    //     c. Set k to k + 1.
+    // 12. Return O.
+    //
+    // Note 3
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let value = args.next_arg();
+    let start = args.next_arg();
+    let end = args.next_arg();
+
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    let relative_start = start.to_integer_or_infinity()?;
+    let k = if relative_start < 0.0 { (len + relative_start).max(0.0) } else { relative_start.min(len) };
+    let relative_end = if end.is_undefined() { len } else { end.to_integer_or_infinity()? };
+    let final_spot = if relative_end < 0.0 { (len + relative_end).max(0.0) } else { relative_end.min(len) };
+    let mut k = k;
+    while k < final_spot {
+        let pk = PropertyKey::from(k);
+        o.set(pk, value.clone(), true)?;
+        k += 1.0;
+    }
+    Ok(ECMAScriptValue::Object(o))
 }
+
 fn array_prototype_filter(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.filter ( callback [ , thisArg ] )
+    // Note 1
+    // callback should be a function that accepts three arguments and returns a value that is coercible to a Boolean
+    // value. filter calls callback once for each element in the array, in ascending order, and constructs a new array
+    // of all the values for which callback returns true. callback is called only for elements of the array which
+    // actually exist; it is not called for missing elements of the array.
+    //
+    // If a thisArg parameter is provided, it will be used as the this value for each invocation of callback. If it is
+    // not provided, undefined is used instead.
+    //
+    // callback is called with three arguments: the value of the element, the index of the element, and the object being
+    // traversed.
+    //
+    // filter does not directly mutate the object on which it is called but the object may be mutated by the calls to
+    // callback.
+    //
+    // The range of elements processed by filter is set before the first call to callback. Elements which are appended
+    // to the array after the call to filter begins will not be visited by callback. If existing elements of the array
+    // are changed their value as passed to callback will be the value at the time filter visits them; elements that are
+    // deleted after the call to filter begins and before being visited are not visited.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. If IsCallable(callback) is false, throw a TypeError exception.
+    // 4. Let A be ? ArraySpeciesCreate(O, 0).
+    // 5. Let k be 0.
+    // 6. Let to be 0.
+    // 7. Repeat, while k < len,
+    //    a. Let Pk be ! ToString(𝔽(k)).
+    //    b. Let kPresent be ? HasProperty(O, Pk).
+    //    c. If kPresent is true, then
+    //       i. Let kValue be ? Get(O, Pk).
+    //       ii. Let selected be ToBoolean(? Call(callback, thisArg, « kValue, 𝔽(k), O »)).
+    //       iii. If selected is true, then
+    //            1. Perform ? CreateDataPropertyOrThrow(A, ! ToString(𝔽(to)), kValue).
+    //            2. Set to to to + 1.
+    //    d. Set k to k + 1.
+    // 8. Return A.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let callback = args.next_arg();
+    let this_arg = args.next_arg();
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    if !callback.is_callable() {
+        return Err(create_type_error("Array.prototype.filter: callback is not callable"));
+    }
+    let a = array_species_create(&o, 0.0)?;
+    let a_obj = a.object_ref().expect("Arrays should be objects");
+    let mut k = 0.0;
+    let mut to = 0.0;
+    while k < len {
+        let pk = PropertyKey::from(k);
+        if o.o.has_property(&pk)? {
+            let k_value = o.get(&pk)?;
+            let selected = call(
+                &callback,
+                &this_arg,
+                &[k_value.clone(), ECMAScriptValue::from(k), ECMAScriptValue::from(o.clone())],
+            )?
+            .to_boolean();
+            if selected {
+                a_obj.create_data_property_or_throw(PropertyKey::from(to), k_value)?;
+                to += 1.0;
+            }
+        }
+        k += 1.0;
+    }
+    Ok(a)
 }
+
 fn array_prototype_find(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.find ( predicate [ , thisArg ] )
+    // Note 1
+    // This method calls predicate once for each element of the array, in ascending index order, until it finds one
+    // where predicate returns a value that coerces to true. If such an element is found, find immediately returns that
+    // element value. Otherwise, find returns undefined.
+    //
+    // See FindViaPredicate for additional information.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let findRec be ? FindViaPredicate(O, len, ascending, predicate, thisArg).
+    // 4. Return findRec.[[Value]].
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let predicate = args.next_arg();
+    let this_arg = args.next_arg();
+
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    let find_rec = o.find_via_predicate(len, SearchDirection::Ascending, &predicate, &this_arg)?;
+    Ok(find_rec.value)
 }
+
 fn array_prototype_find_index(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.findIndex ( predicate [ , thisArg ] )
+    // Note 1
+    // This method calls predicate once for each element of the array, in ascending index order, until it finds one
+    // where predicate returns a value that coerces to true. If such an element is found, findIndex immediately returns
+    // the index of that element value. Otherwise, findIndex returns -1.
+    //
+    // See FindViaPredicate for additional information.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let findRec be ? FindViaPredicate(O, len, ascending, predicate, thisArg).
+    // 4. Return findRec.[[Index]].
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let predicate = args.next_arg();
+    let this_arg = args.next_arg();
+
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    let find_rec = o.find_via_predicate(len, SearchDirection::Ascending, &predicate, &this_arg)?;
+    Ok(ECMAScriptValue::from(find_rec.index))
 }
+
 fn array_prototype_find_last(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.findLast ( predicate [ , thisArg ] )
+    // Note 1
+    // This method calls predicate once for each element of the array, in descending index order, until it finds one
+    // where predicate returns a value that coerces to true. If such an element is found, findLast immediately returns
+    // that element value. Otherwise, findLast returns undefined.
+    //
+    // See FindViaPredicate for additional information.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let findRec be ? FindViaPredicate(O, len, descending, predicate, thisArg).
+    // 4. Return findRec.[[Value]].
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array object. Therefore it
+    // can be transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let predicate = args.next_arg();
+    let this_arg = args.next_arg();
+
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    let find_rec = o.find_via_predicate(len, SearchDirection::Descending, &predicate, &this_arg)?;
+    Ok(find_rec.value)
 }
+
 fn array_prototype_find_last_index(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.findLastIndex ( predicate [ , thisArg ] )
+    // Note 1
+    // This method calls predicate once for each element of the array, in descending index order, until it finds one
+    // where predicate returns a value that coerces to true. If such an element is found, findLastIndex immediately
+    // returns the index of that element value. Otherwise, findLastIndex returns -1.
+    //
+    // See FindViaPredicate for additional information.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let findRec be ? FindViaPredicate(O, len, descending, predicate, thisArg).
+    // 4. Return findRec.[[Index]].
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array object. Therefore it
+    // can be transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let predicate = args.next_arg();
+    let this_arg = args.next_arg();
+
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    let find_rec = o.find_via_predicate(len, SearchDirection::Descending, &predicate, &this_arg)?;
+    Ok(ECMAScriptValue::from(find_rec.index))
 }
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+enum SearchDirection {
+    Ascending,
+    Descending,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct FindResult {
+    value: ECMAScriptValue,
+    index: f64,
+}
+
+impl Object {
+    fn find_via_predicate(
+        &self,
+        len: f64,
+        direction: SearchDirection,
+        predicate: &ECMAScriptValue,
+        this_arg: &ECMAScriptValue,
+    ) -> Completion<FindResult> {
+        // FindViaPredicate ( O, len, direction, predicate, thisArg )
+        // The abstract operation FindViaPredicate takes arguments O (an Object), len (a non-negative integer),
+        // direction (ascending or descending), predicate (an ECMAScript language value), and thisArg (an ECMAScript
+        // language value) and returns either a normal completion containing a Record with fields [[Index]] (an integral
+        // Number) and [[Value]] (an ECMAScript language value) or a throw completion.
+        //
+        // O should be an array-like object or a TypedArray. This operation calls predicate once for each element of O,
+        // in either ascending index order or descending index order (as indicated by direction), until it finds one
+        // where predicate returns a value that coerces to true. At that point, this operation returns a Record that
+        // gives the index and value of the element found. If no such element is found, this operation returns a Record
+        // that specifies -1𝔽 for the index and undefined for the value.
+        //
+        // predicate should be a function. When called for an element of the array, it is passed three arguments: the
+        // value of the element, the index of the element, and the object being traversed. Its return value will be
+        // coerced to a Boolean value.
+        //
+        // thisArg will be used as the this value for each invocation of predicate.
+        //
+        // This operation does not directly mutate the object on which it is called, but the object may be mutated by
+        // the calls to predicate.
+        //
+        // The range of elements processed is set before the first call to predicate, just before the traversal begins.
+        // Elements that are appended to the array after this will not be visited by predicate. If existing elements of
+        // the array are changed, their value as passed to predicate will be the value at the time that this operation
+        // visits them. Elements that are deleted after traversal begins and before being visited are still visited and
+        // are either looked up from the prototype or are undefined.
+        //
+        // It performs the following steps when called:
+        //
+        // 1. If IsCallable(predicate) is false, throw a TypeError exception.
+        // 2. If direction is ascending, then
+        //    a. Let indices be a List of the integers in the interval from 0 (inclusive) to len (exclusive), in ascending order.
+        // 3. Else,
+        //    a. Let indices be a List of the integers in the interval from 0 (inclusive) to len (exclusive), in descending order.
+        // 4. For each integer k of indices, do
+        //    a. Let Pk be ! ToString(𝔽(k)).
+        //    b. NOTE: If O is a TypedArray, the following invocation of Get will return a normal completion.
+        //    c. Let kValue be ? Get(O, Pk).
+        //    d. Let testResult be ? Call(predicate, thisArg, « kValue, 𝔽(k), O »).
+        //    e. If ToBoolean(testResult) is true, return the Record { [[Index]]: 𝔽(k), [[Value]]: kValue }.
+        // 5. Return the Record { [[Index]]: -1𝔽, [[Value]]: undefined }.
+        if !predicate.is_callable() {
+            return Err(create_type_error("Array.prototype.find: predicate is not callable"));
+        }
+        let (mut k, delta) = if direction == SearchDirection::Ascending { (0.0, 1.0) } else { (len - 1.0, -1.0) };
+        while k >= 0.0 && k < len {
+            let pk = PropertyKey::from(k);
+            let k_value = self.get(&pk)?;
+            let test_result = call(
+                predicate,
+                this_arg,
+                &[k_value.clone(), ECMAScriptValue::from(k), ECMAScriptValue::from(self.clone())],
+            )?
+            .to_boolean();
+            if test_result {
+                return Ok(FindResult { value: k_value, index: k });
+            }
+            k += delta;
+        }
+        Ok(FindResult { value: ECMAScriptValue::Undefined, index: -1.0 })
+    }
+}
+
 fn array_prototype_flat(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.flat ( [ depth ] )
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let sourceLen be ? LengthOfArrayLike(O).
+    // 3. Let depthNum be 1.
+    // 4. If depth is not undefined, then
+    //    a. Set depthNum to ? ToIntegerOrInfinity(depth).
+    //    b. If depthNum < 0, set depthNum to 0.
+    // 5. Let A be ? ArraySpeciesCreate(O, 0).
+    // 6. Perform ? FlattenIntoArray(A, O, sourceLen, 0, depthNum).
+    // 7. Return A.
+    let mut args = FuncArgs::from(arguments);
+    let depth = args.next_arg();
+
+    let o = to_object(this_value.clone())?;
+    let source_len = o.length_of_array_like()?;
+    let depth_num = if depth.is_undefined() { 1.0 } else { depth.to_integer_or_infinity()?.max(0.0) };
+    let a = o.array_species_create(0.0)?;
+    let a_obj = a.object_ref().expect("array species create should return an object");
+    a_obj.flatten_into_array(&o, source_len, 0.0, &FlattenOpts::Depth(depth_num))?;
+    Ok(a)
 }
+
+#[derive(Debug, Copy, Clone)]
+pub enum FlattenOpts<'a> {
+    Depth(f64),
+    Mapper { mapper_function: &'a ECMAScriptValue, this_arg: &'a ECMAScriptValue },
+}
+
+impl Object {
+    pub fn flatten_into_array(
+        &self,
+        source: &Object,
+        source_len: f64,
+        start: f64,
+        map_or_depth: &FlattenOpts,
+    ) -> Completion<f64> {
+        // FlattenIntoArray ( target, source, sourceLen, start, depth [ , mapperFunction [ , thisArg ] ] )
+        // The abstract operation FlattenIntoArray takes arguments target (an Object), source (an Object), sourceLen (a
+        // non-negative integer), start (a non-negative integer), and depth (a non-negative integer or +∞) and optional
+        // arguments mapperFunction (a function object) and thisArg (an ECMAScript language value) and returns either a
+        // normal completion containing a non-negative integer or a throw completion. It performs the following steps
+        // when called:
+        //
+        // 1. Assert: If mapperFunction is present, then IsCallable(mapperFunction) is true, thisArg is present, and depth is 1.
+        // 2. Let targetIndex be start.
+        // 3. Let sourceIndex be +0𝔽.
+        // 4. Repeat, while ℝ(sourceIndex) < sourceLen,
+        //    a. Let P be ! ToString(sourceIndex).
+        //    b. Let exists be ? HasProperty(source, P).
+        //    c. If exists is true, then
+        //       i. Let element be ? Get(source, P).
+        //       ii. If mapperFunction is present, then
+        //           1. Set element to ? Call(mapperFunction, thisArg, « element, sourceIndex, source »).
+        //       iii. Let shouldFlatten be false.
+        //       iv. If depth > 0, then
+        //           1. Set shouldFlatten to ? IsArray(element).
+        //       v. If shouldFlatten is true, then
+        //          1. If depth = +∞, let newDepth be +∞.
+        //          2. Else, let newDepth be depth - 1.
+        //          3. Let elementLen be ? LengthOfArrayLike(element).
+        //          4. Set targetIndex to ? FlattenIntoArray(target, element, elementLen, targetIndex, newDepth).
+        //       vi. Else,
+        //           1. If targetIndex ≥ 2**53 - 1, throw a TypeError exception.
+        //           2. Perform ? CreateDataPropertyOrThrow(target, ! ToString(𝔽(targetIndex)), element).
+        //           3. Set targetIndex to targetIndex + 1.
+        //    d. Set sourceIndex to sourceIndex + 1𝔽.
+        // 5. Return targetIndex.
+        let depth = match map_or_depth {
+            FlattenOpts::Depth(d) => *d,
+            FlattenOpts::Mapper { .. } => 1.0,
+        };
+        let mut target_index = start;
+        let mut source_index = 0.0;
+        while source_index < source_len {
+            let p = PropertyKey::from(source_index);
+            let exists = source.o.has_property(&p)?;
+            if exists {
+                let element = source.get(&p)?;
+                let element = match map_or_depth {
+                    FlattenOpts::Depth(_) => element,
+                    FlattenOpts::Mapper { mapper_function, this_arg } => call(
+                        mapper_function,
+                        this_arg,
+                        &[element.clone(), ECMAScriptValue::from(source_index), ECMAScriptValue::from(source.clone())],
+                    )?,
+                };
+                let should_flatten = depth > 0.0 && element.is_array()?;
+                if should_flatten {
+                    let new_depth = depth - 1.0;
+                    let elem_obj = element.object_ref().expect("element is an array and thus should be an object");
+                    let element_len = elem_obj.length_of_array_like()?;
+                    target_index =
+                        self.flatten_into_array(elem_obj, element_len, target_index, &FlattenOpts::Depth(new_depth))?;
+                } else {
+                    if target_index >= 9_007_199_254_740_991.0 {
+                        return Err(create_type_error("Array.prototype.flat: target index too large"));
+                    }
+                    self.create_data_property_or_throw(target_index, element)?;
+                    target_index += 1.0;
+                }
+            }
+            source_index += 1.0;
+        }
+        Ok(target_index)
+    }
+}
+
 fn array_prototype_flat_map(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.flatMap ( mapperFunction [ , thisArg ] )
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let sourceLen be ? LengthOfArrayLike(O).
+    // 3. If IsCallable(mapperFunction) is false, throw a TypeError exception.
+    // 4. Let A be ? ArraySpeciesCreate(O, 0).
+    // 5. Perform ? FlattenIntoArray(A, O, sourceLen, 0, 1, mapperFunction, thisArg).
+    // 6. Return A.
+    let mut args = FuncArgs::from(arguments);
+    let mapper_function = args.next_arg();
+    let this_arg = args.next_arg();
+    let o = to_object(this_value.clone())?;
+    let source_len = o.length_of_array_like()?;
+    if !mapper_function.is_callable() {
+        return Err(create_type_error("Array.prototype.flatMap: mapper function is not callable"));
+    }
+    let a = o.array_species_create(0.0)?;
+    let a_obj = a.object_ref().expect("array species create should return an object");
+    a_obj.flatten_into_array(
+        &o,
+        source_len,
+        0.0,
+        &FlattenOpts::Mapper { mapper_function: &mapper_function, this_arg: &this_arg },
+    )?;
+    Ok(a)
 }
 
 fn array_prototype_for_each(
@@ -1233,15 +1751,14 @@ fn array_prototype_for_each(
     let this_arg = args.next_arg();
 
     let o = to_object(this_value.clone())?;
-    let len = length_of_array_like(&o)?;
+    let len = o.length_of_array_like()?;
     if !is_callable(&callbackfn) {
-        return Err(create_type_error("Array.prototoype.forEach requires a callable first argument"));
+        return Err(create_type_error("Array.prototype.forEach requires a callable first argument"));
     }
     let mut k = 0.0;
     while k < len {
-        let pk = PropertyKey::from(format!("{k}"));
-        let kpresent = has_property(&o, &pk)?;
-        if kpresent {
+        let pk = PropertyKey::from(k);
+        if has_property(&o, &pk)? {
             let kvalue = o.get(&pk)?;
             call(&callbackfn, &this_arg, &[kvalue, ECMAScriptValue::from(k), ECMAScriptValue::from(o.clone())])?;
         }
@@ -1251,11 +1768,66 @@ fn array_prototype_for_each(
 }
 
 fn array_prototype_includes(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.includes ( searchElement [ , fromIndex ] )
+    // Note 1
+    // This method compares searchElement to the elements of the array, in ascending order, using the SameValueZero
+    // algorithm, and if found at any position, returns true; otherwise, it returns false.
+    //
+    // The optional second argument fromIndex defaults to +0𝔽 (i.e. the whole array is searched). If it is greater than
+    // or equal to the length of the array, false is returned, i.e. the array will not be searched. If it is less than
+    // -0𝔽, it is used as the offset from the end of the array to compute fromIndex. If the computed index is less than
+    // or equal to +0𝔽, the whole array will be searched.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. If len = 0, return false.
+    // 4. Let n be ? ToIntegerOrInfinity(fromIndex).
+    // 5. Assert: If fromIndex is undefined, then n is 0.
+    // 6. If n = +∞, return false.
+    // 7. Else if n = -∞, set n to 0.
+    // 8. If n ≥ 0, then
+    //    a. Let k be n.
+    // 9. Else,
+    //    a. Let k be len + n.
+    //    b. If k < 0, set k to 0.
+    // 10. Repeat, while k < len,
+    //     a. Let elementK be ? Get(O, ! ToString(𝔽(k))).
+    //     b. If SameValueZero(searchElement, elementK) is true, return true.
+    //     c. Set k to k + 1.
+    // 11. Return false.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    //
+    // Note 3
+    // This method intentionally differs from the similar indexOf method in two ways. First, it uses the SameValueZero
+    // algorithm, instead of IsStrictlyEqual, allowing it to detect NaN array elements. Second, it does not skip missing
+    // array elements, instead treating them as undefined.
+    let mut args = FuncArgs::from(arguments);
+    let search_element = args.next_arg();
+    let from_index = args.next_arg();
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    if len == 0.0 {
+        return Ok(ECMAScriptValue::from(false));
+    }
+    let n = from_index.to_integer_or_infinity()?;
+    let mut k = if n >= 0.0 { n } else { (len + n).max(0.0) };
+    while k < len {
+        let element_k = o.get(&PropertyKey::from(k))?;
+        if search_element.same_value_zero(&element_k) {
+            return Ok(ECMAScriptValue::Boolean(true));
+        }
+        k += 1.0;
+    }
+    Ok(ECMAScriptValue::Boolean(false))
 }
 
 fn array_prototype_index_of(
@@ -1305,7 +1877,7 @@ fn array_prototype_index_of(
     let from_index = args.next_arg();
 
     let o = to_object(this_value.clone())?;
-    let len = length_of_array_like(&o)?;
+    let len = o.length_of_array_like()?;
     if len == 0.0 {
         return Ok(ECMAScriptValue::from(-1));
     }
@@ -1357,7 +1929,7 @@ fn array_prototype_join(
     let mut args = FuncArgs::from(arguments);
     let separator = args.next_arg();
     let o = to_object(this_value.clone())?;
-    let len = length_of_array_like(&o)?;
+    let len = o.length_of_array_like()?;
 
     let sep = if separator.is_undefined() { JSString::from(",") } else { to_string(separator)? };
     let mut r = JSString::from("");
@@ -1375,18 +1947,79 @@ fn array_prototype_join(
 }
 
 fn array_prototype_keys(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.keys ( )
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Return CreateArrayIterator(O, key).
+    let o = to_object(this_value.clone())?;
+    let iterator = create_array_iterator(o, KeyValueKind::Key);
+    Ok(ECMAScriptValue::from(iterator))
 }
 fn array_prototype_last_index_of(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.lastIndexOf ( searchElement [ , fromIndex ] )
+    // Note 1
+    // This method compares searchElement to the elements of the array in descending order using the IsStrictlyEqual
+    // algorithm, and if found at one or more indices, returns the largest such index; otherwise, it returns -1𝔽.
+    //
+    // The optional second argument fromIndex defaults to the array's length minus one (i.e. the whole array is
+    // searched). If it is greater than or equal to the length of the array, the whole array will be searched. If it is
+    // less than -0𝔽, it is used as the offset from the end of the array to compute fromIndex. If the computed index is
+    // less than or equal to +0𝔽, -1𝔽 is returned.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. If len = 0, return -1𝔽.
+    // 4. If fromIndex is present, let n be ? ToIntegerOrInfinity(fromIndex); else let n be len - 1.
+    // 5. If n = -∞, return -1𝔽.
+    // 6. If n ≥ 0, then
+    //    a. Let k be min(n, len - 1).
+    // 7. Else,
+    //    a. Let k be len + n.
+    // 8. Repeat, while k ≥ 0,
+    //    a. Let Pk be ! ToString(𝔽(k)).
+    //    b. Let kPresent be ? HasProperty(O, Pk).
+    //    c. If kPresent is true, then
+    //       i. Let elementK be ? Get(O, Pk).
+    //       ii. If IsStrictlyEqual(searchElement, elementK) is true, return 𝔽(k).
+    //    d. Set k to k - 1.
+    // 9. Return -1𝔽.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let search_element = args.next_arg();
+    let from_index = args.next_if_exists();
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    if len == 0.0 {
+        return Ok(ECMAScriptValue::from(-1));
+    }
+    let n = from_index.map(|fi| fi.to_integer_or_infinity()).transpose()?.unwrap_or(len - 1.0);
+    let mut k = if n >= 0.0 { n.min(len - 1.0) } else { len + n };
+    while k >= 0.0 {
+        let pk = PropertyKey::from(k);
+        let kpresent = has_property(&o, &pk)?;
+        if kpresent {
+            let element_k = o.get(&pk)?;
+            if search_element.is_strictly_equal(&element_k) {
+                return Ok(ECMAScriptValue::from(k));
+            }
+        }
+        k -= 1.0;
+    }
+    Ok(ECMAScriptValue::from(-1))
 }
 
 fn array_prototype_map(
@@ -1442,7 +2075,7 @@ fn array_prototype_map(
     let this_arg = args.next_arg();
 
     let o = to_object(this_value.clone())?;
-    let len = length_of_array_like(&o)?;
+    let len = o.length_of_array_like()?;
     if !is_callable(&callbackfn) {
         return Err(create_type_error("Array.prototype.map: callback function was not callable"));
     }
@@ -1488,7 +2121,7 @@ fn array_prototype_pop(
     // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
     // Therefore it can be transferred to other kinds of objects for use as a method.
     let o = to_object(this_value.clone())?;
-    let len = length_of_array_like(&o)?;
+    let len = o.length_of_array_like()?;
     if len == 0.0 {
         o.set("length", 0.0, true)?;
         Ok(ECMAScriptValue::Undefined)
@@ -1527,7 +2160,7 @@ fn array_prototype_push(
     // NOTE 2 This method is intentionally generic; it does not require that its this value be an Array.
     // Therefore it can be transferred to other kinds of objects for use as a method.
     let o = to_object(this_value.clone())?;
-    let len = length_of_array_like(&o)?;
+    let len = o.length_of_array_like()?;
     let arg_count = to_f64(arguments.len())
         .map_err(|_| ())
         .and_then(|arg_count| if len > 9_007_199_254_740_991.0 - arg_count { Err(()) } else { Ok(arg_count) })
@@ -1543,61 +2176,862 @@ fn array_prototype_push(
 }
 
 fn array_prototype_reduce(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.reduce ( callback [ , initialValue ] )
+    // Note 1
+    // callback should be a function that takes four arguments. reduce calls the callback, as a function, once for each
+    // element after the first element present in the array, in ascending order.
+    //
+    // callback is called with four arguments: the previousValue (value from the previous call to callback), the
+    // currentValue (value of the current element), the currentIndex, and the object being traversed. The first time
+    // that callback is called, the previousValue and currentValue can be one of two values. If an initialValue was
+    // supplied in the call to reduce, then previousValue will be initialValue and currentValue will be the first value
+    // in the array. If no initialValue was supplied, then previousValue will be the first value in the array and
+    // currentValue will be the second. It is a TypeError if the array contains no elements and initialValue is not
+    // provided.
+    //
+    // reduce does not directly mutate the object on which it is called but the object may be mutated by the calls to
+    // callback.
+    //
+    // The range of elements processed by reduce is set before the first call to callback. Elements that are appended to
+    // the array after the call to reduce begins will not be visited by callback. If existing elements of the array are
+    // changed, their value as passed to callback will be the value at the time reduce visits them; elements that are
+    // deleted after the call to reduce begins and before being visited are not visited.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. If IsCallable(callback) is false, throw a TypeError exception.
+    // 4. If len = 0 and initialValue is not present, throw a TypeError exception.
+    // 5. Let k be 0.
+    // 6. Let accumulator be undefined.
+    // 7. If initialValue is present, then
+    //    a. Set accumulator to initialValue.
+    // 8. Else,
+    //    a. Let kPresent be false.
+    //    b. Repeat, while kPresent is false and k < len,
+    //       i. Let Pk be ! ToString(𝔽(k)).
+    //       ii. Set kPresent to ? HasProperty(O, Pk).
+    //       iii. If kPresent is true, then
+    //            1. Set accumulator to ? Get(O, Pk).
+    //       iv. Set k to k + 1.
+    //    c. If kPresent is false, throw a TypeError exception.
+    // 9. Repeat, while k < len,
+    //    a. Let Pk be ! ToString(𝔽(k)).
+    //    b. Let kPresent be ? HasProperty(O, Pk).
+    //    c. If kPresent is true, then
+    //       i. Let kValue be ? Get(O, Pk).
+    //       ii. Set accumulator to ? Call(callback, undefined, « accumulator, kValue, 𝔽(k), O »).
+    //    d. Set k to k + 1.
+    // 10. Return accumulator.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let callback = args.next_arg();
+    let initial_value = args.next_if_exists();
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    if !is_callable(&callback) {
+        return Err(create_type_error("Array.prototype.reduce: callback function was not callable"));
+    }
+    let mut k = 0.0;
+    let mut accumulator = if let Some(initial_value) = initial_value {
+        initial_value
+    } else {
+        loop {
+            if k >= len {
+                break Err(create_type_error("Array.prototype.reduce: empty array with no initial value"));
+            }
+            let pk = PropertyKey::from(k);
+            k += 1.0;
+            if has_property(&o, &pk)? {
+                break o.get(&pk);
+            }
+        }?
+    };
+    while k < len {
+        let pk = PropertyKey::from(k);
+        let k_present = has_property(&o, &pk)?;
+        if k_present {
+            let k_value = o.get(&pk)?;
+            accumulator =
+                call(&callback, &ECMAScriptValue::Undefined, &[accumulator, k_value, k.into(), o.clone().into()])?;
+        }
+        k += 1.0;
+    }
+    Ok(accumulator)
 }
+
 fn array_prototype_reduce_right(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.reduceRight ( callback [ , initialValue ] )
+    // Note 1
+    // callback should be a function that takes four arguments. reduceRight calls the callback, as a function, once for
+    // each element after the first element present in the array, in descending order.
+    //
+    // callback is called with four arguments: the previousValue (value from the previous call to callback), the
+    // currentValue (value of the current element), the currentIndex, and the object being traversed. The first time the
+    // function is called, the previousValue and currentValue can be one of two values. If an initialValue was supplied
+    // in the call to reduceRight, then previousValue will be initialValue and currentValue will be the last value in
+    // the array. If no initialValue was supplied, then previousValue will be the last value in the array and
+    // currentValue will be the second-to-last value. It is a TypeError if the array contains no elements and
+    // initialValue is not provided.
+    //
+    // reduceRight does not directly mutate the object on which it is called but the object may be mutated by the calls
+    // to callback.
+    //
+    // The range of elements processed by reduceRight is set before the first call to callback. Elements that are
+    // appended to the array after the call to reduceRight begins will not be visited by callback. If existing elements
+    // of the array are changed by callback, their value as passed to callback will be the value at the time reduceRight
+    // visits them; elements that are deleted after the call to reduceRight begins and before being visited are not
+    // visited.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. If IsCallable(callback) is false, throw a TypeError exception.
+    // 4. If len = 0 and initialValue is not present, throw a TypeError exception.
+    // 5. Let k be len - 1.
+    // 6. Let accumulator be undefined.
+    // 7. If initialValue is present, then
+    //    a. Set accumulator to initialValue.
+    // 8. Else,
+    //    a. Let kPresent be false.
+    //    b. Repeat, while kPresent is false and k ≥ 0,
+    //       i. Let Pk be ! ToString(𝔽(k)).
+    //       ii. Set kPresent to ? HasProperty(O, Pk).
+    //       iii. If kPresent is true, then
+    //            1. Set accumulator to ? Get(O, Pk).
+    //       iv. Set k to k - 1.
+    //    c. If kPresent is false, throw a TypeError exception.
+    // 9. Repeat, while k ≥ 0,
+    //    a. Let Pk be ! ToString(𝔽(k)).
+    //    b. Let kPresent be ? HasProperty(O, Pk).
+    //    c. If kPresent is true, then
+    //       i. Let kValue be ? Get(O, Pk).
+    //       ii. Set accumulator to ? Call(callback, undefined, « accumulator, kValue, 𝔽(k), O »).
+    //    d. Set k to k - 1.
+    // 10. Return accumulator.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let callback = args.next_arg();
+    let initial_value = args.next_if_exists();
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    if !is_callable(&callback) {
+        return Err(create_type_error("Array.prototype.reduceRight: callback function was not callable"));
+    }
+    let mut k = len - 1.0;
+    let mut accumulator = if let Some(initial_value) = initial_value {
+        initial_value
+    } else {
+        loop {
+            if k < 0.0 {
+                break Err(create_type_error("Array.prototype.reduceRight: empty array with no initial value"));
+            }
+            let pk = PropertyKey::from(k);
+            k -= 1.0;
+            if has_property(&o, &pk)? {
+                break o.get(&pk);
+            }
+        }?
+    };
+    while k >= 0.0 {
+        let pk = PropertyKey::from(k);
+        let k_present = has_property(&o, &pk)?;
+        if k_present {
+            let k_value = o.get(&pk)?;
+            accumulator =
+                call(&callback, &ECMAScriptValue::Undefined, &[accumulator, k_value, k.into(), o.clone().into()])?;
+        }
+        k -= 1.0;
+    }
+    Ok(accumulator)
 }
+
 fn array_prototype_reverse(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.reverse ( )
+    // Note 1
+    // This method rearranges the elements of the array so as to reverse their order. It returns the reversed array.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let middle be floor(len / 2).
+    // 4. Let lower be 0.
+    // 5. Repeat, while lower ≠ middle,
+    //    a. Let upper be len - lower - 1.
+    //    b. Let upperP be ! ToString(𝔽(upper)).
+    //    c. Let lowerP be ! ToString(𝔽(lower)).
+    //    d. Let lowerExists be ? HasProperty(O, lowerP).
+    //    e. If lowerExists is true, then
+    //       i. Let lowerValue be ? Get(O, lowerP).
+    //    f. Let upperExists be ? HasProperty(O, upperP).
+    //    g. If upperExists is true, then
+    //       i. Let upperValue be ? Get(O, upperP).
+    //    h. If lowerExists is true and upperExists is true, then
+    //       i. Perform ? Set(O, lowerP, upperValue, true).
+    //       ii. Perform ? Set(O, upperP, lowerValue, true).
+    //    i. Else if lowerExists is false and upperExists is true, then
+    //       i. Perform ? Set(O, lowerP, upperValue, true).
+    //       ii. Perform ? DeletePropertyOrThrow(O, upperP).
+    //    j. Else if lowerExists is true and upperExists is false, then
+    //       i. Perform ? DeletePropertyOrThrow(O, lowerP).
+    //       ii. Perform ? Set(O, upperP, lowerValue, true).
+    //    k. Else,
+    //       i. Assert: lowerExists and upperExists are both false.
+    //       ii. NOTE: No action is required.
+    //    l. Set lower to lower + 1.
+    // 6. Return O.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore, it can be
+    // transferred to other kinds of objects for use as a method.
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    let middle = (len / 2.0).floor();
+    let mut lower = 0.0;
+    while lower != middle {
+        let upper = len - lower - 1.0;
+        let upper_p = PropertyKey::from(upper);
+        let lower_p = PropertyKey::from(lower);
+        let lower_value = if has_property(&o, &lower_p)? { Some(o.get(&lower_p)?) } else { None };
+        let upper_value = if has_property(&o, &upper_p)? { Some(o.get(&upper_p)?) } else { None };
+        match (lower_value, upper_value) {
+            (Some(lower_value), Some(upper_value)) => {
+                o.set(upper_p, lower_value, true)?;
+                o.set(lower_p, upper_value, true)?;
+            }
+            (Some(lower_value), None) => {
+                o.set(upper_p, lower_value, true)?;
+                o.delete_property_or_throw(&lower_p)?;
+            }
+            (None, Some(upper_value)) => {
+                o.set(lower_p, upper_value, true)?;
+                o.delete_property_or_throw(&upper_p)?;
+            }
+            (None, None) => {
+                // No action required.
+            }
+        }
+        lower += 1.0;
+    }
+    Ok(o.into())
 }
+
 fn array_prototype_shift(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.shift ( )
+    // This method removes the first element of the array and returns it.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. If len = 0, then
+    //    a. Perform ? Set(O, "length", +0𝔽, true).
+    //    b. Return undefined.
+    // 4. Let first be ? Get(O, "0").
+    // 5. Let k be 1.
+    // 6. Repeat, while k < len,
+    //    a. Let from be ! ToString(𝔽(k)).
+    //    b. Let to be ! ToString(𝔽(k - 1)).
+    //    c. Let fromPresent be ? HasProperty(O, from).
+    //    d. If fromPresent is true, then
+    //       i. Let fromValue be ? Get(O, from).
+    //       ii. Perform ? Set(O, to, fromValue, true).
+    //    e. Else,
+    //       i. Assert: fromPresent is false.
+    //       ii. Perform ? DeletePropertyOrThrow(O, to).
+    //    f. Set k to k + 1.
+    // 7. Perform ? DeletePropertyOrThrow(O, ! ToString(𝔽(len - 1))).
+    // 8. Perform ? Set(O, "length", 𝔽(len - 1), true).
+    // 9. Return first.
+    //
+    // Note
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    if len == 0.0 {
+        o.set("length", 0.0, true)?;
+        Ok(ECMAScriptValue::Undefined)
+    } else {
+        let first = o.get(&PropertyKey::from("0"))?;
+        let mut k = 1.0;
+        while k < len {
+            let from = PropertyKey::from(k);
+            let to = PropertyKey::from(k - 1.0);
+            let from_present = has_property(&o, &from)?;
+            if from_present {
+                let from_value = o.get(&from)?;
+                o.set(to, from_value, true)?;
+            } else {
+                o.delete_property_or_throw(&to)?;
+            }
+            k += 1.0;
+        }
+        o.delete_property_or_throw(&PropertyKey::from(len - 1.0))?;
+        o.set("length", len - 1.0, true)?;
+        Ok(first)
+    }
 }
+
 fn array_prototype_slice(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.slice ( start, end )
+    // This method returns an array containing the elements of the array from element start up to, but not including,
+    // element end (or through the end of the array if end is undefined). If start is negative, it is treated as length
+    // + start where length is the length of the array. If end is negative, it is treated as length + end where length
+    // is the length of the array.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let relativeStart be ? ToIntegerOrInfinity(start).
+    // 4. If relativeStart = -∞, let k be 0.
+    // 5. Else if relativeStart < 0, let k be max(len + relativeStart, 0).
+    // 6. Else, let k be min(relativeStart, len).
+    // 7. If end is undefined, let relativeEnd be len; else let relativeEnd be ? ToIntegerOrInfinity(end).
+    // 8. If relativeEnd = -∞, let final be 0.
+    // 9. Else if relativeEnd < 0, let final be max(len + relativeEnd, 0).
+    // 10. Else, let final be min(relativeEnd, len).
+    // 11. Let count be max(final - k, 0).
+    // 12. Let A be ? ArraySpeciesCreate(O, count).
+    // 13. Let n be 0.
+    // 14. Repeat, while k < final,
+    //     a. Let Pk be ! ToString(𝔽(k)).
+    //     b. Let kPresent be ? HasProperty(O, Pk).
+    //     c. If kPresent is true, then
+    //        i. Let kValue be ? Get(O, Pk).
+    //        ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), kValue).
+    //     d. Set k to k + 1.
+    //     e. Set n to n + 1.
+    // 15. Perform ? Set(A, "length", 𝔽(n), true).
+    // 16. Return A.
+    //
+    // Note 1
+    // The explicit setting of the "length" property in step 15 is intended to ensure the length is correct even when A
+    // is not a built-in Array.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let start = args.next_arg();
+    let end = args.next_arg();
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    let relative_start = start.to_integer_or_infinity()?;
+    let mut k = if relative_start < 0.0 { (len + relative_start).max(0.0) } else { relative_start.min(len) };
+    let relative_end = if end.is_undefined() { len } else { end.to_integer_or_infinity()? };
+    let final_ = if relative_end < 0.0 { (len + relative_end).max(0.0) } else { relative_end.min(len) };
+    let count = (final_ - k).max(0.0);
+    let a = array_species_create(&o, count)?;
+    let a_obj = a.object_ref().expect("ArraySpeciesCreate should return an object value");
+    let mut n = 0_u64;
+    while k < final_ {
+        let pk = PropertyKey::from(k);
+        let k_present = has_property(&o, &pk)?;
+        if k_present {
+            let k_value = o.get(&pk)?;
+            a_obj.create_data_property_or_throw(n, k_value)?;
+        }
+        k += 1.0;
+        n += 1;
+    }
+    a_obj.set("length", n, true)?;
+    Ok(a)
 }
+
 fn array_prototype_some(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.some ( callback [ , thisArg ] )
+    // Note 1
+    // callback should be a function that accepts three arguments and returns a value that is coercible to a Boolean
+    // value. some calls callback once for each element present in the array, in ascending order, until it finds one
+    // where callback returns true. If such an element is found, some immediately returns true. Otherwise, some returns
+    // false. callback is called only for elements of the array which actually exist; it is not called for missing
+    // elements of the array.
+    //
+    // If a thisArg parameter is provided, it will be used as the this value for each invocation of callback. If it is
+    // not provided, undefined is used instead.
+    //
+    // callback is called with three arguments: the value of the element, the index of the element, and the object being
+    // traversed.
+    //
+    // some does not directly mutate the object on which it is called but the object may be mutated by the calls to
+    // callback.
+    //
+    // The range of elements processed by some is set before the first call to callback. Elements that are appended to
+    // the array after the call to some begins will not be visited by callback. If existing elements of the array are
+    // changed, their value as passed to callback will be the value at the time that some visits them; elements that are
+    // deleted after the call to some begins and before being visited are not visited. some acts like the "exists"
+    // quantifier in mathematics. In particular, for an empty array, it returns false.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. If IsCallable(callback) is false, throw a TypeError exception.
+    // 4. Let k be 0.
+    // 5. Repeat, while k < len,
+    //    a. Let Pk be ! ToString(𝔽(k)).
+    //    b. Let kPresent be ? HasProperty(O, Pk).
+    //    c. If kPresent is true, then
+    //       i. Let kValue be ? Get(O, Pk).
+    //       ii. Let testResult be ToBoolean(? Call(callback, thisArg, « kValue, 𝔽(k), O »)).
+    //       iii. If testResult is true, return true.
+    //    d. Set k to k + 1.
+    // 6. Return false.
+    //
+    // Note 2
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let callback = args.next_arg();
+    let this_arg = args.next_arg();
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    if !callback.is_callable() {
+        return Err(create_type_error("Array.prototype.some: Callback must be a function"));
+    }
+    let mut k = 0.0;
+    while k < len {
+        let pk = PropertyKey::from(k);
+        if o.has_property(&pk)? {
+            let k_value = o.get(&pk)?;
+            let test_result =
+                call(&callback, &this_arg, &[k_value, ECMAScriptValue::Number(k), ECMAScriptValue::Object(o.clone())])?
+                    .to_boolean();
+            if test_result {
+                return Ok(ECMAScriptValue::Boolean(true));
+            }
+        }
+        k += 1.0;
+    }
+    Ok(ECMAScriptValue::Boolean(false))
 }
+
 fn array_prototype_sort(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.sort ( comparator )
+    // This method sorts the elements of this array. If comparator is not undefined, it should be a function that
+    // accepts two arguments x and y and returns a negative Number if x < y, a positive Number if x > y, or a zero
+    // otherwise.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. If comparator is not undefined and IsCallable(comparator) is false, throw a TypeError exception.
+    // 2. Let obj be ? ToObject(this value).
+    // 3. Let len be ? LengthOfArrayLike(obj).
+    // 4. Let SortCompare be a new Abstract Closure with parameters (x, y) that captures comparator and performs the
+    //    following steps when called:
+    //    a. Return ? CompareArrayElements(x, y, comparator).
+    // 5. Let sortedList be ? SortIndexedProperties(obj, len, SortCompare, skip-holes).
+    // 6. Let itemCount be the number of elements in sortedList.
+    // 7. Let j be 0.
+    // 8. Repeat, while j < itemCount,
+    //    a. Perform ? Set(obj, ! ToString(𝔽(j)), sortedList[j], true).
+    //    b. Set j to j + 1.
+    // 9. NOTE: The call to SortIndexedProperties in step 5 uses skip-holes. The remaining indices are deleted to
+    //    preserve the number of holes that were detected and excluded from the sort.
+    // 10. Repeat, while j < len,
+    //     a. Perform ? DeletePropertyOrThrow(obj, ! ToString(𝔽(j))).
+    //     b. Set j to j + 1.
+    // 11. Return obj.
+    //
+    // Note 1
+    // Because non-existent property values always compare greater than undefined property values, and undefined always
+    // compares greater than any other value (see CompareArrayElements), undefined property values always sort to the
+    // end of the result, followed by non-existent property values.
+    //
+    // Note 2
+    // Method calls performed by the ToString abstract operations in steps 5 and 6 have the potential to cause
+    // SortCompare to not behave as a consistent comparator.
+    //
+    // Note 3
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore, it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let comparator = args.next_arg();
+    if !comparator.is_undefined() && !comparator.is_callable() {
+        return Err(create_type_error("Array.prototype.sort: Comparator must be a function"));
+    }
+    let obj = to_object(this_value.clone())?;
+    let len = obj.length_of_array_like()?;
+    let sort_compare = move |x: &ECMAScriptValue, y: &ECMAScriptValue| compare_array_elements(x, y, &comparator);
+    let sorted_list = sort_indexed_properties(&obj, len, sort_compare, Holes::Skip)?;
+    let item_count = sorted_list.len();
+    for (idx, (_, item)) in sorted_list.into_iter().enumerate() {
+        obj.set(idx, item, true)?;
+    }
+    // len is an f64 with an nonnegative integer value, so it will fit in the usize.
+    #[expect(clippy::cast_possible_truncation)]
+    #[expect(clippy::cast_sign_loss)]
+    for idx in item_count..(len as usize) {
+        obj.delete_property_or_throw(&PropertyKey::from(idx))?;
+    }
+    Ok(obj.into())
 }
+
+#[expect(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq)]
+enum Holes {
+    Include,
+    Skip,
+}
+
+fn sort_indexed_properties(
+    obj: &Object,
+    len: f64,
+    sort_compare: impl for<'a, 'b> Fn(&'a ECMAScriptValue, &'b ECMAScriptValue) -> Completion<std::cmp::Ordering>,
+    holes: Holes,
+) -> Completion<Vec<(f64, ECMAScriptValue)>> {
+    // SortIndexedProperties ( obj, len, SortCompare, holes )
+    // The abstract operation SortIndexedProperties takes arguments obj (an Object), len (a non-negative integer),
+    // SortCompare (an Abstract Closure with two parameters), and holes (skip-holes or read-through-holes) and returns
+    // either a normal completion containing a List of ECMAScript language values or a throw completion. It performs the
+    // following steps when called:
+    //
+    // 1. Let items be a new empty List.
+    // 2. Let k be 0.
+    // 3. Repeat, while k < len,
+    //    a. Let Pk be ! ToString(𝔽(k)).
+    //    b. If holes is skip-holes, then
+    //       i. Let kRead be ? HasProperty(obj, Pk).
+    //    c. Else,
+    //       i. Assert: holes is read-through-holes.
+    //       ii. Let kRead be true.
+    //    d. If kRead is true, then
+    //       i. Let kValue be ? Get(obj, Pk).
+    //       ii. Append kValue to items.
+    //    e. Set k to k + 1.
+    // 4. Sort items using an implementation-defined sequence of calls to SortCompare. If any such call returns an
+    //    abrupt completion, stop before performing any further calls to SortCompare and return that Completion Record.
+    // 5. Return items.
+    let mut items = vec![];
+    let mut k = 0.0;
+    while k < len {
+        let pk = PropertyKey::from(k);
+        let k_read = if holes == Holes::Skip { obj.has_property(&pk)? } else { true };
+        if k_read {
+            let k_value = obj.get(&pk)?;
+            items.push((k, k_value));
+        }
+        k += 1.0;
+    }
+    try_sort_by(&mut items, sort_compare)?;
+    Ok(items)
+}
+
+fn try_sort_by<T, F>(arr: &mut [(f64, T)], compare: F) -> Completion<()>
+where
+    F: for<'a, 'b> Fn(&'a T, &'b T) -> Completion<std::cmp::Ordering>,
+{
+    // Handle empty or single-element arrays
+    if arr.len() <= 1 {
+        return Ok(());
+    }
+
+    // Create a stack for tracking partition ranges to avoid recursion
+    let mut stack = Vec::new();
+    stack.push((0, arr.len() - 1));
+
+    while let Some((low, high)) = stack.pop() {
+        if low < high {
+            // Partition the array and get pivot position
+            match partition(arr, low, high, &compare) {
+                Ok(pivot) => {
+                    // Push right partition if it exists
+                    if pivot + 1 < high {
+                        stack.push((pivot + 1, high));
+                    }
+                    // Push left partition if it exists
+                    if pivot > low {
+                        stack.push((low, pivot - 1));
+                    }
+                }
+                Err(e) => return Err(e), // Early exit on comparison error
+            }
+        }
+    }
+    Ok(())
+}
+
+fn partition<T, F>(arr: &mut [(f64, T)], low: usize, high: usize, compare: F) -> Completion<usize>
+where
+    F: Fn(&T, &T) -> Completion<std::cmp::Ordering>,
+{
+    let pivot = high;
+    let mut i = low;
+
+    for j in low..high {
+        // Get references that satisfy the borrow checker
+        let (j_idx, ref j_val) = arr[j];
+        let (pivot_idx, ref pivot_val) = arr[pivot];
+
+        // Compare current element with pivot
+        match compare(j_val, pivot_val)? {
+            std::cmp::Ordering::Less => {
+                arr.swap(i, j);
+                i += 1;
+            }
+            std::cmp::Ordering::Equal => {
+                // Ensure stability by using the original index to determine order
+                if j_idx < pivot_idx {
+                    arr.swap(i, j);
+                    i += 1;
+                }
+            }
+            std::cmp::Ordering::Greater => {}
+        }
+    }
+
+    arr.swap(i, pivot);
+    Ok(i)
+}
+
+fn compare_array_elements(
+    x: &ECMAScriptValue,
+    y: &ECMAScriptValue,
+    comparator: &ECMAScriptValue,
+) -> Completion<std::cmp::Ordering> {
+    // CompareArrayElements ( x, y, comparator )
+    // The abstract operation CompareArrayElements takes arguments x (an ECMAScript language value), y (an ECMAScript
+    // language value), and comparator (a function object or undefined) and returns either a normal completion
+    // containing a Number or an abrupt completion. It performs the following steps when called:
+    //
+    // 1. If x and y are both undefined, return +0𝔽.
+    // 2. If x is undefined, return 1𝔽.
+    // 3. If y is undefined, return -1𝔽.
+    // 4. If comparator is not undefined, then
+    //    a. Let v be ? ToNumber(? Call(comparator, undefined, « x, y »)).
+    //    b. If v is NaN, return +0𝔽.
+    //    c. Return v.
+    // 5. Let xString be ? ToString(x).
+    // 6. Let yString be ? ToString(y).
+    // 7. Let xSmaller be ! IsLessThan(xString, yString, true).
+    // 8. If xSmaller is true, return -1𝔽.
+    // 9. Let ySmaller be ! IsLessThan(yString, xString, true).
+    // 10. If ySmaller is true, return 1𝔽.
+    // 11. Return +0𝔽.
+    match (x.is_undefined(), y.is_undefined()) {
+        (true, true) => Ok(std::cmp::Ordering::Equal),
+        (true, false) => Ok(std::cmp::Ordering::Greater),
+        (false, true) => Ok(std::cmp::Ordering::Less),
+        (false, false) => {
+            if !comparator.is_undefined() {
+                let v = call(comparator, &ECMAScriptValue::Undefined, &[x.clone(), y.clone()])?.to_number()?;
+                if v.is_nan() || v == 0.0 {
+                    return Ok(std::cmp::Ordering::Equal);
+                }
+                if v > 0.0 {
+                    return Ok(std::cmp::Ordering::Greater);
+                }
+                return Ok(std::cmp::Ordering::Less);
+            }
+            let x_string = ECMAScriptValue::String(to_string(x.clone())?);
+            let y_string = ECMAScriptValue::String(to_string(y.clone())?);
+            if x_string
+                .is_less_than(&y_string, true)?
+                .expect("should not have NaN issues, as inputs are strings, not numbers")
+            {
+                Ok(std::cmp::Ordering::Less)
+            } else if y_string
+                .is_less_than(&x_string, true)?
+                .expect("should not have NaN issues, as inputs are strings, not numbers")
+            {
+                Ok(std::cmp::Ordering::Greater)
+            } else {
+                Ok(std::cmp::Ordering::Equal)
+            }
+        }
+    }
+}
+
 fn array_prototype_splice(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.splice ( start, deleteCount, ...items )
+    // Note 1
+    // This method deletes the deleteCount elements of the array starting at integer index start and replaces them with
+    // the elements of items. It returns an Array containing the deleted elements (if any).
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let relativeStart be ? ToIntegerOrInfinity(start).
+    // 4. If relativeStart = -∞, let actualStart be 0.
+    // 5. Else if relativeStart < 0, let actualStart be max(len + relativeStart, 0).
+    // 6. Else, let actualStart be min(relativeStart, len).
+    // 7. Let itemCount be the number of elements in items.
+    // 8. If start is not present, then
+    //    a. Let actualDeleteCount be 0.
+    // 9. Else if deleteCount is not present, then
+    //    a. Let actualDeleteCount be len - actualStart.
+    // 10. Else,
+    //     a. Let dc be ? ToIntegerOrInfinity(deleteCount).
+    //     b. Let actualDeleteCount be the result of clamping dc between 0 and len - actualStart.
+    // 11. If len + itemCount - actualDeleteCount > 2**53 - 1, throw a TypeError exception.
+    // 12. Let A be ? ArraySpeciesCreate(O, actualDeleteCount).
+    // 13. Let k be 0.
+    // 14. Repeat, while k < actualDeleteCount,
+    //     a. Let from be ! ToString(𝔽(actualStart + k)).
+    //     b. If ? HasProperty(O, from) is true, then
+    //        i. Let fromValue be ? Get(O, from).
+    //        ii. Perform ? CreateDataPropertyOrThrow(A, ! ToString(𝔽(k)), fromValue).
+    //     c. Set k to k + 1.
+    // 15. Perform ? Set(A, "length", 𝔽(actualDeleteCount), true).
+    // 16. If itemCount < actualDeleteCount, then
+    //     a. Set k to actualStart.
+    //     b. Repeat, while k < (len - actualDeleteCount),
+    //        i. Let from be ! ToString(𝔽(k + actualDeleteCount)).
+    //        ii. Let to be ! ToString(𝔽(k + itemCount)).
+    //        iii. If ? HasProperty(O, from) is true, then
+    //             1. Let fromValue be ? Get(O, from).
+    //             2. Perform ? Set(O, to, fromValue, true).
+    //        iv. Else,
+    //            1. Perform ? DeletePropertyOrThrow(O, to).
+    //        v. Set k to k + 1.
+    //     c. Set k to len.
+    //     d. Repeat, while k > (len - actualDeleteCount + itemCount),
+    //        i. Perform ? DeletePropertyOrThrow(O, ! ToString(𝔽(k - 1))).
+    //        ii. Set k to k - 1.
+    // 17. Else if itemCount > actualDeleteCount, then
+    //     a. Set k to (len - actualDeleteCount).
+    //     b. Repeat, while k > actualStart,
+    //        i. Let from be ! ToString(𝔽(k + actualDeleteCount - 1)).
+    //        ii. Let to be ! ToString(𝔽(k + itemCount - 1)).
+    //        iii. If ? HasProperty(O, from) is true, then
+    //             1. Let fromValue be ? Get(O, from).
+    //             2. Perform ? Set(O, to, fromValue, true).
+    //        iv. Else,
+    //            1. Perform ? DeletePropertyOrThrow(O, to).
+    //        v. Set k to k - 1.
+    // 18. Set k to actualStart.
+    // 19. For each element E of items, do
+    //     a. Perform ? Set(O, ! ToString(𝔽(k)), E, true).
+    //     b. Set k to k + 1.
+    // 20. Perform ? Set(O, "length", 𝔽(len - actualDeleteCount + itemCount), true).
+    // 21. Return A.
+    //
+    // Note 2
+    // The explicit setting of the "length" property in steps 15 and 20 is intended to ensure the lengths are correct
+    // even when the objects are not built-in Arrays.
+    //
+    // Note 3
+    // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
+    // transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let start = args.next_arg();
+    let delete_count = args.next_arg();
+    let items = args.remaining();
+
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    let relative_start = start.to_integer_or_infinity()?;
+    let actual_start = if relative_start < 0.0 { (len + relative_start).max(0.0) } else { relative_start.min(len) };
+    #[expect(clippy::cast_precision_loss)]
+    let item_count = items.len() as f64;
+    let actual_delete_count = if start.is_undefined() {
+        0.0
+    } else if delete_count.is_undefined() {
+        len - actual_start
+    } else {
+        let dc = delete_count.to_integer_or_infinity()?;
+        dc.clamp(0.0, len - actual_start)
+    };
+    if len + item_count - actual_delete_count > 9_007_199_254_740_991.0 {
+        return Err(create_type_error("Array too large"));
+    }
+    let a = array_species_create(&o, actual_delete_count)?;
+    let a_obj = a.object_ref().expect("array creation should make an object");
+    let mut k = 0.0;
+    while k < actual_delete_count {
+        let from = PropertyKey::from(actual_start + k);
+        if has_property(&o, &from)? {
+            let from_value = o.get(&from)?;
+            a_obj.create_data_property_or_throw(k, from_value)?;
+        }
+        k += 1.0;
+    }
+    a_obj.set("length", actual_delete_count, true)?;
+    if item_count < actual_delete_count {
+        k = actual_start;
+        while k < len - actual_delete_count {
+            let from = PropertyKey::from(k + actual_delete_count);
+            let to = PropertyKey::from(k + item_count);
+            if has_property(&o, &from)? {
+                let from_value = o.get(&from)?;
+                o.set(to, from_value, true)?;
+            } else {
+                o.delete_property_or_throw(&to)?;
+            }
+            k += 1.0;
+        }
+        k = len;
+        while k > len - actual_delete_count + item_count {
+            o.delete_property_or_throw(&PropertyKey::from(k - 1.0))?;
+            k -= 1.0;
+        }
+    } else if item_count > actual_delete_count {
+        k = len - actual_delete_count;
+        while k > actual_start {
+            let from = PropertyKey::from(k + actual_delete_count - 1.0);
+            let to = PropertyKey::from(k + item_count - 1.0);
+            if has_property(&o, &from)? {
+                let from_value = o.get(&from)?;
+                o.set(to, from_value, true)?;
+            } else {
+                o.delete_property_or_throw(&to)?;
+            }
+            k -= 1.0;
+        }
+    }
+    k = actual_start;
+    for item in items {
+        o.set(k, item.clone(), true)?;
+        k += 1.0;
+    }
+    o.set("length", len - actual_delete_count + item_count, true)?;
+    Ok(a)
 }
+
 fn array_prototype_to_locale_string(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1672,11 +3106,47 @@ fn array_prototype_values(
 }
 
 fn array_prototype_with(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.with ( index, value )
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let relativeIndex be ? ToIntegerOrInfinity(index).
+    // 4. If relativeIndex ≥ 0, let actualIndex be relativeIndex.
+    // 5. Else, let actualIndex be len + relativeIndex.
+    // 6. If actualIndex ≥ len or actualIndex < 0, throw a RangeError exception.
+    // 7. Let A be ? ArrayCreate(len).
+    // 8. Let k be 0.
+    // 9. Repeat, while k < len,
+    //    a. Let Pk be ! ToString(𝔽(k)).
+    //    b. If k = actualIndex, let fromValue be value.
+    //    c. Else, let fromValue be ? Get(O, Pk).
+    //    d. Perform ! CreateDataPropertyOrThrow(A, Pk, fromValue).
+    //    e. Set k to k + 1.
+    // 10. Return A.
+    let mut args = FuncArgs::from(arguments);
+    let index = args.next_arg();
+    let value = args.next_arg();
+    let o = to_object(this_value.clone())?;
+    let len = o.length_of_array_like()?;
+    let relative_index = index.to_integer_or_infinity()?;
+    let actual_index = if relative_index < 0.0 { len + relative_index } else { relative_index };
+    if actual_index >= len || actual_index < 0.0 {
+        return Err(create_range_error("Array.prototype.with: Index out of range"));
+    }
+    let a = array_create(len, None)?;
+    let mut k = 0.0;
+    while k < len {
+        let pk = PropertyKey::from(k);
+        let from_value = if k == actual_index { value.clone() } else { o.get(&pk)? };
+        a.create_data_property_or_throw(pk, from_value)?;
+        k += 1.0;
+    }
+    Ok(ECMAScriptValue::Object(a))
 }
 
 // Array Iterator Objects
@@ -1727,7 +3197,7 @@ async fn array_iterator(
     let mut index = 0.0;
     loop {
         assert!(!array.is_typed_array()); // when typed arrays are added, this needs to be accounted for
-        let len = length_of_array_like(&array)?;
+        let len = array.length_of_array_like()?;
         if index >= len {
             return Ok(ECMAScriptValue::Undefined);
         }

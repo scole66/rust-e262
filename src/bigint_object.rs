@@ -148,10 +148,10 @@ fn bigint_constructor_function(
     if new_target.is_some() {
         Err(create_type_error("BigInt may not be used as a constructor"))
     } else {
-        let prim = to_primitive(value, Some(ConversionHint::Number))?;
+        let prim = value.to_primitive(Some(ConversionHint::Number))?;
         match prim {
             ECMAScriptValue::Number(_) => Ok(prim.number_to_big_int()?.into()),
-            _ => Ok(to_big_int(prim)?.into()),
+            _ => Ok(prim.to_big_int()?.into()),
         }
     }
 }
@@ -172,7 +172,7 @@ fn bigint_as_int_n(
     let bits = args.next_arg();
     let bigint = args.next_arg();
     let bits = to_isize(to_index(bits)?).unwrap();
-    let bigint = to_big_int(bigint)?;
+    let bigint = bigint.to_big_int()?;
     if bits == 0 {
         return Ok(Rc::new(BigInt::from(0)).into());
     }
@@ -196,7 +196,7 @@ fn bigint_as_uint_n(
     let bits = args.next_arg();
     let bigint = args.next_arg();
     let bits = to_isize(to_index(bits)?).unwrap();
-    let bigint = to_big_int(bigint)?;
+    let bigint = bigint.to_big_int()?;
     Ok(Rc::new(bigint.mod_floor(&(BigInt::from(1) << bits))).into())
 }
 
@@ -464,48 +464,50 @@ impl ECMAScriptValue {
     }
 }
 
-fn to_big_int(value: ECMAScriptValue) -> Completion<Rc<BigInt>> {
-    // ToBigInt ( argument )
-    // The abstract operation ToBigInt takes argument argument (an ECMAScript language value) and returns either a
-    // normal completion containing a BigInt or a throw completion. It converts argument to a BigInt value, or throws if
-    // an implicit conversion from Number would be required. It performs the following steps when called:
-    //
-    //  1. Let prim be ? ToPrimitive(argument, NUMBER).
-    //  2. Return the value that prim corresponds to in Table 12.
-    //
-    // Table 12: BigInt Conversions
-    //  +---------------+------------------------------------------------------|
-    //  | Argument Type | Result                                               |
-    //  +---------------+------------------------------------------------------|
-    //  | Undefined     | Throw a TypeError exception.                         |
-    //  +---------------+------------------------------------------------------|
-    //  | Null          | Throw a TypeError exception.                         |
-    //  +---------------+------------------------------------------------------|
-    //  | Boolean       | Return 1n if prim is true and 0n if prim is false.   |
-    //  +---------------+------------------------------------------------------|
-    //  | BigInt        | Return prim.                                         |
-    //  +---------------+------------------------------------------------------|
-    //  | Number        | Throw a TypeError exception.                         |
-    //  +---------------+------------------------------------------------------|
-    //  | String        | 1. Let n be StringToBigInt(prim).                    |
-    //  |               | 2. If n is undefined, throw a SyntaxError exception. |
-    //  |               | 3. Return n.                                         |
-    //  +---------------+------------------------------------------------------|
-    //  | Symbol        | Throw a TypeError exception.                         |
-    //  +---------------+------------------------------------------------------|
-    let prim = to_primitive(value, Some(ConversionHint::Number))?;
-    match prim {
-        ECMAScriptValue::Undefined
-        | ECMAScriptValue::Null
-        | ECMAScriptValue::Number(_)
-        | ECMAScriptValue::Symbol(_) => Err(create_type_error("Value cannot be converted to bigint")),
-        ECMAScriptValue::Boolean(b) => Ok(Rc::new(BigInt::from(b))),
-        ECMAScriptValue::String(s) => {
-            let n = s.to_bigint();
-            n.ok_or_else(|| create_syntax_error("Invalid character sequence for bigint", None))
+impl ECMAScriptValue {
+    fn to_big_int(&self) -> Completion<Rc<BigInt>> {
+        // ToBigInt ( argument )
+        // The abstract operation ToBigInt takes argument argument (an ECMAScript language value) and returns either a
+        // normal completion containing a BigInt or a throw completion. It converts argument to a BigInt value, or
+        // throws if an implicit conversion from Number would be required. It performs the following steps when called:
+        //
+        //  1. Let prim be ? ToPrimitive(argument, NUMBER).
+        //  2. Return the value that prim corresponds to in Table 12.
+        //
+        // Table 12: BigInt Conversions
+        //  +---------------+------------------------------------------------------|
+        //  | Argument Type | Result                                               |
+        //  +---------------+------------------------------------------------------|
+        //  | Undefined     | Throw a TypeError exception.                         |
+        //  +---------------+------------------------------------------------------|
+        //  | Null          | Throw a TypeError exception.                         |
+        //  +---------------+------------------------------------------------------|
+        //  | Boolean       | Return 1n if prim is true and 0n if prim is false.   |
+        //  +---------------+------------------------------------------------------|
+        //  | BigInt        | Return prim.                                         |
+        //  +---------------+------------------------------------------------------|
+        //  | Number        | Throw a TypeError exception.                         |
+        //  +---------------+------------------------------------------------------|
+        //  | String        | 1. Let n be StringToBigInt(prim).                    |
+        //  |               | 2. If n is undefined, throw a SyntaxError exception. |
+        //  |               | 3. Return n.                                         |
+        //  +---------------+------------------------------------------------------|
+        //  | Symbol        | Throw a TypeError exception.                         |
+        //  +---------------+------------------------------------------------------|
+        let prim = self.to_primitive(Some(ConversionHint::Number))?;
+        match prim {
+            ECMAScriptValue::Undefined
+            | ECMAScriptValue::Null
+            | ECMAScriptValue::Number(_)
+            | ECMAScriptValue::Symbol(_) => Err(create_type_error("Value cannot be converted to bigint")),
+            ECMAScriptValue::Boolean(b) => Ok(Rc::new(BigInt::from(b))),
+            ECMAScriptValue::String(s) => {
+                let n = s.to_bigint();
+                n.ok_or_else(|| create_syntax_error("Invalid character sequence for bigint", None))
+            }
+            ECMAScriptValue::BigInt(bi) => Ok(bi),
+            ECMAScriptValue::Object(_) => unreachable!(),
         }
-        ECMAScriptValue::BigInt(bi) => Ok(bi),
-        ECMAScriptValue::Object(_) => unreachable!(),
     }
 }
 

@@ -3824,7 +3824,7 @@ mod internal_slot_name {
 fn length_of_array_like(make_obj: impl FnOnce() -> Object) -> Result<f64, String> {
     setup_test_agent();
     let obj = make_obj();
-    super::length_of_array_like(&obj).map_err(unwind_any_error)
+    obj.length_of_array_like().map_err(unwind_any_error)
 }
 
 mod object {
