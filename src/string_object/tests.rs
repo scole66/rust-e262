@@ -757,7 +757,6 @@ tbd_function!(string_prototype_normalize);
 tbd_function!(string_prototype_pad_end);
 tbd_function!(string_prototype_pad_start);
 tbd_function!(string_prototype_repeat);
-tbd_function!(string_prototype_replace);
 tbd_function!(string_prototype_replace_all);
 tbd_function!(string_prototype_search);
 tbd_function!(string_prototype_slice);
