@@ -4785,7 +4785,7 @@ where
     setup_test_agent();
     let obj = make_obj();
     let proto = make_proto();
-    super::set_immutable_prototype(&obj, &proto).map_err(unwind_any_error)
+    super::set_immutable_prototype(&obj, proto.as_ref()).map_err(unwind_any_error)
 }
 
 #[test_case(

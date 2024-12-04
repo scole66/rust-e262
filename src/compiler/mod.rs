@@ -6128,7 +6128,7 @@ impl<'a> From<&'a Rc<AssignmentExpression>> for ForInOfExpr<'a> {
     }
 }
 
-impl<'a> ForInOfExpr<'a> {
+impl ForInOfExpr<'_> {
     fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ForInOfExpr::Expression(exp) => exp.compile(chunk, strict, text),
@@ -6169,7 +6169,7 @@ impl<'a> From<&'a Rc<ForDeclaration>> for ForInOfLHSExpr<'a> {
     }
 }
 
-impl<'a> ForInOfLHSExpr<'a> {
+impl ForInOfLHSExpr<'_> {
     fn is_destructuring(&self) -> bool {
         match self {
             ForInOfLHSExpr::LeftHandSideExpression(lhs) => lhs.is_destructuring(),

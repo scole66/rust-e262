@@ -487,9 +487,9 @@ impl ParseError {
     pub fn new(code: PECode, location: impl Into<Location>) -> Self {
         Self { code, location: location.into() }
     }
-    pub fn compare_option(left: &Option<Self>, right: &Option<Self>) -> Ordering {
-        let location_left = left.as_ref().map(|pe| &pe.location);
-        let location_right = right.as_ref().map(|pe| &pe.location);
+    pub fn compare_option(left: Option<&Self>, right: Option<&Self>) -> Ordering {
+        let location_left = left.map(|pe| &pe.location);
+        let location_right = right.map(|pe| &pe.location);
 
         location_left.cmp(&location_right)
     }

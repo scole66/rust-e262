@@ -1475,7 +1475,7 @@ impl ArrayBindingPattern {
                             )),
                             Err(pe) => {
                                 let mut err = Some(pe);
-                                if ParseError::compare_option(&err_bre, &err) == Ordering::Greater {
+                                if ParseError::compare_option(err_bre.as_ref(), err.as_ref()) == Ordering::Greater {
                                     err = err_bre;
                                 }
                                 Err(err.unwrap())
@@ -1501,7 +1501,7 @@ impl ArrayBindingPattern {
                     )),
                     Err(pe) => {
                         let mut err = Some(pe);
-                        if ParseError::compare_option(&err_bre, &err) == Ordering::Greater {
+                        if ParseError::compare_option(err_bre.as_ref(), err.as_ref()) == Ordering::Greater {
                             err = err_bre;
                         }
                         Err(err.unwrap())

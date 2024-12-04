@@ -1042,6 +1042,23 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     (function a() { 'use strict'; this_seen = this; })();
     this_seen
     " => Ok(ECMAScriptValue::Undefined); "strict in function expressions (named)")]
+// 11/27/2024: strict in function constructor
+#[test_case("Function('\\'use strict\\';\\nreturn typeof this;')()" => vok("undefined"); "function constructor strictness")]
+// 12/03/2024: strict in nested function
+#[test_case("
+    var global = this;
+    function f1() {
+        function f() {
+            'use strict';
+            return typeof this;
+        }
+        return (f()==='undefined') && (this===global);
+    }
+    f1()
+    "
+    => Ok(ECMAScriptValue::Boolean(true));
+    "strict in inner function"
+)]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
