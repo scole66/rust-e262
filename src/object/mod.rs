@@ -39,7 +39,7 @@ pub struct PropertyDescriptor {
 }
 
 pub struct ConcisePropertyDescriptor<'a>(&'a PropertyDescriptor);
-impl<'a> fmt::Debug for ConcisePropertyDescriptor<'a> {
+impl fmt::Debug for ConcisePropertyDescriptor<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{{ ")?;
         match &self.0.property {
@@ -1294,7 +1294,7 @@ impl fmt::Debug for CommonObjectData {
 }
 
 pub struct ConciseObject<'a>(&'a Object);
-impl<'a> fmt::Debug for ConciseObject<'a> {
+impl fmt::Debug for ConciseObject<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.concise(f)
     }
@@ -1305,7 +1305,7 @@ impl<'a> From<&'a Object> for ConciseObject<'a> {
     }
 }
 pub struct ConciseOptionalObject<'a>(&'a Option<Object>);
-impl<'a> fmt::Debug for ConciseOptionalObject<'a> {
+impl fmt::Debug for ConciseOptionalObject<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0.as_ref() {
             None => write!(f, "None"),
@@ -1320,7 +1320,7 @@ impl<'a> From<&'a Option<Object>> for ConciseOptionalObject<'a> {
 }
 
 struct ConciseProperties<'a>(&'a AHashMap<PropertyKey, PropertyDescriptor>);
-impl<'a> fmt::Debug for ConciseProperties<'a> {
+impl fmt::Debug for ConciseProperties<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut work = f.debug_struct("AHashMap");
         for (key, value) in self.0 {
@@ -2533,15 +2533,15 @@ impl DeadObject {
 //  2. Let current be ? O.[[GetPrototypeOf]]().
 //  3. If SameValue(V, current) is true, return true.
 //  4. Return false.
-pub fn set_immutable_prototype<'a, T>(o: T, val: &Option<Object>) -> Completion<bool>
+pub fn set_immutable_prototype<'a, T>(o: T, val: Option<&Object>) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
     set_immutable_prototype_internal(o.into(), val)
 }
-fn set_immutable_prototype_internal(obj: &dyn ObjectInterface, val: &Option<Object>) -> Completion<bool> {
+fn set_immutable_prototype_internal(obj: &dyn ObjectInterface, val: Option<&Object>) -> Completion<bool> {
     let current = obj.get_prototype_of()?;
-    Ok(current == *val)
+    Ok(current.as_ref() == val)
 }
 
 #[derive(Debug)]
@@ -2583,7 +2583,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ? SetImmutablePrototype(O, V).
     fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
-        set_immutable_prototype(self, &obj)
+        set_immutable_prototype(self, obj.as_ref())
     }
 
     // [[IsExtensible]] ( )

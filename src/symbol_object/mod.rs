@@ -1,11 +1,11 @@
+//! Symbol Objects
+//!
+//! See [Symbol Objects](https://tc39.es/ecma262/#sec-symbol-objects) in ECMA-262.
+
 use super::*;
 use bimap::BiMap;
 use std::cell::RefCell;
 use std::rc::Rc;
-
-/// Symbol Objects
-///
-/// See [Symbol Objects](https://tc39.es/ecma262/#sec-symbol-objects) in ECMA-262.
 
 // Properties of Symbol Instances
 //

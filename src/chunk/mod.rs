@@ -17,7 +17,7 @@ pub struct StashedFunctionData {
 }
 
 pub struct ConciseChunk<'a>(pub &'a Chunk);
-impl<'a> fmt::Debug for ConciseChunk<'a> {
+impl fmt::Debug for ConciseChunk<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Chunk {{ {} }}", self.0.name)
     }

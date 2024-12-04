@@ -93,7 +93,7 @@ pub struct Maker<'a> {
     in_flag: bool,
     default_flag: bool,
 }
-impl<'a> Default for Maker<'a> {
+impl Default for Maker<'_> {
     fn default() -> Self {
         Maker {
             source: "",
