@@ -41,6 +41,7 @@ mod proxy_object;
 mod realm;
 mod reference;
 mod reflect;
+mod regexp;
 mod scanner;
 mod string_object;
 mod strings;
@@ -75,6 +76,7 @@ pub use crate::proxy_object::*;
 pub use crate::realm::*;
 pub use crate::reference::*;
 pub use crate::reflect::*;
+pub use crate::regexp::*;
 pub use crate::scanner::*;
 pub use crate::string_object::*;
 pub use crate::strings::*;
@@ -86,6 +88,9 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 use std::rc::Rc;
+
+const GOODOBJ: &str = "algorithmically created objects should not have strange behaviors";
+const GOODCSTR: &str = "built-in contructors should not have strange behaviors";
 
 #[derive(Debug)]
 #[expect(dead_code)]

@@ -747,11 +747,11 @@ fn unicode_range_checker(ch: char, range: &[ranges::CharRange]) -> bool {
     false
 }
 
-fn is_unicode_id_start(ch: char) -> bool {
+pub fn is_unicode_id_start(ch: char) -> bool {
     unicode_range_checker(ch, ranges::ID_START)
 }
 
-fn is_unicode_id_continue(ch: char) -> bool {
+pub fn is_unicode_id_continue(ch: char) -> bool {
     unicode_range_checker(ch, ranges::ID_CONTINUE)
 }
 
@@ -2235,8 +2235,8 @@ fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RegularExpressionData {
-    body: String,
-    flags: String,
+    pub body: String,
+    pub flags: String,
 }
 
 impl fmt::Display for RegularExpressionData {
