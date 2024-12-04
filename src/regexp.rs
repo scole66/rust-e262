@@ -373,6 +373,7 @@ fn regexp_constructor_function(
     todo!()
 }
 
+#[expect(clippy::unnecessary_wraps)]
 fn regexp_species(
     this_value: &ECMAScriptValue,
     _: Option<&Object>,
