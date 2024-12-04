@@ -38,6 +38,9 @@ impl JSString {
             i64::try_from(from_index).unwrap()
         } else {
             let search_len = search_value.len();
+            if search_len > len {
+                return -1;
+            }
             for i in from_index..=(len - search_len) {
                 if self.s[i..(i + search_len)] == search_value.s[..] {
                     return i64::try_from(i).unwrap();
@@ -49,6 +52,16 @@ impl JSString {
 
     pub fn contains(&self, ch: u16) -> bool {
         self.s.contains(&ch)
+    }
+
+    pub fn starts_with(&self, search_value: &JSString) -> bool {
+        let len = self.len();
+        let search_len = search_value.len();
+        if search_len > len {
+            false
+        } else {
+            self.s[0..search_len] == search_value.s[..]
+        }
     }
 }
 

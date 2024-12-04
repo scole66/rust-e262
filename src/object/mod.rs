@@ -39,7 +39,7 @@ pub struct PropertyDescriptor {
 }
 
 pub struct ConcisePropertyDescriptor<'a>(&'a PropertyDescriptor);
-impl<'a> fmt::Debug for ConcisePropertyDescriptor<'a> {
+impl fmt::Debug for ConcisePropertyDescriptor<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{{ ")?;
         match &self.0.property {
@@ -1297,7 +1297,7 @@ impl fmt::Debug for CommonObjectData {
 }
 
 pub struct ConciseObject<'a>(&'a Object);
-impl<'a> fmt::Debug for ConciseObject<'a> {
+impl fmt::Debug for ConciseObject<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.concise(f)
     }
@@ -1308,7 +1308,7 @@ impl<'a> From<&'a Object> for ConciseObject<'a> {
     }
 }
 pub struct ConciseOptionalObject<'a>(&'a Option<Object>);
-impl<'a> fmt::Debug for ConciseOptionalObject<'a> {
+impl fmt::Debug for ConciseOptionalObject<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0.as_ref() {
             None => write!(f, "None"),
@@ -1323,7 +1323,7 @@ impl<'a> From<&'a Option<Object>> for ConciseOptionalObject<'a> {
 }
 
 struct ConciseProperties<'a>(&'a AHashMap<PropertyKey, PropertyDescriptor>);
-impl<'a> fmt::Debug for ConciseProperties<'a> {
+impl fmt::Debug for ConciseProperties<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut work = f.debug_struct("AHashMap");
         for (key, value) in self.0 {
@@ -1998,7 +1998,12 @@ impl Object {
 //  2. Assert: IsPropertyKey(P) is true.
 //  3. Return ? O.[[HasProperty]](P).
 pub fn has_property(obj: &Object, p: &PropertyKey) -> Completion<bool> {
-    obj.o.has_property(p)
+    obj.has_property(p)
+}
+impl Object {
+    pub fn has_property(&self, p: &PropertyKey) -> Completion<bool> {
+        self.o.has_property(p)
+    }
 }
 
 // HasOwnProperty ( O, P )
@@ -2208,7 +2213,7 @@ pub fn test_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<boo
 //      b. Set n to n + 1.
 //  4. Return array.
 pub fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
-    let array = array_create(0, None).unwrap();
+    let array = array_create(0.0, None).unwrap();
     for (n, e) in elements.iter().enumerate() {
         let key = PropertyKey::from(u64::try_from(n).unwrap());
         array.create_data_property_or_throw(key, e.clone()).unwrap();
@@ -2219,17 +2224,19 @@ pub fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
 /// Returns the value of the `"length"` property of an array-like object.
 ///
 /// See [LengthOfArrayLike](https://tc39.es/ecma262/#sec-lengthofarraylike) from ECMA-262.
-pub fn length_of_array_like(obj: &Object) -> Completion<i64> {
-    // LengthOfArrayLike ( obj )
-    //
-    // The abstract operation LengthOfArrayLike takes argument obj (an Object) and returns either a normal
-    // completion containing a non-negative integer or a throw completion. It returns the value of the "length"
-    // property of an array-like object. It performs the following steps when called:
-    //
-    //  1. Return ℝ(? ToLength(? Get(obj, "length"))).
-    //
-    // An array-like object is any object for which this operation returns a normal completion.
-    to_length(obj.get(&"length".into())?)
+impl Object {
+    pub fn length_of_array_like(&self) -> Completion<f64> {
+        // LengthOfArrayLike ( obj )
+        //
+        // The abstract operation LengthOfArrayLike takes argument obj (an Object) and returns either a normal
+        // completion containing a non-negative integer or a throw completion. It returns the value of the "length"
+        // property of an array-like object. It performs the following steps when called:
+        //
+        //  1. Return ℝ(? ToLength(? Get(obj, "length"))).
+        //
+        // An array-like object is any object for which this operation returns a normal completion.
+        self.get(&"length".into())?.to_length()
+    }
 }
 
 pub fn create_list_from_array_like(
@@ -2268,7 +2275,7 @@ pub fn create_list_from_array_like(
         ValueKind::Object,
     ]);
     let obj = Object::try_from(obj).map_err(|_| create_type_error("CreateListFromArrayLike called on non-object"))?;
-    let len = usize::try_from(length_of_array_like(&obj)?).expect("array lengths should fit");
+    let len = to_usize(obj.length_of_array_like()?).expect("array lengths should fit");
     let mut list = Vec::new();
     for index in 0..len {
         let index_name = PropertyKey::from(index);
@@ -2542,15 +2549,15 @@ impl DeadObject {
 //  2. Let current be ? O.[[GetPrototypeOf]]().
 //  3. If SameValue(V, current) is true, return true.
 //  4. Return false.
-pub fn set_immutable_prototype<'a, T>(o: T, val: &Option<Object>) -> Completion<bool>
+pub fn set_immutable_prototype<'a, T>(o: T, val: Option<&Object>) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
     set_immutable_prototype_internal(o.into(), val)
 }
-fn set_immutable_prototype_internal(obj: &dyn ObjectInterface, val: &Option<Object>) -> Completion<bool> {
+fn set_immutable_prototype_internal(obj: &dyn ObjectInterface, val: Option<&Object>) -> Completion<bool> {
     let current = obj.get_prototype_of()?;
-    Ok(current == *val)
+    Ok(current.as_ref() == val)
 }
 
 #[derive(Debug)]
@@ -2592,7 +2599,7 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     //
     //  1. Return ? SetImmutablePrototype(O, V).
     fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
-        set_immutable_prototype(self, &obj)
+        set_immutable_prototype(self, obj.as_ref())
     }
 
     // [[IsExtensible]] ( )

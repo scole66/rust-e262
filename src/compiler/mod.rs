@@ -6135,7 +6135,7 @@ impl<'a> From<&'a Rc<AssignmentExpression>> for ForInOfExpr<'a> {
     }
 }
 
-impl<'a> ForInOfExpr<'a> {
+impl ForInOfExpr<'_> {
     fn compile(&self, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ForInOfExpr::Expression(exp) => exp.compile(chunk, strict, text),
@@ -6176,7 +6176,7 @@ impl<'a> From<&'a Rc<ForDeclaration>> for ForInOfLHSExpr<'a> {
     }
 }
 
-impl<'a> ForInOfLHSExpr<'a> {
+impl ForInOfLHSExpr<'_> {
     fn is_destructuring(&self) -> bool {
         match self {
             ForInOfLHSExpr::LeftHandSideExpression(lhs) => lhs.is_destructuring(),
@@ -7600,11 +7600,12 @@ impl FunctionExpression {
                 let span = self.location().span;
                 let params = ParamSource::from(Rc::clone(&self.params));
                 let body = BodySource::from(Rc::clone(&self.body));
+                let strict_body = body.contains_use_strict();
                 let function_data = StashedFunctionData {
                     source_text: text[span.starting_index..(span.starting_index + span.length)].to_string(),
                     params,
                     body,
-                    strict,
+                    strict: strict || strict_body,
                     to_compile: FunctionSource::from(self_as_rc),
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
@@ -7620,11 +7621,12 @@ impl FunctionExpression {
                 let span = self.location().span;
                 let params = ParamSource::from(Rc::clone(&self.params));
                 let body = BodySource::from(Rc::clone(&self.body));
+                let strict_body = body.contains_use_strict();
                 let function_data = StashedFunctionData {
                     source_text: text[span.starting_index..(span.starting_index + span.length)].to_string(),
                     params,
                     body,
-                    strict,
+                    strict: strict || strict_body,
                     to_compile: FunctionSource::from(self_as_rc),
                     this_mode: ThisLexicality::NonLexicalThis,
                 };

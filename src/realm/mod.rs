@@ -933,7 +933,7 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                                 body,
                                 &var_env,
                                 &lex_env,
-                                &private_env,
+                                private_env.as_ref(),
                                 strict_eval,
                                 &source_text,
                             ) {
@@ -964,7 +964,7 @@ fn eval_declaration_instantiation(
     body: &Rc<ScriptBody>,
     var_env: &Rc<dyn EnvironmentRecord>,
     lex_env: &Rc<dyn EnvironmentRecord>,
-    private_env: &Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+    private_env: Option<&Rc<RefCell<PrivateEnvironmentRecord>>>,
     strict: bool,
     source_text: &str,
 ) -> Completion<()> {
@@ -997,7 +997,7 @@ fn eval_declaration_instantiation(
         }
     }
     let mut private_identifiers = vec![];
-    let mut pointer = private_env.clone();
+    let mut pointer = private_env.cloned();
     while let Some(ref per) = pointer {
         let outer = {
             let penv = per.borrow();
@@ -1065,7 +1065,7 @@ fn eval_declaration_instantiation(
     for vsd in functions_to_initialize {
         let f = FcnDef::try_from(vsd.clone()).unwrap();
         let fname = f.bound_name();
-        let fo = f.instantiate_function_object(lex_env.clone(), private_env.clone(), strict, source_text).unwrap();
+        let fo = f.instantiate_function_object(lex_env.clone(), private_env.cloned(), strict, source_text).unwrap();
         if let Some(ger) = var_env.as_global_environment_record() {
             ger.create_global_function_binding(fname, fo, true)?;
         } else if !var_env.has_binding(&fname).unwrap() {

@@ -1805,7 +1805,7 @@ mod insn_impl {
         push_value(ECMAScriptValue::Object(o))
     }
     pub fn array() -> anyhow::Result<()> {
-        let array = array_create(0, None).expect("Arrays of length zero are not too large");
+        let array = array_create(0.0, None).expect("Arrays of length zero are not too large");
         push_value(ECMAScriptValue::Object(array))
     }
     pub fn create_data_property() -> anyhow::Result<()> {
@@ -1831,7 +1831,7 @@ mod insn_impl {
     }
     pub fn to_property_key() -> anyhow::Result<()> {
         let value_name = pop_value()?;
-        let key = super::to_property_key(value_name);
+        let key = value_name.to_property_key();
         let fc = key.map(|pk| NormalCompletion::from(ECMAScriptValue::from(pk)));
         push_completion(fc).expect(PUSHABLE);
         Ok(())
@@ -1855,7 +1855,7 @@ mod insn_impl {
     }
     pub fn to_numeric() -> anyhow::Result<()> {
         let val = pop_value()?;
-        let result = super::to_numeric(val).map(NormalCompletion::from);
+        let result = val.to_numeric().map(NormalCompletion::from);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
@@ -2033,7 +2033,7 @@ mod insn_impl {
         let exp = pop_completion()?;
         let val = super::get_value(exp);
         let old_val = match val {
-            Ok(val) => super::to_numeric(val),
+            Ok(val) => val.to_numeric(),
             Err(ac) => Err(ac),
         };
         let result = match old_val {
@@ -2048,7 +2048,7 @@ mod insn_impl {
         let exp = pop_completion()?;
         let val = super::get_value(exp);
         let old_val = match val {
-            Ok(val) => super::to_numeric(val),
+            Ok(val) => val.to_numeric(),
             Err(ac) => Err(ac),
         };
         let result = match old_val {
@@ -2434,7 +2434,7 @@ mod insn_impl {
         let left_operand = pop_value()?;
         let (x, y) = if swap_args { (right_operand, left_operand) } else { (left_operand, right_operand) };
         let handler = if invert { compare_invert } else { compare_pass };
-        let result = is_less_than(x, y, !swap_args).map(handler);
+        let result = x.is_less_than(&y, !swap_args).map(handler);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
@@ -2450,7 +2450,7 @@ mod insn_impl {
         let left = pop_value()?;
         let result = match right {
             ECMAScriptValue::Object(obj) => {
-                super::to_property_key(left).and_then(|key| super::has_property(&obj, &key)).map(NormalCompletion::from)
+                left.to_property_key().and_then(|key| super::has_property(&obj, &key)).map(NormalCompletion::from)
             }
             _ => Err(create_type_error("Right-hand side of 'in' must be an object")),
         };
@@ -2665,7 +2665,7 @@ mod insn_impl {
                                 array
                                     .create_data_property_or_throw(JSString::from(next_index), next_value)
                                     .expect("props should store ok");
-                                next_index += 1;
+                                next_index += 1.0;
                             }
                         }
                     }
@@ -2846,7 +2846,7 @@ mod insn_impl {
         //      f. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(n)), nextValue).
         //      g. Set n to n + 1.
         let ir = pop_ir()?;
-        let a = array_create(0, None).expect("0 should fit in ram");
+        let a = array_create(0.0, None).expect("0 should fit in ram");
         let mut n = 0;
         loop {
             if ir.done.get() {
@@ -4123,7 +4123,7 @@ fn begin_constructor_evaluation(
 
 fn prefix_increment(expr: FullCompletion) -> FullCompletion {
     let value = get_value(expr.clone())?;
-    let old_value = to_numeric(value)?;
+    let old_value = value.to_numeric()?;
     let new_value: ECMAScriptValue = match old_value {
         Numeric::Number(n) => (n + 1.0).into(),
         Numeric::BigInt(bi) => ECMAScriptValue::from(&*bi + 1),
@@ -4134,7 +4134,7 @@ fn prefix_increment(expr: FullCompletion) -> FullCompletion {
 
 fn prefix_decrement(expr: FullCompletion) -> FullCompletion {
     let value = get_value(expr.clone())?;
-    let old_value = to_numeric(value)?;
+    let old_value = value.to_numeric()?;
     let new_value: ECMAScriptValue = match old_value {
         Numeric::Number(n) => (n - 1.0).into(),
         Numeric::BigInt(bi) => ECMAScriptValue::from(&*bi - 1),
@@ -4190,7 +4190,7 @@ fn delete_ref(expr: FullCompletion) -> FullCompletion {
                     | ECMAScriptValue::Boolean(_)
                     | ECMAScriptValue::Number(_)
                     | ECMAScriptValue::BigInt(_)
-                    | ECMAScriptValue::Object(_) => to_property_key(name_value)?,
+                    | ECMAScriptValue::Object(_) => name_value.to_property_key()?,
                 };
                 let delete_status = base_obj.o.delete(&referenced_name)?;
                 if !delete_status && strict {
@@ -4242,8 +4242,8 @@ fn typeof_operator(expr: FullCompletion) -> FullCompletion {
 
 fn apply_string_or_numeric_binary_operator(left: ECMAScriptValue, right: ECMAScriptValue, op: BinOp) -> FullCompletion {
     let (left, right) = if op == BinOp::Add {
-        let left_prim = to_primitive(left, None)?;
-        let right_prim = to_primitive(right, None)?;
+        let left_prim = left.to_primitive(None)?;
+        let right_prim = right.to_primitive(None)?;
         if left_prim.is_string() || right_prim.is_string() {
             let left_str = to_string(left_prim)?;
             let right_str = to_string(right_prim)?;
@@ -4253,8 +4253,8 @@ fn apply_string_or_numeric_binary_operator(left: ECMAScriptValue, right: ECMAScr
     } else {
         (left, right)
     };
-    let left_num = to_numeric(left)?;
-    let right_num = to_numeric(right)?;
+    let left_num = left.to_numeric()?;
+    let right_num = right.to_numeric()?;
     match (left_num, right_num, op) {
         (Numeric::Number(left), Numeric::Number(right), BinOp::Exponentiate) => {
             Ok(NormalCompletion::from(exponentiate(left, right)))
@@ -4471,70 +4471,74 @@ fn define_method_property(
     }
 }
 
-fn is_less_than(x: ECMAScriptValue, y: ECMAScriptValue, left_first: bool) -> Completion<Option<bool>> {
-    let (px, py) = if left_first {
-        let px = to_primitive(x, None)?;
-        let py = to_primitive(y, None)?;
-        (px, py)
-    } else {
-        let py = to_primitive(y, None)?;
-        let px = to_primitive(x, None)?;
-        (px, py)
-    };
-    if px.is_string() && py.is_string() {
-        let sx = JSString::try_from(px).expect("String values must be strings");
-        let sy = JSString::try_from(py).expect("String values must be strings");
-        return Ok(Some(sx < sy));
-    }
-    if px.is_string() && py.is_bigint() {
-        let nx = String::from(JSString::try_from(px).expect("String values must be strings")).parse::<BigInt>().ok();
-        let ny: Rc<BigInt> = py.try_into().expect("Bigint values must be bigints");
-        return match nx {
-            None => Ok(None),
-            Some(nx) => Ok(Some(nx < *ny)),
+impl ECMAScriptValue {
+    pub fn is_less_than(&self, other: &ECMAScriptValue, self_first: bool) -> Completion<Option<bool>> {
+        let (px, py) = if self_first {
+            let px = self.to_primitive(None)?;
+            let py = other.to_primitive(None)?;
+            (px, py)
+        } else {
+            let py = other.to_primitive(None)?;
+            let px = self.to_primitive(None)?;
+            (px, py)
         };
-    }
-    if px.is_bigint() && py.is_string() {
-        let nx: Rc<BigInt> = px.try_into().expect("Bigint values must be bigints");
-        let ny = String::from(JSString::try_from(py).expect("String values must be strings")).parse::<BigInt>().ok();
-        return match ny {
-            None => Ok(None),
-            Some(ny) => Ok(Some(*nx < ny)),
-        };
-    }
-    let nx = to_numeric(px)?;
-    let ny = to_numeric(py)?;
-    match (nx, ny) {
-        (Numeric::Number(nx), Numeric::Number(ny)) => {
-            if nx.is_nan() || ny.is_nan() {
-                Ok(None)
-            } else {
-                Ok(Some(nx < ny))
-            }
+        if px.is_string() && py.is_string() {
+            let sx = JSString::try_from(px).expect("String values must be strings");
+            let sy = JSString::try_from(py).expect("String values must be strings");
+            return Ok(Some(sx < sy));
         }
-        (Numeric::Number(nx), Numeric::BigInt(by)) => {
-            if nx.is_nan() {
-                Ok(None)
-            } else if nx == f64::NEG_INFINITY {
-                Ok(Some(true))
-            } else if nx == f64::INFINITY {
-                Ok(Some(false))
-            } else {
-                Ok(Some(nx < by.to_f64().unwrap()))
-            }
+        if px.is_string() && py.is_bigint() {
+            let nx =
+                String::from(JSString::try_from(px).expect("String values must be strings")).parse::<BigInt>().ok();
+            let ny: Rc<BigInt> = py.try_into().expect("Bigint values must be bigints");
+            return match nx {
+                None => Ok(None),
+                Some(nx) => Ok(Some(nx < *ny)),
+            };
         }
-        (Numeric::BigInt(bx), Numeric::Number(ny)) => {
-            if ny.is_nan() {
-                Ok(None)
-            } else if ny == f64::NEG_INFINITY {
-                Ok(Some(false))
-            } else if ny == f64::INFINITY {
-                Ok(Some(true))
-            } else {
-                Ok(Some(bx.to_f64().unwrap() < ny))
-            }
+        if px.is_bigint() && py.is_string() {
+            let nx: Rc<BigInt> = px.try_into().expect("Bigint values must be bigints");
+            let ny =
+                String::from(JSString::try_from(py).expect("String values must be strings")).parse::<BigInt>().ok();
+            return match ny {
+                None => Ok(None),
+                Some(ny) => Ok(Some(*nx < ny)),
+            };
         }
-        (Numeric::BigInt(bx), Numeric::BigInt(by)) => Ok(Some(*bx < *by)),
+        let nx = px.to_numeric()?;
+        let ny = py.to_numeric()?;
+        match (nx, ny) {
+            (Numeric::Number(nx), Numeric::Number(ny)) => {
+                if nx.is_nan() || ny.is_nan() {
+                    Ok(None)
+                } else {
+                    Ok(Some(nx < ny))
+                }
+            }
+            (Numeric::Number(nx), Numeric::BigInt(by)) => {
+                if nx.is_nan() {
+                    Ok(None)
+                } else if nx == f64::NEG_INFINITY {
+                    Ok(Some(true))
+                } else if nx == f64::INFINITY {
+                    Ok(Some(false))
+                } else {
+                    Ok(Some(nx < by.to_f64().unwrap()))
+                }
+            }
+            (Numeric::BigInt(bx), Numeric::Number(ny)) => {
+                if ny.is_nan() {
+                    Ok(None)
+                } else if ny == f64::NEG_INFINITY {
+                    Ok(Some(false))
+                } else if ny == f64::INFINITY {
+                    Ok(Some(true))
+                } else {
+                    Ok(Some(bx.to_f64().unwrap() < ny))
+                }
+            }
+            (Numeric::BigInt(bx), Numeric::BigInt(by)) => Ok(Some(*bx < *by)),
+        }
     }
 }
 

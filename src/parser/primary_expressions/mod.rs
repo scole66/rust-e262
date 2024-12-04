@@ -819,13 +819,17 @@ impl ElementList {
                         let err_default =
                             Some(ParseError::new(PECode::AssignmentExpressionOrSpreadElementExpected, after_e_scanner));
                         let err_se = Some(pe);
-                        let err1 = if ParseError::compare_option(&err_default, &err_ae) == Ordering::Less {
-                            err_ae
+                        let err1 =
+                            if ParseError::compare_option(err_default.as_ref(), err_ae.as_ref()) == Ordering::Less {
+                                err_ae
+                            } else {
+                                err_default
+                            };
+                        let err2 = if ParseError::compare_option(err1.as_ref(), err_se.as_ref()) == Ordering::Less {
+                            err_se
                         } else {
-                            err_default
+                            err1
                         };
-                        let err2 =
-                            if ParseError::compare_option(&err1, &err_se) == Ordering::Less { err_se } else { err1 };
                         Err(err2.unwrap())
                     }
                 }

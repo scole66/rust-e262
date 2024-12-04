@@ -948,7 +948,7 @@ impl fmt::Debug for IteratorRecord {
 }
 
 struct ConciseValue<'a>(&'a ECMAScriptValue);
-impl<'a> fmt::Debug for ConciseValue<'a> {
+impl fmt::Debug for ConciseValue<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.concise(f)
     }

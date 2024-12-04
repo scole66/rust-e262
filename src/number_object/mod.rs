@@ -408,7 +408,7 @@ fn number_constructor_function(
     let mut args = FuncArgs::from(arguments);
     let n = if args.count() >= 1 {
         let value = args.next_arg();
-        let prim = to_numeric(value)?;
+        let prim = value.to_numeric()?;
         match prim {
             Numeric::BigInt(bi) => bi.to_f64().unwrap(),
             Numeric::Number(n) => n,

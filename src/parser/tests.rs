@@ -919,11 +919,11 @@ mod parse_error {
         ParseError::compare(e1, e2)
     }
 
-    #[test_case(&None, &None => Ordering::Equal; "all none")]
-    #[test_case(&None, &Some(ParseError::new(PECode::Generic, 1)) => Ordering::Less; "None vs Item")]
-    #[test_case(&Some(ParseError::new(PECode::Generic, 1)), &None => Ordering::Greater; "Item vs None")]
-    #[test_case(&Some(ParseError::new(PECode::Generic, 10)), &Some(ParseError::new(PECode::Generic, 11)) => Ordering::Less; "Item vs Item")]
-    fn compare_option(e1: &Option<ParseError>, e2: &Option<ParseError>) -> Ordering {
+    #[test_case(None, None => Ordering::Equal; "all none")]
+    #[test_case(None, Some(&ParseError::new(PECode::Generic, 1)) => Ordering::Less; "None vs Item")]
+    #[test_case(Some(&ParseError::new(PECode::Generic, 1)), None => Ordering::Greater; "Item vs None")]
+    #[test_case(Some(&ParseError::new(PECode::Generic, 10)), Some(&ParseError::new(PECode::Generic, 11)) => Ordering::Less; "Item vs Item")]
+    fn compare_option(e1: Option<&ParseError>, e2: Option<&ParseError>) -> Ordering {
         ParseError::compare_option(e1, e2)
     }
 }

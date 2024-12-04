@@ -1084,7 +1084,7 @@ impl fmt::Debug for GlobalEnvironmentRecord {
 }
 
 pub struct ConciseGlobalEnvironmentRecord<'a>(pub &'a GlobalEnvironmentRecord);
-impl<'a> fmt::Debug for ConciseGlobalEnvironmentRecord<'a> {
+impl fmt::Debug for ConciseGlobalEnvironmentRecord<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.concise(f)
     }

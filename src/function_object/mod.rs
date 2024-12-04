@@ -181,7 +181,7 @@ pub enum BodySource {
     ClassStaticBlockBody(Rc<ClassStaticBlockBody>),
 }
 pub struct ConciseBodySource<'a>(&'a BodySource);
-impl<'a> fmt::Debug for ConciseBodySource<'a> {
+impl fmt::Debug for ConciseBodySource<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
     }
@@ -361,7 +361,7 @@ pub enum ParamSource {
 }
 
 pub struct ConciseParamSource<'a>(&'a ParamSource);
-impl<'a> fmt::Debug for ConciseParamSource<'a> {
+impl fmt::Debug for ConciseParamSource<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
     }
@@ -1232,6 +1232,9 @@ fn ordinary_call_bind_this(func: &Object, this_argument: ECMAScriptValue) {
     //      initialized.
     //   9. Perform ! localEnv.BindThisValue(thisValue).
     //  10. Return unused.
+    let name = to_string(func.get(&PropertyKey::from("name")).unwrap_or_else(|_| ECMAScriptValue::from("[anonymous]")))
+        .unwrap();
+    println!("BUGHUNT: Entering function {name}; assigning {this_argument:?} to 'this'");
     let (this_mode, callee_realm) = {
         let function_data = func
             .o
@@ -1245,6 +1248,7 @@ fn ordinary_call_bind_this(func: &Object, this_argument: ECMAScriptValue) {
         }
         (this_mode, function_data.realm.clone())
     };
+    println!("BUGHUNT: This Mode: {this_mode:?}");
     let local_env = current_lexical_environment().expect("Context must have a lexical environment");
     let this_value = if this_mode == ThisMode::Strict {
         this_argument
@@ -2050,6 +2054,7 @@ pub fn ordinary_function_create(
     //  21. Let len be the ExpectedArgumentCount of ParameterList.
     //  22. Perform SetFunctionLength(F, len).
     //  23. Return F.
+    let strict = strict || body.contains_use_strict();
     let this_mode = match this_mode {
         ThisLexicality::LexicalThis => ThisMode::Lexical,
         ThisLexicality::NonLexicalThis => {
@@ -2464,7 +2469,7 @@ pub fn create_dynamic_function(
         ThisLexicality::NonLexicalThis,
         env,
         None,
-        false,
+        body_contains_use_strict,
         Rc::new(compiled),
     );
     set_function_name(&f, FunctionName::from("anonymous"), None);

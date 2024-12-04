@@ -11,7 +11,7 @@ pub struct ScriptRecord {
     pub compiled: Rc<Chunk>,
 }
 struct ConciseScript<'a>(&'a Script);
-impl<'a> fmt::Debug for ConciseScript<'a> {
+impl fmt::Debug for ConciseScript<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
     }

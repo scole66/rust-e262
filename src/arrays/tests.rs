@@ -16,10 +16,10 @@ mod array_object {
             PropertyInfo { name: PropertyKey::from("length"), enumerable: false, configurable: false, kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(100.0), writable: true}}
         ]); "hundred length")]
         #[test_case(7_294_967_295 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "over limit")]
-        fn normal(length: u64) -> Result<Vec<PropertyInfo>, String> {
+        fn normal(length: usize) -> Result<Vec<PropertyInfo>, String> {
             setup_test_agent();
 
-            let result = ArrayObject::create(length, None);
+            let result = ArrayObject::create(to_f64(length).unwrap(), None);
             match result {
                 Err(err) => Err(unwind_any_error(err)),
                 Ok(obj) => {
@@ -35,7 +35,7 @@ mod array_object {
             setup_test_agent();
             let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
 
-            let obj = ArrayObject::create(600, Some(object_proto.clone())).unwrap();
+            let obj = ArrayObject::create(600.0, Some(object_proto.clone())).unwrap();
             assert!(obj.is_array().unwrap());
             assert_eq!(obj.o.get_prototype_of().unwrap(), Some(object_proto));
         }
@@ -44,12 +44,12 @@ mod array_object {
     #[test]
     fn debug() {
         setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
+        let a = ArrayObject::create(0.0, None).unwrap();
         assert_ne!(format!("{a:?}"), "");
     }
 
     fn make() -> Object {
-        let o = ArrayObject::create(0, None).unwrap();
+        let o = ArrayObject::create(0.0, None).unwrap();
         let proto = o.o.get_prototype_of().unwrap().unwrap();
         proto.set("proto_sentinel", true, true).unwrap();
         o
@@ -89,7 +89,7 @@ mod array_object {
             configurable: bool,
         ) -> Result<(bool, Vec<PropertyInfo>), String> {
             setup_test_agent();
-            let a = ArrayObject::create(0, None).unwrap();
+            let a = ArrayObject::create(0.0, None).unwrap();
             let result = a.o.define_own_property(
                 key.into(),
                 PotentialPropertyDescriptor {
@@ -121,7 +121,7 @@ mod array_object {
             configurable: bool,
         ) -> Result<(bool, Vec<PropertyInfo>), String> {
             setup_test_agent();
-            let a = ArrayObject::create(100, None).unwrap();
+            let a = ArrayObject::create(100.0, None).unwrap();
             // Make the length property read-only
             a.o.define_own_property(
                 "length".into(),
@@ -148,7 +148,7 @@ mod array_object {
         #[test]
         fn read_only_elem() {
             setup_test_agent();
-            let a = ArrayObject::create(100, None).unwrap();
+            let a = ArrayObject::create(100.0, None).unwrap();
             // Make a read-only property with an array index
             a.o.define_own_property(
                 "30".into(),
@@ -201,7 +201,7 @@ mod array_object {
     #[test]
     fn set_() {
         setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
+        let a = ArrayObject::create(0.0, None).unwrap();
         let receiver: ECMAScriptValue = a.clone().into();
         let success = a.o.set("length".into(), 100.into(), &receiver).unwrap();
         assert!(success);
@@ -211,14 +211,14 @@ mod array_object {
     #[test]
     fn own_property_keys() {
         setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
+        let a = ArrayObject::create(0.0, None).unwrap();
         let list = a.o.own_property_keys().unwrap();
         assert_eq!(list, vec!["length".into()]);
     }
     #[test]
     fn is_array_object() {
         setup_test_agent();
-        let a = ArrayObject::create(0, None).unwrap();
+        let a = ArrayObject::create(0.0, None).unwrap();
         assert!(a.o.is_array_object());
     }
     false_function!(is_bigint_object);
@@ -340,7 +340,7 @@ mod array_object {
             ])); "length increase")]
         fn zero_elements(make_desc: fn() -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
             setup_test_agent();
-            let aobj = ArrayObject::create(0, None).unwrap();
+            let aobj = ArrayObject::create(0.0, None).unwrap();
             let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc();
 
@@ -350,7 +350,7 @@ mod array_object {
         #[test]
         fn readonly_length() {
             setup_test_agent();
-            let aobj = ArrayObject::create(9000, None).unwrap();
+            let aobj = ArrayObject::create(9000.0, None).unwrap();
             define_property_or_throw(
                 &aobj,
                 "length",
@@ -439,7 +439,7 @@ mod array_object {
         ])); "delete them all and lock")]
         fn three_elements(make_desc: fn() -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
             setup_test_agent();
-            let aobj = ArrayObject::create(9000, None).unwrap();
+            let aobj = ArrayObject::create(9000.0, None).unwrap();
             aobj.set("0", "blue", true).unwrap();
             aobj.set("100", "green", true).unwrap();
             aobj.set("500", "red", true).unwrap();
@@ -491,7 +491,7 @@ mod array_object {
         ])); "abort then freeze")]
         fn frozen_middle(make_desc: fn() -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
             setup_test_agent();
-            let aobj = ArrayObject::create(9000, None).unwrap();
+            let aobj = ArrayObject::create(9000.0, None).unwrap();
             aobj.set("0", "blue", true).unwrap();
             define_property_or_throw(
                 &aobj,
@@ -519,7 +519,7 @@ fn array_create() {
     setup_test_agent();
     let array_proto = intrinsic(IntrinsicId::ArrayPrototype);
     let custom_proto = ordinary_object_create(Some(array_proto));
-    let aobj = super::array_create(231, Some(custom_proto.clone())).unwrap();
+    let aobj = super::array_create(231.0, Some(custom_proto.clone())).unwrap();
     assert_eq!(aobj.o.get_prototype_of().unwrap(), Some(custom_proto));
     assert_eq!(aobj.get(&"length".into()).unwrap(), ECMAScriptValue::from(231.0));
     assert!(aobj.is_array().unwrap());
@@ -530,7 +530,7 @@ fn make_ordinary_object() -> ECMAScriptValue {
     ordinary_object_create(Some(proto)).into()
 }
 fn make_array_object() -> ECMAScriptValue {
-    super::array_create(10, None).unwrap().into()
+    super::array_create(10.0, None).unwrap().into()
 }
 #[test_case(make_ordinary_object => Ok(false); "ordinary object")]
 #[test_case(make_array_object => Ok(true); "array object")]
@@ -557,7 +557,7 @@ mod array_species_create {
     fn make_throwing_constructor_prop() -> Object {
         let proto = intrinsic(IntrinsicId::ArrayPrototype);
         let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
-        let obj = super::super::array_create(0, Some(proto)).unwrap();
+        let obj = super::super::array_create(0.0, Some(proto)).unwrap();
         let constructor_getter = create_builtin_function(
             Box::new(faux_errors),
             None,
@@ -584,7 +584,7 @@ mod array_species_create {
     }
     fn make_undefined_constructor_prop() -> Object {
         let proto = intrinsic(IntrinsicId::ArrayPrototype);
-        let obj = super::super::array_create(0, Some(proto)).unwrap();
+        let obj = super::super::array_create(0.0, Some(proto)).unwrap();
         define_property_or_throw(
             &obj,
             "constructor",
@@ -601,11 +601,11 @@ mod array_species_create {
     }
     fn make_plain_array() -> Object {
         let proto = intrinsic(IntrinsicId::ArrayPrototype);
-        super::super::array_create(5, Some(proto)).unwrap()
+        super::super::array_create(5.0, Some(proto)).unwrap()
     }
     fn make_primitive_constructor_prop() -> Object {
         let proto = intrinsic(IntrinsicId::ArrayPrototype);
-        let obj = super::super::array_create(0, Some(proto)).unwrap();
+        let obj = super::super::array_create(0.0, Some(proto)).unwrap();
         define_property_or_throw(
             &obj,
             "constructor",
@@ -621,7 +621,7 @@ mod array_species_create {
         obj
     }
 
-    #[test_case(make_ordinary, 10 => Ok(vec![
+    #[test_case(make_ordinary, 10.0 => Ok(vec![
         PropertyInfo {
             name: PropertyKey::from("length"),
             enumerable: false,
@@ -629,9 +629,9 @@ mod array_species_create {
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(10.0), writable: true },
         },
     ]); "not array")]
-    #[test_case(make_ordinary, 42_949_672_950 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "bad length")]
-    #[test_case(make_throwing_constructor_prop, 200 => Err("TypeError: Test Sentinel".to_string()); "get(constructor) throws")]
-    #[test_case(make_undefined_constructor_prop, 0 => Ok(vec![
+    #[test_case(make_ordinary, 42_949_672_950.0 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "bad length")]
+    #[test_case(make_throwing_constructor_prop, 200.0 => Err("TypeError: Test Sentinel".to_string()); "get(constructor) throws")]
+    #[test_case(make_undefined_constructor_prop, 0.0 => Ok(vec![
         PropertyInfo {
             name: PropertyKey::from("length"),
             enumerable: false,
@@ -639,8 +639,8 @@ mod array_species_create {
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(0.0), writable: true },
         },
     ]); "undefined constructor")]
-    #[test_case(make_undefined_constructor_prop, 42_949_672_950 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "undefined constructor plus bad length")]
-    #[test_case(make_plain_array, 542 => Ok(vec![
+    #[test_case(make_undefined_constructor_prop, 42_949_672_950.0 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "undefined constructor plus bad length")]
+    #[test_case(make_plain_array, 542.0 => Ok(vec![
         PropertyInfo {
             name: PropertyKey::from("length"),
             enumerable: false,
@@ -648,8 +648,8 @@ mod array_species_create {
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(542.0), writable: true },
         },
     ]); "plain array")]
-    #[test_case(make_primitive_constructor_prop, 10 => Err("TypeError: Array species constructor invalid".to_string()); "primitive in constructor")]
-    fn f(make_original: fn() -> Object, length: u64) -> Result<Vec<PropertyInfo>, String> {
+    #[test_case(make_primitive_constructor_prop, 10.0 => Err("TypeError: Array species constructor invalid".to_string()); "primitive in constructor")]
+    fn f(make_original: fn() -> Object, length: f64) -> Result<Vec<PropertyInfo>, String> {
         setup_test_agent();
         let original = make_original();
         array_species_create(&original, length)
@@ -669,7 +669,7 @@ fn defaults() {
     // These don't really test anything except the default implementations, but it does clear a fair few instantiations
     // out of the "uncovered" set.
     setup_test_agent();
-    let a = super::array_create(10, None).unwrap();
+    let a = super::array_create(0.0, None).unwrap();
     assert_eq!(a.o.is_date_object(), false);
     assert!(a.o.to_function_obj().is_none());
     assert!(a.o.to_builtin_function_obj().is_none());
@@ -683,37 +683,11 @@ fn defaults() {
     assert_eq!(a.o.is_proxy_object(), false);
 }
 
-#[test_case(super::array_of => panics "not yet implemented"; "array_of")]
-#[test_case(super::array_prototype_at => panics "not yet implemented"; "array_prototype_at")]
-#[test_case(super::array_prototype_concat => panics "not yet implemented"; "array_prototype_concat")]
-#[test_case(super::array_prototype_copy_within => panics "not yet implemented"; "array_prototype_copy_within")]
-#[test_case(super::array_prototype_entries => panics "not yet implemented"; "array_prototype_entries")]
-#[test_case(super::array_prototype_every => panics "not yet implemented"; "array_prototype_every")]
-#[test_case(super::array_prototype_fill => panics "not yet implemented"; "array_prototype_fill")]
-#[test_case(super::array_prototype_filter => panics "not yet implemented"; "array_prototype_filter")]
-#[test_case(super::array_prototype_find => panics "not yet implemented"; "array_prototype_find")]
-#[test_case(super::array_prototype_find_index => panics "not yet implemented"; "array_prototype_find_index")]
-#[test_case(super::array_prototype_find_last => panics "not yet implemented"; "array_prototype_find_last")]
-#[test_case(super::array_prototype_find_last_index => panics "not yet implemented"; "array_prototype_find_last_index")]
-#[test_case(super::array_prototype_flat => panics "not yet implemented"; "array_prototype_flat")]
-#[test_case(super::array_prototype_flat_map => panics "not yet implemented"; "array_prototype_flat_map")]
-#[test_case(super::array_prototype_includes => panics "not yet implemented"; "array_prototype_includes")]
-#[test_case(super::array_prototype_keys => panics "not yet implemented"; "array_prototype_keys")]
-#[test_case(super::array_prototype_last_index_of => panics "not yet implemented"; "array_prototype_last_index_of")]
-#[test_case(super::array_prototype_reduce => panics "not yet implemented"; "array_prototype_reduce")]
-#[test_case(super::array_prototype_reduce_right => panics "not yet implemented"; "array_prototype_reduce_right")]
-#[test_case(super::array_prototype_reverse => panics "not yet implemented"; "array_prototype_reverse")]
-#[test_case(super::array_prototype_shift => panics "not yet implemented"; "array_prototype_shift")]
-#[test_case(super::array_prototype_slice => panics "not yet implemented"; "array_prototype_slice")]
-#[test_case(super::array_prototype_some => panics "not yet implemented"; "array_prototype_some")]
-#[test_case(super::array_prototype_sort => panics "not yet implemented"; "array_prototype_sort")]
-#[test_case(super::array_prototype_splice => panics "not yet implemented"; "array_prototype_splice")]
 #[test_case(super::array_prototype_to_locale_string => panics "not yet implemented"; "array_prototype_to_locale_string")]
 #[test_case(super::array_prototype_to_reversed => panics "not yet implemented"; "array_prototype_to_reversed")]
 #[test_case(super::array_prototype_to_sorted => panics "not yet implemented"; "array_prototype_to_sorted")]
 #[test_case(super::array_prototype_to_spliced => panics "not yet implemented"; "array_prototype_to_spliced")]
 #[test_case(super::array_prototype_unshift => panics "not yet implemented"; "array_prototype_unshift")]
-#[test_case(super::array_prototype_with => panics "not yet implemented"; "array_prototype_with")]
 fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
     setup_test_agent();
     f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
@@ -1105,11 +1079,11 @@ mod key_value_kind {
             || ECMAScriptValue::Undefined
             => serr("TypeError: Symbol values cannot be converted to Number values")
             ; "length_of_array_like throws")]
-#[test_case(|| ECMAScriptValue::from(super::super::array_create(0, None).unwrap()),
+#[test_case(|| ECMAScriptValue::from(super::super::array_create(0.0, None).unwrap()),
             || ECMAScriptValue::from(wks(WksId::Unscopables))
             => serr("TypeError: Symbols may not be converted to strings")
             ; "ToString fails")]
-#[test_case(|| ECMAScriptValue::from(super::super::array_create(0, None).unwrap()),
+#[test_case(|| ECMAScriptValue::from(super::super::array_create(0.0, None).unwrap()),
             || ECMAScriptValue::Undefined
             => vok("")
             ; "empty array")]
@@ -1131,7 +1105,7 @@ mod key_value_kind {
             => serr("TypeError: Symbols may not be converted to strings")
             ; "symbol in elements")]
 #[test_case(|| {
-                    let obj = super::super::array_create(10, None).unwrap();
+                    let obj = super::super::array_create(10.0, None).unwrap();
                     let thrower = intrinsic(IntrinsicId::ThrowTypeError);
                     let ppd = PotentialPropertyDescriptor::new()
                         .get(ECMAScriptValue::from(thrower.clone()))
@@ -1183,7 +1157,7 @@ mod array_iterator {
     #[test_case(|| create_array_from_list(&[1.into(), 2.into()]), KeyValueKind::KeyValue => Ok(vec![0.into(), 1.into(), 1.into(), 2.into()]); "key values")]
     #[test_case(DeadObject::object, KeyValueKind::Key => serr("TypeError: get called on DeadObject"); "LengthOfArrayLike throws")]
     #[test_case(|| {
-                       let obj = array_create(10, None).unwrap();
+                       let obj = array_create(10.0, None).unwrap();
                        let thrower = intrinsic(IntrinsicId::ThrowTypeError);
                        let ppd = PotentialPropertyDescriptor::new()
                            .get(ECMAScriptValue::from(thrower.clone()))

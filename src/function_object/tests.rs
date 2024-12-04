@@ -1154,7 +1154,7 @@ mod function_object {
         let callable = duplicate.o.to_callable_obj().ok_or_else(|| "Callable wasn't actually callable".to_string())?;
         callable.call(&callable_obj, &this, &args);
         let stack_depth_delta = execution_context_stack_len() - starting_ec_stack_depth;
-        let arg_count = usize::try_from(
+        let arg_count = to_usize(
             ECMAScriptValue::try_from(ec_peek(0).ok_or_else(|| "Stack was empty".to_string())??)
                 .map_err(|e| e.to_string())?
                 .to_length()?,
@@ -1251,7 +1251,7 @@ mod function_object {
         let callable = duplicate.o.to_callable_obj().ok_or_else(|| "Callable wasn't actually callable".to_string())?;
         callable.construct(&callable_obj, &args, &new_target);
         let stack_depth_delta = execution_context_stack_len() - starting_ec_stack_depth;
-        let arg_count = usize::try_from(
+        let arg_count = to_usize(
             ECMAScriptValue::try_from(ec_peek(0).ok_or_else(|| "Stack was empty".to_string())??)
                 .map_err(|e| e.to_string())?
                 .to_length()?,
