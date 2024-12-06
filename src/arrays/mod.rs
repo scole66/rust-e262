@@ -1,27 +1,26 @@
+//! # Array Exotic Objects
+//!
+//! An Array is an exotic object that gives special treatment to array index property keys (see 6.1.7). A property whose
+//! property name is an array index is also called an element. Every Array has a non-configurable "length" property
+//! whose value is always a non-negative integral Number whose mathematical value is less than 2**32. The value of the
+//! "length" property is numerically greater than the name of every own property whose name is an array index; whenever
+//! an own property of an Array is created or changed, other properties are adjusted as necessary to maintain this
+//! invariant. Specifically, whenever an own property is added whose name is an array index, the value of the "length"
+//! property is changed, if necessary, to be one more than the numeric value of that array index; and whenever the value
+//! of the "length" property is changed, every own property whose name is an array index whose value is not smaller than
+//! the new length is deleted. This constraint applies only to own properties of an Array and is unaffected by "length"
+//! or array index properties that may be inherited from its prototypes.
+//!
+//! NOTE    A String property name P is an array index if and only if ToString(ToUint32(P)) equals P and ToUint32(P) is
+//!         not the same value as 𝔽(2**32 - 1).
+//!
+//! An object is an Array exotic object (or simply, an Array) if its \[\[DefineOwnProperty]] internal method uses the
+//! following implementation, and its other essential internal methods use the definitions found in 10.1. These methods
+//! are installed in ArrayCreate.
 use super::*;
 use genawaiter::rc::Co;
 use std::cell::RefCell;
 use std::rc::Rc;
-
-// Array Exotic Objects
-//
-// An Array is an exotic object that gives special treatment to array index property keys (see 6.1.7). A property whose
-// property name is an array index is also called an element. Every Array has a non-configurable "length" property
-// whose value is always a non-negative integral Number whose mathematical value is less than 2**32. The value of the
-// "length" property is numerically greater than the name of every own property whose name is an array index; whenever
-// an own property of an Array is created or changed, other properties are adjusted as necessary to maintain this
-// invariant. Specifically, whenever an own property is added whose name is an array index, the value of the "length"
-// property is changed, if necessary, to be one more than the numeric value of that array index; and whenever the value
-// of the "length" property is changed, every own property whose name is an array index whose value is not smaller than
-// the new length is deleted. This constraint applies only to own properties of an Array and is unaffected by "length"
-// or array index properties that may be inherited from its prototypes.
-//
-// NOTE |   A String property name P is an array index if and only if ToString(ToUint32(P)) equals P and ToUint32(P) is
-//      |   not the same value as 𝔽(2**32 - 1).
-//
-// An object is an Array exotic object (or simply, an Array) if its [[DefineOwnProperty]] internal method uses the
-// following implementation, and its other essential internal methods use the definitions found in 10.1. These methods
-// are installed in ArrayCreate.
 
 const ARRAY_INDEX_LIMIT: f64 = 9_007_199_254_740_991.0; // (2 ^ 53) - 1
 
@@ -145,24 +144,76 @@ impl ObjectInterface for ArrayObject {
     }
 }
 
+/// Create a new Array exotic object with the specified length and prototype
+///
+/// # Arguments
+/// * `length` - A non-negative number specifying the length of the array. Must be less than or equal to 2^32 - 1.
+/// * `proto` - Optional prototype object. If not provided, %Array.prototype% will be used.
+///
+/// # Returns
+/// Returns a `Completion<Object>` which is:
+/// * `Ok(Object)` - A new Array object with the specified length and prototype
+/// * `Err` - A RangeError if the length is greater than 2^32 - 1 (4,294,967,295)
+///
+/// # Description
+/// This function creates a new Array exotic object with the following characteristics:
+/// * The array's initial length is set to the specified length
+/// * The length property is non-enumerable, configurable=false, writable=true
+/// * The prototype is set to the provided proto argument or %Array.prototype% if none provided
+///
+/// # Example
+/// ```rust
+/// let array = array_create(5.0, None)?; // Creates array with length 5 and default prototype
+/// ```
 pub fn array_create(length: f64, proto: Option<Object>) -> Completion<Object> {
     ArrayObject::create(length, proto)
 }
 
 impl ArrayObject {
-    // ArrayCreate ( length [ , proto ] )
-    //
-    // The abstract operation ArrayCreate takes argument length (a non-negative integer) and optional argument proto.
-    // It is used to specify the creation of new Arrays. It performs the following steps when called:
-    //
-    //  1. If length > 2**32 - 1, throw a RangeError exception.
-    //  2. If proto is not present, set proto to %Array.prototype%.
-    //  3. Let A be ! MakeBasicObject(« [[Prototype]], [[Extensible]] »).
-    //  4. Set A.[[Prototype]] to proto.
-    //  5. Set A.[[DefineOwnProperty]] as specified in 10.4.2.1.
-    //  6. Perform ! OrdinaryDefineOwnProperty(A, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
-    //  7. Return A.
+    /// Creates a new Array exotic object according to the ECMAScript specification.
+    ///
+    /// # Arguments
+    /// * `length` - A non-negative number specifying the length of the array. Must be less than or equal to 2^32 - 1
+    ///   (4,294,967,295).
+    /// * `proto` - Optional prototype object. If not provided, %Array.prototype% will be used.
+    ///
+    /// # Returns
+    /// Returns a `Completion<Object>` which is:
+    /// * `Ok(Object)` - A new Array object with the specified length and prototype
+    /// * `Err` - A RangeError if the length exceeds the maximum allowed value (2^32 - 1)
+    ///
+    /// # Implementation Details
+    /// This method implements the ECMAScript ArrayCreate abstract operation with the following steps:
+    /// 1. Validates that length is within allowed range (≤ 2^32 - 1)
+    /// 2. Sets prototype to provided value or %Array.prototype% if none provided
+    /// 3. Creates a basic object with Array exotic behaviors
+    /// 4. Initializes the length property as non-enumerable, non-configurable, but writable
+    ///
+    /// # Example
+    /// ```rust
+    /// let array = ArrayObject::create(10.0, None)?; // Creates array with length 10 and default prototype
+    /// ```
+    ///
+    /// # ECMAScript Specification
+    /// Implements the ArrayCreate abstract operation as defined in ECMAScript, including:
+    /// * Length validation
+    /// * Prototype initialization
+    /// * Length property setup with attributes { \[\[Value]]: length, \[\[Writable]]: true, \[\[Enumerable]]: false,
+    ///   \[\[Configurable]]: false }
     pub fn create(length: f64, proto: Option<Object>) -> Completion<Object> {
+        // ArrayCreate ( length [ , proto ] )
+        //
+        // The abstract operation ArrayCreate takes argument length (a non-negative integer) and optional argument
+        // proto. It is used to specify the creation of new Arrays. It performs the following steps when called:
+        //
+        //  1. If length > 2**32 - 1, throw a RangeError exception.
+        //  2. If proto is not present, set proto to %Array.prototype%.
+        //  3. Let A be ! MakeBasicObject(« [[Prototype]], [[Extensible]] »).
+        //  4. Set A.[[Prototype]] to proto.
+        //  5. Set A.[[DefineOwnProperty]] as specified in 10.4.2.1.
+        //  6. Perform ! OrdinaryDefineOwnProperty(A, "length", PropertyDescriptor { [[Value]]: 𝔽(length),
+        //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+        //  7. Return A.
         if length > 4_294_967_295.0 {
             return Err(create_range_error("Array lengths greater than 4294967295 are not allowed"));
         }
@@ -173,58 +224,141 @@ impl ArrayObject {
             "length",
             PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(false),
         )
-        .unwrap();
+        .expect("Setting length property on new Array should never fail");
         Ok(a)
     }
 
+    /// Creates a new Array exotic object with internal state.
+    ///
+    /// # Arguments
+    /// * `prototype` - Optional prototype object to set as the Array's \[\[Prototype]]. If None, 
+    ///                 the default Array prototype will be used.
+    ///
+    /// # Returns
+    /// Returns a new ArrayObject instance with:
+    /// * The specified prototype (or default if None)
+    /// * Extensible flag set to true
+    /// * Pre-allocated slots for Array-specific internal data
+    ///
+    /// # Implementation Details
+    /// Initializes an ArrayObject with:
+    /// * Common object data stored in a RefCell
+    /// * ARRAY_OBJECT_SLOTS pre-allocated for internal Array properties
+    /// * Extensible flag enabled
+    ///
+    /// # Example
+    /// ```rust
+    /// let array = ArrayObject::new(None); // Creates array with default prototype
+    /// ```
     pub fn new(prototype: Option<Object>) -> Self {
         Self { common: RefCell::new(CommonObjectData::new(prototype, true, ARRAY_OBJECT_SLOTS)) }
     }
+    /// Creates a new Array exotic object wrapped in a shared reference.
+    ///
+    /// # Arguments
+    /// * `prototype` - Optional prototype object to set as the Array's \[\[Prototype]]. If None,
+    ///                 the default Array prototype will be used.
+    ///
+    /// # Returns
+    /// Returns an `Object` containing a reference-counted ArrayObject with:
+    /// * The specified prototype (or default if None)
+    /// * Extensible flag set to true
+    /// * Pre-allocated slots for Array-specific internal data
+    ///
+    /// # Implementation Details
+    /// This is a convenience constructor that:
+    /// * Creates a new ArrayObject using `Array::new`
+    /// * Wraps it in an `Rc` (reference count) smart pointer
+    /// * Returns it as an `Object` type for higher-level operations
+    ///
+    /// # Example
+    /// ```rust
+    /// let array = ArrayObject::object(None); // Creates reference-counted array with default prototype
+    /// ```
     pub fn object(prototype: Option<Object>) -> Object {
         Object { o: Rc::new(Self::new(prototype)) }
     }
 
-    // ArraySetLength ( A, Desc )
-    //
-    // The abstract operation ArraySetLength takes arguments A (an Array) and Desc (a Property Descriptor). It performs
-    // the following steps when called:
-    //
-    //  1. If Desc.[[Value]] is absent, then
-    //      a. Return OrdinaryDefineOwnProperty(A, "length", Desc).
-    //  2. Let newLenDesc be a copy of Desc.
-    //  3. Let newLen be ? ToUint32(Desc.[[Value]]).
-    //  4. Let numberLen be ? ToNumber(Desc.[[Value]]).
-    //  5. If SameValueZero(newLen, numberLen) is false, throw a RangeError exception.
-    //  6. Set newLenDesc.[[Value]] to newLen.
-    //  7. Let oldLenDesc be OrdinaryGetOwnProperty(A, "length").
-    //  8. Assert: ! IsDataDescriptor(oldLenDesc) is true.
-    //  9. Assert: oldLenDesc.[[Configurable]] is false.
-    //  10. Let oldLen be oldLenDesc.[[Value]].
-    //  11. If newLen ≥ oldLen, then
-    //      a. Return OrdinaryDefineOwnProperty(A, "length", newLenDesc).
-    //  12. If oldLenDesc.[[Writable]] is false, return false.
-    //  13. If newLenDesc.[[Writable]] is absent or has the value true, let newWritable be true.
-    //  14. Else,
-    //      a. NOTE: Setting the [[Writable]] attribute to false is deferred in case any elements cannot be deleted.
-    //      b. Let newWritable be false.
-    //      c. Set newLenDesc.[[Writable]] to true.
-    //  15. Let succeeded be ! OrdinaryDefineOwnProperty(A, "length", newLenDesc).
-    //  16. If succeeded is false, return false.
-    //  17. For each own property key P of A that is an array index, whose numeric value is greater than or equal to newLen, in descending numeric index order, do
-    //      a. Let deleteSucceeded be ! A.[[Delete]](P).
-    //      b. If deleteSucceeded is false, then
-    //          i. Set newLenDesc.[[Value]] to ! ToUint32(P) + 1𝔽.
-    //          ii. If newWritable is false, set newLenDesc.[[Writable]] to false.
-    //          iii. Perform ! OrdinaryDefineOwnProperty(A, "length", newLenDesc).
-    //          iv. Return false.
-    //  18. If newWritable is false, then
-    //      a. Set succeeded to ! OrdinaryDefineOwnProperty(A, "length", PropertyDescriptor { [[Writable]]: false }).
-    //      b. Assert: succeeded is true.
-    //  19. Return true.
-    //
-    // NOTE |   In steps 3 and 4, if Desc.[[Value]] is an object then its valueOf method is called twice. This is
-    //      |   legacy behaviour that was specified with this effect starting with the 2nd Edition of this specification.
+    /// Sets the length property of an Array object according to ECMAScript specifications.
+    ///
+    /// # Arguments
+    /// * `descriptor` - A property descriptor containing the new length value and property attributes
+    ///
+    /// # Returns
+    /// Returns a `Completion<bool>` which is:
+    /// * `Ok(true)` - Length was successfully set
+    /// * `Ok(false)` - Length could not be set (e.g., when trying to set non-writable length)
+    /// * `Err` - RangeError if the new length value is invalid
+    ///
+    /// # Behavior
+    /// This method implements the ArraySetLength abstract operation with the following rules:
+    /// * If the new length would be greater than 2^32 - 1, throws a RangeError
+    /// * If the array is being shortened, attempts to delete elements above the new length
+    /// * Handles the array's \[\[Writable]] attribute appropriately
+    /// * Maintains consistency between length and actual array elements
+    ///
+    /// # Edge Cases
+    /// * If length property is non-writable, returns false
+    /// * If array shortening fails due to non-configurable elements, restores original length
+    /// * When setting \[\[Writable]] to false, defers until all elements are successfully deleted
+    ///
+    /// # Example
+    /// ```rust
+    /// let desc = PotentialPropertyDescriptor::new()
+    ///     .value(5.0)
+    ///     .writable(true)
+    ///     .enumerable(false)
+    ///     .configurable(false);
+    /// array.set_length(desc)?;
+    /// ```
+    ///
+    /// # ECMAScript Specification
+    /// Implements the ArraySetLength abstract operation including:
+    /// * Length validation and conversion
+    /// * Element deletion for shortened arrays
+    /// * Proper handling of the \[\[Writable]] attribute
+    /// * Maintaining array integrity during modifications
     fn set_length(&self, descriptor: PotentialPropertyDescriptor) -> Completion<bool> {
+        // ArraySetLength ( A, Desc )
+        //
+        // The abstract operation ArraySetLength takes arguments A (an Array) and Desc (a Property Descriptor). It performs
+        // the following steps when called:
+        //
+        //  1. If Desc.[[Value]] is absent, then
+        //      a. Return OrdinaryDefineOwnProperty(A, "length", Desc).
+        //  2. Let newLenDesc be a copy of Desc.
+        //  3. Let newLen be ? ToUint32(Desc.[[Value]]).
+        //  4. Let numberLen be ? ToNumber(Desc.[[Value]]).
+        //  5. If SameValueZero(newLen, numberLen) is false, throw a RangeError exception.
+        //  6. Set newLenDesc.[[Value]] to newLen.
+        //  7. Let oldLenDesc be OrdinaryGetOwnProperty(A, "length").
+        //  8. Assert: ! IsDataDescriptor(oldLenDesc) is true.
+        //  9. Assert: oldLenDesc.[[Configurable]] is false.
+        //  10. Let oldLen be oldLenDesc.[[Value]].
+        //  11. If newLen ≥ oldLen, then
+        //      a. Return OrdinaryDefineOwnProperty(A, "length", newLenDesc).
+        //  12. If oldLenDesc.[[Writable]] is false, return false.
+        //  13. If newLenDesc.[[Writable]] is absent or has the value true, let newWritable be true.
+        //  14. Else,
+        //      a. NOTE: Setting the [[Writable]] attribute to false is deferred in case any elements cannot be deleted.
+        //      b. Let newWritable be false.
+        //      c. Set newLenDesc.[[Writable]] to true.
+        //  15. Let succeeded be ! OrdinaryDefineOwnProperty(A, "length", newLenDesc).
+        //  16. If succeeded is false, return false.
+        //  17. For each own property key P of A that is an array index, whose numeric value is greater than or equal to newLen, in descending numeric index order, do
+        //      a. Let deleteSucceeded be ! A.[[Delete]](P).
+        //      b. If deleteSucceeded is false, then
+        //          i. Set newLenDesc.[[Value]] to ! ToUint32(P) + 1𝔽.
+        //          ii. If newWritable is false, set newLenDesc.[[Writable]] to false.
+        //          iii. Perform ! OrdinaryDefineOwnProperty(A, "length", newLenDesc).
+        //          iv. Return false.
+        //  18. If newWritable is false, then
+        //      a. Set succeeded to ! OrdinaryDefineOwnProperty(A, "length", PropertyDescriptor { [[Writable]]: false }).
+        //      b. Assert: succeeded is true.
+        //  19. Return true.
+        //
+        // NOTE |   In steps 3 and 4, if Desc.[[Value]] is an object then its valueOf method is called twice. This is
+        //      |   legacy behaviour that was specified with this effect starting with the 2nd Edition of this specification.
         if descriptor.value.is_none() {
             return ordinary_define_own_property(self, PropertyKey::from("length"), descriptor);
         }
@@ -679,6 +813,45 @@ fn array_constructor_function(
     }
 }
 
+/// Creates a new Array instance from an array-like or iterable object.
+///
+/// # Arguments
+/// * `this_value` - The constructor to use (the 'this' value when Array.from is called)
+/// * `new_target` - Optional constructor that was invoked via 'new'
+/// * `arguments` - Array of arguments containing:
+///   - items: The source array-like or iterable object to convert
+///   - mapper: Optional mapping function to call on every element
+///   - thisArg: Optional value to use as 'this' when executing mapper
+///
+/// # Returns
+/// Returns a `Completion<ECMAScriptValue>` which is:
+/// * `Ok(ECMAScriptValue)` - A new Array instance containing the elements from the source
+/// * `Err` - A TypeError if the source is invalid, mapping fails, or constructor is invalid
+///
+/// # Behavior
+/// * Creates a new Array from:
+///   - Iterable objects (using their [Symbol.iterator])
+///   - Array-like objects (objects with a length property and indexed elements)
+/// * Never creates sparse arrays (missing indices become undefined)
+/// * If mapper is provided, calls it on each element as: mapper(element, index)
+/// * Uses the constructor ('this' value) to create the new array if it's a constructor
+/// * Falls back to creating a default Array if 'this' is not a constructor
+///
+/// # Examples
+/// ```rust
+/// // From array-like object
+/// let array = array_from(&array_constructor, None, &[items, None, None])?;
+///
+/// // With mapping function
+/// let array = array_from(&array_constructor, None, &[items, Some(mapper), Some(this_arg)])?;
+/// ```
+///
+/// # ECMAScript Specification
+/// Implements [`Array.from()`](https://tc39.es/ecma262/multipage/indexed-collections.html#sec-array.from) with:
+/// * Full iterable and array-like object support
+/// * Optional mapping function application
+/// * Proper 'this' binding for mapping function
+/// * Correct handling of inherited properties
 fn array_from(
     this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
