@@ -439,9 +439,7 @@ impl LexicalBinding {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            LexicalBinding::Identifier(bi, opt) => {
-                bi.contains(kind) || opt.as_ref().is_some_and(|n| n.contains(kind))
-            }
+            LexicalBinding::Identifier(bi, opt) => bi.contains(kind) || opt.as_ref().is_some_and(|n| n.contains(kind)),
             LexicalBinding::Pattern(bp, i) => bp.contains(kind) || i.contains(kind),
         }
     }

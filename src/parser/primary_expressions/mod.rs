@@ -1105,9 +1105,7 @@ impl ArrayLiteral {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ArrayLiteral::Empty { elision: pot_elision, .. } => {
-                pot_elision.as_ref().is_some_and(|n| n.contains(kind))
-            }
+            ArrayLiteral::Empty { elision: pot_elision, .. } => pot_elision.as_ref().is_some_and(|n| n.contains(kind)),
             ArrayLiteral::ElementList { el: boxed, .. } => boxed.contains(kind),
             ArrayLiteral::ElementListElision { el: boxed, elision: pot_elision, .. } => {
                 boxed.contains(kind) || pot_elision.as_ref().is_some_and(|n| n.contains(kind))
