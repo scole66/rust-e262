@@ -880,16 +880,16 @@ impl ElementList {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ElementList::AssignmentExpression { elision, ae } => {
-                elision.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind)
+                elision.as_ref().is_some_and(|n| n.contains(kind)) || ae.contains(kind)
             }
             ElementList::SpreadElement { elision, se } => {
-                elision.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind)
+                elision.as_ref().is_some_and(|n| n.contains(kind)) || se.contains(kind)
             }
             ElementList::ElementListAssignmentExpression { el, elision, ae } => {
-                el.contains(kind) || elision.as_ref().map_or(false, |n| n.contains(kind)) || ae.contains(kind)
+                el.contains(kind) || elision.as_ref().is_some_and(|n| n.contains(kind)) || ae.contains(kind)
             }
             ElementList::ElementListSpreadElement { el, elision, se } => {
-                el.contains(kind) || elision.as_ref().map_or(false, |n| n.contains(kind)) || se.contains(kind)
+                el.contains(kind) || elision.as_ref().is_some_and(|n| n.contains(kind)) || se.contains(kind)
             }
         }
     }
@@ -1105,12 +1105,10 @@ impl ArrayLiteral {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ArrayLiteral::Empty { elision: pot_elision, .. } => {
-                pot_elision.as_ref().map_or(false, |n| n.contains(kind))
-            }
+            ArrayLiteral::Empty { elision: pot_elision, .. } => pot_elision.as_ref().is_some_and(|n| n.contains(kind)),
             ArrayLiteral::ElementList { el: boxed, .. } => boxed.contains(kind),
             ArrayLiteral::ElementListElision { el: boxed, elision: pot_elision, .. } => {
-                boxed.contains(kind) || pot_elision.as_ref().map_or(false, |n| n.contains(kind))
+                boxed.contains(kind) || pot_elision.as_ref().is_some_and(|n| n.contains(kind))
             }
         }
     }

@@ -699,21 +699,21 @@ impl ForStatement {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ForStatement::For(opt1, opt2, opt3, s, _) => {
-                opt1.as_ref().map_or(false, |n| n.contains(kind))
-                    || opt2.as_ref().map_or(false, |n| n.contains(kind))
-                    || opt3.as_ref().map_or(false, |n| n.contains(kind))
+                opt1.as_ref().is_some_and(|n| n.contains(kind))
+                    || opt2.as_ref().is_some_and(|n| n.contains(kind))
+                    || opt3.as_ref().is_some_and(|n| n.contains(kind))
                     || s.contains(kind)
             }
             ForStatement::ForVar(v, opt1, opt2, s, _) => {
                 v.contains(kind)
-                    || opt1.as_ref().map_or(false, |n| n.contains(kind))
-                    || opt2.as_ref().map_or(false, |n| n.contains(kind))
+                    || opt1.as_ref().is_some_and(|n| n.contains(kind))
+                    || opt2.as_ref().is_some_and(|n| n.contains(kind))
                     || s.contains(kind)
             }
             ForStatement::ForLex(lex, opt1, opt2, s, _) => {
                 lex.contains(kind)
-                    || opt1.as_ref().map_or(false, |n| n.contains(kind))
-                    || opt2.as_ref().map_or(false, |n| n.contains(kind))
+                    || opt1.as_ref().is_some_and(|n| n.contains(kind))
+                    || opt2.as_ref().is_some_and(|n| n.contains(kind))
                     || s.contains(kind)
             }
         }
@@ -778,21 +778,21 @@ impl ForStatement {
         let oe_check = |e: &Rc<Expression>| e.contains_arguments();
         match self {
             ForStatement::For(oe1, oe2, oe3, s, _) => {
-                oe1.as_ref().map_or(false, oe_check)
-                    || oe2.as_ref().map_or(false, oe_check)
-                    || oe3.as_ref().map_or(false, oe_check)
+                oe1.as_ref().is_some_and(oe_check)
+                    || oe2.as_ref().is_some_and(oe_check)
+                    || oe3.as_ref().is_some_and(oe_check)
                     || s.contains_arguments()
             }
             ForStatement::ForVar(v, oe1, oe2, s, _) => {
                 v.contains_arguments()
-                    || oe1.as_ref().map_or(false, oe_check)
-                    || oe2.as_ref().map_or(false, oe_check)
+                    || oe1.as_ref().is_some_and(oe_check)
+                    || oe2.as_ref().is_some_and(oe_check)
                     || s.contains_arguments()
             }
             ForStatement::ForLex(ld, oe1, oe2, s, _) => {
                 ld.contains_arguments()
-                    || oe1.as_ref().map_or(false, oe_check)
-                    || oe2.as_ref().map_or(false, oe_check)
+                    || oe1.as_ref().is_some_and(oe_check)
+                    || oe2.as_ref().is_some_and(oe_check)
                     || s.contains_arguments()
             }
         }

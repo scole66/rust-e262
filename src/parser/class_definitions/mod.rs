@@ -234,7 +234,7 @@ impl ClassExpression {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.ident.as_ref().map_or(false, |n| n.contains(kind)) || self.tail.contains(kind)
+        self.ident.as_ref().is_some_and(|n| n.contains(kind)) || self.tail.contains(kind)
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -384,8 +384,8 @@ impl ClassTail {
             ParseNodeKind::ClassBody => self.body.is_some(),
             ParseNodeKind::ClassHeritage => self.heritage.is_some(),
             _ => {
-                self.heritage.as_ref().map_or(false, |n| n.contains(kind))
-                    || self.body.as_ref().map_or(false, |n| n.computed_property_contains(kind))
+                self.heritage.as_ref().is_some_and(|n| n.contains(kind))
+                    || self.body.as_ref().is_some_and(|n| n.computed_property_contains(kind))
             }
         }
     }
@@ -412,8 +412,8 @@ impl ClassTail {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.heritage.as_ref().map_or(false, |ch| ch.contains_arguments())
-            || self.body.as_ref().map_or(false, |cb| cb.contains_arguments())
+        self.heritage.as_ref().is_some_and(|ch| ch.contains_arguments())
+            || self.body.as_ref().is_some_and(|cb| cb.contains_arguments())
     }
 
     /// Add the early errors of this node and its children to the error list.
@@ -1434,7 +1434,7 @@ impl FieldDefinition {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.name.contains(kind) || self.init.as_ref().map_or(false, |n| n.contains(kind))
+        self.name.contains(kind) || self.init.as_ref().is_some_and(|n| n.contains(kind))
     }
 
     pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
@@ -1470,7 +1470,7 @@ impl FieldDefinition {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.name.contains_arguments() || self.init.as_ref().map_or(false, |izer| izer.contains_arguments())
+        self.name.contains_arguments() || self.init.as_ref().is_some_and(|izer| izer.contains_arguments())
     }
 
     /// Add the early errors of this node and its children to the error list.

@@ -32,7 +32,7 @@ impl ObjectInterface for ProxyObject {
     fn to_callable_obj(&self) -> Option<&dyn CallableObject> {
         let proxy_items = self.proxy_items.borrow();
 
-        if proxy_items.as_ref().map_or(false, |items| items.proxy_target.o.is_callable_obj()) {
+        if proxy_items.as_ref().is_some_and(|items| items.proxy_target.o.is_callable_obj()) {
             Some(self)
         } else {
             None
@@ -42,7 +42,7 @@ impl ObjectInterface for ProxyObject {
     fn is_callable_obj(&self) -> bool {
         let proxy_items = self.proxy_items.borrow();
 
-        proxy_items.as_ref().map_or(false, |items| items.proxy_target.o.is_callable_obj())
+        proxy_items.as_ref().is_some_and(|items| items.proxy_target.o.is_callable_obj())
     }
     fn kind(&self) -> ObjectTag {
         let proxy_items = self.proxy_items.borrow();
@@ -52,7 +52,7 @@ impl ObjectInterface for ProxyObject {
 
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let proxy_items = self.proxy_items.borrow();
-        if proxy_items.as_ref().map_or(false, |items| items.proxy_target.is_constructor()) {
+        if proxy_items.as_ref().is_some_and(|items| items.proxy_target.is_constructor()) {
             Some(self)
         } else {
             None

@@ -439,9 +439,7 @@ impl LexicalBinding {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            LexicalBinding::Identifier(bi, opt) => {
-                bi.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind))
-            }
+            LexicalBinding::Identifier(bi, opt) => bi.contains(kind) || opt.as_ref().is_some_and(|n| n.contains(kind)),
             LexicalBinding::Pattern(bp, i) => bp.contains(kind) || i.contains(kind),
         }
     }
@@ -1535,14 +1533,14 @@ impl ArrayBindingPattern {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ArrayBindingPattern::RestOnly { elision: onode_a, bre: onode_b, .. } => {
-                onode_a.as_ref().map_or(false, |node| node.contains(kind))
-                    || onode_b.as_ref().map_or(false, |node| node.contains(kind))
+                onode_a.as_ref().is_some_and(|node| node.contains(kind))
+                    || onode_b.as_ref().is_some_and(|node| node.contains(kind))
             }
             ArrayBindingPattern::ListOnly { bel: node, .. } => node.contains(kind),
             ArrayBindingPattern::ListRest { bel: node, elision: onode_a, bre: onode_b, .. } => {
                 node.contains(kind)
-                    || onode_a.as_ref().map_or(false, |node| node.contains(kind))
-                    || onode_b.as_ref().map_or(false, |node| node.contains(kind))
+                    || onode_a.as_ref().is_some_and(|node| node.contains(kind))
+                    || onode_b.as_ref().is_some_and(|node| node.contains(kind))
             }
         }
     }
@@ -1579,11 +1577,11 @@ impl ArrayBindingPattern {
         //  2. Return false.
         match self {
             ArrayBindingPattern::RestOnly { bre: obre, .. } => {
-                obre.as_ref().map_or(false, |bre| bre.contains_arguments())
+                obre.as_ref().is_some_and(|bre| bre.contains_arguments())
             }
             ArrayBindingPattern::ListOnly { bel, .. } => bel.contains_arguments(),
             ArrayBindingPattern::ListRest { bel, bre: obre, .. } => {
-                bel.contains_arguments() || obre.as_ref().map_or(false, |bre| bre.contains_arguments())
+                bel.contains_arguments() || obre.as_ref().is_some_and(|bre| bre.contains_arguments())
             }
         }
     }
@@ -2041,7 +2039,7 @@ impl BindingElisionElement {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let BindingElisionElement::Element(opt, n) = self;
-        opt.as_ref().map_or(false, |n| n.contains(kind)) || n.contains(kind)
+        opt.as_ref().is_some_and(|n| n.contains(kind)) || n.contains(kind)
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -2321,7 +2319,7 @@ impl BindingElement {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             BindingElement::Single(n) => n.contains(kind),
-            BindingElement::Pattern(n, opt) => n.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind)),
+            BindingElement::Pattern(n, opt) => n.contains(kind) || opt.as_ref().is_some_and(|n| n.contains(kind)),
         }
     }
 
@@ -2355,7 +2353,7 @@ impl BindingElement {
         match self {
             BindingElement::Single(snb) => snb.contains_arguments(),
             BindingElement::Pattern(bp, oizer) => {
-                bp.contains_arguments() || oizer.as_ref().map_or(false, |izer| izer.contains_arguments())
+                bp.contains_arguments() || oizer.as_ref().is_some_and(|izer| izer.contains_arguments())
             }
         }
     }
@@ -2494,7 +2492,7 @@ impl SingleNameBinding {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let SingleNameBinding::Id(ident, opt) = self;
-        ident.contains(kind) || opt.as_ref().map_or(false, |n| n.contains(kind))
+        ident.contains(kind) || opt.as_ref().is_some_and(|n| n.contains(kind))
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -2520,7 +2518,7 @@ impl SingleNameBinding {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         let SingleNameBinding::Id(_, oizer) = self;
-        oizer.as_ref().map_or(false, |izer| izer.contains_arguments())
+        oizer.as_ref().is_some_and(|izer| izer.contains_arguments())
     }
 
     pub fn is_simple_parameter_list(&self) -> bool {

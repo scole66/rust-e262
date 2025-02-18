@@ -1,3 +1,4 @@
+#![expect(clippy::bool_assert_comparison)]
 #![expect(clippy::clone_on_copy)]
 use super::*;
 use crate::testhelp::*;
