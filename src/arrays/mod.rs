@@ -2,17 +2,17 @@
 //!
 //! An Array is an exotic object that gives special treatment to array index property keys (see 6.1.7). A property whose
 //! property name is an array index is also called an element. Every Array has a non-configurable "length" property
-//! whose value is always a non-negative integral Number whose mathematical value is less than 2**32. The value of the
-//! "length" property is numerically greater than the name of every own property whose name is an array index; whenever
-//! an own property of an Array is created or changed, other properties are adjusted as necessary to maintain this
-//! invariant. Specifically, whenever an own property is added whose name is an array index, the value of the "length"
-//! property is changed, if necessary, to be one more than the numeric value of that array index; and whenever the value
-//! of the "length" property is changed, every own property whose name is an array index whose value is not smaller than
-//! the new length is deleted. This constraint applies only to own properties of an Array and is unaffected by "length"
-//! or array index properties that may be inherited from its prototypes.
+//! whose value is always a non-negative integral Number whose mathematical value is less than 2<sup>32</sup>. The value
+//! of the "length" property is numerically greater than the name of every own property whose name is an array index;
+//! whenever an own property of an Array is created or changed, other properties are adjusted as necessary to maintain
+//! this invariant. Specifically, whenever an own property is added whose name is an array index, the value of the
+//! "length" property is changed, if necessary, to be one more than the numeric value of that array index; and whenever
+//! the value of the "length" property is changed, every own property whose name is an array index whose value is not
+//! smaller than the new length is deleted. This constraint applies only to own properties of an Array and is unaffected
+//! by "length" or array index properties that may be inherited from its prototypes.
 //!
-//! NOTE    A String property name P is an array index if and only if ToString(ToUint32(P)) equals P and ToUint32(P) is
-//!         not the same value as 𝔽(2**32 - 1).
+//! NOTE    A String property name `P` is an array index if and only if `ToString(ToUint32(P))` equals `P` and
+//!         `ToUint32(P)` is not the same value as 𝔽(2<sup>32</sup> - 1).
 //!
 //! An object is an Array exotic object (or simply, an Array) if its \[\[DefineOwnProperty]] internal method uses the
 //! following implementation, and its other essential internal methods use the definitions found in 10.1. These methods
@@ -147,19 +147,19 @@ impl ObjectInterface for ArrayObject {
 /// Create a new Array exotic object with the specified length and prototype
 ///
 /// # Arguments
-/// * `length` - A non-negative number specifying the length of the array. Must be less than or equal to 2^32 - 1.
-/// * `proto` - Optional prototype object. If not provided, %Array.prototype% will be used.
+/// * `length` - A non-negative number specifying the length of the array. Must be less than or equal to 2<sup>32</sup> - 1.
+/// * `proto` - Optional prototype object. If not provided, `%Array.prototype%` will be used.
 ///
 /// # Returns
 /// Returns a `Completion<Object>` which is:
 /// * `Ok(Object)` - A new Array object with the specified length and prototype
-/// * `Err` - A RangeError if the length is greater than 2^32 - 1 (4,294,967,295)
+/// * `Err` - A RangeError if the length is greater than 2<sup>32</sup> - 1 (4,294,967,295)
 ///
 /// # Description
 /// This function creates a new Array exotic object with the following characteristics:
 /// * The array's initial length is set to the specified length
 /// * The length property is non-enumerable, configurable=false, writable=true
-/// * The prototype is set to the provided proto argument or %Array.prototype% if none provided
+/// * The prototype is set to the provided proto argument or `%Array.prototype%` if none provided
 ///
 /// # Example
 /// ```rust
@@ -173,19 +173,19 @@ impl ArrayObject {
     /// Creates a new Array exotic object according to the ECMAScript specification.
     ///
     /// # Arguments
-    /// * `length` - A non-negative number specifying the length of the array. Must be less than or equal to 2^32 - 1
+    /// * `length` - A non-negative number specifying the length of the array. Must be less than or equal to 2<sup>32</sup> - 1
     ///   (4,294,967,295).
-    /// * `proto` - Optional prototype object. If not provided, %Array.prototype% will be used.
+    /// * `proto` - Optional prototype object. If not provided, `%Array.prototype%` will be used.
     ///
     /// # Returns
     /// Returns a `Completion<Object>` which is:
     /// * `Ok(Object)` - A new Array object with the specified length and prototype
-    /// * `Err` - A RangeError if the length exceeds the maximum allowed value (2^32 - 1)
+    /// * `Err` - A RangeError if the length exceeds the maximum allowed value (2<sup>32</sup> - 1)
     ///
     /// # Implementation Details
     /// This method implements the ECMAScript ArrayCreate abstract operation with the following steps:
-    /// 1. Validates that length is within allowed range (≤ 2^32 - 1)
-    /// 2. Sets prototype to provided value or %Array.prototype% if none provided
+    /// 1. Validates that length is within allowed range (≤ 2<sup>32</sup> - 1)
+    /// 2. Sets prototype to provided value or `%Array.prototype%` if none provided
     /// 3. Creates a basic object with Array exotic behaviors
     /// 4. Initializes the length property as non-enumerable, non-configurable, but writable
     ///
@@ -231,7 +231,7 @@ impl ArrayObject {
     /// Creates a new Array exotic object with internal state.
     ///
     /// # Arguments
-    /// * `prototype` - Optional prototype object to set as the Array's \[\[Prototype]]. If None, 
+    /// * `prototype` - Optional prototype object to set as the Array's \[\[Prototype]]. If None,
     ///                 the default Array prototype will be used.
     ///
     /// # Returns
@@ -292,7 +292,7 @@ impl ArrayObject {
     ///
     /// # Behavior
     /// This method implements the ArraySetLength abstract operation with the following rules:
-    /// * If the new length would be greater than 2^32 - 1, throws a RangeError
+    /// * If the new length would be greater than 2<sup>32</sup> - 1, throws a RangeError
     /// * If the array is being shortened, attempts to delete elements above the new length
     /// * Handles the array's \[\[Writable]] attribute appropriately
     /// * Maintains consistency between length and actual array elements
@@ -417,67 +417,103 @@ impl ArrayObject {
     }
 }
 
-// ArraySpeciesCreate ( originalArray, length )
-//
-// The abstract operation ArraySpeciesCreate takes arguments originalArray and length (a non-negative integer). It is
-// used to specify the creation of a new Array or similar object using a constructor function that is derived from
-// originalArray. It does not enforce that the constructor function returns an Array. It performs the following steps
-// when called:
-//
-//  1. Let isArray be ? IsArray(originalArray).
-//  2. If isArray is false, return ? ArrayCreate(length).
-//  3. Let C be ? Get(originalArray, "constructor").
-//  4. If IsConstructor(C) is true, then
-//      a. Let thisRealm be the current Realm Record.
-//      b. Let realmC be ? GetFunctionRealm(C).
-//      c. If thisRealm and realmC are not the same Realm Record, then
-//          i. If SameValue(C, realmC.[[Intrinsics]].[[%Array%]]) is true, set C to undefined.
-//  5. If Type(C) is Object, then
-//      a. Set C to ? Get(C, @@species).
-//      b. If C is null, set C to undefined.
-//  6. If C is undefined, return ? ArrayCreate(length).
-//  7. If IsConstructor(C) is false, throw a TypeError exception.
-//  8. Return ? Construct(C, « 𝔽(length) »).
-//
-// NOTE |   If originalArray was created using the standard built-in Array constructor for a realm that is not the
-//      |   realm of the running execution context, then a new Array is created using the realm of the running
-//      |   execution context. This maintains compatibility with Web browsers that have historically had that behaviour
-//      |   for the Array.prototype methods that now are defined using ArraySpeciesCreate.
-pub fn array_species_create(original_array: &Object, length: f64) -> Completion<ECMAScriptValue> {
-    let is_array = original_array.is_array()?;
-    if !is_array {
-        return Ok(ArrayObject::create(length, None)?.into());
-    }
-    let mut c = original_array.get(&"constructor".into())?;
-    if is_constructor(&c) {
-        let c_obj = Object::try_from(&c).unwrap();
-        let this_realm = current_realm_record().unwrap();
-        let realm_c = c_obj.get_function_realm()?;
-        if !Rc::ptr_eq(&this_realm, &realm_c) && c_obj == realm_c.borrow().intrinsics.array {
-            c = ECMAScriptValue::Undefined;
-        }
-    }
-    if c.is_object() {
-        let c_obj = Object::try_from(&c).unwrap();
-        let species = c_obj.get(&wks(WksId::Species).into())?;
-        if species.is_null() {
-            c = ECMAScriptValue::Undefined;
-        } else {
-            c = species;
-        }
-    }
-    if c.is_undefined() {
-        return Ok(ArrayObject::create(length, None)?.into());
-    }
-    if !is_constructor(&c) {
-        return Err(create_type_error("Array species constructor invalid"));
-    }
-    let c_obj = Object::try_from(&c).unwrap();
-    construct(&c_obj, &[length.into()], None)
-}
 impl Object {
+    /// Creates a new Array-like object using the species constructor of an original array.
+    ///
+    /// # Arguments
+    /// * `self` - The array object from which to derive the constructor
+    /// * `length` - A non-negative number specifying the length of the new array
+    ///
+    /// # Returns
+    /// Returns a `Completion<ECMAScriptValue>` which is:
+    /// * `Ok(ECMAScriptValue)` - A new array-like object created with the appropriate constructor
+    /// * `Err` - A TypeError if the constructor is invalid or the operation fails
+    ///
+    /// # Behavior
+    /// * If the original array is not an Array, creates a new Array with the specified length
+    /// * Uses the constructor from the original array's `constructor` property if available
+    /// * Falls back to creating a default Array if:
+    ///   - The constructor is undefined
+    ///   - The constructor's realm differs from the current realm and matches that realm's Array constructor
+    ///   - The species constructor (@@species) is null or undefined
+    /// * Respects the species constructor pattern for subclassed Arrays
+    ///
+    /// # Examples
+    /// ```rust
+    /// // Create new array using same species as original
+    /// let new_array = original_array.array_species_create(5.0)?;
+    ///
+    /// // Will use Array constructor if original is not an Array
+    /// let new_array = non_array_object.array_species_create(3.0)?;
+    /// ```
+    ///
+    /// # ECMAScript Specification
+    /// Implements the ArraySpeciesCreate abstract operation as defined in ECMAScript:
+    /// * Checks if original is an Array
+    /// * Handles realm-specific Array constructor behavior
+    /// * Supports @@species pattern for subclassing
+    /// * Maintains cross-realm Array creation semantics
+    ///
+    /// Note: If the original array was created using the standard Array constructor from a different realm,
+    /// a new Array is created using the current realm's Array constructor. This maintains compatibility
+    /// with web browsers' historical behavior for Array.prototype methods.
     pub fn array_species_create(&self, length: f64) -> Completion<ECMAScriptValue> {
-        array_species_create(self, length)
+        // ArraySpeciesCreate ( originalArray, length )
+        //
+        // The abstract operation ArraySpeciesCreate takes arguments originalArray and length (a non-negative integer).
+        // It is used to specify the creation of a new Array or similar object using a constructor function that is
+        // derived from originalArray. It does not enforce that the constructor function returns an Array. It performs
+        // the following steps when called:
+        //
+        //  1. Let isArray be ? IsArray(originalArray).
+        //  2. If isArray is false, return ? ArrayCreate(length).
+        //  3. Let C be ? Get(originalArray, "constructor").
+        //  4. If IsConstructor(C) is true, then
+        //      a. Let thisRealm be the current Realm Record.
+        //      b. Let realmC be ? GetFunctionRealm(C).
+        //      c. If thisRealm and realmC are not the same Realm Record, then
+        //          i. If SameValue(C, realmC.[[Intrinsics]].[[%Array%]]) is true, set C to undefined.
+        //  5. If Type(C) is Object, then
+        //      a. Set C to ? Get(C, @@species).
+        //      b. If C is null, set C to undefined.
+        //  6. If C is undefined, return ? ArrayCreate(length).
+        //  7. If IsConstructor(C) is false, throw a TypeError exception.
+        //  8. Return ? Construct(C, « 𝔽(length) »).
+        //
+        // NOTE |   If originalArray was created using the standard built-in Array constructor for a realm that is not
+        //      |   the realm of the running execution context, then a new Array is created using the realm of the
+        //      |   running execution context. This maintains compatibility with Web browsers that have historically had
+        //      |   that behavior for the Array.prototype methods that now are defined using ArraySpeciesCreate.
+        let is_array = self.is_array()?;
+        if !is_array {
+            return Ok(ArrayObject::create(length, None)?.into());
+        }
+        let mut c = self.get(&"constructor".into())?;
+        if is_constructor(&c) {
+            let c_obj = Object::try_from(&c).unwrap();
+            let this_realm = current_realm_record().unwrap();
+            let realm_c = c_obj.get_function_realm()?;
+            if !Rc::ptr_eq(&this_realm, &realm_c) && c_obj == realm_c.borrow().intrinsics.array {
+                c = ECMAScriptValue::Undefined;
+            }
+        }
+        if c.is_object() {
+            let c_obj = Object::try_from(&c).unwrap();
+            let species = c_obj.get(&wks(WksId::Species).into())?;
+            if species.is_null() {
+                c = ECMAScriptValue::Undefined;
+            } else {
+                c = species;
+            }
+        }
+        if c.is_undefined() {
+            return Ok(ArrayObject::create(length, None)?.into());
+        }
+        if !is_constructor(&c) {
+            return Err(create_type_error("Array species constructor invalid"));
+        }
+        let c_obj = Object::try_from(&c).unwrap();
+        construct(&c_obj, &[length.into()], None)
     }
 }
 
@@ -1141,7 +1177,7 @@ fn array_prototype_concat(
     // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
     // transferred to other kinds of objects for use as a method.
     let obj = to_object(this_value.clone())?;
-    let array = array_species_create(&obj, 0.0)?;
+    let array = obj.array_species_create(0.0)?;
     let array_obj = array.object_ref().expect("species of array should be objects");
     let mut output_index = 0.0;
     for elem in [ECMAScriptValue::Object(obj)].iter().chain(arguments.iter()) {
@@ -1486,7 +1522,7 @@ fn array_prototype_filter(
     if !callback.is_callable() {
         return Err(create_type_error("Array.prototype.filter: callback is not callable"));
     }
-    let a = array_species_create(&o, 0.0)?;
+    let a = o.array_species_create(0.0)?;
     let a_obj = a.object_ref().expect("Arrays should be objects");
     let mut k = 0.0;
     let mut to = 0.0;
@@ -2252,7 +2288,7 @@ fn array_prototype_map(
     if !is_callable(&callbackfn) {
         return Err(create_type_error("Array.prototype.map: callback function was not callable"));
     }
-    let a = to_object(array_species_create(&o, len)?).expect("array creation should make object");
+    let a = to_object(o.array_species_create(len)?).expect("array creation should make object");
     let mut k = 0.0;
     while k < len {
         let pk = PropertyKey::from(k);
@@ -2725,7 +2761,7 @@ fn array_prototype_slice(
     let relative_end = if end.is_undefined() { len } else { end.to_integer_or_infinity()? };
     let final_ = if relative_end < 0.0 { (len + relative_end).max(0.0) } else { relative_end.min(len) };
     let count = (final_ - k).max(0.0);
-    let a = array_species_create(&o, count)?;
+    let a = o.array_species_create(count)?;
     let a_obj = a.object_ref().expect("ArraySpeciesCreate should return an object value");
     let mut n = 0_u64;
     while k < final_ {
@@ -3152,7 +3188,7 @@ fn array_prototype_splice(
     if len + item_count - actual_delete_count > 9_007_199_254_740_991.0 {
         return Err(create_type_error("Array too large"));
     }
-    let a = array_species_create(&o, actual_delete_count)?;
+    let a = o.array_species_create(actual_delete_count)?;
     let a_obj = a.object_ref().expect("array creation should make an object");
     let mut k = 0.0;
     while k < actual_delete_count {
