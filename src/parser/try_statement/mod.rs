@@ -385,7 +385,7 @@ impl Catch {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.parameter.as_ref().map_or(false, |n| n.contains(kind)) || self.block.contains(kind)
+        self.parameter.as_ref().is_some_and(|n| n.contains(kind)) || self.block.contains(kind)
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
@@ -418,7 +418,7 @@ impl Catch {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.parameter.as_ref().map_or(false, |cp| cp.contains_arguments()) || self.block.contains_arguments()
+        self.parameter.as_ref().is_some_and(|cp| cp.contains_arguments()) || self.block.contains_arguments()
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {

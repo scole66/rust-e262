@@ -1,3 +1,4 @@
+#![expect(clippy::bool_assert_comparison)]
 use super::*;
 use crate::tests::*;
 use ahash::AHashMap;

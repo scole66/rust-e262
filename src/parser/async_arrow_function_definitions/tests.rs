@@ -1,3 +1,4 @@
+#![expect(clippy::bool_assert_comparison)]
 use super::testhelp::*;
 use super::*;
 use crate::prettyprint::pp_testhelp::*;

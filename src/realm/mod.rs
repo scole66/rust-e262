@@ -58,6 +58,8 @@ pub enum IntrinsicId {
     ReferenceError,
     ReferenceErrorPrototype,
     Reflect,
+    RegExp,
+    RegExpPrototype,
     String,
     StringIteratorPrototype,
     StringPrototype,
@@ -141,30 +143,31 @@ pub struct Intrinsics {
     pub reference_error_prototype: Object, //
     pub reflect: Object,            // Reflect	The Reflect object (28.1)
     pub reg_exp: Object,            // RegExp	The RegExp constructor (22.2.3)
+    pub reg_exp_prototype: Object,
     pub reg_exp_string_iterator_prototype: Object, // The prototype of RegExp String Iterator objects (22.2.7)
-    pub set: Object,                // Set	The Set constructor (24.2.1)
-    pub set_iterator_prototype: Object, // The prototype of Set iterator objects (24.2.5)
-    pub shared_array_buffer: Object, // SharedArrayBuffer	The SharedArrayBuffer constructor (25.2.2)
-    pub string: Object,             // String	The String constructor (22.1.1)
-    pub string_prototype: Object,   // Initial value of %String.prototype%.
-    pub string_iterator_prototype: Object, // The prototype of String iterator objects (22.1.5)
-    pub symbol: Object,             // Symbol	The Symbol constructor (20.4.1)
-    pub symbol_prototype: Object,   //
-    pub syntax_error: Object,       // SyntaxError	The SyntaxError constructor (20.5.5.4)
-    pub syntax_error_prototype: Object, //
-    pub throw_type_error: Object,   // A function object that unconditionally throws a new instance of %TypeError%
-    pub typed_array: Object,        // The super class of all typed Array constructors (23.2.1)
-    pub type_error: Object,         // TypeError	The TypeError constructor (20.5.5.5)
+    pub set: Object,                               // Set	The Set constructor (24.2.1)
+    pub set_iterator_prototype: Object,            // The prototype of Set iterator objects (24.2.5)
+    pub shared_array_buffer: Object,               // SharedArrayBuffer	The SharedArrayBuffer constructor (25.2.2)
+    pub string: Object,                            // String	The String constructor (22.1.1)
+    pub string_prototype: Object,                  // Initial value of %String.prototype%.
+    pub string_iterator_prototype: Object,         // The prototype of String iterator objects (22.1.5)
+    pub symbol: Object,                            // Symbol	The Symbol constructor (20.4.1)
+    pub symbol_prototype: Object,                  //
+    pub syntax_error: Object,                      // SyntaxError	The SyntaxError constructor (20.5.5.4)
+    pub syntax_error_prototype: Object,            //
+    pub throw_type_error: Object, // A function object that unconditionally throws a new instance of %TypeError%
+    pub typed_array: Object,      // The super class of all typed Array constructors (23.2.1)
+    pub type_error: Object,       // TypeError	The TypeError constructor (20.5.5.5)
     pub type_error_prototype: Object, //
-    pub uint8_array: Object,        // Uint8Array	The Uint8Array constructor (23.2)
+    pub uint8_array: Object,      // Uint8Array	The Uint8Array constructor (23.2)
     pub uint8_clampedarray: Object, // Uint8ClampedArray	The Uint8ClampedArray constructor (23.2)
-    pub uint16_array: Object,       // Uint16Array	The Uint16Array constructor (23.2)
-    pub uint32_array: Object,       // Uint32Array	The Uint32Array constructor (23.2)
-    pub uri_error: Object,          // URIError	The URIError constructor (20.5.5.6)
+    pub uint16_array: Object,     // Uint16Array	The Uint16Array constructor (23.2)
+    pub uint32_array: Object,     // Uint32Array	The Uint32Array constructor (23.2)
+    pub uri_error: Object,        // URIError	The URIError constructor (20.5.5.6)
     pub uri_error_prototype: Object, //
-    pub weak_map: Object,           // WeakMap	The WeakMap constructor (24.3.1)
-    pub weak_ref: Object,           // WeakRef	The WeakRef constructor (26.1.1)
-    pub weak_set: Object,           // WeakSet	The WeakSet constructor (24.4.1)
+    pub weak_map: Object,         // WeakMap	The WeakMap constructor (24.3.1)
+    pub weak_ref: Object,         // WeakRef	The WeakRef constructor (26.1.1)
+    pub weak_set: Object,         // WeakSet	The WeakSet constructor (24.4.1)
 }
 
 impl Intrinsics {
@@ -245,6 +248,7 @@ impl Intrinsics {
             reference_error_prototype: dead.clone(),
             reflect: dead.clone(),
             reg_exp: dead.clone(),
+            reg_exp_prototype: dead.clone(),
             reg_exp_string_iterator_prototype: dead.clone(),
             set: dead.clone(),
             set_iterator_prototype: dead.clone(),
@@ -322,6 +326,8 @@ impl Intrinsics {
             IntrinsicId::ReferenceError => &self.reference_error,
             IntrinsicId::ReferenceErrorPrototype => &self.reference_error_prototype,
             IntrinsicId::Reflect => &self.reflect,
+            IntrinsicId::RegExp => &self.reg_exp,
+            IntrinsicId::RegExpPrototype => &self.reg_exp_prototype,
             IntrinsicId::String => &self.string,
             IntrinsicId::StringIteratorPrototype => &self.string_iterator_prototype,
             IntrinsicId::StringPrototype => &self.string_prototype,
@@ -528,6 +534,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     provision_proxy_intrinsic(realm_rec);
     provision_math_intrinsic(realm_rec);
     provision_reflect_intrinsic(realm_rec);
+    provision_regexp_intrinsic(realm_rec);
     provision_date_intrinsic(realm_rec);
     provision_map_intrinsic(realm_rec);
 

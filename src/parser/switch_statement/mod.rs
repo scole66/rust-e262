@@ -321,20 +321,20 @@ impl CaseBlock {
             CaseBlock::NoDefault(None, _) => false,
             CaseBlock::NoDefault(Some(node), _) => node.contains_undefined_break_target(label_set),
             CaseBlock::HasDefault(pre, def, post, _) => {
-                pre.as_ref().map_or(false, |node| node.contains_undefined_break_target(label_set))
+                pre.as_ref().is_some_and(|node| node.contains_undefined_break_target(label_set))
                     || def.contains_undefined_break_target(label_set)
-                    || post.as_ref().map_or(false, |node| node.contains_undefined_break_target(label_set))
+                    || post.as_ref().is_some_and(|node| node.contains_undefined_break_target(label_set))
             }
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            CaseBlock::NoDefault(opt, _) => opt.as_ref().map_or(false, |n| n.contains(kind)),
+            CaseBlock::NoDefault(opt, _) => opt.as_ref().is_some_and(|n| n.contains(kind)),
             CaseBlock::HasDefault(opt1, def, opt2, _) => {
-                opt1.as_ref().map_or(false, |n| n.contains(kind))
+                opt1.as_ref().is_some_and(|n| n.contains(kind))
                     || def.contains(kind)
-                    || opt2.as_ref().map_or(false, |n| n.contains(kind))
+                    || opt2.as_ref().is_some_and(|n| n.contains(kind))
             }
         }
     }
@@ -344,9 +344,9 @@ impl CaseBlock {
             CaseBlock::NoDefault(None, _) => false,
             CaseBlock::NoDefault(Some(node), _) => node.contains_duplicate_labels(label_set),
             CaseBlock::HasDefault(pre, def, post, _) => {
-                pre.as_ref().map_or(false, |node| node.contains_duplicate_labels(label_set))
+                pre.as_ref().is_some_and(|node| node.contains_duplicate_labels(label_set))
                     || def.contains_duplicate_labels(label_set)
-                    || post.as_ref().map_or(false, |node| node.contains_duplicate_labels(label_set))
+                    || post.as_ref().is_some_and(|node| node.contains_duplicate_labels(label_set))
             }
         }
     }
@@ -356,9 +356,9 @@ impl CaseBlock {
             CaseBlock::NoDefault(None, _) => false,
             CaseBlock::NoDefault(Some(node), _) => node.contains_undefined_continue_target(iteration_set),
             CaseBlock::HasDefault(pre, def, post, _) => {
-                pre.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set))
+                pre.as_ref().is_some_and(|node| node.contains_undefined_continue_target(iteration_set))
                     || def.contains_undefined_continue_target(iteration_set)
-                    || post.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set))
+                    || post.as_ref().is_some_and(|node| node.contains_undefined_continue_target(iteration_set))
             }
         }
     }
@@ -400,11 +400,11 @@ impl CaseBlock {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            CaseBlock::NoDefault(occ, _) => occ.as_ref().map_or(false, |cc| cc.contains_arguments()),
+            CaseBlock::NoDefault(occ, _) => occ.as_ref().is_some_and(|cc| cc.contains_arguments()),
             CaseBlock::HasDefault(occ1, dc, occ2, _) => {
-                occ1.as_ref().map_or(false, |cc| cc.contains_arguments())
+                occ1.as_ref().is_some_and(|cc| cc.contains_arguments())
                     || dc.contains_arguments()
-                    || occ2.as_ref().map_or(false, |cc| cc.contains_arguments())
+                    || occ2.as_ref().is_some_and(|cc| cc.contains_arguments())
             }
         }
     }
@@ -763,7 +763,7 @@ impl CaseClause {
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.expression.contains(kind) || self.statements.as_ref().map_or(false, |n| n.contains(kind))
+        self.expression.contains(kind) || self.statements.as_ref().is_some_and(|n| n.contains(kind))
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
@@ -805,7 +805,7 @@ impl CaseClause {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.expression.contains_arguments() || self.statements.as_ref().map_or(false, |s| s.contains_arguments())
+        self.expression.contains_arguments() || self.statements.as_ref().is_some_and(|s| s.contains_arguments())
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
@@ -918,7 +918,7 @@ impl DefaultClause {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         let DefaultClause(opt) = self;
-        opt.as_ref().map_or(false, |n| n.contains(kind))
+        opt.as_ref().is_some_and(|n| n.contains(kind))
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
@@ -960,7 +960,7 @@ impl DefaultClause {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.0.as_ref().map_or(false, |sl| sl.contains_arguments())
+        self.0.as_ref().is_some_and(|sl| sl.contains_arguments())
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {

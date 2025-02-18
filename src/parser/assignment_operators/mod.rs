@@ -1777,7 +1777,7 @@ impl AssignmentElement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.target.contains_arguments() || self.initializer.as_ref().map_or(false, |izer| izer.contains_arguments())
+        self.target.contains_arguments() || self.initializer.as_ref().is_some_and(|izer| izer.contains_arguments())
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {

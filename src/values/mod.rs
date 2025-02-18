@@ -170,6 +170,18 @@ impl ECMAScriptValue {
     }
 }
 
+impl<X> From<Option<X>> for ECMAScriptValue
+where
+    X: Into<ECMAScriptValue>,
+{
+    fn from(value: Option<X>) -> Self {
+        match value {
+            None => Self::Undefined,
+            Some(s) => s.into(),
+        }
+    }
+}
+
 impl From<&Object> for ECMAScriptValue {
     fn from(source: &Object) -> Self {
         Self::Object(source.clone())
@@ -180,14 +192,6 @@ impl From<Object> for ECMAScriptValue {
     fn from(source: Object) -> Self {
         // Consumes the input object, transforming it into a value.
         Self::Object(source)
-    }
-}
-impl From<Option<Object>> for ECMAScriptValue {
-    fn from(source: Option<Object>) -> Self {
-        match source {
-            Some(obj) => Self::Object(obj),
-            None => Self::Null,
-        }
     }
 }
 

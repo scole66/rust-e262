@@ -50,6 +50,10 @@ impl JSString {
         }
     }
 
+    pub fn contains(&self, ch: u16) -> bool {
+        self.s.contains(&ch)
+    }
+
     pub fn starts_with(&self, search_value: &JSString) -> bool {
         let len = self.len();
         let search_len = search_value.len();
@@ -168,8 +172,7 @@ impl std::cmp::PartialEq<&str> for JSString {
 //  1. Assert: lead is a leading surrogate and trail is a trailing surrogate.
 //  2. Let cp be (lead - 0xD800) × 0x400 + (trail - 0xDC00) + 0x10000.
 //  3. Return the code point cp.
-#[allow(dead_code)]
-fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
+pub fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
     let cp: u32 = u32::from(lead - 0xD800) * 0x400 + u32::from(trail - 0xDC00) + 0x10000;
     cp
 }

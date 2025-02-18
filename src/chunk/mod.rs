@@ -335,6 +335,11 @@ impl Chunk {
                 let index_arg = self.opcodes[idx + 1] as usize;
                 (3, format!("    {:<24}{} {}", insn, index_arg, self.strings[string_arg]))
             }
+            Insn::RegExpCreate => {
+                let pattern_arg = self.opcodes[idx] as usize;
+                let flags_arg = self.opcodes[idx + 1] as usize;
+                (3, format!("    {insn:<24}/{}/{}", self.strings[pattern_arg], self.strings[flags_arg]))
+            }
             Insn::DefineGetter | Insn::DefineSetter | Insn::InstantiateGeneratorMethod => {
                 let arg = self.opcodes[idx] as usize;
                 let flag = self.opcodes[idx + 1] != 0;

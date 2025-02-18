@@ -1210,6 +1210,9 @@ pub trait ObjectInterface: Debug {
     fn is_regexp_object(&self) -> bool {
         false
     }
+    fn to_regexp_object(&self) -> Option<&RegExpObject> {
+        None
+    }
     fn is_array_object(&self) -> bool {
         false
     }
@@ -1749,6 +1752,11 @@ pub enum InternalSlotName {
     BoundArguments,
     // Date Object
     DateValue,
+    // Regexp
+    OriginalSource,
+    OriginalFlags,
+    RegExpRecord,
+    RegExpMatcher,
 
     Nonsense, // For testing purposes, for the time being.
 }
@@ -1812,6 +1820,14 @@ pub const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
 pub const PROXY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::ProxyTarget, InternalSlotName::ProxyHandler];
 pub const DATE_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::DateValue];
+pub const REGEXP_OBJECT_SLOTS: &[InternalSlotName] = &[
+    InternalSlotName::Prototype,
+    InternalSlotName::Extensible,
+    InternalSlotName::OriginalSource,
+    InternalSlotName::OriginalFlags,
+    InternalSlotName::RegExpRecord,
+    InternalSlotName::RegExpMatcher,
+];
 
 impl ECMAScriptValue {
     /// Convert a value to an object, and then do a property lookup

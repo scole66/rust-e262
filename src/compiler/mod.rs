@@ -205,6 +205,7 @@ pub enum Insn {
     ConstructorCheck,
     BindThisAndInit,
     StaticClassItem,
+    RegExpCreate,
 }
 
 impl fmt::Display for Insn {
@@ -401,6 +402,7 @@ impl fmt::Display for Insn {
             Insn::ConstructorCheck => "CSTR_CHECK",
             Insn::BindThisAndInit => "BIND_THIS_AND_INIT",
             Insn::StaticClassItem => "STATIC_ITEM",
+            Insn::RegExpCreate => "REGEXP",
         })
     }
 }
@@ -984,7 +986,12 @@ impl PrimaryExpression {
             PrimaryExpression::Generator { node } => node.compile(chunk, strict, text).map(CompilerStatusFlags::from),
             PrimaryExpression::AsyncFunction { node } => todo!(),
             PrimaryExpression::AsyncGenerator { node } => todo!(),
-            PrimaryExpression::RegularExpression { regex, location } => todo!(),
+            PrimaryExpression::RegularExpression { regex, location } => {
+                let pattern_idx = chunk.add_to_string_pool(regex.body.clone().into())?;
+                let flags_idx = chunk.add_to_string_pool(regex.flags.clone().into())?;
+                chunk.op_plus_two_args(Insn::RegExpCreate, pattern_idx, flags_idx);
+                Ok(CompilerStatusFlags::from(AbruptResult::Never))
+            }
         }
     }
 }
@@ -1051,6 +1058,7 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) -> anyhow::Result<NeverA
     Ok(NeverAbruptRefResult)
 }
 #[cfg(not(test))]
+#[allow(clippy::unnecessary_wraps)]
 fn compile_debug_lit(_: &mut Chunk, _: &DebugKind) -> anyhow::Result<NeverAbruptRefResult> {
     Ok(NeverAbruptRefResult)
 }

@@ -747,11 +747,11 @@ fn unicode_range_checker(ch: char, range: &[ranges::CharRange]) -> bool {
     false
 }
 
-fn is_unicode_id_start(ch: char) -> bool {
+pub fn is_unicode_id_start(ch: char) -> bool {
     unicode_range_checker(ch, ranges::ID_START)
 }
 
-fn is_unicode_id_continue(ch: char) -> bool {
+pub fn is_unicode_id_continue(ch: char) -> bool {
     unicode_range_checker(ch, ranges::ID_CONTINUE)
 }
 
@@ -1791,7 +1791,7 @@ fn template_hex_digits(
     let mut raw_chars = [identifier, 0, 0, 0, 0];
     for i in 0..usize::from(count) {
         let pot_digit = iter.next();
-        if !pot_digit.map_or(false, |c| c.is_ascii_hexdigit()) {
+        if !pot_digit.is_some_and(|c| c.is_ascii_hexdigit()) {
             successful = false;
             break;
         }
@@ -1869,7 +1869,7 @@ fn template_hex_digits_by_value(
     let mut raw_chars = vec!['u' as u16, '{' as u16];
     loop {
         let pot_digit = iter.next();
-        if !pot_digit.map_or(false, |c| c.is_ascii_hexdigit()) {
+        if !pot_digit.is_some_and(|c| c.is_ascii_hexdigit()) {
             let tv = if consumed == 2 || pot_digit != Some('}') {
                 None
             } else {
@@ -1936,7 +1936,7 @@ fn template_escape(scanner: Scanner, source: &str) -> (Option<Vec<u16>>, Vec<u16
         Some('"') => single_char('"', 0x22, &scanner),
         Some('\'') => single_char('\'', 0x27, &scanner),
         Some('\\') => single_char('\\', 0x5c, &scanner),
-        Some('0') if !chars.peek().map_or(false, char::is_ascii_digit) => single_char('0', 0, &scanner),
+        Some('0') if !chars.peek().is_some_and(char::is_ascii_digit) => single_char('0', 0, &scanner),
         Some(c) if c.is_ascii_digit() => (
             None,
             utf16_encode_code_point(CharVal::from(c)),
@@ -1946,7 +1946,7 @@ fn template_escape(scanner: Scanner, source: &str) -> (Option<Vec<u16>>, Vec<u16
         Some('x') => template_hex_digits(&mut chars, 'x' as u16, THDCount::try_from(2).unwrap(), &scanner),
         Some('u') => {
             let pot_brace_or_digit = chars.peek();
-            if pot_brace_or_digit.map_or(false, |c| *c == '{') {
+            if pot_brace_or_digit.is_some_and(|c| *c == '{') {
                 // \u{digits} style
                 chars.next();
                 template_hex_digits_by_value(&mut chars, &scanner)
@@ -2235,8 +2235,8 @@ fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct RegularExpressionData {
-    body: String,
-    flags: String,
+    pub body: String,
+    pub flags: String,
 }
 
 impl fmt::Display for RegularExpressionData {

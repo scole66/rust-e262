@@ -1,3 +1,4 @@
+#![expect(clippy::bool_assert_comparison)]
 use super::*;
 use crate::parser::testhelp::*;
 use std::ops::Deref;

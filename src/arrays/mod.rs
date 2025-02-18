@@ -394,7 +394,7 @@ impl ArrayObject {
             keys = data
                 .properties
                 .keys()
-                .filter(|key| ArrayIndex::try_from(*key).map_or(false, |idx| u32::from(idx) >= new_len))
+                .filter(|key| ArrayIndex::try_from(*key).is_ok_and(|idx| u32::from(idx) >= new_len))
                 .cloned()
                 .collect();
         }
