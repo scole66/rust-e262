@@ -252,7 +252,7 @@ impl Block {
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
         let opt_sl = &self.statements;
-        opt_sl.as_ref().map_or(false, |node| node.contains_undefined_continue_target(iteration_set, label_set))
+        opt_sl.as_ref().is_some_and(|node| node.contains_undefined_continue_target(iteration_set, label_set))
     }
 
     pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -280,7 +280,7 @@ impl Block {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.statements.as_ref().map_or(false, |sl| sl.contains_arguments())
+        self.statements.as_ref().is_some_and(|sl| sl.contains_arguments())
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {

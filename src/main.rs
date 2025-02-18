@@ -1,5 +1,4 @@
 #![allow(clippy::wildcard_imports)]
-#![expect(clippy::bool_assert_comparison)]
 #![expect(clippy::doc_markdown)]
 #![expect(clippy::enum_variant_names)]
 #![expect(clippy::float_cmp)]
