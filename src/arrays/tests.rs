@@ -653,7 +653,8 @@ mod array_species_create {
     fn f(make_original: fn() -> Object, length: f64) -> Result<Vec<PropertyInfo>, String> {
         setup_test_agent();
         let original = make_original();
-        array_species_create(&original, length)
+        original
+            .array_species_create(length)
             .map(|val| Object::try_from(val).unwrap().o.common_object_data().borrow().propdump())
             .map_err(unwind_any_error)
     }
