@@ -867,7 +867,7 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
                     if ch == '}' {
                         break;
                     }
-                    val = val << 4 | mv_of_hex_digit(HexChar::try_from(ch).unwrap());
+                    val = (val << 4) | mv_of_hex_digit(HexChar::try_from(ch).unwrap());
                 }
                 cp = char::from_u32(val).unwrap();
             } else {
@@ -875,9 +875,9 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
                 let third = HexChar::try_from(iter.next().unwrap()).unwrap();
                 let fourth = HexChar::try_from(iter.next().unwrap()).unwrap();
                 cp = char::from_u32(
-                    mv_of_hex_digit(HexChar::try_from(digit_or_brace).unwrap()) << 12
-                        | mv_of_hex_digit(second) << 8
-                        | mv_of_hex_digit(third) << 4
+                    (mv_of_hex_digit(HexChar::try_from(digit_or_brace).unwrap()) << 12)
+                        | (mv_of_hex_digit(second) << 8)
+                        | (mv_of_hex_digit(third) << 4)
                         | mv_of_hex_digit(fourth),
                 )
                 .unwrap();

@@ -397,8 +397,8 @@ impl ClassTail {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.heritage.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
-            && self.body.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+        self.heritage.as_ref().is_none_or(|node| node.all_private_identifiers_valid(names))
+            && self.body.as_ref().is_none_or(|node| node.all_private_identifiers_valid(names))
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -1456,7 +1456,7 @@ impl FieldDefinition {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.name.all_private_identifiers_valid(names)
-            && self.init.as_ref().map_or(true, |init| init.all_private_identifiers_valid(names))
+            && self.init.as_ref().is_none_or(|init| init.all_private_identifiers_valid(names))
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an

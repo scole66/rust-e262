@@ -845,7 +845,7 @@ impl ECMAScriptValue {
         // 1. If key is -0𝔽, return +0𝔽.
         // 2. Return key.
         match self {
-            ECMAScriptValue::Number(x) if x == 0.0 => ECMAScriptValue::Number(0.0),
+            ECMAScriptValue::Number(-0.0) => ECMAScriptValue::Number(0.0),
             _ => self,
         }
     }
