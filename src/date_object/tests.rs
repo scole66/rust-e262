@@ -26,11 +26,7 @@ fn date_string(tv: f64) -> String {
 #[test_case(8.0e15 => Some(8.0e15); "big but valid")]
 fn time_clip(t: f64) -> Option<f64> {
     let result = super::time_clip(t);
-    if result.is_nan() {
-        None
-    } else {
-        Some(result)
-    }
+    if result.is_nan() { None } else { Some(result) }
 }
 
 #[test_case("0000" => -62_167_219_200_000.0; "zero")]

@@ -746,9 +746,9 @@ impl HoistableDeclaration {
                 Ok((Rc::new(HoistableDeclaration::Function(func)), after_func))
             })
             .otherwise(|| {
-                let (gen, after_gen) =
+                let (r#gen, after_gen) =
                     GeneratorDeclaration::parse(parser, scanner, yield_flag, await_flag, default_flag)?;
-                Ok((Rc::new(HoistableDeclaration::Generator(gen)), after_gen))
+                Ok((Rc::new(HoistableDeclaration::Generator(r#gen)), after_gen))
             })
             .otherwise(|| {
                 let (afun, after_afun) =

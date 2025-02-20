@@ -18,7 +18,7 @@ pub fn provision_math_intrinsic(realm: &Rc<RefCell<Realm>>) {
     realm.borrow_mut().intrinsics.math = math.clone();
 
     macro_rules! data_property {
-        ( $name:expr, $value:expr ) => {
+        ( $name:expr_2021, $value:expr_2021 ) => {
             define_property_or_throw(
                 &math,
                 $name,
@@ -50,7 +50,7 @@ pub fn provision_math_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
     macro_rules! function_property {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),

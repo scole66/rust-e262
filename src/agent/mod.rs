@@ -1,14 +1,14 @@
 use super::*;
 use ahash::AHashSet;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use genawaiter::rc::{Co, Gen};
 use itertools::Itertools;
 use num::pow::Pow;
 use num::{BigInt, BigUint, ToPrimitive, Zero};
 use std::cell::{Cell, RefCell};
-use std::convert::identity;
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::convert::identity;
 use std::error;
 use std::fmt;
 use std::ops::Not;
@@ -413,7 +413,7 @@ pub fn set_default_global_bindings() {
     /////////       Value Properties of the Global Object
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     macro_rules! global_data {
-        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+        ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             define_property_or_throw(
                 &global,
                 $name,
@@ -592,7 +592,7 @@ pub fn initialize_host_defined_realm(id: RealmId, install_test_hooks: bool) {
     if install_test_hooks {
         let global = get_global_object().unwrap();
         macro_rules! global_data {
-            ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+            ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
                 define_property_or_throw(
                     &global,
                     $name,
@@ -636,7 +636,7 @@ fn testrunner_helper() -> Object {
     let two62 = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
     let global = get_global_object().unwrap();
     macro_rules! data {
-        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+        ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             define_property_or_throw(
                 &two62,
                 $name,
@@ -894,10 +894,9 @@ mod insn_impl {
     }
     fn pop_string() -> anyhow::Result<JSString> {
         let value = pop_value()?;
-        if let ECMAScriptValue::String(s) = value {
-            Ok(s)
-        } else {
-            Err(InternalRuntimeError::StringExpected.into())
+        match value {
+            ECMAScriptValue::String(s) => Ok(s),
+            _ => Err(InternalRuntimeError::StringExpected.into()),
         }
     }
     fn pop_usize() -> anyhow::Result<usize> {
@@ -1534,11 +1533,7 @@ mod insn_impl {
     pub fn unwind_if_abrupt(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let vals_to_remove = usize_operand(chunk)?;
         let top_completion = peek_completion(0)?;
-        if top_completion.is_err() && vals_to_remove > 0 {
-            unwind_internal(vals_to_remove)
-        } else {
-            Ok(())
-        }
+        if top_completion.is_err() && vals_to_remove > 0 { unwind_internal(vals_to_remove) } else { Ok(()) }
     }
     pub fn unwind_list() -> anyhow::Result<()> {
         let err_to_keep = pop_completion()?;
@@ -2577,13 +2572,12 @@ mod insn_impl {
     }
     pub fn handle_empty_break() -> anyhow::Result<()> {
         let prior_result = pop_completion()?;
-        let new_result = if let Err(AbruptCompletion::Break { value, target: None }) = prior_result {
-            match value {
+        let new_result = match prior_result {
+            Err(AbruptCompletion::Break { value, target: None }) => match value {
                 NormalCompletion::Empty => Ok(NormalCompletion::from(ECMAScriptValue::Undefined)),
                 value => Ok(value),
-            }
-        } else {
-            prior_result
+            },
+            _ => prior_result,
         };
         push_completion(new_result).expect(PUSHABLE);
         Ok(())
@@ -2653,24 +2647,26 @@ mod insn_impl {
         let starting_index = pop_value()?;
         let array = pop_obj()?;
         let mut next_index = to_index(starting_index).map_err(|_| InternalRuntimeError::NumberExpected)?;
-        match get_iterator(&iterable, IteratorKind::Sync).and_then(|ir| loop {
-            match ir.step() {
-                Ok(next_opt_obj) => match next_opt_obj {
-                    None => break Ok((next_index, array)),
-                    Some(next_obj) => {
-                        let next_value = iterator_value(&next_obj);
-                        match next_value {
-                            Err(e) => break Err(e),
-                            Ok(next_value) => {
-                                array
-                                    .create_data_property_or_throw(JSString::from(next_index), next_value)
-                                    .expect("props should store ok");
-                                next_index += 1.0;
+        match get_iterator(&iterable, IteratorKind::Sync).and_then(|ir| {
+            loop {
+                match ir.step() {
+                    Ok(next_opt_obj) => match next_opt_obj {
+                        None => break Ok((next_index, array)),
+                        Some(next_obj) => {
+                            let next_value = iterator_value(&next_obj);
+                            match next_value {
+                                Err(e) => break Err(e),
+                                Ok(next_value) => {
+                                    array
+                                        .create_data_property_or_throw(JSString::from(next_index), next_value)
+                                        .expect("props should store ok");
+                                    next_index += 1.0;
+                                }
                             }
                         }
-                    }
-                },
-                Err(e) => break Err(e),
+                    },
+                    Err(e) => break Err(e),
+                }
             }
         }) {
             Ok((next_index, array)) => {
@@ -2698,39 +2694,40 @@ mod insn_impl {
         let spread_obj = pop_value()?;
 
         let iterator_result = get_iterator(&spread_obj, IteratorKind::Sync);
-        let steps_result = if let Ok(iterator_record) = iterator_result {
-            let mut count = 0;
-            let res = loop {
-                match iterator_step(&iterator_record) {
-                    Ok(next_opt_obj) => match next_opt_obj {
-                        None => {
-                            push_value(count.into()).expect(PUSHABLE);
-                            break Ok(());
-                        }
-                        Some(obj) => match iterator_value(&obj) {
-                            Ok(next_arg) => {
-                                count += 1;
-                                push_value(next_arg).expect(PUSHABLE);
+        let steps_result = match iterator_result {
+            Ok(iterator_record) => {
+                let mut count = 0;
+                let res = loop {
+                    match iterator_step(&iterator_record) {
+                        Ok(next_opt_obj) => match next_opt_obj {
+                            None => {
+                                push_value(count.into()).expect(PUSHABLE);
+                                break Ok(());
                             }
-                            Err(e) => {
-                                break Err(e);
-                            }
+                            Some(obj) => match iterator_value(&obj) {
+                                Ok(next_arg) => {
+                                    count += 1;
+                                    push_value(next_arg).expect(PUSHABLE);
+                                }
+                                Err(e) => {
+                                    break Err(e);
+                                }
+                            },
                         },
-                    },
-                    Err(e) => {
-                        break Err(e);
+                        Err(e) => {
+                            break Err(e);
+                        }
+                    }
+                };
+                if res.is_err() {
+                    // unwind
+                    for _ in 0..count {
+                        let _ = pop_completion().expect(POPPABLE);
                     }
                 }
-            };
-            if res.is_err() {
-                // unwind
-                for _ in 0..count {
-                    let _ = pop_completion().expect(POPPABLE);
-                }
+                res
             }
-            res
-        } else {
-            Err(iterator_result.unwrap_err())
+            _ => Err(iterator_result.unwrap_err()),
         };
         if let Err(e) = steps_result {
             push_completion(Err(e)).expect(PUSHABLE);
@@ -3517,18 +3514,21 @@ mod insn_impl {
                 };
                 if pe_get.is_some() == pe_set.is_some() {
                     Err(InternalRuntimeError::ImproperPrivateElement)
-                } else if let PrivateElementKind::Accessor { get, set } = &mut element.kind {
-                    if set.is_none() && pe_set.is_some() {
-                        *set = pe_set;
-                        Ok(())
-                    } else if get.is_none() && pe_get.is_some() {
-                        *get = pe_get;
-                        Ok(())
-                    } else {
-                        Err(InternalRuntimeError::ImproperPrivateElement)
-                    }
                 } else {
-                    Err(InternalRuntimeError::AccessorElementExpected)
+                    match &mut element.kind {
+                        PrivateElementKind::Accessor { get, set } => {
+                            if set.is_none() && pe_set.is_some() {
+                                *set = pe_set;
+                                Ok(())
+                            } else if get.is_none() && pe_get.is_some() {
+                                *get = pe_get;
+                                Ok(())
+                            } else {
+                                Err(InternalRuntimeError::ImproperPrivateElement)
+                            }
+                        }
+                        _ => Err(InternalRuntimeError::AccessorElementExpected),
+                    }
                 }
             } else {
                 container.push(pe);
@@ -3680,7 +3680,10 @@ mod insn_impl {
         // Input: nothing
         // Output: Stack: newTarget
         let nt = super::get_new_target()?;
-        let val = if let Some(obj) = nt { ECMAScriptValue::Object(obj) } else { ECMAScriptValue::Undefined };
+        let val = match nt {
+            Some(obj) => ECMAScriptValue::Object(obj),
+            _ => ECMAScriptValue::Undefined,
+        };
         push_value(val)
     }
 
@@ -4918,11 +4921,7 @@ pub fn process_ecmascript(source_text: &str) -> Result<ECMAScriptValue, ProcessE
 }
 
 pub fn bigint_leftshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow::Error> {
-    if right < &BigInt::zero() {
-        bigint_rightshift(left, &-right)
-    } else {
-        Ok(left << u32::try_from(right)?)
-    }
+    if right < &BigInt::zero() { bigint_rightshift(left, &-right) } else { Ok(left << u32::try_from(right)?) }
 }
 
 pub fn bigint_rightshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow::Error> {
@@ -5167,7 +5166,7 @@ pub fn provision_for_in_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
 
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),

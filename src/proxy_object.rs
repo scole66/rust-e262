@@ -32,11 +32,7 @@ impl ObjectInterface for ProxyObject {
     fn to_callable_obj(&self) -> Option<&dyn CallableObject> {
         let proxy_items = self.proxy_items.borrow();
 
-        if proxy_items.as_ref().is_some_and(|items| items.proxy_target.o.is_callable_obj()) {
-            Some(self)
-        } else {
-            None
-        }
+        if proxy_items.as_ref().is_some_and(|items| items.proxy_target.o.is_callable_obj()) { Some(self) } else { None }
     }
 
     fn is_callable_obj(&self) -> bool {
@@ -52,11 +48,7 @@ impl ObjectInterface for ProxyObject {
 
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let proxy_items = self.proxy_items.borrow();
-        if proxy_items.as_ref().is_some_and(|items| items.proxy_target.is_constructor()) {
-            Some(self)
-        } else {
-            None
-        }
+        if proxy_items.as_ref().is_some_and(|items| items.proxy_target.is_constructor()) { Some(self) } else { None }
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
@@ -102,7 +94,7 @@ impl ObjectInterface for ProxyObject {
             | ECMAScriptValue::Number(_)
             | ECMAScriptValue::BigInt(_)
             | ECMAScriptValue::Symbol(_) => {
-                return Err(create_type_error("proxy error: getPrototypeOf must return an object or null"))
+                return Err(create_type_error("proxy error: getPrototypeOf must return an object or null"));
             }
         };
 
@@ -329,10 +321,14 @@ impl ObjectInterface for ProxyObject {
                         if extensible_target {
                             Ok(None)
                         } else {
-                            Err(create_type_error("proxy error: A property cannot be reported as existent, if it does not exist as an own property of the target object and the target object is not extensible."))
+                            Err(create_type_error(
+                                "proxy error: A property cannot be reported as existent, if it does not exist as an own property of the target object and the target object is not extensible.",
+                            ))
                         }
                     } else {
-                        Err(create_type_error("proxy error: A property cannot be reported as non-existent, if it exists as a non-configurable own property of the target object."))
+                        Err(create_type_error(
+                            "proxy error: A property cannot be reported as non-existent, if it exists as a non-configurable own property of the target object.",
+                        ))
                     }
                 }
             };
@@ -342,14 +338,20 @@ impl ObjectInterface for ProxyObject {
         let valid =
             is_compatible_property_descriptor(extensible_target, result_desc.clone().into(), target_desc.as_ref());
         if !valid {
-            return Err(create_type_error("proxy error: A property cannot be reported as existent, if it does not exist as an own property of the target object and the target object is not extensible."));
+            return Err(create_type_error(
+                "proxy error: A property cannot be reported as existent, if it does not exist as an own property of the target object and the target object is not extensible.",
+            ));
         }
         if !result_desc.configurable {
             if target_desc.is_none() || target_desc.as_ref().unwrap().configurable {
-                return Err(create_type_error("proxy error: A property cannot be reported as non-configurable, unless it exists as a non-configurable own property of the target object."));
+                return Err(create_type_error(
+                    "proxy error: A property cannot be reported as non-configurable, unless it exists as a non-configurable own property of the target object.",
+                ));
             }
             if !result_desc.is_writable().unwrap_or(true) && target_desc.as_ref().unwrap().is_writable().unwrap() {
-                return Err(create_type_error("proxy error: A property cannot be reported as both non-configurable and non-writable, unless it exists as a non-configurable, non-writable own property of the target object."));
+                return Err(create_type_error(
+                    "proxy error: A property cannot be reported as both non-configurable and non-writable, unless it exists as a non-configurable, non-writable own property of the target object.",
+                ));
             }
         }
 
@@ -425,10 +427,14 @@ impl ObjectInterface for ProxyObject {
         match target_desc {
             Some(target_desc) => {
                 if !is_compatible_property_descriptor(extensible_target, desc.clone(), Some(&target_desc)) {
-                    return Err(create_type_error("proxy error: If a property has a corresponding target object property then applying the Property Descriptor of the property to the target object using [[DefineOwnProperty]] will not throw an exception."));
+                    return Err(create_type_error(
+                        "proxy error: If a property has a corresponding target object property then applying the Property Descriptor of the property to the target object using [[DefineOwnProperty]] will not throw an exception.",
+                    ));
                 }
                 if setting_config_false && target_desc.configurable {
-                    return Err(create_type_error("proxy error: A property cannot be non-configurable, unless there exists a corresponding non-configurable own property of the target object."));
+                    return Err(create_type_error(
+                        "proxy error: A property cannot be non-configurable, unless there exists a corresponding non-configurable own property of the target object.",
+                    ));
                 }
                 if matches!(
                     target_desc,
@@ -440,7 +446,9 @@ impl ObjectInterface for ProxyObject {
                     }
                 ) && matches!(desc.writable, Some(false))
                 {
-                    return Err(create_type_error("proxy error: A non-configurable property cannot be non-writable, unless there exists a corresponding non-configurable, non-writable own property of the target object."));
+                    return Err(create_type_error(
+                        "proxy error: A non-configurable property cannot be non-writable, unless there exists a corresponding non-configurable, non-writable own property of the target object.",
+                    ));
                 }
             }
             None => {
@@ -450,7 +458,9 @@ impl ObjectInterface for ProxyObject {
                     ));
                 }
                 if setting_config_false {
-                    return Err(create_type_error("proxy error: A property cannot be non-configurable, unless there exists a corresponding non-configurable own property of the target object."));
+                    return Err(create_type_error(
+                        "proxy error: A property cannot be non-configurable, unless there exists a corresponding non-configurable own property of the target object.",
+                    ));
                 }
             }
         }
@@ -499,10 +509,14 @@ impl ObjectInterface for ProxyObject {
             let target_desc = target.o.get_own_property(key)?;
             if let Some(target_desc) = target_desc {
                 if !target_desc.configurable {
-                    return Err(create_type_error("proxy error: A property cannot be reported as non-existent, if it exists as a non-configurable own property of the target object."));
+                    return Err(create_type_error(
+                        "proxy error: A property cannot be reported as non-existent, if it exists as a non-configurable own property of the target object.",
+                    ));
                 }
                 if !is_extensible(target)? {
-                    return Err(create_type_error("proxy error: A property cannot be reported as non-existent, if it exists as an own property of the target object and the target object is not extensible."));
+                    return Err(create_type_error(
+                        "proxy error: A property cannot be reported as non-existent, if it exists as an own property of the target object and the target object is not extensible.",
+                    ));
                 }
             }
         }
@@ -547,25 +561,33 @@ impl ObjectInterface for ProxyObject {
         }
         let trap_result = call(&trap, &handler, &[target.into(), key.into(), receiver.clone()])?;
         let target_desc = target.o.get_own_property(key)?;
-        if let Some(PropertyDescriptor {
-            configurable: false,
-            property: PropertyKind::Data(DataProperty { writable: false, value }),
-            ..
-        }) = target_desc
-        {
-            if !trap_result.same_value(&value) {
-                return Err(create_type_error("proxy error: The value reported for a property must be the same as the value of the corresponding target object property if the target object property is a non-writable, non-configurable own data property."));
-            }
-        } else if matches!(
-            target_desc,
+        match target_desc {
             Some(PropertyDescriptor {
                 configurable: false,
-                property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, .. }),
+                property: PropertyKind::Data(DataProperty { writable: false, value }),
                 ..
-            })
-        ) && !matches!(trap_result, ECMAScriptValue::Undefined)
-        {
-            return Err(create_type_error("proxy error: The value reported for a property must be undefined if the corresponding target object property is a non-configurable own accessor property that has undefined as its [[Get]] attribute."));
+            }) => {
+                if !trap_result.same_value(&value) {
+                    return Err(create_type_error(
+                        "proxy error: The value reported for a property must be the same as the value of the corresponding target object property if the target object property is a non-writable, non-configurable own data property.",
+                    ));
+                }
+            }
+            _ => {
+                if matches!(
+                    target_desc,
+                    Some(PropertyDescriptor {
+                        configurable: false,
+                        property: PropertyKind::Accessor(AccessorProperty { get: ECMAScriptValue::Undefined, .. }),
+                        ..
+                    })
+                ) && !matches!(trap_result, ECMAScriptValue::Undefined)
+                {
+                    return Err(create_type_error(
+                        "proxy error: The value reported for a property must be undefined if the corresponding target object property is a non-configurable own accessor property that has undefined as its [[Get]] attribute.",
+                    ));
+                }
+            }
         }
 
         Ok(trap_result)
@@ -616,24 +638,32 @@ impl ObjectInterface for ProxyObject {
             return Ok(false);
         }
         let target_desc = target.o.get_own_property(&key)?;
-        if let Some(PropertyDescriptor {
-            configurable: false,
-            property: PropertyKind::Data(DataProperty { writable: false, value: target_value }),
-            ..
-        }) = target_desc
-        {
-            if !value.same_value(&target_value) {
-                return Err(create_type_error("proxy error: Cannot change the value of a property to be different from the value of the corresponding target object property if the corresponding target object property is a non-writable, non-configurable own data property."));
-            }
-        } else if matches!(
-            target_desc,
+        match target_desc {
             Some(PropertyDescriptor {
                 configurable: false,
-                property: PropertyKind::Accessor(AccessorProperty { set: ECMAScriptValue::Undefined, .. }),
+                property: PropertyKind::Data(DataProperty { writable: false, value: target_value }),
                 ..
-            })
-        ) {
-            return Err(create_type_error("proxy error: Cannot set the value of a property if the corresponding target object property is a non-configurable own accessor property that has undefined as its [[Set]] attribute."));
+            }) => {
+                if !value.same_value(&target_value) {
+                    return Err(create_type_error(
+                        "proxy error: Cannot change the value of a property to be different from the value of the corresponding target object property if the corresponding target object property is a non-writable, non-configurable own data property.",
+                    ));
+                }
+            }
+            _ => {
+                if matches!(
+                    target_desc,
+                    Some(PropertyDescriptor {
+                        configurable: false,
+                        property: PropertyKind::Accessor(AccessorProperty { set: ECMAScriptValue::Undefined, .. }),
+                        ..
+                    })
+                ) {
+                    return Err(create_type_error(
+                        "proxy error: Cannot set the value of a property if the corresponding target object property is a non-configurable own accessor property that has undefined as its [[Set]] attribute.",
+                    ));
+                }
+            }
         }
 
         Ok(true)
@@ -689,10 +719,14 @@ impl ObjectInterface for ProxyObject {
                     if extensible_target {
                         Ok(true)
                     } else {
-                        Err(create_type_error("proxy error: A property cannot be reported as deleted, if it exists as an own property of the target object and the target object is non-extensible."))
+                        Err(create_type_error(
+                            "proxy error: A property cannot be reported as deleted, if it exists as an own property of the target object and the target object is non-extensible.",
+                        ))
                     }
                 } else {
-                    Err(create_type_error("proxy error: A property cannot be reported as deleted, if it exists as a non-configurable own property of the target object."))
+                    Err(create_type_error(
+                        "proxy error: A property cannot be reported as deleted, if it exists as a non-configurable own property of the target object.",
+                    ))
                 }
             }
         }
@@ -1003,7 +1037,7 @@ pub fn provision_proxy_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Constructor Function Properties
     macro_rules! constructor_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -1233,11 +1267,7 @@ impl ObjectInterface for BuiltinFunctionWithRevokableProxySlot {
         self.func.is_callable_obj()
     }
     fn kind(&self) -> ObjectTag {
-        if self.is_callable_obj() {
-            ObjectTag::Function
-        } else {
-            ObjectTag::Object
-        }
+        if self.is_callable_obj() { ObjectTag::Function } else { ObjectTag::Object }
     }
 }
 

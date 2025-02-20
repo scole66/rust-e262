@@ -4,7 +4,7 @@
 name = "res"
 version = "0.1.0"
 authors = ["Steven Cole <scole66@gmail.com>"]
-edition = "2021"
+edition = "2024"
 
 [lints.clippy]
 pedantic = { level = "deny", priority = -1 }

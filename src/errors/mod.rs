@@ -210,7 +210,7 @@ pub fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     );
     // Constructor Data Properties
     macro_rules! constructor_data {
-        ( $value:expr, $name:expr ) => {{
+        ( $value:expr_2021, $name:expr_2021 ) => {{
             define_property_or_throw(
                 &error_constructor,
                 $name,
@@ -239,7 +239,7 @@ pub fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype Data Properties
     macro_rules! prototype_data {
-        ( $value:expr, $name:expr ) => {{
+        ( $value:expr_2021, $name:expr_2021 ) => {{
             define_property_or_throw(
                 &error_prototype,
                 $name,
@@ -265,7 +265,7 @@ pub fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype Function Properties
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -392,7 +392,7 @@ fn provision_native_error_intrinsics(
     );
     // Constructor Data Properties
     macro_rules! constructor_data {
-        ( $value:expr, $name:expr ) => {{
+        ( $value:expr_2021, $name:expr_2021 ) => {{
             define_property_or_throw(
                 &native_error_constructor,
                 $name,
@@ -421,7 +421,7 @@ fn provision_native_error_intrinsics(
 
     // Prototype Data Properties
     macro_rules! prototype_data {
-        ( $value:expr, $name:expr ) => {{
+        ( $value:expr_2021, $name:expr_2021 ) => {{
             define_property_or_throw(
                 &native_error_prototype,
                 $name,

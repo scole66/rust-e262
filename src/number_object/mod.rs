@@ -190,7 +190,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Constructor Function Properties
     macro_rules! constructor_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -221,7 +221,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Constructor Data Properties
     macro_rules! constructor_data {
-        ( $value:expr, $name:expr ) => {{
+        ( $value:expr_2021, $name:expr_2021 ) => {{
             define_property_or_throw(
                 &number_constructor,
                 $name,
@@ -322,7 +322,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype Data Properties
     macro_rules! prototype_data {
-        ( $value:expr, $name:expr ) => {{
+        ( $value:expr_2021, $name:expr_2021 ) => {{
             define_property_or_throw(
                 &number_prototype,
                 $name,
@@ -339,7 +339,7 @@ pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype Function Properties
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -1009,7 +1009,9 @@ pub fn double_to_radix_string(val: f64, radix: u32) -> String {
                     if fraction_cursor == KBUFFERSIZE / 2 {
                         // Carry over to the integer part.
                         integer += 1.0;
-                        panic!("Condition B met with radix {radix} and input val {val}: Please add this to coverage and remove this panic.");
+                        panic!(
+                            "Condition B met with radix {radix} and input val {val}: Please add this to coverage and remove this panic."
+                        );
                         break;
                     }
                     let c = u32::from(buffer[fraction_cursor]);
@@ -1020,7 +1022,9 @@ pub fn double_to_radix_string(val: f64, radix: u32) -> String {
                         fraction_cursor += 1;
                         break;
                     }
-                    panic!("Condition C met with radix {radix} and input val {val}: Please add this to coverage and remove this panic.");
+                    panic!(
+                        "Condition C met with radix {radix} and input val {val}: Please add this to coverage and remove this panic."
+                    );
                 }
                 break;
             }

@@ -384,11 +384,7 @@ impl IdentifierReference {
             Identifier { identifier: id, .. } => {
                 if strict {
                     let sv = id.string_value();
-                    if sv == "eval" || sv == "arguments" {
-                        Invalid
-                    } else {
-                        Simple
-                    }
+                    if sv == "eval" || sv == "arguments" { Invalid } else { Simple }
                 } else {
                     Simple
                 }

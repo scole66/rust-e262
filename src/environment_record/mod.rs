@@ -163,11 +163,7 @@ enum Removability {
 
 impl From<bool> for Removability {
     fn from(source: bool) -> Self {
-        if source {
-            Removability::Deletable
-        } else {
-            Removability::Permanent
-        }
+        if source { Removability::Deletable } else { Removability::Permanent }
     }
 }
 
@@ -179,11 +175,7 @@ enum Strictness {
 
 impl From<bool> for Strictness {
     fn from(source: bool) -> Self {
-        if source {
-            Strictness::Strict
-        } else {
-            Strictness::Sloppy
-        }
+        if source { Strictness::Strict } else { Strictness::Sloppy }
     }
 }
 
@@ -672,11 +664,7 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
     //  1. If envRec.[[IsWithEnvironment]] is true, return envRec.[[BindingObject]].
     //  2. Otherwise, return undefined.
     fn with_base_object(&self) -> Option<Object> {
-        if self.is_with_environment {
-            Some(self.binding_object.clone())
-        } else {
-            None
-        }
+        if self.is_with_environment { Some(self.binding_object.clone()) } else { None }
     }
 
     fn get_outer_env(&self) -> Option<Rc<dyn EnvironmentRecord>> {
@@ -859,7 +847,9 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
         match self.this_binding_status.get() {
             BindingStatus::Lexical => panic!("lexical functions never have a this binding"),
             BindingStatus::Initialized => Ok(self.this_value.borrow().clone()),
-            BindingStatus::Uninitialized => Err(create_reference_error("Must call super constructor in derived class before accessing 'this' or returning from derived constructor")),
+            BindingStatus::Uninitialized => Err(create_reference_error(
+                "Must call super constructor in derived class before accessing 'this' or returning from derived constructor",
+            )),
         }
     }
 

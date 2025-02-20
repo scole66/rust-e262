@@ -539,7 +539,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     provision_map_intrinsic(realm_rec);
 
     macro_rules! intrinsic_function {
-        ( $intrinsicid:ident, $name:expr, $length:expr ) => {
+        ( $intrinsicid:ident, $name:expr_2021, $length:expr_2021 ) => {
             let function_object = create_builtin_function(
                 Box::new($intrinsicid),
                 None,
@@ -833,11 +833,7 @@ fn parse_int(
     } else {
         let math_int = JSString::from(z).to_bigint_radix(u32::try_from(r).expect("r should be between 2 and 36"));
         if math_int == BigInt::ZERO {
-            if sign == -1 {
-                Ok(ECMAScriptValue::Number(-0.0))
-            } else {
-                Ok(ECMAScriptValue::Number(0.0))
-            }
+            if sign == -1 { Ok(ECMAScriptValue::Number(-0.0)) } else { Ok(ECMAScriptValue::Number(0.0)) }
         } else {
             Ok(ECMAScriptValue::Number(f64::from(sign) * math_int.to_f64().unwrap()))
         }
@@ -860,16 +856,17 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                     (false, false, false, false)
                 } else {
                     let this_env_rec = get_this_environment();
-                    if let Some(f) = this_env_rec.get_function_object() {
-                        let fo = f.o.to_function_obj().unwrap().function_data().borrow();
-                        (
-                            true,
-                            this_env_rec.has_super_binding(),
-                            fo.constructor_kind == ConstructorKind::Derived,
-                            fo.class_field_initializer_name.is_some(),
-                        )
-                    } else {
-                        (false, false, false, false)
+                    match this_env_rec.get_function_object() {
+                        Some(f) => {
+                            let fo = f.o.to_function_obj().unwrap().function_data().borrow();
+                            (
+                                true,
+                                this_env_rec.has_super_binding(),
+                                fo.constructor_kind == ConstructorKind::Derived,
+                                fo.class_field_initializer_name.is_some(),
+                            )
+                        }
+                        _ => (false, false, false, false),
                     }
                 };
             let source_text = String::from(x);

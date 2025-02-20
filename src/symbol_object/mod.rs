@@ -210,7 +210,7 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Constructor Function Properties
     macro_rules! constructor_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -239,7 +239,7 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Constructor Data Properties
     macro_rules! constructor_data {
-        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+        ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             define_property_or_throw(
                 &symbol_constructor,
                 $name,
@@ -276,7 +276,7 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype Function Properties
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -304,7 +304,7 @@ pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(symbol_value_of, "valueOf", 0.0);
 
     macro_rules! prototype_data {
-        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+        ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             define_property_or_throw(
                 &symbol_prototype,
                 $name,
@@ -478,16 +478,17 @@ fn symbol_key_for(
     //  4. Return undefined.
     let mut args = FuncArgs::from(arguments);
     let sym = args.next_arg();
-    if let ECMAScriptValue::Symbol(sym) = sym {
-        let gsm = global_symbol_registry();
-        let registry = gsm.borrow();
-        let maybe_key = registry.key_by_symbol(&sym);
-        match maybe_key {
-            Some(key) => Ok(key.into()),
-            None => Ok(ECMAScriptValue::Undefined),
+    match sym {
+        ECMAScriptValue::Symbol(sym) => {
+            let gsm = global_symbol_registry();
+            let registry = gsm.borrow();
+            let maybe_key = registry.key_by_symbol(&sym);
+            match maybe_key {
+                Some(key) => Ok(key.into()),
+                None => Ok(ECMAScriptValue::Undefined),
+            }
         }
-    } else {
-        Err(create_type_error("value is not a symbol"))
+        _ => Err(create_type_error("value is not a symbol")),
     }
 }
 

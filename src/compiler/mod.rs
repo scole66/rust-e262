@@ -1,6 +1,6 @@
 use super::*;
 use ahash::AHashSet;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use counter::Counter;
 #[cfg(test)]
 use num::BigInt;
@@ -424,11 +424,7 @@ impl Default for RefResult {
 
 impl From<bool> for RefResult {
     fn from(src: bool) -> Self {
-        if src {
-            RefResult::Maybe
-        } else {
-            RefResult::Never
-        }
+        if src { RefResult::Maybe } else { RefResult::Never }
     }
 }
 
@@ -455,11 +451,7 @@ impl From<CompilerStatusFlags> for AbruptResult {
 
 impl From<bool> for AbruptResult {
     fn from(src: bool) -> Self {
-        if src {
-            AbruptResult::Maybe
-        } else {
-            AbruptResult::Never
-        }
+        if src { AbruptResult::Maybe } else { AbruptResult::Never }
     }
 }
 
@@ -3093,7 +3085,7 @@ impl UnaryExpression {
 // This needs to be a macro (and not a function) because left & right have different types depending on the particular
 // parse node that's being compiled.
 macro_rules! compile_binary_expression {
-    ( $chunk:expr, $strict:expr, $text:expr, $left:expr, $right:expr, $op:expr ) => {{
+    ( $chunk:expr_2021, $strict:expr_2021, $text:expr_2021, $left:expr_2021, $right:expr_2021, $op:expr_2021 ) => {{
         // Stack: ...
         let left_status = $left.compile($chunk, $strict, $text)?;
         // Stack: err/ref/val ...
@@ -5265,7 +5257,7 @@ impl FcnDef {
     ) -> anyhow::Result<AbruptResult> {
         match self {
             FcnDef::Function(f) => f.compile_fo_instantiation(chunk, strict, text).map(AbruptResult::from),
-            FcnDef::Generator(gen) => gen.compile_go_instantiation(chunk, strict, text).map(AbruptResult::from),
+            FcnDef::Generator(r#gen) => r#gen.compile_go_instantiation(chunk, strict, text).map(AbruptResult::from),
             FcnDef::AsyncFun(_) | FcnDef::AsyncGen(_) => todo!(),
         }
     }
@@ -10678,7 +10670,7 @@ impl MethodDefinition {
 
                 Ok(AlwaysAbruptResult)
             }
-            MethodDefinition::Generator(gen) => gen.method_definition_evaluation(enumerable, chunk, strict, text),
+            MethodDefinition::Generator(r#gen) => r#gen.method_definition_evaluation(enumerable, chunk, strict, text),
             MethodDefinition::Async(_) => todo!(),
             MethodDefinition::AsyncGenerator(_) => todo!(),
             MethodDefinition::Getter(name, body, location) => {

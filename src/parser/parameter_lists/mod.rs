@@ -582,11 +582,7 @@ impl FormalParameterList {
             }
             FormalParameterList::List(list, item) => {
                 let count = list.expected_argument_count();
-                if list.has_initializer() || item.has_initializer() {
-                    count
-                } else {
-                    count + 1.0
-                }
+                if list.has_initializer() || item.has_initializer() { count } else { count + 1.0 }
             }
         }
     }

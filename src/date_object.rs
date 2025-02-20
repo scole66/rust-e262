@@ -40,7 +40,7 @@ pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Constructor Function Properties
     macro_rules! constructor_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -92,7 +92,7 @@ pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype function properties
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -160,7 +160,7 @@ pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(date_prototype_totimestring, "toTimeString", 0); // 21.4.4.42 Date.prototype.toTimeString ( )
     prototype_function!(date_prototype_toutcstring, "toUTCString", 0); // 21.4.4.43 Date.prototype.toUTCString ( )
     prototype_function!(date_prototype_valueof, "valueOf", 0); // 21.4.4.44 Date.prototype.valueOf ( )
-                                                               // 21.4.4.45 Date.prototype [ %Symbol.toPrimitive% ] ( hint )
+    // 21.4.4.45 Date.prototype [ %Symbol.toPrimitive% ] ( hint )
     let toprimitive_key = PropertyKey::from(wks(WksId::ToPrimitive));
     let date_prototype_toprimitive_function = create_builtin_function(
         Box::new(date_prototype_toprimitive),
@@ -208,11 +208,7 @@ struct TimeNumber {
 impl TryFrom<f64> for TimeNumber {
     type Error = InternalRuntimeError;
     fn try_from(value: f64) -> Result<Self, Self::Error> {
-        if value.fract() == 0.0 {
-            Ok(Self { val: value })
-        } else {
-            Err(InternalRuntimeError::TimeValueOutOfRange)
-        }
+        if value.fract() == 0.0 { Ok(Self { val: value }) } else { Err(InternalRuntimeError::TimeValueOutOfRange) }
     }
 }
 
@@ -838,11 +834,7 @@ fn get_named_time_zone_offset_nanoseconds(
     //  2. Return 0.
     //
     // Note: Time zone offset values may be positive or negative.
-    if time_zone_identifier == "UTC" {
-        Ok(0_i128)
-    } else {
-        Err(InternalRuntimeError::UnknownTimeZoneIdentifier)?
-    }
+    if time_zone_identifier == "UTC" { Ok(0_i128) } else { Err(InternalRuntimeError::UnknownTimeZoneIdentifier)? }
 }
 
 fn system_time_zone_identifier() -> String {
@@ -1151,11 +1143,7 @@ fn make_date(day: f64, time: f64) -> f64 {
     //  4. Return tv.
     if day.is_finite() && time.is_finite() {
         let tv = day * MS_PER_DAY_F64 + time;
-        if tv.is_finite() {
-            tv
-        } else {
-            f64::NAN
-        }
+        if tv.is_finite() { tv } else { f64::NAN }
     } else {
         f64::NAN
     }
@@ -1177,11 +1165,7 @@ fn make_full_year(year: f64) -> f64 {
         f64::NAN
     } else {
         let truncated = to_integer_or_infinity(year);
-        if (0.0..=99.0).contains(&truncated) {
-            1900.0 + truncated
-        } else {
-            truncated
-        }
+        if (0.0..=99.0).contains(&truncated) { 1900.0 + truncated } else { truncated }
     }
 }
 
@@ -1193,11 +1177,7 @@ fn time_clip(time: f64) -> f64 {
     // 1. If time is not finite, return NaN.
     // 2. If abs(ℝ(time)) > 8.64 × 10**15, return NaN.
     // 3. Return 𝔽(! ToIntegerOrInfinity(time)).
-    if time.abs() <= 8.64e15 {
-        to_integer_or_infinity(time)
-    } else {
-        f64::NAN
-    }
+    if time.abs() <= 8.64e15 { to_integer_or_infinity(time) } else { f64::NAN }
 }
 
 fn parse_time_zone_offset_string(tzo: &str) -> Option<i128> {
@@ -1258,17 +1238,22 @@ fn parse_time_zone_offset_string(tzo: &str) -> Option<i128> {
     const TIME_SEPARATOR_EXTENDED: &str = ":";
 
     lazy_static! {
-        static ref TEMPORAL_DECIMAL_FRACTION1: String = format!("(?P<temporal_decimal_fraction1>{TEMPORAL_DECIMAL_SEPARATOR}[0-9]{{1,9}})");
-        static ref TEMPORAL_DECIMAL_FRACTION2: String = format!("(?P<temporal_decimal_fraction2>{TEMPORAL_DECIMAL_SEPARATOR}[0-9]{{1,9}})");
-        static ref HOUR_SUBCOMPONENTS: String =
-            format!("(?:{TIME_SEPARATOR}(?P<minute1>{MINUTE_SECOND})(?:{TIME_SEPARATOR}(?P<second1>{MINUTE_SECOND}){}?)?)", *TEMPORAL_DECIMAL_FRACTION1);
-        static ref HOUR_SUBCOMPONENTS_EXTENDED: String =
-            format!("(?:{TIME_SEPARATOR_EXTENDED}(?P<minute2>{MINUTE_SECOND})(?:{TIME_SEPARATOR_EXTENDED}(?P<second2>{MINUTE_SECOND}){}?)?)",
-            *TEMPORAL_DECIMAL_FRACTION2);
-
-        static ref UTC_OFFSET: String = format!("(?:{ASCII_SIGN}{HOUR}(?:{}|{}))", *HOUR_SUBCOMPONENTS, *HOUR_SUBCOMPONENTS_EXTENDED);
-
-        static ref MATCHER: Regex = Regex::new(&UTC_OFFSET).expect("regular expressions not based on user input should not fail");
+        static ref TEMPORAL_DECIMAL_FRACTION1: String =
+            format!("(?P<temporal_decimal_fraction1>{TEMPORAL_DECIMAL_SEPARATOR}[0-9]{{1,9}})");
+        static ref TEMPORAL_DECIMAL_FRACTION2: String =
+            format!("(?P<temporal_decimal_fraction2>{TEMPORAL_DECIMAL_SEPARATOR}[0-9]{{1,9}})");
+        static ref HOUR_SUBCOMPONENTS: String = format!(
+            "(?:{TIME_SEPARATOR}(?P<minute1>{MINUTE_SECOND})(?:{TIME_SEPARATOR}(?P<second1>{MINUTE_SECOND}){}?)?)",
+            *TEMPORAL_DECIMAL_FRACTION1
+        );
+        static ref HOUR_SUBCOMPONENTS_EXTENDED: String = format!(
+            "(?:{TIME_SEPARATOR_EXTENDED}(?P<minute2>{MINUTE_SECOND})(?:{TIME_SEPARATOR_EXTENDED}(?P<second2>{MINUTE_SECOND}){}?)?)",
+            *TEMPORAL_DECIMAL_FRACTION2
+        );
+        static ref UTC_OFFSET: String =
+            format!("(?:{ASCII_SIGN}{HOUR}(?:{}|{}))", *HOUR_SUBCOMPONENTS, *HOUR_SUBCOMPONENTS_EXTENDED);
+        static ref MATCHER: Regex =
+            Regex::new(&UTC_OFFSET).expect("regular expressions not based on user input should not fail");
     }
     MATCHER.captures(tzo).map(|captures| {
         let sign = if captures.name("ascii_sign").expect("sign should have been captured").as_str() == "+" {
@@ -1613,7 +1598,7 @@ fn parse_date(date_str: &JSString) -> f64 {
                     MONTH_NAMES
                         .iter()
                         .enumerate()
-                        .find(|(_, &name)| {
+                        .find(|&(_, &name)| {
                             caps.name("month_name")
                                 .or_else(|| caps.name("month_name2"))
                                 .expect("regex should always have 'month_name'")
@@ -1720,11 +1705,7 @@ fn generic_get(
             .to_date_object()
             .map(|date_object| {
                 let t = date_object.date_value();
-                if t.is_nan() {
-                    f64::NAN
-                } else {
-                    compute(t)
-                }
+                if t.is_nan() { f64::NAN } else { compute(t) }
             })
             .ok_or_else(|| create_type_error(format!("{func_name} requires a datelike object")))?,
     ))

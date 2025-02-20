@@ -954,11 +954,7 @@ mod constructor {
                 ECMAScriptValue::Object(obj) => {
                     let key = global_symbol("gpo_test".into());
                     let val = obj.get(&key.into()).unwrap();
-                    if val.is_string() {
-                        Ok(val)
-                    } else {
-                        Ok(obj.into())
-                    }
+                    if val.is_string() { Ok(val) } else { Ok(obj.into()) }
                 }
                 _ => Ok(result),
             }

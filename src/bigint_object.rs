@@ -30,7 +30,7 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
     );
     // Constructor Function Properties
     macro_rules! constructor_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -80,7 +80,7 @@ pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype function properties
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -430,13 +430,10 @@ fn this_bigint_value(value: ECMAScriptValue) -> Completion<Rc<BigInt>> {
     const ERRMSG: &str = "Value is not a Big Int";
     match value {
         ECMAScriptValue::BigInt(bi) => Ok(bi),
-        ECMAScriptValue::Object(obj) => {
-            if let Some(bio) = obj.o.to_bigint_object() {
-                Ok(bio.bigint_data().clone())
-            } else {
-                Err(create_type_error(ERRMSG))
-            }
-        }
+        ECMAScriptValue::Object(obj) => match obj.o.to_bigint_object() {
+            Some(bio) => Ok(bio.bigint_data().clone()),
+            _ => Err(create_type_error(ERRMSG)),
+        },
         ECMAScriptValue::Undefined
         | ECMAScriptValue::Null
         | ECMAScriptValue::Boolean(_)

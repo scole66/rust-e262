@@ -629,11 +629,7 @@ pub fn scan_for_private_identifier(
 
 pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<(Location, Scanner), ParseError> {
     let (tok, tok_loc, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
-    if tok == Token::Eof {
-        Ok((tok_loc, after_tok))
-    } else {
-        Err(ParseError::new(PECode::EoFExpected, tok_loc))
-    }
+    if tok == Token::Eof { Ok((tok_loc, after_tok)) } else { Err(ParseError::new(PECode::EoFExpected, tok_loc)) }
 }
 
 //no_line_terminator(after_cont, parser.source)?;
@@ -641,11 +637,7 @@ pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<(Location, Scanner), 
 // else return Err.
 pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError> {
     let (_, tok_loc, _) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
-    if tok_loc.starting_line == scanner.line {
-        Ok(())
-    } else {
-        Err(ParseError::new(PECode::ImproperNewline, scanner))
-    }
+    if tok_loc.starting_line == scanner.line { Ok(()) } else { Err(ParseError::new(PECode::ImproperNewline, scanner)) }
 }
 
 // 11.1.6 Static Semantics: ParseText ( sourceText, goalSymbol )
@@ -751,11 +743,7 @@ fn direct_parse(parser: &mut Parser, strict: bool, parse_fn: ParseClosure, name:
                 // input text was completely consumed
                 let mut errs = vec![];
                 item.early_errors(&mut errs, strict);
-                if errs.is_empty() {
-                    ParsedText::from(item)
-                } else {
-                    ParsedText::Errors(errs)
-                }
+                if errs.is_empty() { ParsedText::from(item) } else { ParsedText::Errors(errs) }
             } else {
                 ParsedText::Errors(vec![create_syntax_error_object(format!("{name} had unparsed trailing text"), None)])
             }

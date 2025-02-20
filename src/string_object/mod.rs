@@ -102,11 +102,12 @@ impl ObjectInterface for StringObject {
         //      b. Return IsCompatiblePropertyDescriptor(extensible, Desc, stringDesc).
         //  3. Return ! OrdinaryDefineOwnProperty(S, P, Desc).
         let string_desc = self.string_get_own_property(&key);
-        if let Some(string_desc) = string_desc {
-            let extensible = self.common.borrow().extensible;
-            Ok(is_compatible_property_descriptor(extensible, desc, Some(&string_desc)))
-        } else {
-            ordinary_define_own_property(self, key, desc)
+        match string_desc {
+            Some(string_desc) => {
+                let extensible = self.common.borrow().extensible;
+                Ok(is_compatible_property_descriptor(extensible, desc, Some(&string_desc)))
+            }
+            _ => ordinary_define_own_property(self, key, desc),
         }
     }
 
@@ -308,7 +309,7 @@ pub fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Constructor Function Properties
     macro_rules! constructor_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -339,7 +340,7 @@ pub fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Constructor Data Properties
     macro_rules! constructor_data {
-        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+        ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             define_property_or_throw(
                 &string_constructor,
                 $name,
@@ -365,7 +366,7 @@ pub fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype Function Properties
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -424,7 +425,7 @@ pub fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(string_prototype_iterator, wks(WksId::Iterator), 0.0);
 
     macro_rules! prototype_data {
-        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+        ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             define_property_or_throw(
                 &string_prototype,
                 $name,
@@ -1388,7 +1389,7 @@ pub fn provision_string_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
 
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),

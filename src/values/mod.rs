@@ -140,18 +140,16 @@ impl ECMAScriptValue {
     }
 
     pub fn to_obj_or_undefined(from: Option<Object>) -> Self {
-        if let Some(obj) = from {
-            Self::Object(obj)
-        } else {
-            Self::Undefined
+        match from {
+            Some(obj) => Self::Object(obj),
+            _ => Self::Undefined,
         }
     }
 
     pub fn to_obj_or_null(from: Option<Object>) -> Self {
-        if let Some(obj) = from {
-            Self::Object(obj)
-        } else {
-            Self::Null
+        match from {
+            Some(obj) => Self::Object(obj),
+            _ => Self::Null,
         }
     }
 
@@ -252,22 +250,14 @@ impl From<i32> for ECMAScriptValue {
 impl From<u64> for ECMAScriptValue {
     #[expect(clippy::cast_precision_loss)]
     fn from(val: u64) -> Self {
-        if val <= 1 << 53 {
-            Self::from(val as f64)
-        } else {
-            Self::from(BigInt::from(val))
-        }
+        if val <= 1 << 53 { Self::from(val as f64) } else { Self::from(BigInt::from(val)) }
     }
 }
 
 impl From<usize> for ECMAScriptValue {
     #[expect(clippy::cast_precision_loss)]
     fn from(val: usize) -> Self {
-        if val <= 1 << 53 {
-            Self::from(val as f64)
-        } else {
-            Self::from(BigInt::from(val))
-        }
+        if val <= 1 << 53 { Self::from(val as f64) } else { Self::from(BigInt::from(val)) }
     }
 }
 impl From<i64> for ECMAScriptValue {
@@ -516,11 +506,7 @@ pub struct ArrayIndex(u32);
 impl TryFrom<u32> for ArrayIndex {
     type Error = &'static str;
     fn try_from(val: u32) -> Result<ArrayIndex, Self::Error> {
-        if val < 0xFFFF_FFFF {
-            Ok(ArrayIndex(val))
-        } else {
-            Err("The maximum array index is 4294967294")
-        }
+        if val < 0xFFFF_FFFF { Ok(ArrayIndex(val)) } else { Err("The maximum array index is 4294967294") }
     }
 }
 
@@ -881,11 +867,7 @@ pub fn to_primitive(input: &ECMAScriptValue, preferred_type: Option<ConversionHi
 
 impl ECMAScriptValue {
     pub fn to_primitive(&self, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
-        if let ECMAScriptValue::Object(obj) = self {
-            obj.to_primitive(preferred_type)
-        } else {
-            Ok(self.clone())
-        }
+        if let ECMAScriptValue::Object(obj) = self { obj.to_primitive(preferred_type) } else { Ok(self.clone()) }
     }
 }
 
@@ -945,10 +927,9 @@ pub enum Numeric {
 impl ECMAScriptValue {
     pub fn to_numeric(&self) -> Completion<Numeric> {
         let prim_value = self.to_primitive(Some(ConversionHint::Number))?;
-        if let ECMAScriptValue::BigInt(bi) = prim_value {
-            Ok(Numeric::BigInt(bi))
-        } else {
-            Ok(Numeric::Number(prim_value.to_number()?))
+        match prim_value {
+            ECMAScriptValue::BigInt(bi) => Ok(Numeric::BigInt(bi)),
+            _ => Ok(Numeric::Number(prim_value.to_number()?)),
         }
     }
 }
@@ -1079,11 +1060,7 @@ pub fn to_integer_or_infinity(number: f64) -> f64 {
         number
     } else {
         let integer = number.abs().floor();
-        if number < 0.0 && integer != 0.0 {
-            -integer
-        } else {
-            integer
-        }
+        if number < 0.0 && integer != 0.0 { -integer } else { integer }
     }
 }
 
@@ -1156,11 +1133,7 @@ impl JSString {
 }
 fn to_core_signed_f64(modulo: f64, number: f64) -> f64 {
     let intval = to_core_int_f64(modulo, number);
-    if intval >= modulo / 2.0 {
-        intval - modulo
-    } else {
-        intval
-    }
+    if intval >= modulo / 2.0 { intval - modulo } else { intval }
 }
 impl ECMAScriptValue {
     fn to_core_signed(&self, modulo: f64) -> Completion<f64> {
@@ -1473,11 +1446,7 @@ pub fn canonical_numeric_index_string(argument: &JSString) -> Option<f64> {
         Some(-0.0)
     } else {
         let n = argument.to_number();
-        if *argument == JSString::from(n) {
-            Some(n)
-        } else {
-            None
-        }
+        if *argument == JSString::from(n) { Some(n) } else { None }
     }
 }
 
@@ -1557,11 +1526,7 @@ impl ECMAScriptValue {
     }
 
     pub fn is_constructor(&self) -> bool {
-        if let Self::Object(o) = self {
-            o.is_constructor()
-        } else {
-            false
-        }
+        if let Self::Object(o) = self { o.is_constructor() } else { false }
     }
 
     #[inline]

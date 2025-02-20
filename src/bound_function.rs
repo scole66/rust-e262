@@ -62,11 +62,7 @@ impl ObjectInterface for BoundFunctionObject {
 
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let bound_target = &self.bound_target_function;
-        if bound_target.is_constructor() {
-            Some(self)
-        } else {
-            None
-        }
+        if bound_target.is_constructor() { Some(self) } else { None }
     }
 
     fn to_bound_function_object(&self) -> Option<&BoundFunctionObject> {

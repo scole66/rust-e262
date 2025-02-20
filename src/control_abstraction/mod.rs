@@ -1,8 +1,8 @@
 use super::*;
 use futures::future::LocalBoxFuture;
 use genawaiter::{
-    rc::{Co, Gen},
     Coroutine,
+    rc::{Co, Gen},
 };
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -35,7 +35,7 @@ pub fn provision_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype Function Properties
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -104,7 +104,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     );
 
     macro_rules! constructor_data {
-        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+        ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             define_property_or_throw(
                 &generator_function_constructor,
                 $name,
@@ -130,7 +130,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     let generator_function_prototype = ordinary_object_create(Some(function_prototype.clone()));
 
     macro_rules! gf_prototype_data {
-        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+        ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             define_property_or_throw(
                 &generator_function_prototype,
                 $name,
@@ -161,7 +161,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     gf_prototype_data!("prototype", generator_prototype.clone(), false, false, true);
 
     macro_rules! gen_prototype_data {
-        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+        ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             define_property_or_throw(
                 &generator_prototype,
                 $name,
@@ -179,7 +179,7 @@ pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     gen_prototype_data!(to_string_tag, "Generator", false, false, true);
 
     macro_rules! gen_prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {{
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {{
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -655,7 +655,9 @@ pub fn generator_validate(generator: &ECMAScriptValue, generator_brand: &str) ->
     //  7. Return state.
     match generator {
         ECMAScriptValue::Object(o) => {
-            o.o.to_generator_object().ok_or(GeneratorError::NotAGenerator).and_then(|gen| gen.validate(generator_brand))
+            o.o.to_generator_object()
+                .ok_or(GeneratorError::NotAGenerator)
+                .and_then(|r#gen| r#gen.validate(generator_brand))
         }
         _ => Err(GeneratorError::NotAGenerator),
     }
@@ -1070,11 +1072,7 @@ impl IteratorRecord {
         //  4. Return result.
         let result = self.next(None)?;
         let done = iterator_complete(&result)?;
-        if done {
-            Ok(None)
-        } else {
-            Ok(Some(result))
-        }
+        if done { Ok(None) } else { Ok(Some(result)) }
     }
 
     pub fn close<X>(&self, completion: Completion<X>) -> Completion<X>

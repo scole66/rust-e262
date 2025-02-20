@@ -506,7 +506,10 @@ mod class_name {
     fn try_from(make_nc: impl FnOnce() -> NormalCompletion) -> Result<String, String> {
         setup_test_agent();
         let nc = make_nc();
-        let pn = if let NormalCompletion::PrivateName(pn) = &nc { Some(pn) } else { None };
+        let pn = match &nc {
+            NormalCompletion::PrivateName(pn) => Some(pn),
+            _ => None,
+        };
         let cn: Option<ClassName> = TryFrom::try_from(nc.clone()).map_err(|e: anyhow::Error| e.to_string())?;
 
         match cn {
@@ -2249,13 +2252,14 @@ fn prepare_for_ordinary_call(make_func: impl FnOnce() -> Object, make_nt: impl F
         assert_eq!(&env_func, &func);
         let env = env.as_function_environment_record().unwrap();
         assert_eq!(env.get_new_target(), nt.as_ref());
-        if let (Some(left), Some(right)) =
-            (current.private_environment.as_ref(), function_data.private_environment.as_ref())
-        {
-            assert!(Rc::ptr_eq(left, right));
-        } else {
-            assert!(current.private_environment.is_none());
-            assert!(function_data.private_environment.is_none());
+        match (current.private_environment.as_ref(), function_data.private_environment.as_ref()) {
+            (Some(left), Some(right)) => {
+                assert!(Rc::ptr_eq(left, right));
+            }
+            _ => {
+                assert!(current.private_environment.is_none());
+                assert!(function_data.private_environment.is_none());
+            }
         }
     });
 }

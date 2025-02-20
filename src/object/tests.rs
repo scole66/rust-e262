@@ -1352,11 +1352,7 @@ impl VAPDIter {
             if self.configurable { 'C' } else { '-' },
             if self.enumerable { 'E' } else { '-' },
             if self.stage == Stage::Data {
-                if self.writable {
-                    'W'
-                } else {
-                    '-'
-                }
+                if self.writable { 'W' } else { '-' }
             } else if self.get_throws {
                 'G'
             } else {
@@ -1533,14 +1529,23 @@ fn figure_expectation(
         PropertyKind::Data(dp) => {
             let writable_changed = dp.writable != incoming.writable.unwrap_or(dp.writable);
             let value_changed = &dp.value != incoming.value.as_ref().unwrap_or(&dp.value);
-            let new_value = if let Some(v) = &incoming.value { v.clone() } else { dp.value.clone() };
+            let new_value = match &incoming.value {
+                Some(v) => v.clone(),
+                _ => dp.value.clone(),
+            };
 
             // If existing is "config", all changes are allowed.
             if current_configurable {
                 // If existing is configurable, all changes are allowed.
                 if kind_changed {
-                    let new_get = if let Some(g) = &incoming.get { g.clone() } else { ECMAScriptValue::Undefined };
-                    let new_set = if let Some(s) = &incoming.set { s.clone() } else { ECMAScriptValue::Undefined };
+                    let new_get = match &incoming.get {
+                        Some(g) => g.clone(),
+                        _ => ECMAScriptValue::Undefined,
+                    };
+                    let new_set = match &incoming.set {
+                        Some(s) => s.clone(),
+                        _ => ECMAScriptValue::Undefined,
+                    };
                     Some(PropertyDescriptor {
                         property: PropertyKind::Accessor(AccessorProperty { get: new_get, set: new_set }),
                         configurable: incoming.configurable.unwrap_or(current_configurable),
@@ -1595,7 +1600,10 @@ fn figure_expectation(
             if current_configurable {
                 // If existing is configurable, all changes are allowed.
                 if kind_changed {
-                    let new_value = if let Some(v) = &incoming.value { v.clone() } else { ECMAScriptValue::Undefined };
+                    let new_value = match &incoming.value {
+                        Some(v) => v.clone(),
+                        _ => ECMAScriptValue::Undefined,
+                    };
                     Some(PropertyDescriptor {
                         property: PropertyKind::Data(DataProperty {
                             value: new_value,
@@ -1606,8 +1614,14 @@ fn figure_expectation(
                         spot: current.spot,
                     })
                 } else {
-                    let get_value = if let Some(g) = &incoming.get { g.clone() } else { ap.get.clone() };
-                    let set_value = if let Some(s) = &incoming.set { s.clone() } else { ap.set.clone() };
+                    let get_value = match &incoming.get {
+                        Some(g) => g.clone(),
+                        _ => ap.get.clone(),
+                    };
+                    let set_value = match &incoming.set {
+                        Some(s) => s.clone(),
+                        _ => ap.set.clone(),
+                    };
                     Some(PropertyDescriptor {
                         property: PropertyKind::Accessor(AccessorProperty { get: get_value, set: set_value }),
                         configurable: incoming.configurable.unwrap_or(current_configurable),
@@ -2895,11 +2909,14 @@ mod private_element_find {
         let result = private_element_find(&obj, &names[idx]);
         let elem = result.unwrap();
         let keys_match = elem.key == names[idx];
-        if let PrivateElementKind::Field { value } = &elem.kind {
-            let values_match = *value.borrow() == ECMAScriptValue::from(idx + 1);
-            (keys_match, values_match)
-        } else {
-            panic!("Bad element kind came back")
+        match &elem.kind {
+            PrivateElementKind::Field { value } => {
+                let values_match = *value.borrow() == ECMAScriptValue::from(idx + 1);
+                (keys_match, values_match)
+            }
+            _ => {
+                panic!("Bad element kind came back")
+            }
         }
     }
 
@@ -3212,11 +3229,7 @@ mod from_property_descriptor {
 
     fn maybeprop(obj: &Object, key: impl Into<PropertyKey>) -> Option<ECMAScriptValue> {
         let key = key.into();
-        if has_property(obj, &key).unwrap() {
-            Some(obj.get(&key).unwrap())
-        } else {
-            None
-        }
+        if has_property(obj, &key).unwrap() { Some(obj.get(&key).unwrap()) } else { None }
     }
 
     #[derive(Debug, PartialEq)]

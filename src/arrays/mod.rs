@@ -555,7 +555,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Constructor Function Properties
     macro_rules! constructor_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -628,7 +628,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype function properties
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -745,7 +745,7 @@ pub fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -983,25 +983,28 @@ fn array_from(
             }
             let pk = PropertyKey::from(k);
             let next = iterator_step_value(&iterator_record)?;
-            if let Some(next) = next {
-                let mapped_value = if mapping {
-                    match call(&mapper, &this_arg, &[next.clone(), ECMAScriptValue::from(k)]) {
-                        Err(err) => {
-                            return iterator_close(&iterator_record, Err(err));
+            match next {
+                Some(next) => {
+                    let mapped_value = if mapping {
+                        match call(&mapper, &this_arg, &[next.clone(), ECMAScriptValue::from(k)]) {
+                            Err(err) => {
+                                return iterator_close(&iterator_record, Err(err));
+                            }
+                            Ok(val) => val,
                         }
-                        Ok(val) => val,
+                    } else {
+                        next
+                    };
+                    let define_status = a.create_data_property_or_throw(pk, mapped_value);
+                    if let Err(err) = define_status {
+                        return iterator_close(&iterator_record, Err(err));
                     }
-                } else {
-                    next
-                };
-                let define_status = a.create_data_property_or_throw(pk, mapped_value);
-                if let Err(err) = define_status {
-                    return iterator_close(&iterator_record, Err(err));
+                    k += 1;
                 }
-                k += 1;
-            } else {
-                a.set("length", k, true)?;
-                return Ok(ECMAScriptValue::Object(a));
+                _ => {
+                    a.set("length", k, true)?;
+                    return Ok(ECMAScriptValue::Object(a));
+                }
             }
         }
     }
@@ -2450,10 +2453,9 @@ fn array_prototype_reduce(
         return Err(create_type_error("Array.prototype.reduce: callback function was not callable"));
     }
     let mut k = 0.0;
-    let mut accumulator = if let Some(initial_value) = initial_value {
-        initial_value
-    } else {
-        loop {
+    let mut accumulator = match initial_value {
+        Some(initial_value) => initial_value,
+        _ => loop {
             if k >= len {
                 break Err(create_type_error("Array.prototype.reduce: empty array with no initial value"));
             }
@@ -2462,7 +2464,7 @@ fn array_prototype_reduce(
             if has_property(&o, &pk)? {
                 break o.get(&pk);
             }
-        }?
+        }?,
     };
     while k < len {
         let pk = PropertyKey::from(k);
@@ -2544,10 +2546,9 @@ fn array_prototype_reduce_right(
         return Err(create_type_error("Array.prototype.reduceRight: callback function was not callable"));
     }
     let mut k = len - 1.0;
-    let mut accumulator = if let Some(initial_value) = initial_value {
-        initial_value
-    } else {
-        loop {
+    let mut accumulator = match initial_value {
+        Some(initial_value) => initial_value,
+        _ => loop {
             if k < 0.0 {
                 break Err(create_type_error("Array.prototype.reduceRight: empty array with no initial value"));
             }
@@ -2556,7 +2557,7 @@ fn array_prototype_reduce_right(
             if has_property(&o, &pk)? {
                 break o.get(&pk);
             }
-        }?
+        }?,
     };
     while k >= 0.0 {
         let pk = PropertyKey::from(k);

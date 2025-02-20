@@ -1,6 +1,6 @@
 use super::*;
 use ahash::AHashSet;
-use non_empty_vec::{ne_vec, NonEmpty};
+use non_empty_vec::{NonEmpty, ne_vec};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
@@ -262,11 +262,7 @@ impl Block {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        if let Some(node) = &self.statements {
-            node.all_private_identifiers_valid(names)
-        } else {
-            true
-        }
+        if let Some(node) = &self.statements { node.all_private_identifiers_valid(names) } else { true }
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
