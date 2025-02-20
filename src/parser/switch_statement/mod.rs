@@ -748,11 +748,7 @@ impl CaseClause {
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
-        if let Some(stmt) = &self.statements {
-            stmt.lexically_declared_names()
-        } else {
-            vec![]
-        }
+        if let Some(stmt) = &self.statements { stmt.lexically_declared_names() } else { vec![] }
     }
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
@@ -819,11 +815,7 @@ impl CaseClause {
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
-        if let Some(sl) = &self.statements {
-            sl.var_scoped_declarations()
-        } else {
-            vec![]
-        }
+        if let Some(sl) = &self.statements { sl.var_scoped_declarations() } else { vec![] }
     }
 
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
@@ -942,11 +934,7 @@ impl DefaultClause {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        if let Some(node) = &self.0 {
-            node.all_private_identifiers_valid(names)
-        } else {
-            true
-        }
+        if let Some(node) = &self.0 { node.all_private_identifiers_valid(names) } else { true }
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -973,11 +961,7 @@ impl DefaultClause {
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
-        if let Some(stmt) = &self.0 {
-            stmt.var_scoped_declarations()
-        } else {
-            vec![]
-        }
+        if let Some(stmt) = &self.0 { stmt.var_scoped_declarations() } else { vec![] }
     }
 
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {

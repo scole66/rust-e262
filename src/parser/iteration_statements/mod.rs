@@ -540,11 +540,7 @@ impl PrettyPrint for ForStatement {
         pprint_token(w, "for", TokenType::Keyword, &suc, Spot::NotFinal)?;
         pprint_token(w, "(", TokenType::Punctuator, &suc, Spot::NotFinal)?;
         let maybeprint = |w: &mut T, e: &Option<Rc<Expression>>| {
-            if let Some(exp) = e {
-                exp.concise_with_leftpad(w, &suc, Spot::NotFinal)
-            } else {
-                Ok(())
-            }
+            if let Some(exp) = e { exp.concise_with_leftpad(w, &suc, Spot::NotFinal) } else { Ok(()) }
         };
         match self {
             ForStatement::For(e1, e2, e3, s, ..) => {

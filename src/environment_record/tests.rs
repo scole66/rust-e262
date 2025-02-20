@@ -1993,10 +1993,11 @@ mod global_environment_record {
             let desc =
                 ger.object_record.binding_object.o.get_own_property(&PropertyKey::from(test_name)).unwrap().unwrap();
             assert!(matches!(desc.property, PropertyKind::Data(_)));
-            if let PropertyKind::Data(data) = desc.property {
-                (data.value, desc.configurable)
-            } else {
-                unreachable!()
+            match desc.property {
+                PropertyKind::Data(data) => (data.value, desc.configurable),
+                PropertyKind::Accessor(_) => {
+                    unreachable!()
+                }
             }
         }
 
@@ -2018,10 +2019,11 @@ mod global_environment_record {
                 None => None,
                 Some(desc) => {
                     assert!(matches!(desc.property, PropertyKind::Data(_)));
-                    if let PropertyKind::Data(data) = desc.property {
-                        Some((data.value, desc.configurable))
-                    } else {
-                        unreachable!()
+                    match desc.property {
+                        PropertyKind::Data(data) => Some((data.value, desc.configurable)),
+                        PropertyKind::Accessor(_) => {
+                            unreachable!()
+                        }
                     }
                 }
             }
@@ -2065,13 +2067,12 @@ mod global_environment_record {
             let opt_desc = ger.object_record.binding_object.o.get_own_property(&PropertyKey::from(test_name)).unwrap();
             match opt_desc {
                 None => None,
-                Some(desc) => {
-                    if let PropertyKind::Data(data) = desc.property {
-                        Some((data.value, data.writable, desc.enumerable, desc.configurable))
-                    } else {
+                Some(desc) => match desc.property {
+                    PropertyKind::Data(data) => Some((data.value, data.writable, desc.enumerable, desc.configurable)),
+                    PropertyKind::Accessor(_) => {
                         panic!("Expected data property, found an accessor property: {desc:?}");
                     }
-                }
+                },
             }
         }
 

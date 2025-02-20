@@ -340,8 +340,10 @@ mod reference {
         }
         #[test]
         fn propref() {
-            assert!(!Reference::new(Base::Value(ECMAScriptValue::from(10)), "blue", false, None)
-                .is_unresolvable_reference());
+            assert!(
+                !Reference::new(Base::Value(ECMAScriptValue::from(10)), "blue", false, None)
+                    .is_unresolvable_reference()
+            );
         }
     }
 
@@ -350,8 +352,10 @@ mod reference {
 
         #[test]
         fn has_this() {
-            assert!(Reference::new(Base::Value(ECMAScriptValue::from(10)), "a", false, Some(ECMAScriptValue::from(1)))
-                .is_super_reference());
+            assert!(
+                Reference::new(Base::Value(ECMAScriptValue::from(10)), "a", false, Some(ECMAScriptValue::from(1)))
+                    .is_super_reference()
+            );
         }
         #[test]
         fn no_this() {
@@ -368,8 +372,10 @@ mod reference {
         }
         #[test]
         fn private() {
-            assert!(Reference::new(Base::Value(ECMAScriptValue::from(10)), PrivateName::new("a"), false, None)
-                .is_private_reference());
+            assert!(
+                Reference::new(Base::Value(ECMAScriptValue::from(10)), PrivateName::new("a"), false, None)
+                    .is_private_reference()
+            );
         }
     }
 

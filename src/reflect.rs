@@ -17,7 +17,7 @@ pub fn provision_reflect_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
     macro_rules! function_property {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -151,12 +151,13 @@ fn reflect_define_property(
     // 3. Let desc be ? ToPropertyDescriptor(attributes).
     // 4. Return ? target.[[DefineOwnProperty]](key, desc).
     let mut args = FuncArgs::from(arguments);
-    if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = args.next_arg().to_property_key()?;
-        let desc = to_property_descriptor(&args.next_arg())?;
-        Ok(ECMAScriptValue::from(target.o.define_own_property(key, desc)?))
-    } else {
-        Err(create_type_error("Reflect.defineProperty: target must be an object"))
+    match args.next_arg() {
+        ECMAScriptValue::Object(target) => {
+            let key = args.next_arg().to_property_key()?;
+            let desc = to_property_descriptor(&args.next_arg())?;
+            Ok(ECMAScriptValue::from(target.o.define_own_property(key, desc)?))
+        }
+        _ => Err(create_type_error("Reflect.defineProperty: target must be an object")),
     }
 }
 
@@ -172,11 +173,12 @@ fn reflect_delete_property(
     // 2. Let key be ? ToPropertyKey(propertyKey).
     // 3. Return ? target.[[Delete]](key).
     let mut args = FuncArgs::from(arguments);
-    if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = args.next_arg().to_property_key()?;
-        Ok(ECMAScriptValue::from(target.o.delete(&key)?))
-    } else {
-        Err(create_type_error("Reflect.deleteProperty: target must be an object"))
+    match args.next_arg() {
+        ECMAScriptValue::Object(target) => {
+            let key = args.next_arg().to_property_key()?;
+            Ok(ECMAScriptValue::from(target.o.delete(&key)?))
+        }
+        _ => Err(create_type_error("Reflect.deleteProperty: target must be an object")),
     }
 }
 
@@ -195,12 +197,13 @@ fn reflect_get(
     // 4. Return ? target.[[Get]](key, receiver).
     let num_args = arguments.len();
     let mut args = FuncArgs::from(arguments);
-    if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = args.next_arg().to_property_key()?;
-        let receiver = if num_args < 3 { ECMAScriptValue::Object(target.clone()) } else { args.next_arg() };
-        target.o.get(&key, &receiver)
-    } else {
-        Err(create_type_error("Reflect.get: target must be an object"))
+    match args.next_arg() {
+        ECMAScriptValue::Object(target) => {
+            let key = args.next_arg().to_property_key()?;
+            let receiver = if num_args < 3 { ECMAScriptValue::Object(target.clone()) } else { args.next_arg() };
+            target.o.get(&key, &receiver)
+        }
+        _ => Err(create_type_error("Reflect.get: target must be an object")),
     }
 }
 
@@ -217,12 +220,13 @@ fn reflect_get_own_property_descriptor(
     // 3. Let desc be ? target.[[GetOwnProperty]](key).
     // 4. Return FromPropertyDescriptor(desc).
     let mut args = FuncArgs::from(arguments);
-    if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = args.next_arg().to_property_key()?;
-        let desc = target.o.get_own_property(&key)?;
-        Ok(ECMAScriptValue::to_obj_or_undefined(from_property_descriptor(desc)))
-    } else {
-        Err(create_type_error("Reflect.getOwnPropertyDescriptor: target must be an object"))
+    match args.next_arg() {
+        ECMAScriptValue::Object(target) => {
+            let key = args.next_arg().to_property_key()?;
+            let desc = target.o.get_own_property(&key)?;
+            Ok(ECMAScriptValue::to_obj_or_undefined(from_property_descriptor(desc)))
+        }
+        _ => Err(create_type_error("Reflect.getOwnPropertyDescriptor: target must be an object")),
     }
 }
 
@@ -237,10 +241,9 @@ fn reflect_get_prototype_of(
     // 1. If target is not an Object, throw a TypeError exception.
     // 2. Return ? target.[[GetPrototypeOf]]().
     let mut args = FuncArgs::from(arguments);
-    if let ECMAScriptValue::Object(target) = args.next_arg() {
-        Ok(ECMAScriptValue::to_obj_or_null(target.o.get_prototype_of()?))
-    } else {
-        Err(create_type_error("Reflect.getPrototypeOf: target must be an object"))
+    match args.next_arg() {
+        ECMAScriptValue::Object(target) => Ok(ECMAScriptValue::to_obj_or_null(target.o.get_prototype_of()?)),
+        _ => Err(create_type_error("Reflect.getPrototypeOf: target must be an object")),
     }
 }
 
@@ -256,11 +259,12 @@ fn reflect_has(
     // 2. Let key be ? ToPropertyKey(propertyKey).
     // 3. Return ? target.[[HasProperty]](key).
     let mut args = FuncArgs::from(arguments);
-    if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = args.next_arg().to_property_key()?;
-        Ok(ECMAScriptValue::from(target.o.has_property(&key)?))
-    } else {
-        Err(create_type_error("Reflect.has: target must be an object"))
+    match args.next_arg() {
+        ECMAScriptValue::Object(target) => {
+            let key = args.next_arg().to_property_key()?;
+            Ok(ECMAScriptValue::from(target.o.has_property(&key)?))
+        }
+        _ => Err(create_type_error("Reflect.has: target must be an object")),
     }
 }
 
@@ -275,10 +279,9 @@ fn reflect_is_extensible(
     // 1. If target is not an Object, throw a TypeError exception.
     // 2. Return ? target.[[IsExtensible]]().
     let mut args = FuncArgs::from(arguments);
-    if let ECMAScriptValue::Object(target) = args.next_arg() {
-        Ok(ECMAScriptValue::from(target.o.is_extensible()?))
-    } else {
-        Err(create_type_error("Reflect.isExtensible: target must be an object"))
+    match args.next_arg() {
+        ECMAScriptValue::Object(target) => Ok(ECMAScriptValue::from(target.o.is_extensible()?)),
+        _ => Err(create_type_error("Reflect.isExtensible: target must be an object")),
     }
 }
 
@@ -294,11 +297,12 @@ fn reflect_own_keys(
     // 2. Let keys be ? target.[[OwnPropertyKeys]]().
     // 3. Return CreateArrayFromList(keys).
     let mut args = FuncArgs::from(arguments);
-    if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let keys = target.o.own_property_keys()?.iter().map(ECMAScriptValue::from).collect::<Vec<_>>();
-        Ok(ECMAScriptValue::from(create_array_from_list(&keys)))
-    } else {
-        Err(create_type_error("Reflect.ownKeys: target must be an object"))
+    match args.next_arg() {
+        ECMAScriptValue::Object(target) => {
+            let keys = target.o.own_property_keys()?.iter().map(ECMAScriptValue::from).collect::<Vec<_>>();
+            Ok(ECMAScriptValue::from(create_array_from_list(&keys)))
+        }
+        _ => Err(create_type_error("Reflect.ownKeys: target must be an object")),
     }
 }
 
@@ -313,10 +317,9 @@ fn reflect_prevent_extensions(
     // 1. If target is not an Object, throw a TypeError exception.
     // 2. Return ? target.[[PreventExtensions]]().
     let mut args = FuncArgs::from(arguments);
-    if let ECMAScriptValue::Object(target) = args.next_arg() {
-        Ok(ECMAScriptValue::from(target.o.prevent_extensions()?))
-    } else {
-        Err(create_type_error("Reflect.preventExtensions: target must be an object"))
+    match args.next_arg() {
+        ECMAScriptValue::Object(target) => Ok(ECMAScriptValue::from(target.o.prevent_extensions()?)),
+        _ => Err(create_type_error("Reflect.preventExtensions: target must be an object")),
     }
 }
 
@@ -335,13 +338,14 @@ fn reflect_set(
     // 4. Return ? target.[[Set]](key, V, receiver).
     let num_args = arguments.len();
     let mut args = FuncArgs::from(arguments);
-    if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let key = args.next_arg().to_property_key()?;
-        let v = args.next_arg();
-        let receiver = if num_args < 4 { ECMAScriptValue::from(target.clone()) } else { args.next_arg() };
-        Ok(ECMAScriptValue::from(target.o.set(key, v, &receiver)?))
-    } else {
-        Err(create_type_error("Reflect.set: target must be an object"))
+    match args.next_arg() {
+        ECMAScriptValue::Object(target) => {
+            let key = args.next_arg().to_property_key()?;
+            let v = args.next_arg();
+            let receiver = if num_args < 4 { ECMAScriptValue::from(target.clone()) } else { args.next_arg() };
+            Ok(ECMAScriptValue::from(target.o.set(key, v, &receiver)?))
+        }
+        _ => Err(create_type_error("Reflect.set: target must be an object")),
     }
 }
 
@@ -357,15 +361,16 @@ fn reflect_set_prototype_of(
     // 2. If proto is not an Object and proto is not null, throw a TypeError exception.
     // 3. Return ? target.[[SetPrototypeOf]](proto).
     let mut args = FuncArgs::from(arguments);
-    if let ECMAScriptValue::Object(target) = args.next_arg() {
-        let proto = match args.next_arg() {
-            ECMAScriptValue::Object(obj) => Some(obj),
-            ECMAScriptValue::Null => None,
-            _ => return Err(create_type_error("Reflect.setPrototypeOf: proto must be an object or null")),
-        };
-        Ok(ECMAScriptValue::from(target.o.set_prototype_of(proto)?))
-    } else {
-        Err(create_type_error("Reflect.setPrototypeOf: target must be an object"))
+    match args.next_arg() {
+        ECMAScriptValue::Object(target) => {
+            let proto = match args.next_arg() {
+                ECMAScriptValue::Object(obj) => Some(obj),
+                ECMAScriptValue::Null => None,
+                _ => return Err(create_type_error("Reflect.setPrototypeOf: proto must be an object or null")),
+            };
+            Ok(ECMAScriptValue::from(target.o.set_prototype_of(proto)?))
+        }
+        _ => Err(create_type_error("Reflect.setPrototypeOf: target must be an object")),
     }
 }
 

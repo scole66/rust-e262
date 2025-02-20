@@ -57,11 +57,7 @@ impl JSString {
     pub fn starts_with(&self, search_value: &JSString) -> bool {
         let len = self.len();
         let search_len = search_value.len();
-        if search_len > len {
-            false
-        } else {
-            self.s[0..search_len] == search_value.s[..]
-        }
+        if search_len > len { false } else { self.s[0..search_len] == search_value.s[..] }
     }
 }
 

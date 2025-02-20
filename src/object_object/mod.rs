@@ -100,7 +100,7 @@ pub fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Constructor Function Properties
     macro_rules! constructor_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -165,7 +165,7 @@ pub fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype function properties
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -466,11 +466,7 @@ fn object_freeze(
     match o_arg {
         ECMAScriptValue::Object(o) => {
             let status = set_integrity_level(&o, IntegrityLevel::Frozen)?;
-            if status {
-                Ok(o.into())
-            } else {
-                Err(create_type_error("Object cannot be frozen"))
-            }
+            if status { Ok(o.into()) } else { Err(create_type_error("Object cannot be frozen")) }
         }
         _ => Ok(o_arg),
     }
@@ -831,11 +827,7 @@ fn object_prevent_extensions(
         | ECMAScriptValue::Symbol(_) => Ok(o),
         ECMAScriptValue::Object(o) => {
             let status = o.o.prevent_extensions()?;
-            if status {
-                Ok(o.into())
-            } else {
-                Err(create_type_error("cannot prevent extensions for this object"))
-            }
+            if status { Ok(o.into()) } else { Err(create_type_error("cannot prevent extensions for this object")) }
         }
     }
 }
@@ -864,11 +856,7 @@ fn object_seal(
         | ECMAScriptValue::Symbol(_) => Ok(o),
         ECMAScriptValue::Object(o) => {
             let status = set_integrity_level(&o, IntegrityLevel::Sealed)?;
-            if status {
-                Ok(o.into())
-            } else {
-                Err(create_type_error("cannot seal this object"))
-            }
+            if status { Ok(o.into()) } else { Err(create_type_error("cannot seal this object")) }
         }
     }
 }
@@ -913,11 +901,7 @@ fn object_set_prototype_of(
         | ECMAScriptValue::Symbol(_) => Ok(o),
         ECMAScriptValue::Object(o) => {
             let status = o.o.set_prototype_of(proto)?;
-            if status {
-                Ok(o.into())
-            } else {
-                Err(create_type_error("Prototype setting failed"))
-            }
+            if status { Ok(o.into()) } else { Err(create_type_error("Prototype setting failed")) }
         }
     }
 }

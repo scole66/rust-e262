@@ -377,11 +377,7 @@ where
 fn get_pd_prop(obj: &Object, key: impl Into<PropertyKey>) -> Completion<Option<ECMAScriptValue>> {
     Ok({
         let key = key.into();
-        if has_property(obj, &key)? {
-            Some(obj.get(&key)?)
-        } else {
-            None
-        }
+        if has_property(obj, &key)? { Some(obj.get(&key)?) } else { None }
     })
 }
 fn get_pd_bool(obj: &Object, key: &str) -> Completion<Option<bool>> {
@@ -1491,10 +1487,9 @@ impl Eq for Object {}
 impl TryFrom<ECMAScriptValue> for Object {
     type Error = anyhow::Error;
     fn try_from(source: ECMAScriptValue) -> Result<Self, Self::Error> {
-        if let ECMAScriptValue::Object(o) = source {
-            Ok(o)
-        } else {
-            Err(anyhow!("Only object values may be converted to true objects"))
+        match source {
+            ECMAScriptValue::Object(o) => Ok(o),
+            _ => Err(anyhow!("Only object values may be converted to true objects")),
         }
     }
 }
@@ -1572,11 +1567,14 @@ impl Object {
     pub fn is_array(&self) -> Completion<bool> {
         if self.o.is_array_object() {
             Ok(true)
-        } else if let Some(po) = self.o.to_proxy_object() {
-            let (target, _handler) = po.validate_non_revoked()?;
-            target.is_array()
         } else {
-            Ok(false)
+            match self.o.to_proxy_object() {
+                Some(po) => {
+                    let (target, _handler) = po.validate_non_revoked()?;
+                    target.is_array()
+                }
+                _ => Ok(false),
+            }
         }
     }
 
@@ -1650,11 +1648,7 @@ impl Object {
         //          already exist. If it does exist and is not configurable or if O is not extensible,
         //          [[DefineOwnProperty]] will return false causing this operation to throw a TypeError exception.
         let success = self.create_data_property(p, v)?;
-        if success {
-            Ok(())
-        } else {
-            Err(create_type_error("Unable to create data property"))
-        }
+        if success { Ok(()) } else { Err(create_type_error("Unable to create data property")) }
     }
 
     /// Look up the value of an object's property
@@ -1924,11 +1918,7 @@ fn internal_define_property_or_throw(
     //  4. If success is false, throw a TypeError exception.
     //  5. Return success.
     let success = obj.o.define_own_property(p, desc)?;
-    if success {
-        Ok(())
-    } else {
-        Err(create_type_error("Property cannot be assigned to"))
-    }
+    if success { Ok(()) } else { Err(create_type_error("Property cannot be assigned to")) }
 }
 
 impl Object {
@@ -1943,11 +1933,7 @@ impl Object {
         //  2. If success is false, throw a TypeError exception.
         //  3. Return unused.
         let success = self.o.delete(p)?;
-        if success {
-            Ok(())
-        } else {
-            Err(create_type_error("Property could not be deleted"))
-        }
+        if success { Ok(()) } else { Err(create_type_error("Property could not be deleted")) }
     }
 }
 
@@ -2727,21 +2713,42 @@ pub fn immutable_prototype_exotic_object_create(proto: Option<&Object>) -> Objec
 //          internal slot.
 impl Object {
     pub fn get_function_realm(&self) -> Completion<Rc<RefCell<Realm>>> {
-        if let Some(f) = self.o.to_function_obj() {
-            Ok(f.function_data().borrow().realm.clone())
-        } else if let Some(b) = self.o.to_builtin_function_obj() {
-            Ok(b.builtin_function_data().borrow().realm.clone())
-        } else if let Some(po) = self.o.to_proxy_object() {
-            let (target, _) = po.validate_non_revoked()?;
-            target.get_function_realm()
-        } else if let Some(bo) = self.o.to_bound_function_object() {
-            let target = &bo.bound_target_function;
-            target.get_function_realm()
-        } else {
-            // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
-            // a realm slot was _not_ present.
-            assert!(!self.o.common_object_data().borrow().slots.contains(&InternalSlotName::Realm));
-            Ok(current_realm_record().unwrap())
+        match self.o.to_function_obj() {
+            Some(f) => Ok(f.function_data().borrow().realm.clone()),
+            _ => {
+                match self.o.to_builtin_function_obj() {
+                    Some(b) => Ok(b.builtin_function_data().borrow().realm.clone()),
+                    _ => {
+                        match self.o.to_proxy_object() {
+                            Some(po) => {
+                                let (target, _) = po.validate_non_revoked()?;
+                                target.get_function_realm()
+                            }
+                            _ => {
+                                match self.o.to_bound_function_object() {
+                                    Some(bo) => {
+                                        let target = &bo.bound_target_function;
+                                        target.get_function_realm()
+                                    }
+                                    _ => {
+                                        // Since we don't check explicitly that a realm slot existed above, check to make sure that we only get here if
+                                        // a realm slot was _not_ present.
+                                        assert!(
+                                            !self
+                                                .o
+                                                .common_object_data()
+                                                .borrow()
+                                                .slots
+                                                .contains(&InternalSlotName::Realm)
+                                        );
+                                        Ok(current_realm_record().unwrap())
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

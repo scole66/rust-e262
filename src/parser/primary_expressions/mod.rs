@@ -2420,11 +2420,7 @@ impl Literal {
     }
 
     pub fn as_string_literal(&self) -> Option<StringToken> {
-        if let Literal::StringLiteral { val: s, .. } = self {
-            Some(s.clone())
-        } else {
-            None
-        }
+        if let Literal::StringLiteral { val: s, .. } = self { Some(s.clone()) } else { None }
     }
 
     pub fn early_errors(&self) {
@@ -2640,11 +2636,7 @@ impl TemplateLiteral {
                 //  2. Else,
                 //      a. Let string be the TRV of NoSubstitutionTemplate.
                 //  3. Return « string ».
-                if raw {
-                    vec![Some(nst.trv.clone())]
-                } else {
-                    vec![nst.tv.clone()]
-                }
+                if raw { vec![Some(nst.trv.clone())] } else { vec![nst.tv.clone()] }
             }
             TemplateLiteral::SubstitutionTemplate(st) => {
                 // TemplateLiteral : SubstitutionTemplate
@@ -2969,11 +2961,7 @@ impl TemplateSpans {
                 //  2. Else,
                 //      a. Let tail be the TRV of TemplateTail.
                 //  3. Return « tail ».
-                if raw {
-                    vec![Some(tail.trv.clone())]
-                } else {
-                    vec![tail.tv.clone()]
-                }
+                if raw { vec![Some(tail.trv.clone())] } else { vec![tail.tv.clone()] }
             }
             TemplateSpans::List { tml: template_middle_list, data: template_tail, .. } => {
                 // TemplateSpans : TemplateMiddleList TemplateTail
@@ -3182,11 +3170,7 @@ impl TemplateMiddleList {
                 //  2. Else,
                 //      a. Let string be the TRV of TemplateMiddle.
                 //  3. Return « string ».
-                if raw {
-                    vec![Some(template_middle.trv.clone())]
-                } else {
-                    vec![template_middle.tv.clone()]
-                }
+                if raw { vec![Some(template_middle.trv.clone())] } else { vec![template_middle.tv.clone()] }
             }
             TemplateMiddleList::ListMid(template_middle_list, template_middle, _, _) => {
                 // TemplateMiddleList : TemplateMiddleList TemplateMiddle Expression

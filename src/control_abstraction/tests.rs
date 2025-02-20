@@ -23,10 +23,13 @@ fn provision_iterator_prototype() {
     assert_eq!(iterator_desc.writable, Some(true));
     assert!(iterator_desc.get.is_none());
     assert!(iterator_desc.set.is_none());
-    if let Some(val) = iterator_desc.value {
-        assert!(is_callable(&val));
-    } else {
-        panic!("Expected a value");
+    match iterator_desc.value {
+        Some(val) => {
+            assert!(is_callable(&val));
+        }
+        _ => {
+            panic!("Expected a value");
+        }
     }
 }
 
@@ -582,8 +585,8 @@ mod generator_resume_abrupt {
         let item = generator_resume_abrupt(&iter.clone(), ac, "").unwrap_err();
         assert_eq!(unwind_any_error(item), String::from("Testing Sentinel"));
         let obj = Object::try_from(iter).unwrap();
-        let gen = obj.o.to_generator_object().unwrap();
-        assert_eq!(gen.generator_data.borrow().generator_state, GeneratorState::Completed);
+        let r#gen = obj.o.to_generator_object().unwrap();
+        assert_eq!(r#gen.generator_data.borrow().generator_state, GeneratorState::Completed);
     }
 
     #[test]
@@ -595,8 +598,8 @@ mod generator_resume_abrupt {
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::from("Testing Sentinel"));
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(true));
         let obj = Object::try_from(iter).unwrap();
-        let gen = obj.o.to_generator_object().unwrap();
-        assert_eq!(gen.generator_data.borrow().generator_state, GeneratorState::Completed);
+        let r#gen = obj.o.to_generator_object().unwrap();
+        assert_eq!(r#gen.generator_data.borrow().generator_state, GeneratorState::Completed);
     }
 
     #[test]
@@ -635,8 +638,8 @@ mod generator_resume_abrupt {
         let item = generator_resume_abrupt(&iter.clone(), ac, "").unwrap_err();
         assert_eq!(unwind_any_error(item), String::from("Testing Sentinel"));
         let obj = Object::try_from(iter).unwrap();
-        let gen = obj.o.to_generator_object().unwrap();
-        assert_eq!(gen.generator_data.borrow().generator_state, GeneratorState::Completed);
+        let r#gen = obj.o.to_generator_object().unwrap();
+        assert_eq!(r#gen.generator_data.borrow().generator_state, GeneratorState::Completed);
     }
 
     #[test]
@@ -649,8 +652,8 @@ mod generator_resume_abrupt {
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(false));
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::from("Token 2: [special]"));
         let obj = Object::try_from(iter).unwrap();
-        let gen = obj.o.to_generator_object().unwrap();
-        assert_eq!(gen.generator_data.borrow().generator_state, GeneratorState::SuspendedYield);
+        let r#gen = obj.o.to_generator_object().unwrap();
+        assert_eq!(r#gen.generator_data.borrow().generator_state, GeneratorState::SuspendedYield);
     }
 }
 
@@ -799,15 +802,15 @@ mod generator_start_from_closure {
         setup_test_agent();
         // All the setup we would do to test generator_start_from_closure is done in
         // create_iterator_from_closure, so it seems pointless to duplicate that here.
-        let gen = super::create_iterator_from_closure(asyncfn_wrap(returns_normal), "", None);
+        let r#gen = super::create_iterator_from_closure(asyncfn_wrap(returns_normal), "", None);
 
-        let gen_obj = gen.o.to_generator_object().unwrap();
+        let gen_obj = r#gen.o.to_generator_object().unwrap();
         let gen_data = gen_obj.generator_data.borrow();
         assert_eq!(gen_data.generator_brand, "");
         assert_eq!(gen_data.generator_state, GeneratorState::SuspendedStart);
         assert!(gen_data.generator_context.is_some());
         let gc = gen_data.generator_context.as_ref().unwrap();
-        assert_eq!(gc.generator.as_ref().unwrap(), &gen);
+        assert_eq!(gc.generator.as_ref().unwrap(), &r#gen);
         assert!(gc.gen_closure.is_some());
     }
 }

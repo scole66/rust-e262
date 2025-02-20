@@ -80,19 +80,21 @@ pub fn unwind_error_object(kind: &str, err: &Object) -> String {
     }
     let message = err.get(&PropertyKey::from("message")).expect("Error object was missing 'message' property");
     assert!(matches!(message, ECMAScriptValue::String(_)));
-    if let ECMAScriptValue::String(message_value) = message {
-        String::from(message_value)
-    } else {
-        unreachable!()
+    match message {
+        ECMAScriptValue::String(message_value) => String::from(message_value),
+        _ => {
+            unreachable!()
+        }
     }
 }
 
 pub fn unwind_error(kind: &str, completion: AbruptCompletion) -> String {
     assert!(matches!(completion, AbruptCompletion::Throw { value: ECMAScriptValue::Object(_) }));
-    if let AbruptCompletion::Throw { value: ECMAScriptValue::Object(err) } = completion {
-        unwind_error_object(kind, &err)
-    } else {
-        unreachable!()
+    match completion {
+        AbruptCompletion::Throw { value: ECMAScriptValue::Object(err) } => unwind_error_object(kind, &err),
+        _ => {
+            unreachable!()
+        }
     }
 }
 
@@ -157,11 +159,7 @@ pub enum ThrowsOrNot {
 }
 impl From<bool> for ThrowsOrNot {
     fn from(value: bool) -> Self {
-        if value {
-            ThrowsOrNot::Throws
-        } else {
-            ThrowsOrNot::BehavesNormally
-        }
+        if value { ThrowsOrNot::Throws } else { ThrowsOrNot::BehavesNormally }
     }
 }
 
@@ -569,7 +567,7 @@ pub fn make_toprimitive_throw_obj() -> Object {
 }
 
 use crate::object::define_property_or_throw;
-use crate::realm::{create_realm, Realm};
+use crate::realm::{Realm, create_realm};
 
 pub fn create_named_realm(name: &str) -> Rc<RefCell<Realm>> {
     let r = create_realm(9999);
@@ -854,7 +852,7 @@ macro_rules! default_define_own_property_test {
 }
 #[macro_export]
 macro_rules! default_get_test {
-    ( $key_on_proto:expr, $val_on_proto:expr ) => {
+    ( $key_on_proto:expr_2021, $val_on_proto:expr_2021 ) => {
         #[test_case::test_case(|| "test_sentinel".into() => ECMAScriptValue::from("present"); "exists")]
         #[test_case::test_case(|| "friendliness".into() => ECMAScriptValue::Undefined; "doesn't exist")]
         #[test_case::test_case($key_on_proto => $val_on_proto; "from prototype")]
@@ -986,11 +984,14 @@ pub fn data_validation(
 ) -> ECMAScriptValue {
     assert_eq!(pd.enumerable, enumerable);
     assert_eq!(pd.configurable, configurable);
-    if let PropertyKind::Data(DataProperty { value, writable: pd_writable }) = pd.property {
-        assert_eq!(pd_writable, writable);
-        value
-    } else {
-        panic!("Expected data property but found accessor property");
+    match pd.property {
+        PropertyKind::Data(DataProperty { value, writable: pd_writable }) => {
+            assert_eq!(pd_writable, writable);
+            value
+        }
+        PropertyKind::Accessor(_) => {
+            panic!("Expected data property but found accessor property");
+        }
     }
 }
 
@@ -1012,13 +1013,16 @@ pub fn getter_validation(
 ) -> ECMAScriptValue {
     assert!(!pd.enumerable);
     assert!(pd.configurable);
-    if let PropertyKind::Accessor(AccessorProperty { get, set }) = pd.property {
-        assert!(set.is_undefined());
-        assert_eq!(get.get(&"name".into()).unwrap(), name.into());
-        assert_eq!(get.get(&"length".into()).unwrap(), length.into());
-        get
-    } else {
-        panic!("Expected accessor property but found data property");
+    match pd.property {
+        PropertyKind::Accessor(AccessorProperty { get, set }) => {
+            assert!(set.is_undefined());
+            assert_eq!(get.get(&"name".into()).unwrap(), name.into());
+            assert_eq!(get.get(&"length".into()).unwrap(), length.into());
+            get
+        }
+        PropertyKind::Data(_) => {
+            panic!("Expected accessor property but found data property");
+        }
     }
 }
 
@@ -1043,23 +1047,27 @@ impl ECMAScriptValue {
                     } else {
                         r.push(',');
                     }
-                    let named_function_was_added = if let Ok(v) = value.as_ref() {
-                        if is_callable(v) {
-                            let name = to_string(
-                                to_object(v.clone()).unwrap().get(&"name".into()).unwrap_or(ECMAScriptValue::Undefined),
-                            )
-                            .unwrap_or_else(|_| JSString::from("undefined"));
-                            if name == "undefined" {
-                                false
+                    let named_function_was_added = match value.as_ref() {
+                        Ok(v) => {
+                            if is_callable(v) {
+                                let name = to_string(
+                                    to_object(v.clone())
+                                        .unwrap()
+                                        .get(&"name".into())
+                                        .unwrap_or(ECMAScriptValue::Undefined),
+                                )
+                                .unwrap_or_else(|_| JSString::from("undefined"));
+                                if name == "undefined" {
+                                    false
+                                } else {
+                                    r.push_str(&format!("{key}:function {name}"));
+                                    true
+                                }
                             } else {
-                                r.push_str(&format!("{key}:function {name}"));
-                                true
+                                false
                             }
-                        } else {
-                            false
                         }
-                    } else {
-                        false
+                        _ => false,
                     };
                     if !named_function_was_added {
                         let value_str = value.map_or_else(unwind_any_error, |val| format!("{val}"));

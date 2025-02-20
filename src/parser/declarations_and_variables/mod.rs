@@ -1,6 +1,6 @@
 use super::*;
 use counter::Counter;
-use non_empty_vec::{ne_vec, NonEmpty};
+use non_empty_vec::{NonEmpty, ne_vec};
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;

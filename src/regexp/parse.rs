@@ -747,11 +747,7 @@ impl UnicodePropertyName {
         while let Some(ch) = new_scanner.unicode_property_name_character() {
             name.push(ch);
         }
-        if name.is_empty() {
-            None
-        } else {
-            Some((Self(name), new_scanner.read_idx - scanner.read_idx))
-        }
+        if name.is_empty() { None } else { Some((Self(name), new_scanner.read_idx - scanner.read_idx)) }
     }
 }
 
@@ -770,11 +766,7 @@ impl UnicodePropertyValue {
         while let Some(ch) = new_scanner.unicode_property_value_character() {
             name.push(ch);
         }
-        if name.is_empty() {
-            None
-        } else {
-            Some((Self(name), new_scanner.read_idx - scanner.read_idx))
-        }
+        if name.is_empty() { None } else { Some((Self(name), new_scanner.read_idx - scanner.read_idx)) }
     }
 }
 
@@ -909,11 +901,7 @@ impl Pattern {
         cgroups: NamedCaptureGroups,
     ) -> Option<Self> {
         let (disj, amt) = Disjunction::parse(scanner, unicode, sets, cgroups)?;
-        if amt == scanner.all.len() {
-            Some(Self(disj))
-        } else {
-            None
-        }
+        if amt == scanner.all.len() { Some(Self(disj)) } else { None }
     }
 
     pub fn count_left_capturing_parens_within(&self) -> usize {
@@ -1811,11 +1799,7 @@ impl ClassStringDisjunctionContents {
                 break;
             }
         }
-        if result.is_empty() {
-            None
-        } else {
-            Some((Self(result), new_scanner.read_idx - scanner.read_idx))
-        }
+        if result.is_empty() { None } else { Some((Self(result), new_scanner.read_idx - scanner.read_idx)) }
     }
 }
 
@@ -1847,11 +1831,7 @@ impl NonEmptyClassString {
             new_scanner.read_idx += amt;
             result.push(ch.character_value());
         }
-        if result.is_empty() {
-            None
-        } else {
-            Some((Self(result), new_scanner.read_idx - scanner.read_idx))
-        }
+        if result.is_empty() { None } else { Some((Self(result), new_scanner.read_idx - scanner.read_idx)) }
     }
 }
 

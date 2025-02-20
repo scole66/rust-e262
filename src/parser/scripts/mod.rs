@@ -29,11 +29,7 @@ impl PrettyPrint for Script {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}Script: {self}")?;
-        if let Some(body) = &self.body {
-            body.pprint_with_leftpad(writer, &successive, Spot::Final)
-        } else {
-            Ok(())
-        }
+        if let Some(body) = &self.body { body.pprint_with_leftpad(writer, &successive, Spot::Final) } else { Ok(()) }
     }
 
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>

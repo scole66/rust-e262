@@ -1816,8 +1816,10 @@ mod string_token {
     }
     #[test]
     fn has_legacy_octal() {
-        assert!(!StringToken { value: JSString::from(""), delimiter: StringDelimiter::Single, raw: None }
-            .has_legacy_octal_escapes());
+        assert!(
+            !StringToken { value: JSString::from(""), delimiter: StringDelimiter::Single, raw: None }
+                .has_legacy_octal_escapes()
+        );
     }
     #[test]
     #[expect(clippy::redundant_clone)]

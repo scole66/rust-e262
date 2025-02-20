@@ -782,11 +782,7 @@ impl ObjectInterface for FunctionObject {
     }
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let is_c = self.function_data().borrow().is_constructor;
-        if is_c {
-            Some(self)
-        } else {
-            None
-        }
+        if is_c { Some(self) } else { None }
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
@@ -892,12 +888,15 @@ impl CallableObject for FunctionObject {
         if ec_stack_len() == 0 {
             // From [[Call]]
             pop_execution_context();
-            ec_push(if let Err(AbruptCompletion::Return { value }) = result {
-                Ok(value.into())
-            } else if result.is_err() {
-                result
-            } else {
-                Ok(ECMAScriptValue::Undefined.into())
+            ec_push(match result {
+                Err(AbruptCompletion::Return { value }) => Ok(value.into()),
+                _ => {
+                    if result.is_err() {
+                        result
+                    } else {
+                        Ok(ECMAScriptValue::Undefined.into())
+                    }
+                }
             });
         } else {
             // From [[Construct]]
@@ -912,23 +911,28 @@ impl CallableObject for FunctionObject {
                 .expect("And which must be an environment record");
             assert_eq!(ec_stack_len(), 0);
             pop_execution_context();
-            if let Err(AbruptCompletion::Return { value }) = result {
-                if value.is_object() {
-                    ec_push(Ok(value.into()));
-                    return;
+            match result {
+                Err(AbruptCompletion::Return { value }) => {
+                    if value.is_object() {
+                        ec_push(Ok(value.into()));
+                        return;
+                    }
+                    if !this_argument.is_null() {
+                        ec_push(Ok(this_argument.into()));
+                        return;
+                    }
+                    if !value.is_undefined() {
+                        let err = create_type_error("Constructors must return objects");
+                        ec_push(Err(err));
+                        return;
+                    }
                 }
-                if !this_argument.is_null() {
-                    ec_push(Ok(this_argument.into()));
-                    return;
+                _ => {
+                    if let Err(e) = result {
+                        ec_push(Err(e));
+                        return;
+                    }
                 }
-                if !value.is_undefined() {
-                    let err = create_type_error("Constructors must return objects");
-                    ec_push(Err(err));
-                    return;
-                }
-            } else if let Err(e) = result {
-                ec_push(Err(e));
-                return;
             }
             let this_binding = constructor_env.get_this_binding();
             ec_push(this_binding.map(NormalCompletion::from));
@@ -1634,11 +1638,7 @@ impl ObjectInterface for BuiltInFunctionObject {
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let data = self.builtin_function_data().borrow();
         let me = data.constructor_kind.as_ref();
-        if me.is_some() {
-            Some(self)
-        } else {
-            None
-        }
+        if me.is_some() { Some(self) } else { None }
     }
     fn to_builtin_function_obj(&self) -> Option<&dyn BuiltinFunctionInterface> {
         Some(self)
@@ -2251,7 +2251,7 @@ pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Properties of the Function Prototype Object
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -2645,23 +2645,35 @@ fn function_prototype_to_string(
 
     match this_value {
         ECMAScriptValue::Object(obj) => {
-            if let Some(func) = obj.o.to_function_obj() {
-                let fdata = func.function_data().borrow();
-                Ok(fdata.source_text.clone().into())
-            } else if let Some(bif) = obj.o.to_builtin_function_obj() {
-                let bif_data = bif.builtin_function_data().borrow();
-                if let Some(text) = &bif_data.source_text {
-                    Ok(text.clone().into())
-                } else if let Some(initial_name) = &bif_data.initial_name {
-                    Ok(format!("function {initial_name}() {{ [native code] }}").into())
-                } else {
-                    Ok("function () { [native code] }".into())
+            match obj.o.to_function_obj() {
+                Some(func) => {
+                    let fdata = func.function_data().borrow();
+                    Ok(fdata.source_text.clone().into())
                 }
-            } else if is_callable(&obj.into()) {
-                // Bound function objects do this.
-                Ok("function () { [native code] }".into())
-            } else {
-                Err(create_type_error(ERRMSG))
+                _ => {
+                    match obj.o.to_builtin_function_obj() {
+                        Some(bif) => {
+                            let bif_data = bif.builtin_function_data().borrow();
+                            match &bif_data.source_text {
+                                Some(text) => Ok(text.clone().into()),
+                                _ => match &bif_data.initial_name {
+                                    Some(initial_name) => {
+                                        Ok(format!("function {initial_name}() {{ [native code] }}").into())
+                                    }
+                                    _ => Ok("function () { [native code] }".into()),
+                                },
+                            }
+                        }
+                        _ => {
+                            if is_callable(&obj.into()) {
+                                // Bound function objects do this.
+                                Ok("function () { [native code] }".into())
+                            } else {
+                                Err(create_type_error(ERRMSG))
+                            }
+                        }
+                    }
+                }
             }
         }
         ECMAScriptValue::Undefined

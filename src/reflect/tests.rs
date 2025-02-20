@@ -156,10 +156,11 @@ fn reflect_define_property(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> 
     let args = make_args();
     let target = if args.is_empty() {
         None
-    } else if let ECMAScriptValue::Object(obj) = &args[0] {
-        Some(obj)
     } else {
-        None
+        match &args[0] {
+            ECMAScriptValue::Object(obj) => Some(obj),
+            _ => None,
+        }
     };
     super::reflect_define_property(&ECMAScriptValue::Undefined, None, &args).map_err(unwind_any_error).map(|v| {
         let result = v.test_result_string();
@@ -227,10 +228,11 @@ fn reflect_delete_property(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> 
     let args = make_args();
     let target = if args.is_empty() {
         None
-    } else if let ECMAScriptValue::Object(obj) = &args[0] {
-        Some(obj)
     } else {
-        None
+        match &args[0] {
+            ECMAScriptValue::Object(obj) => Some(obj),
+            _ => None,
+        }
     };
     super::reflect_delete_property(&ECMAScriptValue::Undefined, None, &args).map_err(unwind_any_error).map(|v| {
         let result = v.test_result_string();
@@ -550,17 +552,19 @@ fn reflect_set(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<Strin
     let args = make_args();
     let target = if args.is_empty() {
         None
-    } else if let ECMAScriptValue::Object(obj) = &args[0] {
-        Some(obj)
     } else {
-        None
+        match &args[0] {
+            ECMAScriptValue::Object(obj) => Some(obj),
+            _ => None,
+        }
     };
     let receiver = if args.len() < 4 {
         None
-    } else if let ECMAScriptValue::Object(obj) = &args[3] {
-        Some(obj)
     } else {
-        None
+        match &args[3] {
+            ECMAScriptValue::Object(obj) => Some(obj),
+            _ => None,
+        }
     };
     super::reflect_set(&ECMAScriptValue::Undefined, None, &args).map_err(unwind_any_error).map(|v| {
         let result = v.test_result_string();
@@ -632,24 +636,22 @@ fn reflect_set_prototype_of(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) ->
     let args = make_args();
     let target = if args.is_empty() {
         None
-    } else if let ECMAScriptValue::Object(obj) = &args[0] {
-        Some(obj)
     } else {
-        None
+        match &args[0] {
+            ECMAScriptValue::Object(obj) => Some(obj),
+            _ => None,
+        }
     };
     super::reflect_set_prototype_of(&ECMAScriptValue::Undefined, None, &args).map_err(unwind_any_error).map(|v| {
         let result = v.test_result_string();
         if let Some(obj) = target {
             let target_proto = obj.o.get_prototype_of().unwrap();
-            let proto_descriptor = if let Some(proto) = &target_proto {
-                let id = proto.which_intrinsic();
-                if let Some(which) = id {
-                    format!("{which:?}")
-                } else {
-                    String::from("Not Intrinsic")
+            let proto_descriptor = match &target_proto {
+                Some(proto) => {
+                    let id = proto.which_intrinsic();
+                    if let Some(which) = id { format!("{which:?}") } else { String::from("Not Intrinsic") }
                 }
-            } else {
-                String::from("null")
+                _ => String::from("null"),
             };
             format!("{result}; {proto_descriptor}")
         } else {

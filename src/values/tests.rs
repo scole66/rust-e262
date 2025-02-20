@@ -1014,10 +1014,13 @@ mod private_element {
         };
         let cloned = pe.clone();
         assert_eq!(pe.key, cloned.key);
-        if let PrivateElementKind::Field { value } = pe.kind {
-            assert_eq!(*value.borrow(), ECMAScriptValue::from("just some data"));
-        } else {
-            panic!("Came back with the wrong kind!")
+        match pe.kind {
+            PrivateElementKind::Field { value } => {
+                assert_eq!(*value.borrow(), ECMAScriptValue::from("just some data"));
+            }
+            _ => {
+                panic!("Came back with the wrong kind!")
+            }
         }
     }
 
@@ -1809,10 +1812,9 @@ fn exotic_to_prim(
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     if arguments.len() == 1 {
-        if let ECMAScriptValue::String(s) = &arguments[0] {
-            Ok(ECMAScriptValue::from(format!("Saw {s}")))
-        } else {
-            Ok(ECMAScriptValue::from(format!("Saw {:?}", arguments[0])))
+        match &arguments[0] {
+            ECMAScriptValue::String(s) => Ok(ECMAScriptValue::from(format!("Saw {s}"))),
+            _ => Ok(ECMAScriptValue::from(format!("Saw {:?}", arguments[0]))),
         }
     } else {
         Ok(ECMAScriptValue::from(format!(

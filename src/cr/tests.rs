@@ -104,10 +104,13 @@ mod normal_completion {
             let obj = ordinary_object_create(None);
             let nc = NormalCompletion::from(obj.clone());
 
-            if let NormalCompletion::Value(ECMAScriptValue::Object(result)) = nc {
-                assert_eq!(result, obj);
-            } else {
-                panic!("Improper NC construction")
+            match nc {
+                NormalCompletion::Value(ECMAScriptValue::Object(result)) => {
+                    assert_eq!(result, obj);
+                }
+                _ => {
+                    panic!("Improper NC construction")
+                }
             }
         }
 
@@ -120,12 +123,15 @@ mod normal_completion {
             let done = ir.done.get();
 
             let nc = NormalCompletion::from(ir);
-            if let NormalCompletion::IteratorRecord(recovered) = nc {
-                assert_eq!(recovered.next_method, next);
-                assert_eq!(recovered.iterator, obj);
-                assert_eq!(recovered.done.get(), done);
-            } else {
-                panic!("NormalCompletion::Iterator(_) expected");
+            match nc {
+                NormalCompletion::IteratorRecord(recovered) => {
+                    assert_eq!(recovered.next_method, next);
+                    assert_eq!(recovered.iterator, obj);
+                    assert_eq!(recovered.done.get(), done);
+                }
+                _ => {
+                    panic!("NormalCompletion::Iterator(_) expected");
+                }
             }
         }
 
@@ -155,10 +161,13 @@ mod normal_completion {
             setup_test_agent();
             let sym = Symbol::new(Some("alice".into()));
             let nc = NormalCompletion::from(sym.clone());
-            if let NormalCompletion::Value(ECMAScriptValue::Symbol(recovered)) = nc {
-                assert_eq!(recovered, sym);
-            } else {
-                panic!("test failed; non symbol came back")
+            match nc {
+                NormalCompletion::Value(ECMAScriptValue::Symbol(recovered)) => {
+                    assert_eq!(recovered, sym);
+                }
+                _ => {
+                    panic!("test failed; non symbol came back")
+                }
             }
         }
 
@@ -172,10 +181,13 @@ mod normal_completion {
 
             let nc = NormalCompletion::from(pe.clone());
 
-            if let NormalCompletion::PrivateElement(boxed) = nc {
-                assert_eq!(&*boxed, &pe);
-            } else {
-                panic!("test failed; non-pe came back");
+            match nc {
+                NormalCompletion::PrivateElement(boxed) => {
+                    assert_eq!(&*boxed, &pe);
+                }
+                _ => {
+                    panic!("test failed; non-pe came back");
+                }
             }
         }
 
@@ -199,10 +211,13 @@ mod normal_completion {
 
                 let nc = NormalCompletion::from(Some(pe.clone()));
 
-                if let NormalCompletion::PrivateElement(boxed) = nc {
-                    assert_eq!(&*boxed, &pe);
-                } else {
-                    panic!("test failed; non-pe came back");
+                match nc {
+                    NormalCompletion::PrivateElement(boxed) => {
+                        assert_eq!(&*boxed, &pe);
+                    }
+                    _ => {
+                        panic!("test failed; non-pe came back");
+                    }
                 }
             }
         }

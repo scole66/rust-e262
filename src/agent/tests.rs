@@ -1810,21 +1810,18 @@ mod define_method_property {
                     configurable: desc.configurable,
                 }
             }
-            Some(pe) => {
-                if let PrivateElement {
-                    key: PrivateName { description, .. },
-                    kind: PrivateElementKind::Method { value },
-                } = pe
-                {
+            Some(pe) => match pe {
+                PrivateElement { key: PrivateName { description, .. }, kind: PrivateElementKind::Method { value } } => {
                     TestResult::PrivateLike {
                         obj_desc: ECMAScriptValue::from(home_object).test_result_string(),
                         name: String::from(description),
                         func: value.test_result_string(),
                     }
-                } else {
+                }
+                _ => {
                     panic!("Bad PE came back");
                 }
-            }
+            },
         }
     }
 }
@@ -1865,7 +1862,7 @@ fn set_default_global_bindings() {
     let globj = get_global_object().unwrap();
 
     macro_rules! validate_obj_data_property {
-        ( $name:expr, $obj:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+        ( $name:expr_2021, $obj:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let item = $obj.o.get_own_property(&key).unwrap();
             let expected = ECMAScriptValue::from($value);
@@ -1900,7 +1897,7 @@ fn set_default_global_bindings() {
     }
 
     macro_rules! validate_data_property {
-        ( $name:expr, $value:expr, $writable:expr, $enumerable:expr, $configurable:expr ) => {
+        ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             validate_obj_data_property!($name, globj, $value, $writable, $enumerable, $configurable);
         };
     }
@@ -1916,7 +1913,7 @@ fn set_default_global_bindings() {
     validate_data_property!("undefined", ECMAScriptValue::Undefined, false, false, false);
 
     macro_rules! validate_intrinsic_function {
-        ( $name:expr, $id:ident, $length:expr ) => {
+        ( $name:expr_2021, $id:ident, $length:expr_2021 ) => {
             let value = intrinsic(IntrinsicId::$id);
             validate_data_property!($name, value.clone(), true, false, true);
             validate_obj_data_property!("name", value, $name, false, false, true);
@@ -1935,7 +1932,7 @@ fn set_default_global_bindings() {
     validate_intrinsic_function!("encodeURIComponent", EncodeURIComponent, 1);
 
     macro_rules! validate_intrinsic_constructor {
-        ( $name:expr, $id:ident, $length:expr ) => {
+        ( $name:expr_2021, $id:ident, $length:expr_2021 ) => {
             validate_intrinsic_function!($name, $id, $length);
         };
     }
@@ -1982,7 +1979,7 @@ fn set_default_global_bindings() {
     //validate_intrinsic_constructor!("WeakSet", WeakSet, 0);
 
     macro_rules! validate_intrinsic_data {
-        ( $name:expr, $id:ident ) => {
+        ( $name:expr_2021, $id:ident ) => {
             let value = intrinsic(IntrinsicId::$id);
             validate_data_property!($name, value, true, false, true);
         };

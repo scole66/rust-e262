@@ -526,11 +526,7 @@ impl PropertySetParameterList {
         // PropertySetParameterList : FormalParameter
         //  1. If HasInitializer of FormalParameter is true, return 0.
         //  2. Return 1.
-        if self.node.has_initializer() {
-            0.0
-        } else {
-            1.0
-        }
+        if self.node.has_initializer() { 0.0 } else { 1.0 }
     }
 
     /// Report whether this portion of a parameter list contains an expression

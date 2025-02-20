@@ -59,10 +59,13 @@ mod script_or_module {
         let s1 = ScriptOrModule::Script(Rc::new(ScriptRecord::new_empty(current_realm_record().unwrap())));
         let s2 = s1.clone();
 
-        if let (ScriptOrModule::Script(original), ScriptOrModule::Script(duplicate)) = (s1, s2) {
-            assert!(Rc::ptr_eq(&original, &duplicate));
-        } else {
-            panic!("Clone failed; differing enum types");
+        match (s1, s2) {
+            (ScriptOrModule::Script(original), ScriptOrModule::Script(duplicate)) => {
+                assert!(Rc::ptr_eq(&original, &duplicate));
+            }
+            _ => {
+                panic!("Clone failed; differing enum types");
+            }
         }
     }
 

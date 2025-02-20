@@ -122,7 +122,7 @@ pub fn provision_map_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Constructor Function Properties
     macro_rules! constructor_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -176,7 +176,7 @@ pub fn provision_map_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype function properties
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -271,7 +271,7 @@ pub fn provision_map_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let map_iterator_prototype = ordinary_object_create(Some(iterator_prototype));
 
     macro_rules! iterator_prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
@@ -789,12 +789,15 @@ fn map_prototype_set(
         this_value.to_map_object().ok_or_else(|| create_type_error("Map.prototype.set requires a maplike object"))?;
     let key = key.canonicalize_keyed_collection_key();
     let mut map = m.map_data.borrow_mut();
-    if let Some(entry) = map.map.get_mut_alt(&key) {
-        *entry = MapEntry { key, value };
-    } else {
-        let index = map.write_index;
-        map.map.insert(index, key.clone(), MapEntry { key, value });
-        map.write_index += 1;
+    match map.map.get_mut_alt(&key) {
+        Some(entry) => {
+            *entry = MapEntry { key, value };
+        }
+        _ => {
+            let index = map.write_index;
+            map.map.insert(index, key.clone(), MapEntry { key, value });
+            map.write_index += 1;
+        }
     }
     Ok(this_value.clone())
 }
@@ -873,12 +876,15 @@ fn add_value_to_keyed_group(groups: &mut KeyedGroup, key: ECMAScriptValue, value
     // 2. Let group be the Record { [[Key]]: key, [[Elements]]: « value » }.
     // 3. Append group to groups.
     // 4. Return unused.
-    if let Some(entry) = groups.map.get_mut_alt(&key) {
-        entry.1.push(value);
-    } else {
-        let index = groups.write_index;
-        groups.map.insert(index, key.clone(), (key, vec![value]));
-        groups.write_index += 1;
+    match groups.map.get_mut_alt(&key) {
+        Some(entry) => {
+            entry.1.push(value);
+        }
+        _ => {
+            let index = groups.write_index;
+            groups.map.insert(index, key.clone(), (key, vec![value]));
+            groups.write_index += 1;
+        }
     }
 }
 
@@ -956,30 +962,33 @@ fn group_by(
             return Err(result);
         }
         let next = iterator_record.step_value()?;
-        if let Some(value) = next {
-            let key = call(callback, &ECMAScriptValue::Undefined, &[value.clone(), ECMAScriptValue::from(k)]);
-            match key {
-                Err(err) => {
-                    let result = iterator_record.close::<ECMAScriptValue>(Err(err)).unwrap_err();
-                    return Err(result);
-                }
-                Ok(key) => {
-                    let key = match key_coercion {
-                        Coercion::Property => match key.to_property_key() {
-                            Err(err) => {
-                                let result = iterator_record.close::<ECMAScriptValue>(Err(err)).unwrap_err();
-                                return Err(result);
-                            }
-                            Ok(key) => ECMAScriptValue::from(key),
-                        },
-                        Coercion::Collection => key.canonicalize_keyed_collection_key(),
-                    };
-                    add_value_to_keyed_group(&mut groups, key, value);
-                    k += 1;
+        match next {
+            Some(value) => {
+                let key = call(callback, &ECMAScriptValue::Undefined, &[value.clone(), ECMAScriptValue::from(k)]);
+                match key {
+                    Err(err) => {
+                        let result = iterator_record.close::<ECMAScriptValue>(Err(err)).unwrap_err();
+                        return Err(result);
+                    }
+                    Ok(key) => {
+                        let key = match key_coercion {
+                            Coercion::Property => match key.to_property_key() {
+                                Err(err) => {
+                                    let result = iterator_record.close::<ECMAScriptValue>(Err(err)).unwrap_err();
+                                    return Err(result);
+                                }
+                                Ok(key) => ECMAScriptValue::from(key),
+                            },
+                            Coercion::Collection => key.canonicalize_keyed_collection_key(),
+                        };
+                        add_value_to_keyed_group(&mut groups, key, value);
+                        k += 1;
+                    }
                 }
             }
-        } else {
-            return Ok(groups.into());
+            _ => {
+                return Ok(groups.into());
+            }
         }
     }
 }

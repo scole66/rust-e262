@@ -4,8 +4,8 @@ use lazy_static::lazy_static;
 use num::bigint::BigInt;
 use regex::Regex;
 use std::char;
-use std::cmp::max;
 use std::cmp::Ordering;
+use std::cmp::max;
 use std::convert::TryFrom;
 use std::fmt;
 use std::str;
@@ -543,7 +543,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                         None => {
                             return Err(format!(
                                 "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
-                            ))
+                            ));
                         }
                         Some(c) => {
                             ch = c;
@@ -560,7 +560,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                                 None => {
                                     return Err(format!(
                                         "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
-                                    ))
+                                    ));
                                 }
                                 Some(c) => {
                                     ch = c;
@@ -590,7 +590,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                                 None => {
                                     return Err(format!(
                                         "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
-                                    ))
+                                    ));
                                 }
                                 Some(c) => {
                                     ch = c;
@@ -603,7 +603,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                                     None => {
                                         return Err(format!(
                                             "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
-                                        ))
+                                        ));
                                     }
                                     Some(c) => {
                                         ch = c;
@@ -620,7 +620,7 @@ pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scan
                             None => {
                                 return Err(format!(
                                     "Unterminated /*-style comment. Started on line {comment_start_line}, column {comment_start_column}."
-                                ))
+                                ));
                             }
                             Some(c) => {
                                 ch = c;
@@ -818,11 +818,7 @@ impl TryFrom<char> for HexChar {
     type Error = &'static str;
 
     fn try_from(value: char) -> Result<Self, Self::Error> {
-        if is_hex_digit(value) {
-            Ok(HexChar(value))
-        } else {
-            Err("HexChar can only be used with hexidecimal digits!")
-        }
+        if is_hex_digit(value) { Ok(HexChar(value)) } else { Err("HexChar can only be used with hexidecimal digits!") }
     }
 }
 
@@ -891,11 +887,7 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
 }
 
 fn keycomplete(source: &str, cmp: &str, kwd: Keyword) -> Option<Keyword> {
-    if source == cmp {
-        Some(kwd)
-    } else {
-        None
-    }
+    if source == cmp { Some(kwd) } else { None }
 }
 
 fn identifier_name_keyword(source: &str) -> Option<Keyword> {
@@ -1286,11 +1278,7 @@ where
         latest.start_idx = max(scanner.start_idx, latest.start_idx - 1);
         latest.column = max(scanner.column, latest.column - 1);
     }
-    if scanner.start_idx == latest.start_idx {
-        None
-    } else {
-        Some(latest)
-    }
+    if scanner.start_idx == latest.start_idx { None } else { Some(latest) }
 }
 
 fn decimal_digits(scanner: &Scanner, source: &str, sep: bool) -> Option<Scanner> {
@@ -1629,11 +1617,7 @@ fn string_characters(scanner: &Scanner, source: &str, delim: char) -> Option<Sca
             }
         }
     }
-    if after == *scanner {
-        None
-    } else {
-        Some(after)
-    }
+    if after == *scanner { None } else { Some(after) }
 }
 
 fn literal_string_value(source: &str) -> (JSString, bool) {
@@ -1764,11 +1748,7 @@ impl TryFrom<usize> for THDCount {
     type Error = &'static str;
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        if value <= 4 {
-            Ok(THDCount(value))
-        } else {
-            Err("THDCount can only be used with values <= 4")
-        }
+        if value <= 4 { Ok(THDCount(value)) } else { Err("THDCount can only be used with values <= 4") }
     }
 }
 
@@ -1821,11 +1801,7 @@ impl TryFrom<u32> for CharVal {
     type Error = &'static str;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
-        if value <= 0x0010_ffff {
-            Ok(CharVal(value))
-        } else {
-            Err("CharVal can only be used with values <= 0x10ffff")
-        }
+        if value <= 0x0010_ffff { Ok(CharVal(value)) } else { Err("CharVal can only be used with values <= 0x10ffff") }
     }
 }
 

@@ -331,10 +331,13 @@ mod symbol_object {
 fn symbol_match(expected: &str) -> impl FnOnce(Result<ECMAScriptValue, String>) + '_ {
     move |incoming: Result<ECMAScriptValue, String>| {
         let v = incoming.unwrap();
-        if let ECMAScriptValue::Symbol(s) = v {
-            assert_eq!(s.descriptive_string(), expected);
-        } else {
-            panic!()
+        match v {
+            ECMAScriptValue::Symbol(s) => {
+                assert_eq!(s.descriptive_string(), expected);
+            }
+            _ => {
+                panic!()
+            }
         }
     }
 }
@@ -362,12 +365,15 @@ mod symbol_for {
         let gsr = global_symbol_registry();
         let count_prior = gsr.borrow().len();
         let result = symbol_for(&ECMAScriptValue::Undefined, None, &["key".into()]);
-        if let Ok(ECMAScriptValue::Symbol(sym)) = result {
-            assert_eq!(sym.descriptive_string(), "Symbol(key)");
-            let count_after = gsr.borrow().len();
-            assert_eq!(count_after, count_prior + 1);
-        } else {
-            unreachable!()
+        match result {
+            Ok(ECMAScriptValue::Symbol(sym)) => {
+                assert_eq!(sym.descriptive_string(), "Symbol(key)");
+                let count_after = gsr.borrow().len();
+                assert_eq!(count_after, count_prior + 1);
+            }
+            _ => {
+                unreachable!()
+            }
         }
     }
 
@@ -378,13 +384,16 @@ mod symbol_for {
         let count_prior = gsr.borrow().len();
         let first = symbol_for(&ECMAScriptValue::Undefined, None, &["key".into()]);
         let second = symbol_for(&ECMAScriptValue::Undefined, None, &["key".into()]);
-        if let (Ok(ECMAScriptValue::Symbol(first)), Ok(ECMAScriptValue::Symbol(second))) = (first, second) {
-            assert_eq!(first, second);
-            assert_eq!(first.descriptive_string(), "Symbol(key)");
-            let count_after = gsr.borrow().len();
-            assert_eq!(count_after, count_prior + 1);
-        } else {
-            unreachable!()
+        match (first, second) {
+            (Ok(ECMAScriptValue::Symbol(first)), Ok(ECMAScriptValue::Symbol(second))) => {
+                assert_eq!(first, second);
+                assert_eq!(first.descriptive_string(), "Symbol(key)");
+                let count_after = gsr.borrow().len();
+                assert_eq!(count_after, count_prior + 1);
+            }
+            _ => {
+                unreachable!()
+            }
         }
     }
 

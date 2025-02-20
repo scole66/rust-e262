@@ -5,7 +5,7 @@ use libc::size_t;
 use std::os::raw::{c_double, c_int, c_uchar};
 use std::sync::{Arc, Mutex};
 
-extern "C" {
+unsafe extern "C" {
     pub fn dtoa_rust(
         value: c_double,
         mode: c_int,

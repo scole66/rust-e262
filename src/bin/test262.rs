@@ -1,15 +1,15 @@
 use clap::Parser;
 use color_eyre::eyre::Context;
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use config::{Config, FileFormat};
 use std::fmt;
 use std::fs::File;
-use std::io::prelude::*;
 use std::io::BufReader;
+use std::io::prelude::*;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::str::from_utf8;
 use std::str::FromStr;
+use std::str::from_utf8;
 use yaml_rust::{Yaml, YamlLoader};
 
 #[derive(Debug)]
@@ -252,27 +252,15 @@ fn main() -> Result<()> {
                     match phase {
                         Phase::Parse => {
                             let expected = format!("During compilation: [{error_type}: ");
-                            if final_line.starts_with(&expected) {
-                                Status::Pass
-                            } else {
-                                Status::Fail
-                            }
+                            if final_line.starts_with(&expected) { Status::Pass } else { Status::Fail }
                         }
                         Phase::Resolution => {
                             let expected = format!("During resolution: [{error_type}: ");
-                            if final_line.starts_with(&expected) {
-                                Status::Pass
-                            } else {
-                                Status::Fail
-                            }
+                            if final_line.starts_with(&expected) { Status::Pass } else { Status::Fail }
                         }
                         Phase::Runtime => {
                             let expected = format!("Thrown: {error_type}: ");
-                            if final_line.starts_with(&expected) {
-                                Status::Pass
-                            } else {
-                                Status::Fail
-                            }
+                            if final_line.starts_with(&expected) { Status::Pass } else { Status::Fail }
                         }
                     }
                 } else if final_line.starts_with("Thrown: ") {

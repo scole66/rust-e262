@@ -262,7 +262,7 @@ pub fn provision_boolean_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Prototype function properties
     macro_rules! prototype_function {
-        ( $steps:expr, $name:expr, $length:expr ) => {
+        ( $steps:expr_2021, $name:expr_2021, $length:expr_2021 ) => {
             let key = PropertyKey::from($name);
             let function_object = create_builtin_function(
                 Box::new($steps),
