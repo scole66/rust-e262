@@ -444,7 +444,7 @@ impl HexEscapeSequence {
         new_scanner.consume('x')?;
         let d1 = new_scanner.hex_digit()?;
         let d2 = new_scanner.hex_digit()?;
-        Some((Self(d1 << 4 | d2), new_scanner.read_idx - scanner.read_idx))
+        Some((Self((d1 << 4) | d2), new_scanner.read_idx - scanner.read_idx))
     }
     fn mv(&self) -> u32 {
         u32::from(self.0)
@@ -470,7 +470,7 @@ impl RegExpUnicodeEscapeSequence {
             let d2 = u32::from(new_scanner.hex_digit()?);
             let d3 = u32::from(new_scanner.hex_digit()?);
             let d4 = u32::from(new_scanner.hex_digit()?);
-            Some((Self(d1 << 12 | d2 << 8 | d3 << 4 | d4), new_scanner.read_idx - scanner.read_idx))
+            Some((Self((d1 << 12) | (d2 << 8) | (d3 << 4) | d4), new_scanner.read_idx - scanner.read_idx))
         } else {
             match new_scanner.consume('{') {
                 Some(()) => {
@@ -483,7 +483,7 @@ impl RegExpUnicodeEscapeSequence {
                         value = Some(match value {
                             None => digit,
                             Some(previous) => {
-                                let new_value = previous << 4 | digit;
+                                let new_value = (previous << 4) | digit;
                                 if new_value > 0x10_FFFF {
                                     return None;
                                 }
@@ -508,7 +508,7 @@ impl RegExpUnicodeEscapeSequence {
                     let d2 = u16::from(new_scanner.hex_digit()?);
                     let d3 = u16::from(new_scanner.hex_digit()?);
                     let d4 = u16::from(new_scanner.hex_digit()?);
-                    let word1 = d1 << 12 | d2 << 8 | d3 << 4 | d4;
+                    let word1 = (d1 << 12) | (d2 << 8) | (d3 << 4) | d4;
                     if (0xD800..=0xDBFF).contains(&word1) {
                         fn after_scanner(scanner: &Scanner) -> Option<(u16, usize)> {
                             let mut new_scanner = scanner.clone();
@@ -518,7 +518,7 @@ impl RegExpUnicodeEscapeSequence {
                             let d2 = u16::from(new_scanner.hex_digit()?);
                             let d3 = u16::from(new_scanner.hex_digit()?);
                             let d4 = u16::from(new_scanner.hex_digit()?);
-                            let word = d1 << 12 | d2 << 8 | d3 << 4 | d4;
+                            let word = (d1 << 12) | (d2 << 8) | (d3 << 4) | d4;
                             if (0xDC00..=0xDFFF).contains(&word) {
                                 Some((word, new_scanner.read_idx - scanner.read_idx))
                             } else {

@@ -1554,12 +1554,12 @@ impl ArrayBindingPattern {
         //  2. Return true.
         match self {
             ArrayBindingPattern::RestOnly { bre: onode, .. } => {
-                onode.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+                onode.as_ref().is_none_or(|node| node.all_private_identifiers_valid(names))
             }
             ArrayBindingPattern::ListOnly { bel: node, .. } => node.all_private_identifiers_valid(names),
             ArrayBindingPattern::ListRest { bel: node, bre: onode, .. } => {
                 node.all_private_identifiers_valid(names)
-                    && onode.as_ref().map_or(true, |node| node.all_private_identifiers_valid(names))
+                    && onode.as_ref().is_none_or(|node| node.all_private_identifiers_valid(names))
             }
         }
     }
@@ -2334,7 +2334,7 @@ impl BindingElement {
             BindingElement::Single(n) => n.all_private_identifiers_valid(names),
             BindingElement::Pattern(n, opt) => {
                 n.all_private_identifiers_valid(names)
-                    && opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+                    && opt.as_ref().is_none_or(|n| n.all_private_identifiers_valid(names))
             }
         }
     }
@@ -2503,7 +2503,7 @@ impl SingleNameBinding {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         let SingleNameBinding::Id(_, opt) = self;
-        opt.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+        opt.as_ref().is_none_or(|n| n.all_private_identifiers_valid(names))
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an

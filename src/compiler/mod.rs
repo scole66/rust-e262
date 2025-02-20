@@ -2572,7 +2572,7 @@ impl OptionalChain {
                 //     true; else let strict be false.
                 //  2. Return ? EvaluatePropertyAccessWithExpressionKey(baseValue, Expression, strict).
                 chunk.op_plus_arg(Insn::Unwind, 1);
-                evaluate_property_access_with_expression_key(chunk, ex, strict, text).map(CompilerStatusFlags::from)
+                evaluate_property_access_with_expression_key(chunk, ex, strict, text)
             }
             OptionalChain::Ident(id, _) => {
                 // OptionalChain : ?. IdentifierName

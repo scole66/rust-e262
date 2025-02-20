@@ -744,21 +744,21 @@ impl ForStatement {
         //  2. Return true.
         match self {
             ForStatement::For(opt1, opt2, opt3, s, _) => {
-                opt1.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
-                    && opt2.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
-                    && opt3.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+                opt1.as_ref().is_none_or(|n| n.all_private_identifiers_valid(names))
+                    && opt2.as_ref().is_none_or(|n| n.all_private_identifiers_valid(names))
+                    && opt3.as_ref().is_none_or(|n| n.all_private_identifiers_valid(names))
                     && s.all_private_identifiers_valid(names)
             }
             ForStatement::ForVar(v, opt1, opt2, s, _) => {
                 v.all_private_identifiers_valid(names)
-                    && opt1.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
-                    && opt2.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+                    && opt1.as_ref().is_none_or(|n| n.all_private_identifiers_valid(names))
+                    && opt2.as_ref().is_none_or(|n| n.all_private_identifiers_valid(names))
                     && s.all_private_identifiers_valid(names)
             }
             ForStatement::ForLex(lex, opt1, opt2, s, _) => {
                 lex.all_private_identifiers_valid(names)
-                    && opt1.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
-                    && opt2.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+                    && opt1.as_ref().is_none_or(|n| n.all_private_identifiers_valid(names))
+                    && opt2.as_ref().is_none_or(|n| n.all_private_identifiers_valid(names))
                     && s.all_private_identifiers_valid(names)
             }
         }

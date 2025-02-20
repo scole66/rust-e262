@@ -403,7 +403,7 @@ impl Catch {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.parameter.as_ref().map_or(true, |n| n.all_private_identifiers_valid(names))
+        self.parameter.as_ref().is_none_or(|n| n.all_private_identifiers_valid(names))
             && self.block.all_private_identifiers_valid(names)
     }
 

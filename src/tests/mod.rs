@@ -230,8 +230,7 @@ impl ObjectInterface for TestObject {
         }
     }
     fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
-        if self.get_own_property.0 == ThrowsOrNot::Throws
-            && self.get_own_property.1.as_ref().map_or(true, |k| *k == *key)
+        if self.get_own_property.0 == ThrowsOrNot::Throws && self.get_own_property.1.as_ref().is_none_or(|k| *k == *key)
         {
             Err(create_type_error("[[GetOwnProperty]] called on TestObject"))
         } else {
@@ -240,7 +239,7 @@ impl ObjectInterface for TestObject {
     }
     fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
         if self.define_own_property.0 == ThrowsOrNot::Throws
-            && self.define_own_property.1.as_ref().map_or(true, |k| *k == key)
+            && self.define_own_property.1.as_ref().is_none_or(|k| *k == key)
         {
             Err(create_type_error("[[DefineOwnProperty]] called on TestObject"))
         } else {
@@ -248,28 +247,28 @@ impl ObjectInterface for TestObject {
         }
     }
     fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
-        if self.has_property.0 == ThrowsOrNot::Throws && self.has_property.1.as_ref().map_or(true, |k| *k == *key) {
+        if self.has_property.0 == ThrowsOrNot::Throws && self.has_property.1.as_ref().is_none_or(|k| *k == *key) {
             Err(create_type_error("[[HasProperty]] called on TestObject"))
         } else {
             ordinary_has_property(self, key)
         }
     }
     fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        if self.get.0 == ThrowsOrNot::Throws && self.get.1.as_ref().map_or(true, |k| *k == *key) {
+        if self.get.0 == ThrowsOrNot::Throws && self.get.1.as_ref().is_none_or(|k| *k == *key) {
             Err(create_type_error("[[Get]] called on TestObject"))
         } else {
             ordinary_get(self, key, receiver)
         }
     }
     fn set(&self, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
-        if self.set.0 == ThrowsOrNot::Throws && self.set.1.as_ref().map_or(true, |k| *k == key) {
+        if self.set.0 == ThrowsOrNot::Throws && self.set.1.as_ref().is_none_or(|k| *k == key) {
             Err(create_type_error("[[Set]] called on TestObject"))
         } else {
             ordinary_set(self, key, value, receiver)
         }
     }
     fn delete(&self, key: &PropertyKey) -> Completion<bool> {
-        if self.delete.0 == ThrowsOrNot::Throws && self.delete.1.as_ref().map_or(true, |k| *k == *key) {
+        if self.delete.0 == ThrowsOrNot::Throws && self.delete.1.as_ref().is_none_or(|k| *k == *key) {
             Err(create_type_error("[[Delete]] called on TestObject"))
         } else {
             ordinary_delete(self, key)
