@@ -849,7 +849,7 @@ mod literal {
             let mut c = Chunk::new("debug_lots_of_noops");
             node.compile(&mut c).unwrap();
             assert_eq!(c.opcodes.len(), 32769);
-            assert_eq!(c.opcodes[0], Insn::Nop.into());
+            assert_eq!(c.opcodes[0], u16::from(Insn::Nop));
             for x in 1..32768 {
                 assert_eq!(c.opcodes[x], c.opcodes[x - 1]);
             }
@@ -860,7 +860,7 @@ mod literal {
             let mut c = Chunk::new("debug_lots_of_noops");
             node.compile(&mut c).unwrap();
             assert_eq!(c.opcodes.len(), 32766);
-            assert_eq!(c.opcodes[0], Insn::Nop.into());
+            assert_eq!(c.opcodes[0], u16::from(Insn::Nop));
             for x in 1..32765 {
                 assert_eq!(c.opcodes[x], c.opcodes[x - 1]);
             }
