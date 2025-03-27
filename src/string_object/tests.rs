@@ -50,6 +50,11 @@ mod string_object {
     false_function!(is_regexp_object);
     false_function!(is_symbol_object);
     none_function!(to_bigint_object);
+    none_function!(to_map_obj);
+    none_function!(to_date_obj);
+    none_function!(to_regexp_object);
+    none_function!(to_bound_function_object);
+    none_function!(to_builtin_function_with_revocable_proxy_slot);
 
     #[test]
     fn is_string_object() {
@@ -452,6 +457,14 @@ mod string_object {
                 species.into()
             ]
         );
+    }
+
+    #[test]
+    fn kind() {
+        setup_test_agent();
+        let str_obj = Object::from("value");
+
+        assert_eq!(str_obj.o.kind(), ObjectTag::String);
     }
 }
 
