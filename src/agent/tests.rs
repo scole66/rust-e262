@@ -49,6 +49,38 @@ mod agent {
     }
 
     #[test]
+    fn default() {
+        let agent = Agent::default();
+
+        // New agent; no realm initialized.
+        assert!(agent.execution_context_stack.borrow().is_empty());
+
+        // All well-known symbols initialized, and different from one another.
+        let symbols = [
+            agent.symbols.async_iterator_,
+            agent.symbols.has_instance_,
+            agent.symbols.is_concat_spreadable_,
+            agent.symbols.iterator_,
+            agent.symbols.match_,
+            agent.symbols.match_all_,
+            agent.symbols.replace_,
+            agent.symbols.search_,
+            agent.symbols.species_,
+            agent.symbols.split_,
+            agent.symbols.to_primitive_,
+            agent.symbols.to_string_tag_,
+            agent.symbols.unscopables_,
+        ];
+        let num_symbols = symbols.len();
+        let symbol_set = symbols.iter().collect::<AHashSet<_>>();
+        assert_eq!(num_symbols, symbol_set.len());
+
+        // ID trackers at reasonable spots
+        assert_eq!(agent.obj_id.get(), 1);
+        assert_eq!(agent.symbol_id.get(), num_symbols + 1);
+    }
+
+    #[test]
     fn pop_execution_context() {
         setup_test_agent();
         let realm_ref = current_realm_record().unwrap();
@@ -145,6 +177,16 @@ mod agent {
         AGENT.with(|agent| agent.set_global_symbol_registry(registry.clone()));
         let gsr = super::global_symbol_registry();
         assert!(Rc::ptr_eq(&registry, &gsr));
+    }
+    #[test]
+    #[should_panic(expected = "GSR: Attempted change after having already been set")]
+    fn global_symbol_registry_panic() {
+        setup_test_agent();
+        AGENT.with(Agent::reset);
+        let registry1 = Rc::new(RefCell::new(SymbolRegistry::new()));
+        let registry2 = Rc::new(RefCell::new(SymbolRegistry::new()));
+        AGENT.with(|agent| agent.set_global_symbol_registry(registry1.clone()));
+        AGENT.with(|agent| agent.set_global_symbol_registry(registry2.clone()));
     }
 
     mod current_realm_record {
