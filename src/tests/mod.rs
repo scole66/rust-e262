@@ -1,5 +1,8 @@
 use super::*;
+use ahash::AHashMap;
 use itertools::Itertools;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use std::cell::{Cell, RefCell};
 use std::fmt::{self, Debug};
 use std::hash::{BuildHasher, Hash};
@@ -611,6 +614,74 @@ pub fn disasm_filt(s: &str) -> Option<String> {
         return None;
     }
     Some(s.split_whitespace().join(" "))
+}
+
+pub fn disasm_filter2(val: (&str, usize)) -> Option<(String, usize)> {
+    let s = val.0;
+    disasm_filt(s).map(|s| (s, val.1))
+}
+
+fn find_subslice<T: PartialEq>(haystack: &[T], needle: &[T]) -> Option<usize> {
+    haystack.windows(needle.len()).position(|window| window == needle)
+}
+
+static JUMP_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(JUMP.*) (-?\d+)").unwrap());
+
+pub fn chunk_dump(outer: &Chunk, inner: &[&Chunk]) -> Vec<String> {
+    let mut outer_result =
+        outer.repr_with_size().iter().map(|(s, n)| (s.as_str(), *n)).filter_map(disasm_filter2).collect::<Vec<_>>();
+    for (index, chunk) in inner.iter().enumerate() {
+        let inner_size = chunk.pos();
+        let inner_insns =
+            chunk.repr_with_size().iter().map(|(s, n)| (s.as_str(), *n)).filter_map(disasm_filter2).collect::<Vec<_>>();
+        let inner_count = inner_insns.len();
+
+        // replace the part of outer_result that matches inner_insns with "<Inner Instructions <num>>"
+        let replacement_index = find_subslice(&outer_result, &inner_insns).unwrap();
+        assert!(replacement_index + inner_count <= outer_result.len());
+        outer_result[replacement_index] = (format!("<{} Instructions {}>", chunk.name, index + 1), inner_size);
+        outer_result.drain(replacement_index + 1..replacement_index + inner_count);
+    }
+
+    // For each "jump" instruction in outer_result, find its target in the outer_result array, and change the numbers to labels
+    let mut jump_targets: AHashMap<isize, String> = AHashMap::new();
+    let mut address = 0;
+    let mut label_index = 1;
+
+    for (insn, size) in &mut outer_result {
+        if let Some(caps) = JUMP_RE.captures(insn.as_str()) {
+            let target = caps.get(2).unwrap().as_str().parse::<isize>().unwrap()
+                + isize::try_from(address).unwrap()
+                + isize::try_from(*size).unwrap();
+            let target_name = if let Some(name) = jump_targets.get(&target) {
+                name.clone()
+            } else {
+                let name = format!("l{label_index}");
+                jump_targets.insert(target, name.clone());
+                label_index += 1;
+                name
+            };
+            let new_insn = format!("{} {}", &caps[1], target_name);
+            *insn = new_insn;
+        }
+        address += *size;
+    }
+
+    // Now we need to add the labels to the outer_result
+    let mut address = 0;
+    for (insn, size) in &mut outer_result {
+        if let Some(name) = jump_targets.get(&address) {
+            let new_insn = format!("{name}: {insn}");
+            *insn = new_insn;
+        }
+        address += isize::try_from(*size).unwrap();
+    }
+    // And the final one, if needed.
+    if let Some(name) = jump_targets.get(&address) {
+        outer_result.push((format!("{name}:"), 0));
+    }
+
+    outer_result.into_iter().map(|(s, _)| s).collect::<Vec<_>>()
 }
 
 #[derive(Debug, PartialEq)]

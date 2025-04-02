@@ -369,6 +369,21 @@ impl Chunk {
         }
         result
     }
+
+    pub fn repr_with_size(&self) -> Vec<(String, usize)> {
+        let mut idx = 0;
+        let mut result = vec![];
+        while idx < self.opcodes.len() {
+            let (inc, repr) = self.insn_repr_at(idx);
+            idx += inc;
+            result.push((repr, inc));
+        }
+        result
+    }
+
+    pub fn set_name(&mut self, name: &str) {
+        self.name = String::from(name);
+    }
 }
 
 #[cfg(test)]

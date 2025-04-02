@@ -42,6 +42,7 @@ thiserror = "1.0.69"
 time = { version = "0.3.41", features = ["formatting", "large-dates", "local-offset", "std", "macros"]}
 multi-map = "1.3.0"
 config = "0.14.1"
+once_cell = "1.21.3"
 
 [dev-dependencies]
 test-case = "2.2"
