@@ -837,10 +837,10 @@ impl NameableProduction {
         // returns either a normal completion containing a function object or an abrupt completion.
         match self {
             NameableProduction::Function(child) => {
-                child.compile_named_evaluation(chunk, strict, text, child.clone(), id).map(CompilerStatusFlags::from)
+                child.compile_named_evaluation(chunk, strict, text, id).map(CompilerStatusFlags::from)
             }
             NameableProduction::Generator(generator) => {
-                GeneratorExpression::named_evaluation(generator, chunk, strict, text, id).map(CompilerStatusFlags::from)
+                generator.named_evaluation(chunk, strict, text, id).map(CompilerStatusFlags::from)
             }
             NameableProduction::AsyncFunction(_) => todo!(),
             NameableProduction::AsyncGenerator(_) => todo!(),
@@ -849,7 +849,7 @@ impl NameableProduction {
                 class_expression.named_evaluation(chunk, text, name).map(CompilerStatusFlags::from)
             }
             NameableProduction::Arrow(child) => {
-                child.compile_named_evaluation(chunk, strict, text, child.clone(), id).map(CompilerStatusFlags::from)
+                child.compile_named_evaluation(chunk, strict, text, id).map(CompilerStatusFlags::from)
             }
             NameableProduction::AsyncArrow(_) => todo!(),
         }
@@ -971,9 +971,7 @@ impl PrimaryExpression {
             PrimaryExpression::TemplateLiteral { node } => {
                 node.compile(chunk, strict, text).map(CompilerStatusFlags::from)
             }
-            PrimaryExpression::Function { node } => {
-                node.compile(chunk, strict, text, node.clone()).map(CompilerStatusFlags::from)
-            }
+            PrimaryExpression::Function { node } => node.compile(chunk, strict, text).map(CompilerStatusFlags::from),
             PrimaryExpression::Class { node } => node.compile(chunk, text).map(CompilerStatusFlags::from),
             PrimaryExpression::Generator { node } => node.compile(chunk, strict, text).map(CompilerStatusFlags::from),
             PrimaryExpression::AsyncFunction { node } => todo!(),
@@ -3692,7 +3690,7 @@ impl AssignmentExpression {
             }
             AssignmentExpression::Yield(ye) => ye.compile(chunk, strict, text),
             AssignmentExpression::Arrow(arrow_function) => {
-                arrow_function.compile(chunk, strict, text, arrow_function.clone()).map(CompilerStatusFlags::from)
+                arrow_function.compile(chunk, strict, text).map(CompilerStatusFlags::from)
             }
             AssignmentExpression::AsyncArrow(_) => todo!(),
             AssignmentExpression::OpAssignment(lhse, op, rhs) => {
@@ -7559,12 +7557,11 @@ impl FunctionExpression {
     ///
     /// See [InstantiateOrdinaryFunctionExpression](https://tc39.es/ecma262/#sec-runtime-semantics-instantiateordinaryfunctionexpression) in ECMA-262.
     fn instantiate_ordinary_function_expression(
-        &self,
+        self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
         name: Option<NameLoc>,
         text: &str,
-        self_as_rc: Rc<Self>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: InstantiateOrdinaryFunctionExpression
         match &self.ident {
@@ -7599,7 +7596,7 @@ impl FunctionExpression {
                     params,
                     body,
                     strict: strict || strict_body,
-                    to_compile: FunctionSource::from(self_as_rc),
+                    to_compile: FunctionSource::from(self.clone()),
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
@@ -7620,7 +7617,7 @@ impl FunctionExpression {
                     params,
                     body,
                     strict: strict || strict_body,
-                    to_compile: FunctionSource::from(self_as_rc),
+                    to_compile: FunctionSource::from(self.clone()),
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
@@ -7633,13 +7630,7 @@ impl FunctionExpression {
     /// Generate the code to evaluate a [`FunctionExpression`].
     ///
     /// See [FunctionExpression Evaluation](https://tc39.es/ecma262/#sec-function-definitions-runtime-semantics-evaluation) from ECMA-262.
-    pub fn compile(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-        text: &str,
-        self_as_rc: Rc<Self>,
-    ) -> anyhow::Result<AlwaysAbruptResult> {
+    pub fn compile(self: &Rc<Self>, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: Evaluation
         //  FunctionExpression : function BindingIdentifier[opt] ( FormalParameters ) { FunctionBody }
         //      1. Return InstantiateOrdinaryFunctionExpression of FunctionExpression.
@@ -7648,18 +7639,17 @@ impl FunctionExpression {
         //          | FunctionDeclaration or FunctionExpression, to allow for the possibility that the
         //          | function will be used as a constructor.
         //
-        self.instantiate_ordinary_function_expression(chunk, strict, None, text, self_as_rc)
+        self.instantiate_ordinary_function_expression(chunk, strict, None, text)
     }
 
     fn compile_named_evaluation(
-        &self,
+        self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        self_as_rc: Rc<Self>,
         id: Option<NameLoc>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
-        self.instantiate_ordinary_function_expression(chunk, strict, id, text, self_as_rc)
+        self.instantiate_ordinary_function_expression(chunk, strict, id, text)
     }
 }
 
@@ -7981,12 +7971,11 @@ pub fn compile_fdi(chunk: &mut Chunk, text: &str, info: &StashedFunctionData) ->
 
 impl ArrowFunction {
     fn instantiate_arrow_function_expression(
-        &self,
+        self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
         name: Option<NameLoc>,
-        self_as_rc: Rc<Self>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         if let Some(name_id) = match name {
             None => Some(chunk.add_to_string_pool(JSString::from(""))?),
@@ -8005,7 +7994,7 @@ impl ArrowFunction {
             params,
             body,
             strict,
-            to_compile: FunctionSource::from(self_as_rc),
+            to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::LexicalThis,
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
@@ -8013,25 +8002,18 @@ impl ArrowFunction {
         Ok(AlwaysAbruptResult)
     }
 
-    pub fn compile(
-        &self,
-        chunk: &mut Chunk,
-        strict: bool,
-        text: &str,
-        self_as_rc: Rc<Self>,
-    ) -> anyhow::Result<AlwaysAbruptResult> {
-        self.instantiate_arrow_function_expression(chunk, strict, text, None, self_as_rc)
+    pub fn compile(self: &Rc<Self>, chunk: &mut Chunk, strict: bool, text: &str) -> anyhow::Result<AlwaysAbruptResult> {
+        self.instantiate_arrow_function_expression(chunk, strict, text, None)
     }
 
     pub fn compile_named_evaluation(
-        &self,
+        self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
-        self_as_rc: Rc<Self>,
         id: Option<NameLoc>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
-        self.instantiate_arrow_function_expression(chunk, strict, text, id, self_as_rc)
+        self.instantiate_arrow_function_expression(chunk, strict, text, id)
     }
 }
 
@@ -10834,7 +10816,7 @@ impl GeneratorExpression {
     }
 
     fn named_evaluation(
-        self_as_rc: &Rc<Self>,
+        self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
         text: &str,
@@ -10847,7 +10829,7 @@ impl GeneratorExpression {
 
         // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
         //  1. Return InstantiateGeneratorFunctionExpression of GeneratorExpression with argument name.
-        Self::instantiate_generator_function_expression(self_as_rc, chunk, strict, text, id)
+        self.instantiate_generator_function_expression(chunk, strict, text, id)
     }
 }
 

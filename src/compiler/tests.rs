@@ -548,58 +548,48 @@ mod nameable_production {
         x.try_into().map_err(|err| err.to_string()).map(|node| node.to_string())
     }
 
-    #[test_case("function(){}", true => Ok((svec(&["STRING 0 (my_function_name)", "FUNC_IIFE 0"]), true, false)); "function expression")]
-    #[test_case("function *(){}", true => Ok((svec(&["STRING 0 (my_function_name)", "FUNC_GENE 0"]), true, false)); "generator exprsesion")]
+    #[test_case("function(){}", true => Ok((svec(&["<Function Instructions 1>"]), true, false)); "function expression")]
+    #[test_case("function *(){}", true => Ok((svec(&["<Generator Instructions 1>"]), true, false)); "generator expression")]
     #[test_case("async function(){}", true => panics "not yet implemented"; "async function expression")]
     #[test_case("async function*(){}", true => panics "not yet implemented"; "async generator expression")]
-    #[test_case(
-        "class {}", true
-        => Ok((
-            svec(&[
-                "STRING 0 (my_function_name)",
-                "PNLE",
-                "FUNC_PROTO",
-                "OBJ_PROTO",
-                "OBJ_WITH_PROTO",
-                "PNPE",
-                "ROTATEDOWN 3",
-                "DEFAULT_CSTR",
-                "MAKE_CSTR_PROTO",
-                "DUP",
-                "ROTATEUP 3",
-                "DUP",
-                "ROTATEDOWN 4",
-                "SWAP",
-                "STRING 1 (constructor)",
-                "DEF_METH_PROP 0",
-                "POP",
-                "SWAP",
-                "POP",
-                "PLE",
-                "ATTACH_ELEMENTS 0",
-                "PPE",
-                "ATTACH_SOURCE 2 (class {})"
-            ]),
-            false,
-            false
-        ));
-        "class expression"
-    )]
-    #[test_case("(x => x)", true => Ok((svec(&["STRING 0 (my_function_name)", "FUNC_IAE 0"]), true, false)); "arrow function")]
+    #[test_case("class {}", true => Ok((svec(&["<Class Instructions 1>"]), false, false)); "class expression")]
+    #[test_case("(x => x)", true => Ok((svec(&["<Arrow Instructions 1>"]), true, false)); "arrow function")]
     #[test_case("(async x => x)", true => panics "not yet implemented"; "async arrow function")]
     fn compile_named_evaluation(src: &str, strict: bool) -> Result<(Vec<String>, bool, bool), String> {
         let node = NameableProduction::try_from(Maker::new(src).primary_expression()).unwrap();
-        let mut c = Chunk::new("x");
-        let id = c.add_to_string_pool("my_function_name".into()).unwrap();
-        node.compile_named_evaluation(&mut c, strict, src, Some(NameLoc::Index(id)))
-            .map(|status| {
-                (
-                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.maybe_abrupt(),
-                    status.maybe_ref(),
-                )
-            })
-            .map_err(|e| e.to_string())
+        let mut outer = Chunk::new("x");
+        let id = outer.add_to_string_pool("my_function_name".into()).unwrap();
+
+        let status = node
+            .compile_named_evaluation(&mut outer, strict, src, Some(NameLoc::Index(id)))
+            .map_err(|e| e.to_string())?;
+        let mut inner = Chunk::new("inner");
+        let innerid = inner.add_to_string_pool("my_function_name".into()).unwrap();
+        match &node {
+            NameableProduction::Function(fd) => {
+                fd.compile_named_evaluation(&mut inner, strict, src, Some(NameLoc::Index(innerid))).unwrap();
+                inner.set_name("Function");
+            }
+            NameableProduction::Generator(fe) => {
+                fe.named_evaluation(&mut inner, strict, src, Some(NameLoc::Index(innerid))).unwrap();
+                inner.set_name("Generator");
+            }
+            NameableProduction::AsyncFunction(_)
+            | NameableProduction::AsyncGenerator(_)
+            | NameableProduction::AsyncArrow(_) => {
+                unreachable!();
+            }
+            NameableProduction::Class(ce) => {
+                ce.named_evaluation(&mut inner, src, NameLoc::Index(innerid)).unwrap();
+                inner.set_name("Class");
+            }
+            NameableProduction::Arrow(af) => {
+                af.compile_named_evaluation(&mut inner, strict, src, Some(NameLoc::Index(innerid))).unwrap();
+                inner.set_name("Arrow");
+            }
+        };
+
+        Ok((chunk_dump(&outer, &[&inner]), status.maybe_abrupt(), status.maybe_ref()))
     }
 
     #[test_case("function (){}" => false; "function, unnamed")]
@@ -783,70 +773,70 @@ mod primary_expression {
         use super::*;
         use test_case::test_case;
 
-        #[test_case("id", true => svec(&[
-            "STRING 0 (id)",
-            "STRICT_RESOLVE"
-        ]); "identifier ref, strict")]
-        #[test_case("id", false => svec(&[
-            "STRING 0 (id)",
-            "RESOLVE"
-        ]); "identifier ref, non strict")]
-        #[test_case("this", true => svec(&[
-            "THIS"
-        ]); "this binding")]
-        #[test_case("(id)", true => svec(&[
-            "STRING 0 (id)",
-            "STRICT_RESOLVE"
-        ]); "strict parens")]
-        #[test_case("(id)", false => svec(&[
-            "STRING 0 (id)",
-            "RESOLVE"
-        ]); "non-strict parens")]
-        #[test_case("true", true => svec(&[
-            "TRUE"
-        ]); "literal")]
-        #[test_case("({})", true => svec(&["OBJECT"]); "object literal")]
-        #[test_case(
-            "class {}", true
-            => svec(&[
-                "STRING 0 ()",
-                "PNLE",
-                "FUNC_PROTO",
-                "OBJ_PROTO",
-                "OBJ_WITH_PROTO",
-                "PNPE",
-                "ROTATEDOWN 3",
-                "DEFAULT_CSTR",
-                "MAKE_CSTR_PROTO",
-                "DUP",
-                "ROTATEUP 3",
-                "DUP",
-                "ROTATEDOWN 4",
-                "SWAP",
-                "STRING 1 (constructor)",
-                "DEF_METH_PROP 0",
-                "POP",
-                "SWAP",
-                "POP",
-                "PLE",
-                "ATTACH_ELEMENTS 0",
-                "PPE",
-                "ATTACH_SOURCE 2 (class {})"
-            ]);
-            "class expression"
-        )]
-        #[test_case("[]", true => svec(&["ARRAY"]); "array literal")]
-        #[test_case("``", true => svec(&["STRING 0 ()"]); "template literal")]
-        #[test_case("function a(){}", true => svec(&["STRING 0 (a)", "FUNC_IOFE 0"]); "function expression")]
-        #[test_case("function *(){}", true => svec(&["STRING 0 ()", "FUNC_GENE 0"]); "generator expression")]
+        #[test_case("id", true => Ok(svec(&["<IdentifierReference Instructions 1>"])); "identifier ref, strict")]
+        #[test_case("id", false => Ok(svec(&["<IdentifierReference Instructions 1>"])); "identifier ref, non strict")]
+        #[test_case("this", true => Ok(svec(&["THIS"])); "this binding")]
+        #[test_case("(id)", true => Ok(svec(&["<Parenthesized Instructions 1>"])); "strict parens")]
+        #[test_case("(id)", false => Ok(svec(&["<Parenthesized Instructions 1>"])); "non-strict parens")]
+        #[test_case("true", true => Ok(svec(&["<Literal Instructions 1>"])); "literal")]
+        #[test_case("{}", true => Ok(svec(&["<ObjectLiteral Instructions 1>"])); "object literal")]
+        #[test_case("class {}", true => Ok(svec(&["<Class Instructions 1>"])); "class expression")]
+        #[test_case("[]", true => Ok(svec(&["<ArrayLiteral Instructions 1>"])); "array literal")]
+        #[test_case("``", true => Ok(svec(&["<TemplateLiteral Instructions 1>"])); "template literal")]
+        #[test_case("function a(){}", true => Ok(svec(&["<Function Instructions 1>"])); "function expression")]
+        #[test_case("function *(){}", true => Ok(svec(&["<Generator Instructions 1>"])); "generator expression")]
         #[test_case("async function (){}", true => panics "not yet implemented"; "async function expression")]
         #[test_case("async function *(){}", true => panics "not yet implemented"; "async generator expression")]
-        #[test_case("/abcd/", true => svec(&["REGEXP /abcd/"]); "regular expression")]
-        fn normal(src: &str, strict: bool) -> Vec<String> {
+        #[test_case("/abcd/", true => Ok(svec(&["REGEXP /abcd/"])); "regular expression")]
+        fn normal(src: &str, strict: bool) -> Result<Vec<String>, String> {
             let node = Maker::new(src).primary_expression();
             let mut c = Chunk::new("pe");
-            node.compile(&mut c, strict, src).unwrap();
-            c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
+            node.compile(&mut c, strict, src).map_err(|e| e.to_string())?;
+
+            let mut inner = Chunk::new("inner");
+            match node.as_ref() {
+                PrimaryExpression::This { .. } | PrimaryExpression::RegularExpression { .. } => {}
+                PrimaryExpression::IdentifierReference { node: ir, .. } => {
+                    ir.compile(&mut inner, strict).unwrap();
+                    inner.set_name("IdentifierReference");
+                }
+                PrimaryExpression::Literal { node: lit } => {
+                    lit.compile(&mut inner).unwrap();
+                    inner.set_name("Literal");
+                }
+                PrimaryExpression::ArrayLiteral { node: arr } => {
+                    arr.compile(&mut inner, strict, src).unwrap();
+                    inner.set_name("ArrayLiteral");
+                }
+                PrimaryExpression::ObjectLiteral { node: obj } => {
+                    obj.compile(&mut inner, strict, src).unwrap();
+                    inner.set_name("ObjectLiteral");
+                }
+                PrimaryExpression::Parenthesized { node: paren } => {
+                    paren.compile(&mut inner, strict, src).unwrap();
+                    inner.set_name("Parenthesized");
+                }
+                PrimaryExpression::TemplateLiteral { node: tmpl } => {
+                    tmpl.compile(&mut inner, strict, src).unwrap();
+                    inner.set_name("TemplateLiteral");
+                }
+                PrimaryExpression::Function { node: func } => {
+                    func.compile(&mut inner, strict, src).unwrap();
+                    inner.set_name("Function");
+                }
+                PrimaryExpression::Class { node: class } => {
+                    class.compile(&mut inner, src).unwrap();
+                    inner.set_name("Class");
+                }
+                PrimaryExpression::Generator { node: gener } => {
+                    gener.compile(&mut inner, strict, src).unwrap();
+                    inner.set_name("Generator");
+                }
+                PrimaryExpression::AsyncFunction { .. } | PrimaryExpression::AsyncGenerator { .. } => {
+                    unreachable!();
+                }
+            }
+            Ok(if inner.pos() == 0 { chunk_dump(&c, &[]) } else { chunk_dump(&c, &[&inner]) })
         }
     }
 }
@@ -957,14 +947,29 @@ mod object_literal {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{}", true => svec(&["OBJECT"]); "empty")]
-    #[test_case("{a}", true => svec(&["OBJECT", "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"]); "strict elements")]
-    #[test_case("{a,}", false => svec(&["OBJECT", "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"]); "non-strict elements")]
-    fn compile(src: &str, strict: bool) -> Vec<String> {
+    #[test_case("{}", true => Ok(svec(&["OBJECT"])); "empty")]
+    #[test_case("{a}", true => Ok(svec(&["OBJECT", "<Normal Instructions 1>"])); "strict elements")]
+    #[test_case("{a,}", false => Ok(svec(&["OBJECT", "<TrailingComma Instructions 1>"])); "non-strict elements")]
+    #[test_case("{a:@@~}", false => serr("@@~ token detected. aborting compilation."); "error returned")]
+    fn compile(src: &str, strict: bool) -> Result<Vec<String>, String> {
         let node = Maker::new(src).object_literal();
-        let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
-        c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
+        let mut c = Chunk::new("outer");
+        node.compile(&mut c, strict, src).map_err(|e| e.to_string())?;
+
+        let mut inner = Chunk::new("inner");
+        match node.as_ref() {
+            ObjectLiteral::Empty { .. } => {}
+            ObjectLiteral::Normal { pdl: obj, .. } => {
+                obj.property_definition_evaluation(&mut inner, strict, src).unwrap();
+                inner.set_name("Normal");
+            }
+            ObjectLiteral::TrailingComma { pdl: obj, .. } => {
+                obj.property_definition_evaluation(&mut inner, strict, src).unwrap();
+                inner.set_name("TrailingComma");
+            }
+        }
+
+        Ok(if inner.pos() == 0 { chunk_dump(&c, &[]) } else { chunk_dump(&c, &[&inner]) })
     }
 }
 
@@ -5382,7 +5387,7 @@ mod function_expression {
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).function_expression();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src, node.clone())
+        node.compile(&mut c, strict, src)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5400,7 +5405,7 @@ mod function_expression {
     ) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).function_expression();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_named_evaluation(&mut c, strict, src, node.clone(), Some(NameLoc::OnStack))
+        node.compile_named_evaluation(&mut c, strict, src, Some(NameLoc::OnStack))
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5437,7 +5442,7 @@ mod function_expression {
             TestLoc::Stack => Some(NameLoc::OnStack),
             TestLoc::Index => Some(NameLoc::Index(c.add_to_string_pool("myname".into()).unwrap())),
         };
-        node.instantiate_ordinary_function_expression(&mut c, strict, name, src, node.clone())
+        node.instantiate_ordinary_function_expression(&mut c, strict, name, src)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6187,52 +6192,49 @@ mod binding_pattern {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("{a}", true, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
-        "REQ_COER",
-        "JUMP_IF_ABRUPT 30",
-        "STRING 0 (a)",
-        "STRING 0 (a)",
-        "STRICT_RESOLVE",
-        "JUMP_IF_ABRUPT 8",
-        "ROTATEDOWN 3",
-        "GETV",
-        "JUMP_IF_ABRUPT 5",
-        "IRB",
-        "JUMP 4",
-        "UNWIND 1",
-        "UNWIND 1",
-        "JUMP_IF_ABRUPT 5",
-        "POP",
-        "STRING 0 (a)",
-        "FLOAT 0 (1)",
-        "JUMP_IF_ABRUPT 2",
-        "POP_LIST",
-        "EMPTY"
-    ])); "simple")]
-    #[test_case("{a}", true, EnvUsage::UseCurrentLexical, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "no space")]
-    #[test_case("{a=@@(34)}", true, EnvUsage::UseCurrentLexical, &[] => serr("out of range integral type conversion attempted"); "exit jump too far")]
-    #[test_case("[a]", true, EnvUsage::UseCurrentLexical, &[] => Ok(svec(&[
-        "GET_SYNC_ITER",
-        "JUMP_IF_ABRUPT 23",
-        "DUP",
-        "STRING 0 (a)",
-        "STRICT_RESOLVE",
-        "JUMP_IF_ABRUPT 13",
-        "SWAP",
-        "ITER_STEP",
-        "JUMP_IF_ABRUPT 9",
-        "SWAP",
-        "ROTATEDOWN 3",
-        "IRB",
-        "JUMP_IF_ABRUPT 3",
-        "POP",
-        "JUMP 2",
-        "UNWIND 1",
-        "EMPTY_IF_NOT_ERR",
-        "ITER_CLOSE_IF_NOT_DONE"
-    ])); "array pattern; typical")]
-    #[test_case("[a=1n]", false, EnvUsage::UsePutValue, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "pattern compile fails")]
-    #[test_case("[a=@@(20)]", false, EnvUsage::UsePutValue, &[] => serr("out of range integral type conversion attempted"); "array: exit jump too far")]
+    #[test_case(
+        "{a}", true, EnvUsage::UseCurrentLexical, &[]
+        => Ok(svec(&[
+            "REQ_COER",
+            "JUMP_IF_ABRUPT l1",
+            "<Object Instructions 1>",
+            "l1:"
+            ]));
+        "object style"
+    )]
+    #[test_case(
+        "{a}", true, EnvUsage::UseCurrentLexical, &[(Fillable::String, 0)]
+        => serr("Out of room for strings in this compilation unit");
+        "no space"
+    )]
+    #[test_case(
+        "{a=@@(34)}", true, EnvUsage::UseCurrentLexical, &[] =>
+        serr("out of range integral type conversion attempted");
+        "exit jump too far"
+    )]
+    #[test_case(
+        "[a]", true, EnvUsage::UseCurrentLexical, &[]
+        => Ok(svec(&[
+            "GET_SYNC_ITER",
+            "JUMP_IF_ABRUPT l1",
+            "DUP",
+            "<Array Instructions 1>",
+            "EMPTY_IF_NOT_ERR",
+            "ITER_CLOSE_IF_NOT_DONE",
+            "l1:"
+        ]));
+        "array pattern; typical"
+    )]
+    #[test_case(
+        "[a=1n]", false, EnvUsage::UsePutValue, &[(Fillable::BigInt, 0)]
+        => serr("Out of room for big ints in this compilation unit");
+        "pattern compile fails"
+    )]
+    #[test_case(
+        "[a=@@(20)]", false, EnvUsage::UsePutValue, &[] =>
+        serr("out of range integral type conversion attempted");
+        "array: exit jump too far"
+    )]
     fn compile_binding_initialization(
         src: &str,
         strict: bool,
@@ -6240,10 +6242,22 @@ mod binding_pattern {
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
         let node = Maker::new(src).binding_pattern();
-        let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
-            .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
-            .map_err(|e| e.to_string())
+        let mut outer = complex_filled_chunk("outer", what);
+
+        node.compile_binding_initialization(&mut outer, strict, src, env).map_err(|e| e.to_string())?;
+
+        let mut inner = Chunk::new("interior");
+        match node.as_ref() {
+            BindingPattern::Object(o) => {
+                o.compile_binding_initialization(&mut inner, strict, src, env).unwrap();
+                inner.set_name("Object");
+            }
+            BindingPattern::Array(a) => {
+                a.iterator_binding_initialization(&mut inner, strict, src, env).unwrap();
+                inner.set_name("Array");
+            }
+        };
+        Ok(chunk_dump(&outer, &[&inner]))
     }
 }
 
@@ -6470,7 +6484,7 @@ mod arrow_function {
             TestLoc::Stack => Some(NameLoc::OnStack),
             TestLoc::Index => Some(NameLoc::Index(c.add_to_string_pool("myname".into()).unwrap())),
         };
-        node.instantiate_arrow_function_expression(&mut c, strict, src, name, node.clone())
+        node.instantiate_arrow_function_expression(&mut c, strict, src, name)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6484,7 +6498,7 @@ mod arrow_function {
     fn compile(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).arrow_function();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, true, src, node.clone())
+        node.compile(&mut c, true, src)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6498,7 +6512,7 @@ mod arrow_function {
     fn compile_named_evaluation(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).arrow_function();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_named_evaluation(&mut c, true, src, node.clone(), Some(NameLoc::OnStack))
+        node.compile_named_evaluation(&mut c, true, src, Some(NameLoc::OnStack))
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
