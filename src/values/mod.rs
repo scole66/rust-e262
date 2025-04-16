@@ -1,6 +1,5 @@
 use super::*;
 use anyhow::{anyhow, bail};
-use lazy_static::lazy_static;
 use num::{BigInt, BigUint, Num, ToPrimitive};
 use regex::Regex;
 use std::cell::RefCell;
@@ -9,6 +8,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::io;
 use std::rc::Rc;
+use std::sync::LazyLock;
 use uid::Id as IdT;
 
 #[derive(Clone, Debug)]
@@ -978,34 +978,27 @@ impl ECMAScriptValue {
 
 impl JSString {
     pub fn to_number(&self) -> f64 {
-        lazy_static! {
-            static ref STR_WHITE_SPACE: &'static str = r"(?:[\t\v\f \u{a0}\u{feff}\n\r\u{2028}\u{2029}]+)";
-            static ref DECIMAL_DIGITS: &'static str = "(?:[0-9]+)";
-            static ref EXPONENT_PART: &'static str = "(?:[eE][-+]?[0-9]+)";
-            static ref STR_UNSIGNED_DECIMAL_LITERAL: String = format!(
-                r"(?:Infinity|{}\.{}?{}?|\.{}{}?|{}{}?)",
-                *DECIMAL_DIGITS,
-                *DECIMAL_DIGITS,
-                *EXPONENT_PART,
-                *DECIMAL_DIGITS,
-                *EXPONENT_PART,
-                *DECIMAL_DIGITS,
-                *EXPONENT_PART
-            );
-            static ref STR_DECIMAL_LITERAL: String = format!(r"(?P<decimal>[-+]?{})", *STR_UNSIGNED_DECIMAL_LITERAL);
-            static ref BINARY_INTEGER_LITERAL: &'static str = "(?:0[bB](?P<binary>[01]+))";
-            static ref OCTAL_INTEGER_LITERAL: &'static str = "(?:0[oO](?P<octal>[0-7]+))";
-            static ref HEX_INTEGER_LITERAL: &'static str = "(?:0[xX](?P<hex>[0-9a-fA-F]+))";
-            static ref NONDECIMAL_INTEGER_LITERAL: String =
-                format!("(?:{}|{}|{})", *BINARY_INTEGER_LITERAL, *OCTAL_INTEGER_LITERAL, *HEX_INTEGER_LITERAL);
-            static ref STR_NUMERIC_LITERAL: String =
-                format!("(?:{}|{})", *STR_DECIMAL_LITERAL, *NONDECIMAL_INTEGER_LITERAL);
-            static ref STRING_NUMERIC_LITERAL: String = format!(
-                "^(?:{}?|{}?{}{}?)$",
-                *STR_WHITE_SPACE, *STR_WHITE_SPACE, *STR_NUMERIC_LITERAL, *STR_WHITE_SPACE
-            );
-            static ref MATCHER: Regex = Regex::new(&STRING_NUMERIC_LITERAL).unwrap();
-        }
+        static STR_WHITE_SPACE: &str = r"(?:[\t\v\f \u{a0}\u{feff}\n\r\u{2028}\u{2029}]+)";
+        static DECIMAL_DIGITS: &str = "(?:[0-9]+)";
+        static EXPONENT_PART: &str = "(?:[eE][-+]?[0-9]+)";
+        static STR_UNSIGNED_DECIMAL_LITERAL: LazyLock<String> = LazyLock::new(|| {
+            format!(
+                r"(?:Infinity|{DECIMAL_DIGITS}\.{DECIMAL_DIGITS}?{EXPONENT_PART}?|\.{DECIMAL_DIGITS}{EXPONENT_PART}?|{DECIMAL_DIGITS}{EXPONENT_PART}?)"
+            )
+        });
+        static STR_DECIMAL_LITERAL: LazyLock<String> =
+            LazyLock::new(|| format!(r"(?P<decimal>[-+]?{})", *STR_UNSIGNED_DECIMAL_LITERAL));
+        static BINARY_INTEGER_LITERAL: &str = "(?:0[bB](?P<binary>[01]+))";
+        static OCTAL_INTEGER_LITERAL: &str = "(?:0[oO](?P<octal>[0-7]+))";
+        static HEX_INTEGER_LITERAL: &str = "(?:0[xX](?P<hex>[0-9a-fA-F]+))";
+        static NONDECIMAL_INTEGER_LITERAL: LazyLock<String> =
+            LazyLock::new(|| format!("(?:{BINARY_INTEGER_LITERAL}|{OCTAL_INTEGER_LITERAL}|{HEX_INTEGER_LITERAL})"));
+        static STR_NUMERIC_LITERAL: LazyLock<String> =
+            LazyLock::new(|| format!("(?:{}|{})", *STR_DECIMAL_LITERAL, *NONDECIMAL_INTEGER_LITERAL));
+        static STRING_NUMERIC_LITERAL: LazyLock<String> = LazyLock::new(|| {
+            format!("^(?:{STR_WHITE_SPACE}?|{STR_WHITE_SPACE}?{}{STR_WHITE_SPACE}?)$", *STR_NUMERIC_LITERAL)
+        });
+        static MATCHER: LazyLock<Regex> = LazyLock::new(|| Regex::new(&STRING_NUMERIC_LITERAL).unwrap());
 
         let number_string = String::from(self);
         match MATCHER.captures(&number_string) {

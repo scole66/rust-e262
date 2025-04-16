@@ -1,9 +1,8 @@
 // char *dtoa_rust(double, int *, int *, char *, unsigned int);
 
-use lazy_static::lazy_static;
 use libc::size_t;
 use std::os::raw::{c_double, c_int, c_uchar};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 
 unsafe extern "C" {
     pub fn dtoa_rust(
@@ -17,9 +16,7 @@ unsafe extern "C" {
     );
 }
 
-lazy_static! {
-    static ref DTOALOCK: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
-}
+static DTOALOCK: LazyLock<Arc<Mutex<u32>>> = LazyLock::new(|| Arc::new(Mutex::new(0)));
 
 #[derive(Debug)]
 pub struct DtoAResult {

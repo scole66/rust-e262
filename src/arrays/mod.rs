@@ -232,7 +232,7 @@ impl ArrayObject {
     ///
     /// # Arguments
     /// * `prototype` - Optional prototype object to set as the Array's \[\[Prototype]]. If None,
-    ///                 the default Array prototype will be used.
+    ///   the default Array prototype will be used.
     ///
     /// # Returns
     /// Returns a new ArrayObject instance with:
@@ -257,7 +257,7 @@ impl ArrayObject {
     ///
     /// # Arguments
     /// * `prototype` - Optional prototype object to set as the Array's \[\[Prototype]]. If None,
-    ///                 the default Array prototype will be used.
+    ///   the default Array prototype will be used.
     ///
     /// # Returns
     /// Returns an `Object` containing a reference-counted ArrayObject with:

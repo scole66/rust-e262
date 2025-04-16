@@ -7316,7 +7316,7 @@ impl TryStatement {
                     catch.compile_catch_clause_evaluation(chunk, strict, text)?;
                     // Stack: catch: val/empty/err undefined ...
                     chunk.fixup(exit)?;
-                };
+                }
                 // Stack: (block: val/empty/abrupt -or- catch: val/empty/err) undefined ...
                 chunk.op(Insn::UpdateEmpty);
                 // Stack: val/err ...
@@ -7370,7 +7370,7 @@ impl TryStatement {
                     catch.compile_catch_clause_evaluation(chunk, strict, text)?;
                     // Stack: catch: val/empty/err undefined ...
                     chunk.fixup(after_catch)?;
-                };
+                }
                 // Stack: (block: val/empty/abt -or- catch: val/empty/err) undefined
                 let finally_status = finally.compile(chunk, strict, text)?;
                 // Stack: finally: val/empty/err (block: val/empty/abt -or- catch: val/empty/err) undefined
@@ -10155,7 +10155,7 @@ impl ClassTail {
             NameLoc::Index(idx) => {
                 chunk.op_plus_arg(Insn::String, idx);
             }
-        };
+        }
         chunk.op(Insn::PushNewLexEnv);
         if let Some(binding_idx) = class_binding {
             chunk.op_plus_arg(Insn::CreateStrictImmutableLexBinding, binding_idx);

@@ -2858,26 +2858,24 @@ mod insn_impl {
                     push_value(ECMAScriptValue::Object(a)).expect(PUSHABLE);
                     break;
                 }
-                Ok(Some(next_obj)) => {
-                    match iterator_value(&next_obj) {
-                        Ok(next_value) => {
-                            a.create_data_property_or_throw(format!("{n}"), next_value)
-                                .expect("array property set should work");
-                            n += 1;
-                        }
-                        Err(e) => {
-                            ir.done.set(true);
-                            push_completion(Err(e)).expect(PUSHABLE);
-                            break;
-                        }
-                    };
-                }
+                Ok(Some(next_obj)) => match iterator_value(&next_obj) {
+                    Ok(next_value) => {
+                        a.create_data_property_or_throw(format!("{n}"), next_value)
+                            .expect("array property set should work");
+                        n += 1;
+                    }
+                    Err(e) => {
+                        ir.done.set(true);
+                        push_completion(Err(e)).expect(PUSHABLE);
+                        break;
+                    }
+                },
                 Err(e) => {
                     ir.done.set(true);
                     push_completion(Err(e)).expect(PUSHABLE);
                     break;
                 }
-            };
+            }
         }
         Ok(())
     }

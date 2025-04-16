@@ -1,6 +1,5 @@
 pub mod ranges;
 use super::*;
-use lazy_static::lazy_static;
 use num::bigint::BigInt;
 use regex::Regex;
 use std::char;
@@ -9,6 +8,7 @@ use std::cmp::max;
 use std::convert::TryFrom;
 use std::fmt;
 use std::str;
+use std::sync::LazyLock;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ScanGoal {
@@ -2156,29 +2156,28 @@ fn right_brace_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Op
 
 fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
     if goal == ScanGoal::InputElementRegExp || goal == ScanGoal::InputElementRegExpOrTemplateTail {
-        lazy_static! {
-            static ref ESREGEX: Regex = {
-                let regular_expression_flags =
-                    r"(?:(?:[\p{ID_Continue}$\u200C\u200D]|(?:\\u(?:[0-9a-fA-F]{4}|(?:\{[0-9a-fA-F]*\}))))*)";
-                let regular_expression_non_terminator = r"(?:[^\u000A\u2028\u2029\u000D])";
-                let regular_expression_backslash_sequence = format!(r"(?:\\{regular_expression_non_terminator})");
-                let regular_expression_class_char =
-                    format!(r"(?:[^\u000A\u2028\u2029\u000D\]\\]|{regular_expression_backslash_sequence})");
-                let regular_expression_class_chars = format!("(?:{regular_expression_class_char}*)");
-                let regular_expression_class = format!(r"(?:\[{regular_expression_class_chars}\])");
-                let regular_expression_char = format!(
-                    r"(?:[^\u000A\u2028\u2029\u000D\[/\\]|{regular_expression_backslash_sequence}|{regular_expression_class})"
-                );
-                let regular_expression_first_char = format!(
-                    r"(?:[^\u000A\u2028\u2029\u000D*/\[\\]|{regular_expression_backslash_sequence}|{regular_expression_class})"
-                );
-                let regular_expression_chars = format!("(?:{regular_expression_char}*)");
-                let regular_expression_body = format!("(?:{regular_expression_first_char}{regular_expression_chars})");
-                let regular_expression_literal =
-                    format!("(?:^/(?P<body>{regular_expression_body})/(?P<flags>{regular_expression_flags}))");
-                Regex::new(&regular_expression_literal).unwrap()
-            };
-        }
+        static ESREGEX: LazyLock<Regex> = LazyLock::new(|| {
+            let regular_expression_flags =
+                r"(?:(?:[\p{ID_Continue}$\u200C\u200D]|(?:\\u(?:[0-9a-fA-F]{4}|(?:\{[0-9a-fA-F]*\}))))*)";
+            let regular_expression_non_terminator = r"(?:[^\u000A\u2028\u2029\u000D])";
+            let regular_expression_backslash_sequence = format!(r"(?:\\{regular_expression_non_terminator})");
+            let regular_expression_class_char =
+                format!(r"(?:[^\u000A\u2028\u2029\u000D\]\\]|{regular_expression_backslash_sequence})");
+            let regular_expression_class_chars = format!("(?:{regular_expression_class_char}*)");
+            let regular_expression_class = format!(r"(?:\[{regular_expression_class_chars}\])");
+            let regular_expression_char = format!(
+                r"(?:[^\u000A\u2028\u2029\u000D\[/\\]|{regular_expression_backslash_sequence}|{regular_expression_class})"
+            );
+            let regular_expression_first_char = format!(
+                r"(?:[^\u000A\u2028\u2029\u000D*/\[\\]|{regular_expression_backslash_sequence}|{regular_expression_class})"
+            );
+            let regular_expression_chars = format!("(?:{regular_expression_char}*)");
+            let regular_expression_body = format!("(?:{regular_expression_first_char}{regular_expression_chars})");
+            let regular_expression_literal =
+                format!("(?:^/(?P<body>{regular_expression_body})/(?P<flags>{regular_expression_flags}))");
+            Regex::new(&regular_expression_literal).unwrap()
+        });
+
         match ESREGEX.captures(&source[scanner.start_idx..]) {
             None => None,
             Some(captures) => {
