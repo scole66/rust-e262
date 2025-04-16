@@ -461,7 +461,7 @@ mod chunk {
         assert_eq!(c2.strings.as_slice(), &[JSString::from("look, a string!")]);
         assert!(c2.opcodes.is_empty());
         assert_eq!(c2.floats.as_slice(), &[123.125]);
-        assert_eq!(c2.bigints.iter().map(|bi| bi.to_string()).collect::<Vec<_>>().as_slice(), &["10".to_string()]);
+        assert_eq!(c2.bigints.iter().map(ToString::to_string).collect::<Vec<_>>().as_slice(), &["10".to_string()]);
         let mut myset = AHashSet::new();
         myset.insert(JSString::from("first"));
         myset.insert(JSString::from("second"));
