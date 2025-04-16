@@ -348,6 +348,7 @@ mod chunk {
     fn disassemble() {
         let mut c = Chunk::new("disassemble");
         let string_idx = c.add_to_string_pool("charlie".into()).unwrap();
+        let otherstring_idx = c.add_to_string_pool("regexp-flags".into()).unwrap();
         let bigint_idx = c.add_to_bigint_pool(Rc::new(BigInt::from(93939))).unwrap();
         let float_idx = c.add_to_float_pool(78.2).unwrap();
         let ls_idx = c
@@ -371,6 +372,9 @@ mod chunk {
         c.op_plus_two_args(Insn::AddMappedArgument, string_idx, 3);
         c.op_plus_two_args(Insn::DefineGetter, 0, 0);
         c.op_plus_two_args(Insn::DefineGetter, 1, 1);
+        c.op_plus_two_args(Insn::RegExpCreate, string_idx, otherstring_idx);
+        c.op_plus_arg(Insn::MakeSuperPropertyReference, 1);
+        c.op_plus_arg(Insn::MakeSuperPropertyReference, 0);
 
         let result = c.disassemble();
         let expected = svec(&[
@@ -392,8 +396,77 @@ mod chunk {
             "    AMA                     3 charlie",
             "    DEF_GETTER              0 hidden",
             "    DEF_GETTER              1 enumerable",
+            "    REGEXP                  /charlie/regexp-flags",
+            "    SUPER_REF               strict",
+            "    SUPER_REF               non-strict",
         ]);
         assert_eq!(result, expected);
+    }
+
+    #[test_case(|c| { c.op(Insn::Null); } => Strictness::Indeterminate; "indeterminate")]
+    #[test_case(|c| { c.op(Insn::Null); c.op(Insn::StrictRef); c.op(Insn::Resolve); c.op(Insn::True); } => Strictness::Mixed; "mixed")]
+    #[test_case(|c| { c.op(Insn::Null); c.op(Insn::Resolve); c.op(Insn::True); } => Strictness::NonStrict; "non-strict")]
+    #[test_case(|c| { c.op(Insn::Null); c.op(Insn::StrictRef); c.op(Insn::True); } => Strictness::Strict; "strict")]
+    #[test_case(|c| { c.op(Insn::StrictCall); } => Strictness::Strict; "strict call")]
+    #[test_case(|c| { c.op(Insn::StrictResolve); } => Strictness::Strict; "strict resolve")]
+    #[test_case(|c| { c.op(Insn::Call); } => Strictness::NonStrict; "nonstrict call")]
+    #[test_case(|c| { c.op(Insn::Ref); } => Strictness::NonStrict; "nonstrict ref")]
+    fn analyze_strictness(make_chunk: impl Fn(&mut Chunk)) -> Strictness {
+        let mut c = Chunk::new("analysis test");
+        make_chunk(&mut c);
+        c.analyze_strictness()
+    }
+
+    #[test_case(|c| { c.op(Insn::Null); } => vec![("NULL".to_string(), 1)]; "one instruction")]
+    #[test_case(|c| { c.op_plus_arg(Insn::Jump, 10); } => vec![("JUMP 10".to_string(), 2)]; "jump insn")]
+    fn repr_with_size(make_chunk: impl Fn(&mut Chunk)) -> Vec<(String, usize)> {
+        let mut c = Chunk::new("repr test");
+        make_chunk(&mut c);
+        c.repr_with_size().iter().map(|(string, size)| (string.split_whitespace().join(" "), *size)).collect::<Vec<_>>()
+    }
+
+    #[test_case("bob" => "bob".to_string(); "bob")]
+    #[test_case("alice" => "alice".to_string(); "alice")]
+    fn set_name(new_name: &str) -> String {
+        let mut c = Chunk::new("original");
+        c.set_name(new_name);
+        c.name
+    }
+
+    #[test]
+    fn dup_without_code() {
+        let mut c1 = Chunk::new("first");
+        c1.op(Insn::Nop);
+        c1.add_to_string_pool(JSString::from("look, a string!")).unwrap();
+        c1.add_to_float_pool(123.125).unwrap();
+        c1.add_to_bigint_pool(Rc::new(BigInt::from(10))).unwrap();
+        c1.add_to_string_set_pool(&[JSString::from("first"), JSString::from("second")]).unwrap();
+
+        let src = "function bob() {}";
+        let parse_node = Maker::new(src).function_declaration();
+        let data = StashedFunctionData {
+            source_text: String::from(src),
+            params: parse_node.params.clone().into(),
+            body: parse_node.body.clone().into(),
+            to_compile: parse_node.clone().into(),
+            strict: true,
+            this_mode: ThisLexicality::NonLexicalThis,
+        };
+
+        c1.add_to_func_stash(data).unwrap();
+
+        let c2 = Chunk::dup_without_code(&c1, "other");
+
+        assert_eq!(c2.name.as_str(), "other");
+        assert_eq!(c2.strings.as_slice(), &[JSString::from("look, a string!")]);
+        assert!(c2.opcodes.is_empty());
+        assert_eq!(c2.floats.as_slice(), &[123.125]);
+        assert_eq!(c2.bigints.iter().map(ToString::to_string).collect::<Vec<_>>().as_slice(), &["10".to_string()]);
+        let mut myset = AHashSet::new();
+        myset.insert(JSString::from("first"));
+        myset.insert(JSString::from("second"));
+        assert_eq!(c2.string_sets.as_slice(), &[myset]);
+        assert!(c2.function_object_data.is_empty());
     }
 }
 

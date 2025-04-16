@@ -977,43 +977,37 @@ mod property_definition_list {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a", true => Ok((svec(&[
-        "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
-    ]), true)); "one item, strict")]
-    #[test_case("a", false => Ok((svec(&[
-        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
-    ]), true)); "one item, non-strict")]
-    #[test_case("b:1", false => Ok((svec(&[
-        "STRING 0 (b)", "FLOAT 0 (1)", "CR_PROP"
-    ]), false)); "one item, errorfree")]
-    #[test_case("a,b", true => Ok((svec(&[
-        "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP", "JUMP_IF_ABRUPT 13", "STRING 1 (b)", "STRING 1 (b)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
-    ]), true)); "list, strict")]
-    #[test_case("a,b", false => Ok((svec(&[
-        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP", "JUMP_IF_ABRUPT 13", "STRING 1 (b)", "STRING 1 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
-    ]), true)); "list, non-strict")]
-    #[test_case("a:1,b", false => Ok((svec(&[
-        "STRING 0 (a)", "FLOAT 0 (1)", "CR_PROP", "STRING 1 (b)", "STRING 1 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
-    ]), true)); "potential errors in first")]
-    #[test_case("a,b:1", false => Ok((svec(&[
-        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP", "JUMP_IF_ABRUPT 5", "STRING 1 (b)", "FLOAT 0 (1)", "CR_PROP"
-    ]), true)); "potential errors in second")]
-    #[test_case("a:0,b:1", false => Ok((svec(&[
-        "STRING 0 (a)", "FLOAT 0 (0)", "CR_PROP", "STRING 1 (b)", "FLOAT 1 (1)", "CR_PROP"
-    ]), false)); "error free list")]
+    #[test_case("a", true => Ok((svec(&["<Item Instructions 1>"]), true)); "one item, strict")]
+    #[test_case("a", false => Ok((svec(&["<Item Instructions 1>"]), true)); "one item, non-strict")]
+    #[test_case("b:1", false => Ok((svec(&["<Item Instructions 1>"]), false)); "one item, errorfree")]
+    #[test_case("a,b", true => Ok((svec(&["<List Instructions 1>", "JUMP_IF_ABRUPT l1", "<Item Instructions 2>", "l1:"]), true)); "list, strict")]
+    #[test_case("a,b", false => Ok((svec(&["<List Instructions 1>", "JUMP_IF_ABRUPT l1", "<Item Instructions 2>", "l1:"]), true)); "list, non-strict")]
+    #[test_case("a:1,b", false => Ok((svec(&["<List Instructions 1>", "<Item Instructions 2>"]), true)); "potential errors in item")]
+    #[test_case("a,b:1", false => Ok((svec(&["<List Instructions 1>", "JUMP_IF_ABRUPT l1", "<Item Instructions 2>", "l1:"]), true)); "potential errors in list")]
+    #[test_case("a:0,b:1", false => Ok((svec(&["<List Instructions 1>", "<Item Instructions 2>"]), false)); "error free list")]
     #[test_case("a,b:@@@", false => serr("out of range integral type conversion attempted"); "jump fails")]
     #[test_case("[@@!]:0,a,b", false => serr("Out of room for strings in this compilation unit"); "filled string table")]
     fn compile(src: &str, strict: bool) -> Result<(Vec<String>, bool), String> {
         let node = Maker::new(src).property_definition_list();
         let mut c = Chunk::new("x");
-        node.property_definition_evaluation(&mut c, strict, src)
-            .map(|status| {
-                (
-                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.maybe_abrupt(),
-                )
-            })
-            .map_err(|e| e.to_string())
+        let status = node.property_definition_evaluation(&mut c, strict, src).map_err(|e| e.to_string())?;
+        let mut first = Chunk::dup_without_code(&c, "first");
+        let dump = match node.as_ref() {
+            PropertyDefinitionList::OneDef(pd) => {
+                pd.property_definition_evaluation(&mut first, strict, src).unwrap();
+                first.set_name("Item");
+                chunk_dump(&c, &[&first])
+            }
+            PropertyDefinitionList::ManyDefs(pdl, pd) => {
+                pdl.property_definition_evaluation(&mut first, strict, src).unwrap();
+                first.set_name("List");
+                let mut second: Chunk = Chunk::dup_without_code(&first, "second");
+                pd.property_definition_evaluation(&mut second, strict, src).unwrap();
+                second.set_name("Item");
+                chunk_dump(&c, &[&first, &second])
+            }
+        };
+        Ok((dump, status.maybe_abrupt()))
     }
 }
 
@@ -1021,89 +1015,314 @@ mod property_definition {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a", true, &[] => Ok((svec(&[
-        "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
-    ]), true)); "id ref, strict")]
-    #[test_case("a", false, &[] => Ok((svec(&[
-        "STRING 0 (a)", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
-    ]), true)); "id ref, non-strict")]
-    #[test_case("a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "first string has no room")]
-    #[test_case("a=1", false, &[] => panics "unreachable"; "cover initialized name")]
-    #[test_case("a:1", true, &[] => Ok((svec(&[
-        "STRING 0 (a)", "FLOAT 0 (1)", "CR_PROP"
-    ]), false)); "name:property; no possibility of error, strict")]
-    #[test_case("[a]:1", true, &[] => Ok((svec(&[
-        "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "TO_KEY", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FLOAT 0 (1)", "CR_PROP"
-    ]), true)); "name:property; potential error in name, strict")]
-    #[test_case("[a]:1", false, &[] => Ok((svec(&[
-        "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "TO_KEY", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FLOAT 0 (1)", "CR_PROP"
-    ]), true)); "name:property; potential error in name, non-strict")]
-    #[test_case("[q]:33", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "pn compile errors out")]
-    #[test_case("a: function () {}", true, &[] => Ok((svec(&[
-        "STRING 0 (a)", "DUP", "FUNC_IIFE 0", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
-    ]), true)); "anonymous function def")]
-    #[test_case("a: function () {}", true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "function table full")]
-    #[test_case("a:b", false, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "ae compile errors out")]
-    #[test_case("a:b", false, &[] => Ok((svec(&[
-        "STRING 0 (a)", "STRING 1 (b)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
-    ]), true)); "name:value, ae can error; not-strict")]
-    #[test_case("a:b", true, &[] => Ok((svec(&[
-        "STRING 0 (a)", "STRING 1 (b)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CR_PROP"
-    ]), true)); "name:value, ae can error; strict")]
-    #[test_case("[a]:@@@", true, &[] => serr("out of range integral type conversion attempted"); "jump too far")]
-    #[test_case("__proto__:null", true, &[] => Ok((svec(&["NULL", "SET_PROTO"]), false)); "proto-setter")]
     #[test_case(
-        "a(){}", true, &[]
-        => Ok((
+        "a",
+        true,
+        &[] => Ok((
+            svec(&[
+                "STRING 0 (a)",
+                "<IdentifierReference Instructions 1>",
+                "GET_VALUE",
+                "JUMP_IF_NORMAL l1",
+                "UNWIND 2",
+                "JUMP l2",
+                "l1: CR_PROP",
+                "l2:"
+            ]),
+            true,
+            Strictness::Strict
+        ));
+        "id ref, strict"
+    )]
+    #[test_case(
+        "a",
+        false,
+        &[] => Ok((
+            svec(&[
+                "STRING 0 (a)",
+                "<IdentifierReference Instructions 1>",
+                "GET_VALUE",
+                "JUMP_IF_NORMAL l1",
+                "UNWIND 2",
+                "JUMP l2",
+                "l1: CR_PROP",
+                "l2:"
+            ]),
+            true,
+            Strictness::NonStrict
+        ));
+        "id ref, non-strict"
+    )]
+    #[test_case(
+        "a",
+        false,
+        &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit");
+        "first string has no room"
+    )]
+    #[test_case(
+        "a=1",
+        false,
+        &[] => panics "unreachable";
+        "cover initialized name"
+    )]
+    #[test_case(
+        "a:1",
+        true,
+        &[] => Ok((
+            svec(&[
+                "<PropertyName Instructions 1>",
+                "<AssignmentExpression Instructions 2>",
+                "CR_PROP"
+            ]),
+            false,
+            Strictness::Indeterminate
+        ));
+        "name:property; no possibility of error, strict"
+    )]
+    #[test_case(
+        "[a]:1",
+        true,
+        &[] => Ok((
+            svec(&[
+                "<PropertyName Instructions 1>",
+                "JUMP_IF_NORMAL l1",
+                "UNWIND 1",
+                "JUMP l2",
+                "l1: <AssignmentExpression Instructions 2>",
+                "CR_PROP",
+                "l2:"
+            ]),
+            true,
+            Strictness::Strict
+        ));
+        "name:property; potential error in name, strict"
+    )]
+    #[test_case(
+        "[a]:1",
+        false,
+        &[] => Ok((
+            svec(&[
+                "<PropertyName Instructions 1>",
+                "JUMP_IF_NORMAL l1",
+                "UNWIND 1",
+                "JUMP l2",
+                "l1: <AssignmentExpression Instructions 2>",
+                "CR_PROP",
+                "l2:"
+            ]),
+            true,
+            Strictness::NonStrict
+        ));
+        "name:property; potential error in name, non-strict"
+    )]
+    #[test_case(
+        "[q]:33",
+        false,
+        &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit");
+        "pn compile errors out"
+    )]
+    #[test_case(
+        "a: function () {}",
+        true,
+        &[] => Ok((
+            svec(&[
+                "<PropertyName Instructions 1>",
+                "DUP",
+                "<AssignmentExpression Instructions 2>",
+                "JUMP_IF_NORMAL l1",
+                "UNWIND 2",
+                "JUMP l2",
+                "l1: CR_PROP",
+                "l2:"
+            ]),
+            true,
+            Strictness::Indeterminate
+        ));
+        "anonymous function def"
+    )]
+    #[test_case(
+        "a: function () {}",
+        true,
+        &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!");
+        "function table full"
+    )]
+    #[test_case(
+        "a:b",
+        false,
+        &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit");
+        "ae compile errors out"
+    )]
+    #[test_case(
+        "a:b",
+        false,
+        &[] => Ok((
+            svec(&[
+                "<PropertyName Instructions 1>",
+                "<AssignmentExpression Instructions 2>",
+                "GET_VALUE",
+                "JUMP_IF_NORMAL l1",
+                "UNWIND 2",
+                "JUMP l2",
+                "l1: CR_PROP",
+                "l2:"
+            ]),
+            true,
+            Strictness::NonStrict
+        ));
+        "name:value, ae can error; not-strict"
+    )]
+    #[test_case(
+        "a:b",
+        true,
+        &[] => Ok((
+            svec(&[
+                "<PropertyName Instructions 1>",
+                "<AssignmentExpression Instructions 2>",
+                "GET_VALUE",
+                "JUMP_IF_NORMAL l1",
+                "UNWIND 2",
+                "JUMP l2",
+                "l1: CR_PROP",
+                "l2:"
+            ]),
+            true,
+            Strictness::Strict
+        ));
+        "name:value, ae can error; strict"
+    )]
+    #[test_case(
+        "[a]:@@@",
+        true,
+        &[] => serr("out of range integral type conversion attempted");
+        "jump too far"
+    )]
+    #[test_case(
+        "__proto__:null",
+        true,
+        &[] => Ok((
+            svec(&[
+                "<AssignmentExpression Instructions 2>",
+                "SET_PROTO"
+            ]),
+            false,
+            Strictness::Indeterminate
+        ));
+        "proto-setter"
+    )]
+    #[test_case(
+        "a(){}",
+        true,
+        &[] => Ok((
             svec(&[
                 "DUP",
-                "DUP",
-                "FUNC_PROTO",
-                "SWAP",
-                "STRING 0 (a)",
-                "ROTATEDOWN 3",
-                "DEFINE_METHOD 0",
-                "JUMP_IF_ABRUPT 3",
-                "SWAP",
-                "JUMP 2",
-                "UNWIND 1",
-                "JUMP_IF_ABRUPT 5",
-                "SET_FUNC_NAME",
-                "DEF_METH_PROP 1",
-                "JUMP 2",
-                "UNWIND 1",
-                "JUMP_IF_ABRUPT 1",
+                "<MethodDefinition Instructions 1>",
+                "JUMP_IF_ABRUPT l1",
                 "POP",
-                "UNWIND_IF_ABRUPT 1"
+                "l1: UNWIND_IF_ABRUPT 1"
             ]),
-            true
+            true,
+            Strictness::Indeterminate
         ));
         "method def"
     )]
     #[test_case(
-        "a(){}", true, &[(Fillable::FunctionStash, 0)]
-        => serr("Out of room for more functions!");
+        "a(){}",
+        true,
+        &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!");
         "method def fails"
     )]
-    #[test_case("...a", true, &[] => Ok((svec(&[
-        "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "COPY_DATA_PROPS"
-    ]), true)); "rest object, strict")]
-    #[test_case("...a", false, &[] => Ok((svec(&[
-        "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 1", "COPY_DATA_PROPS"
-    ]), true)); "rest object, non-strict")]
-    #[test_case("...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "rest object, ae errs")]
-    #[test_case("...true", false, &[] => Ok((svec(&["TRUE", "COPY_DATA_PROPS"]), true)); "rest object, not reference")]
-    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
+    #[test_case(
+        "...a",
+        true,
+        &[] => Ok((
+            svec(&[
+                "<AssignmentExpression Instructions 1>",
+                "GET_VALUE",
+                "JUMP_IF_NORMAL l1",
+                "UNWIND 1",
+                "JUMP l2",
+                "l1: COPY_DATA_PROPS",
+                "l2:"
+            ]),
+            true,
+            Strictness::Strict
+        ));
+        "rest object, strict"
+    )]
+    #[test_case(
+        "...a",
+        false,
+        &[] => Ok((
+            svec(&[
+                "<AssignmentExpression Instructions 1>",
+                "GET_VALUE",
+                "JUMP_IF_NORMAL l1",
+                "UNWIND 1",
+                "JUMP l2",
+                "l1: COPY_DATA_PROPS",
+                "l2:"
+            ]),
+            true,
+            Strictness::NonStrict
+        ));
+        "rest object, non-strict"
+    )]
+    #[test_case(
+        "...a",
+        false,
+        &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit");
+        "rest object, ae errs"
+    )]
+    #[test_case(
+        "...true",
+        false,
+        &[] => Ok((
+            svec(&[
+                "<AssignmentExpression Instructions 1>",
+                "COPY_DATA_PROPS"
+            ]),
+            true,
+            Strictness::Indeterminate
+        ));
+        "rest object, not reference"
+    )]
+    fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, Strictness), String> {
         let node = Maker::new(src).property_definition();
         let mut c = complex_filled_chunk("x", what);
-        node.property_definition_evaluation(&mut c, strict, src)
-            .map(|status| {
-                (
-                    c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
-                    status.maybe_abrupt(),
-                )
-            })
-            .map_err(|e| e.to_string())
+        let status = node.property_definition_evaluation(&mut c, strict, src).map_err(|e| e.to_string())?;
+        let strictness = c.analyze_strictness();
+
+        let dump = match node.as_ref() {
+            PropertyDefinition::IdentifierReference(ir) => {
+                let mut inner = Chunk::dup_without_code(&c, "IdentifierReference");
+                ir.compile(&mut inner, strict).unwrap();
+                chunk_dump(&c, &[&inner])
+            }
+            PropertyDefinition::AssignmentExpression(ae, _) => {
+                let mut expression = Chunk::dup_without_code(&c, "AssignmentExpression");
+                ae.compile(&mut expression, strict, src).unwrap();
+                chunk_dump(&c, &[&expression])
+            }
+            PropertyDefinition::CoverInitializedName(_) => unreachable!(),
+            PropertyDefinition::MethodDefinition(md) => {
+                let mut method_def = Chunk::dup_without_code(&c, "MethodDefinition");
+                md.method_definition_evaluation(true, &mut method_def, strict, src).unwrap();
+                chunk_dump(&c, &[&method_def])
+            }
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
+                let mut name = Chunk::dup_without_code(&c, "PropertyName");
+                pn.compile(&mut name, strict, src).unwrap();
+                let mut expression = Chunk::dup_without_code(&c, "AssignmentExpression");
+                if let (false, Some(np)) = (pn.is_literal_proto(), ae.anonymous_function_definition()) {
+                    np.compile_named_evaluation(&mut expression, strict, src, Some(NameLoc::OnStack)).unwrap();
+                } else {
+                    ae.compile(&mut expression, strict, src).unwrap();
+                }
+                chunk_dump(&c, &[&name, &expression])
+            }
+        };
+
+        Ok((dump, status.maybe_abrupt(), strictness))
     }
 }
 
