@@ -637,10 +637,11 @@ pub fn chunk_dump(outer: &Chunk, inner: &[&Chunk]) -> Vec<String> {
         let inner_count = inner_insns.len();
 
         // replace the part of outer_result that matches inner_insns with "<Inner Instructions <num>>"
-        let replacement_index = find_subslice(&outer_result, &inner_insns).unwrap();
-        assert!(replacement_index + inner_count <= outer_result.len());
-        outer_result[replacement_index] = (format!("<{} Instructions {}>", chunk.name, index + 1), inner_size);
-        outer_result.drain(replacement_index + 1..replacement_index + inner_count);
+        if let Some(replacement_index) = find_subslice(&outer_result, &inner_insns) {
+            assert!(replacement_index + inner_count <= outer_result.len());
+            outer_result[replacement_index] = (format!("<{} Instructions {}>", chunk.name, index + 1), inner_size);
+            outer_result.drain(replacement_index + 1..replacement_index + inner_count);
+        }
     }
 
     // For each "jump" instruction in outer_result, find its target in the outer_result array, and change the numbers to labels

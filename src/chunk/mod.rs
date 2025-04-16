@@ -39,6 +39,18 @@ impl Chunk {
         Self { name: name.into(), ..Default::default() }
     }
 
+    pub fn dup_without_code(src: &Chunk, name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            strings: src.strings.clone(),
+            floats: src.floats.clone(),
+            bigints: src.bigints.clone(),
+            string_sets: src.string_sets.clone(),
+            //function_object_data: src.function_object_data.clone(),
+            ..Default::default()
+        }
+    }
+
     pub fn add_to_string_pool(&mut self, s: JSString) -> anyhow::Result<u16> {
         Self::add_to_pool(&mut self.strings, s, "strings")
     }
@@ -384,6 +396,41 @@ impl Chunk {
     pub fn set_name(&mut self, name: &str) {
         self.name = String::from(name);
     }
+
+    pub fn analyze_strictness(&self) -> Strictness {
+        let mut idx = 0;
+        let mut saw_strict = false;
+        let mut saw_non_strict = false;
+        while idx < self.opcodes.len() && (!saw_strict || !saw_non_strict) {
+            let (inc, repr) = self.insn_repr_at(idx);
+            idx += inc;
+
+            let repr = repr.split_whitespace().next().unwrap();
+            if ["CALL_STRICT", "STRICT_RESOLVE", "STRICT_REF"].contains(&repr) {
+                saw_strict = true;
+            } else if ["CALL", "RESOLVE", "REF"].contains(&repr) {
+                saw_non_strict = true;
+            }
+        }
+        match (saw_strict, saw_non_strict) {
+            (true, true) => Strictness::Mixed,
+            (true, false) => Strictness::Strict,
+            (false, true) => Strictness::NonStrict,
+            (false, false) => Strictness::Indeterminate,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Strictness {
+    /// Has strict-style instructions, and no non-strict instructions
+    Strict,
+    /// Has non-strict instructions, and no strict instructions
+    NonStrict,
+    /// Has neither non-strict nor strict instructions
+    Indeterminate,
+    /// Has both strict and non-strict instructions
+    Mixed,
 }
 
 #[cfg(test)]
