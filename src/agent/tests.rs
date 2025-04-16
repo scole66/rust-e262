@@ -3,12 +3,12 @@ use super::*;
 use crate::parser::testhelp::*;
 use crate::tests::*;
 use ahash::AHashSet;
-use lazy_static::lazy_static;
 use num::BigInt;
 use regex::Regex;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::str::FromStr;
+use std::sync::LazyLock;
 use test_case::test_case;
 
 mod agent {
@@ -1219,9 +1219,7 @@ mod process_error {
     }
     #[expect(clippy::needless_pass_by_value)]
     fn matches_object(s: String) {
-        lazy_static! {
-            static ref MATCH: Regex = Regex::new("^Thrown: <Object [0-9]+>$").expect("Valid regex");
-        }
+        static MATCH: LazyLock<Regex> = LazyLock::new(|| Regex::new("^Thrown: <Object [0-9]+>$").expect("Valid regex"));
         assert!(MATCH.is_match(&s));
     }
     fn compiler_objs() -> ProcessError {

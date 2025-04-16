@@ -3,9 +3,9 @@ use super::*;
 use crate::testhelp::*;
 use crate::tests::*;
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::io::Write;
+use std::sync::LazyLock;
 use test_case::test_case;
 
 #[test]
@@ -3881,9 +3881,7 @@ mod object {
 
     #[test]
     fn display() {
-        lazy_static! {
-            static ref MATCH: Regex = Regex::new("^<Object [0-9]+>$").expect("Valid regex");
-        }
+        static MATCH: LazyLock<Regex> = LazyLock::new(|| Regex::new("^<Object [0-9]+>$").expect("Valid regex"));
         setup_test_agent();
         let obj = ordinary_object_create(None);
         let result = format!("{obj}");

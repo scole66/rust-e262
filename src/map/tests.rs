@@ -1,6 +1,6 @@
 use super::*;
 use crate::tests::*;
-
+use std::fmt::Write as _;
 mod add_entries_from_iterable {
     use super::*;
     use test_case::test_case;
@@ -172,7 +172,7 @@ mod add_entries_from_iterable {
                     } else {
                         r.push(',');
                     }
-                    r.push_str(&format!("{key}:{value}"));
+                    write!(r, "{key}:{value}").unwrap();
                 }
                 r
             }

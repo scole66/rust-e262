@@ -1,5 +1,6 @@
 use super::*;
 use crate::tests::*;
+use std::fmt::Write as _;
 
 mod prototype {
     use super::*;
@@ -902,7 +903,7 @@ mod constructor {
                     r.push(',');
                 }
                 let value_str = value.test_result_string();
-                r.push_str(&format!("{key}:{{{value_str}}}"));
+                write!(r, "{key}:{{{value_str}}}").unwrap();
             }
             Ok(r)
         }

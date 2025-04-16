@@ -1,14 +1,14 @@
 use super::*;
 use ahash::AHashMap;
 use itertools::Itertools;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::cell::{Cell, RefCell};
-use std::fmt::{self, Debug};
+use std::fmt::{self, Debug, Write as _};
 use std::hash::{BuildHasher, Hash};
 use std::io::Result as IoResult;
 use std::io::Write;
 use std::rc::Rc;
+use std::sync::LazyLock;
 
 pub struct MockWriter<T>
 where
@@ -625,7 +625,7 @@ fn find_subslice<T: PartialEq>(haystack: &[T], needle: &[T]) -> Option<usize> {
     haystack.windows(needle.len()).position(|window| window == needle)
 }
 
-static JUMP_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(JUMP.*) (-?\d+)").unwrap());
+static JUMP_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(JUMP.*) (-?\d+)").unwrap());
 
 pub fn chunk_dump(outer: &Chunk, inner: &[&Chunk]) -> Vec<String> {
     let mut outer_result =
@@ -1131,7 +1131,7 @@ impl ECMAScriptValue {
                                 if name == "undefined" {
                                     false
                                 } else {
-                                    r.push_str(&format!("{key}:function {name}"));
+                                    write!(r, "{key}:function {name}").unwrap();
                                     true
                                 }
                             } else {
@@ -1142,7 +1142,7 @@ impl ECMAScriptValue {
                     };
                     if !named_function_was_added {
                         let value_str = value.map_or_else(unwind_any_error, |val| format!("{val}"));
-                        r.push_str(&format!("{key}:{value_str}"));
+                        write!(r, "{key}:{value_str}").unwrap();
                     }
                 }
                 r

@@ -587,7 +587,7 @@ mod nameable_production {
                 af.compile_named_evaluation(&mut inner, strict, src, Some(NameLoc::Index(innerid))).unwrap();
                 inner.set_name("Arrow");
             }
-        };
+        }
 
         Ok((chunk_dump(&outer, &[&inner]), status.maybe_abrupt(), status.maybe_ref()))
     }
@@ -6256,7 +6256,7 @@ mod binding_pattern {
                 a.iterator_binding_initialization(&mut inner, strict, src, env).unwrap();
                 inner.set_name("Array");
             }
-        };
+        }
         Ok(chunk_dump(&outer, &[&inner]))
     }
 }
