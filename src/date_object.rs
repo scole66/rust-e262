@@ -1,8 +1,8 @@
 // The Date Constructor
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::cell::Cell;
 use std::num::TryFromIntError;
+use std::sync::LazyLock;
 
 use super::*;
 
@@ -1236,25 +1236,21 @@ fn parse_time_zone_offset_string(tzo: &str) -> Option<i128> {
     const HOUR: &str = "(?P<hour>(?:[0-1][0-9])|(?:2[0-3]))";
     const TIME_SEPARATOR: &str = "";
     const TIME_SEPARATOR_EXTENDED: &str = ":";
-
-    lazy_static! {
-        static ref TEMPORAL_DECIMAL_FRACTION1: String =
+    static MATCHER: LazyLock<Regex> = LazyLock::new(|| {
+        let temporal_decimal_fraction1 =
             format!("(?P<temporal_decimal_fraction1>{TEMPORAL_DECIMAL_SEPARATOR}[0-9]{{1,9}})");
-        static ref TEMPORAL_DECIMAL_FRACTION2: String =
+        let temporal_decimal_fraction2 =
             format!("(?P<temporal_decimal_fraction2>{TEMPORAL_DECIMAL_SEPARATOR}[0-9]{{1,9}})");
-        static ref HOUR_SUBCOMPONENTS: String = format!(
-            "(?:{TIME_SEPARATOR}(?P<minute1>{MINUTE_SECOND})(?:{TIME_SEPARATOR}(?P<second1>{MINUTE_SECOND}){}?)?)",
-            *TEMPORAL_DECIMAL_FRACTION1
+        let hour_subcomponents = format!(
+            "(?:{TIME_SEPARATOR}(?P<minute1>{MINUTE_SECOND})(?:{TIME_SEPARATOR}(?P<second1>{MINUTE_SECOND}){temporal_decimal_fraction1}?)?)",
         );
-        static ref HOUR_SUBCOMPONENTS_EXTENDED: String = format!(
-            "(?:{TIME_SEPARATOR_EXTENDED}(?P<minute2>{MINUTE_SECOND})(?:{TIME_SEPARATOR_EXTENDED}(?P<second2>{MINUTE_SECOND}){}?)?)",
-            *TEMPORAL_DECIMAL_FRACTION2
+        let hour_subcomponents_extended = format!(
+            "(?:{TIME_SEPARATOR_EXTENDED}(?P<minute2>{MINUTE_SECOND})(?:{TIME_SEPARATOR_EXTENDED}(?P<second2>{MINUTE_SECOND}){temporal_decimal_fraction2}?)?)",
         );
-        static ref UTC_OFFSET: String =
-            format!("(?:{ASCII_SIGN}{HOUR}(?:{}|{}))", *HOUR_SUBCOMPONENTS, *HOUR_SUBCOMPONENTS_EXTENDED);
-        static ref MATCHER: Regex =
-            Regex::new(&UTC_OFFSET).expect("regular expressions not based on user input should not fail");
-    }
+        let utc_offset = format!("(?:{ASCII_SIGN}{HOUR}(?:{hour_subcomponents}|{hour_subcomponents_extended}))");
+        Regex::new(&utc_offset).expect("regular expressions not based on user input should not fail")
+    });
+
     MATCHER.captures(tzo).map(|captures| {
         let sign = if captures.name("ascii_sign").expect("sign should have been captured").as_str() == "+" {
             1_i128
@@ -1511,12 +1507,12 @@ fn parse_date(date_str: &JSString) -> f64 {
         "(?:Jan)|(?:Feb)|(?:Mar)|(?:Apr)|(?:May)|(?:Jun)|(?:Jul)|(?:Aug)|(?:Sep)|(?:Oct)|(?:Nov)|(?:Dec)";
     const WKDY: &str = "(?:(?:Sun)|(?:Mon)|(?:Tue)|(?:Wed)|(?:Thu)|(?:Fri))";
 
-    lazy_static! {
-        static ref PATTERN: String =
+    static MATCHER: LazyLock<Regex> = LazyLock::new(|| {
+        let pattern =
             format!(r"^({FDY}|{SDY})(-{MONTH}(-{DAY}(T{HOUR}:{MINUTE}(:{SECOND}(\.{MILLIS})?)?{ZONE}?)?)?)?$");
-        static ref MATCHER: Regex =
-            Regex::new(&PATTERN).expect("regular expressions not based on user input should not fail");
-    }
+        Regex::new(&pattern).expect("regular expressions not based on user input should not fail")
+    });
+
     let date_str = String::from(date_str);
     let date_match = MATCHER.captures(&date_str);
     let first_try = match date_match {
@@ -1577,13 +1573,12 @@ fn parse_date(date_str: &JSString) -> f64 {
     };
     if first_try.is_nan() {
         // Now try and match the result of Date.prototype.toString.
-        lazy_static! {
-            static ref TOSTRING_PATTERN: String = format!(
+        static TOSTRING_MATCHER: LazyLock<Regex> = LazyLock::new(|| {
+            let tostring_pattern = format!(
                 r"^{WKDY},? *(?<month_name>{MNTH})? (?<day>[0-9][0-9]) (?<month_name2>{MNTH})? *(?<year>-?[0-9]+) (?<hour>[0-9][0-9]):(?<minute>[0-9][0-9]):(?<second>[0-9][0-9]) GMT(?<zone>[-+][0-9]{{4}})?(?: \(.*\))?$"
             );
-            static ref TOSTRING_MATCHER: Regex =
-                Regex::new(&TOSTRING_PATTERN).expect("regular expressions not based on user input should not fail");
-        }
+            Regex::new(&tostring_pattern).expect("regular expressions not based on user input should not fail")
+        });
         let second_try = match TOSTRING_MATCHER.captures(&date_str) {
             None => f64::NAN,
             Some(caps) => {
