@@ -470,7 +470,7 @@ impl MapObject {
         }
     }
 
-    fn object(prototype: Option<Object>) -> Object {
+    pub fn object(prototype: Option<Object>) -> Object {
         Object { o: Rc::new(Self::new(prototype)) }
     }
 }

@@ -1,10 +1,12 @@
 #![expect(clippy::bool_assert_comparison)]
 use super::*;
+use crate::testhelp::*;
 use crate::tests::*;
 use ahash::RandomState;
 use num::bigint::BigInt;
 use regex::Regex;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::BuildHasher;
 use test_case::test_case;
@@ -759,6 +761,135 @@ mod ecmascript_value {
         let arg = make_arg();
 
         arg.to_length().map_err(unwind_type_error)
+    }
+
+    #[test_case(|| ECMAScriptValue::from(JSString::from("testcase")), Some(ConversionHint::String) => vok("testcase"); "string")]
+    #[test_case(|| ECMAScriptValue::Object(NumberObject::object(Some(intrinsic(IntrinsicId::NumberPrototype)), 30.0)), Some(ConversionHint::Number) => vok(30); "number object")]
+    fn to_primitive(
+        make_val: impl Fn() -> ECMAScriptValue,
+        preferred: Option<ConversionHint>,
+    ) -> Result<ECMAScriptValue, String> {
+        setup_test_agent();
+        let val = make_val();
+        val.to_primitive(preferred).map_err(unwind_any_error)
+    }
+
+    #[test_case(|| Some(450) => "450".to_string(); "a number")]
+    #[test_case(|| None::<i32> => "undefined".to_string(); "none")]
+    #[test_case(|| {
+        let o = NumberObject::object(Some(intrinsic(IntrinsicId::NumberPrototype)), 32.0);
+        o.create_data_property_or_throw("key", "value").unwrap();
+        Some(o)
+      } => "key:value".to_string(); "object")]
+    #[test_case(|| None::<Object> => "undefined".to_string(); "none-object")]
+    #[test_case(|| Some(JSString::from("string")) => "string".to_string(); "a string")]
+    #[test_case(|| None::<JSString> => "undefined".to_string(); "none-string")]
+    #[test_case(|| None::<BigInt> => "undefined".to_string(); "none-bigint")]
+    fn from_option<X>(make_val: impl FnOnce() -> Option<X>) -> String
+    where
+        X: Into<ECMAScriptValue>,
+    {
+        setup_test_agent();
+        let val = make_val();
+        ECMAScriptValue::from(val).test_result_string()
+    }
+
+    #[test_case(|| ECMAScriptValue::from(10.0) => true; "positive")]
+    fn to_boolean(make_val: impl FnOnce() -> ECMAScriptValue) -> bool {
+        setup_test_agent();
+        let val = make_val();
+        val.to_boolean()
+    }
+
+    #[test_case(|| ECMAScriptValue::from(10.0) => false; "not an object")]
+    #[test_case(|| ECMAScriptValue::Object(intrinsic(IntrinsicId::Array)) => true; "object is constructor")]
+    #[test_case(|| ECMAScriptValue::Object(intrinsic(IntrinsicId::ArrayPrototype)) => false; "object is not constructor")]
+    fn is_constructor(make_val: impl FnOnce() -> ECMAScriptValue) -> bool {
+        setup_test_agent();
+        let val = make_val();
+        val.is_constructor()
+    }
+
+    #[test_case(|| ECMAScriptValue::Undefined => None; "undefined")]
+    #[test_case(|| ECMAScriptValue::Object(intrinsic(IntrinsicId::Array)) => None; "Array object")]
+    #[test_case(|| {
+        let date_obj = DateObject::object(Some(intrinsic(IntrinsicId::DatePrototype)), Some(TimeNumber::from(46)));
+        ECMAScriptValue::Object(date_obj)
+    } => Some(46.0); "an actual date")]
+    fn to_date_object(make_val: impl FnOnce() -> ECMAScriptValue) -> Option<f64> {
+        setup_test_agent();
+        let val = make_val();
+        let date_obj = val.to_date_object()?;
+        Some(date_obj.date_value())
+    }
+
+    #[test_case(|| ECMAScriptValue::from(34) => None; "non-object")]
+    #[test_case(|| {
+        let objproto = intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(Some(objproto));
+        obj.create_data_property_or_throw("key", "value").unwrap();
+
+        ECMAScriptValue::Object(obj)
+    } => ssome("key:value"); "is object")]
+    fn object_ref(make_val: impl FnOnce() -> ECMAScriptValue) -> Option<String> {
+        setup_test_agent();
+        let val = make_val();
+        let val_ref = val.object_ref();
+        val_ref.map(|oref| ECMAScriptValue::from(oref).test_result_string())
+    }
+
+    #[test_case(|| ECMAScriptValue::from(10) => Ok(String::from("10")); "numeric key")]
+    #[test_case(|| ECMAScriptValue::Object(DeadObject::object()) => serr("TypeError: get called on DeadObject"); "object with no primitive")]
+    #[test_case(|| ECMAScriptValue::Symbol(wks(WksId::ToPrimitive)) => Ok(String::from("Symbol(Symbol.toPrimitive)")); "symbol key")]
+    fn to_property_key(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+        setup_test_agent();
+        let val = make_val();
+        let key = val.to_property_key().map_err(unwind_any_error)?;
+        let repr = key.to_string();
+        Ok(repr)
+    }
+
+    #[test_case(|| ECMAScriptValue::Object(DeadObject::object()) => serr("TypeError: get called on DeadObject"); "to-primitive fails")]
+    #[test_case(|| ECMAScriptValue::from(10) => sok("10"); "number value")]
+    #[test_case(|| ECMAScriptValue::from(BigInt::parse_bytes(b"78451678901789454727854781901234567819234052", 10)) => sok("78451678901789454727854781901234567819234052"); "bigint value")]
+    #[test_case(|| ECMAScriptValue::Symbol(wks(WksId::ToPrimitive)) => serr("TypeError: Symbol values cannot be converted to Number values"); "to_number fails")]
+    fn to_numeric(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+        setup_test_agent();
+        let val = make_val();
+        let numeric = val.to_numeric().map_err(unwind_any_error)?;
+        let repr = numeric.to_string();
+        Ok(repr)
+    }
+
+    #[test_case(|| ECMAScriptValue::Null => None; "not an object")]
+    #[test_case(|| ECMAScriptValue::Object(intrinsic(IntrinsicId::Array)) => None; "obj but not map")]
+    #[test_case(|| ECMAScriptValue::Object(MapObject::object(Some(intrinsic(IntrinsicId::MapPrototype)))) => Some(ObjectTag::Map); "map object")]
+    fn to_map_object(make_val: impl FnOnce() -> ECMAScriptValue) -> Option<ObjectTag> {
+        setup_test_agent();
+        let val = make_val();
+        let mo = val.to_map_object()?;
+        Some(mo.kind())
+    }
+
+    #[test]
+    fn hash() {
+        setup_test_agent();
+        let mut map = HashMap::new();
+        map.insert(ECMAScriptValue::Undefined, "value-undefined");
+        map.insert(ECMAScriptValue::Null, "value-null");
+        map.insert(ECMAScriptValue::Boolean(true), "value-true");
+        map.insert(ECMAScriptValue::Boolean(false), "value-false");
+        map.insert(ECMAScriptValue::String(JSString::from("something")), "value-string-1");
+        map.insert(ECMAScriptValue::String(JSString::from("something")), "value-string-2");
+        map.insert(ECMAScriptValue::Number(f64::NAN), "it's not a value");
+        map.insert(ECMAScriptValue::Number(10.0), "it's a ten");
+        map.insert(ECMAScriptValue::BigInt(Rc::new(BigInt::from(100))), "bbbbig");
+        map.insert(ECMAScriptValue::Symbol(wks(WksId::ToPrimitive)), "symbolism");
+        map.insert(ECMAScriptValue::Object(intrinsic(IntrinsicId::Object)), "object object");
+        map.insert(ECMAScriptValue::Object(intrinsic(IntrinsicId::Array)), "array obj");
+        map.insert(ECMAScriptValue::Object(intrinsic(IntrinsicId::Object)), "different obj?");
+
+        assert_eq!(map.len(), 11);
     }
 }
 
@@ -2402,4 +2533,14 @@ fn to_usize(arg: f64) -> Result<usize, String> {
 #[test_case(2.0, 8.0 => using check_value(256.0); "2**8 = 256")]
 fn exponentiate(base: f64, exponent: f64) -> f64 {
     super::exponentiate(base, exponent)
+}
+
+#[test_case(|| ECMAScriptValue::from("bob"), None => vok("bob"); "to string")]
+fn to_primitive(
+    make_val: impl Fn() -> ECMAScriptValue,
+    hint: Option<ConversionHint>,
+) -> Result<ECMAScriptValue, String> {
+    setup_test_agent();
+    let val = make_val();
+    super::to_primitive(&val, hint).map_err(unwind_any_error)
 }
