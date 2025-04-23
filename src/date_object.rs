@@ -199,7 +199,7 @@ pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
-struct TimeNumber {
+pub struct TimeNumber {
     // This is a floating point number that has conversion routines to/from integers designed to not generate clippy
     // warnings.
     val: f64,
@@ -445,7 +445,7 @@ impl DateObject {
         }
     }
 
-    fn object(prototype: Option<Object>, value: Option<TimeNumber>) -> Object {
+    pub fn object(prototype: Option<Object>, value: Option<TimeNumber>) -> Object {
         Object { o: Rc::new(Self::new(prototype, value)) }
     }
 }

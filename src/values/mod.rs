@@ -1164,8 +1164,8 @@ impl ECMAScriptValue {
 //      | * ToUint32 maps -0𝔽 to +0𝔽.
 #[expect(clippy::cast_possible_truncation)]
 pub fn to_uint32_f64(number: f64) -> u32 {
-    let i = to_core_int_f64(4_294_967_296.0, number) as i64;
-    (if i < 0 { i + 4_294_967_296 } else { i }).try_into().expect("Math results in in-bounds calculation")
+    let i = to_core_int_f64(4_294_967_296.0, number) as i64; // will always be >= 0
+    i.try_into().expect("Math results in in-bounds calculation")
 }
 impl ECMAScriptValue {
     pub fn to_uint32(&self) -> Completion<u32> {
@@ -1215,8 +1215,8 @@ impl ECMAScriptValue {
 //      | * ToUint16 maps -0𝔽 to +0𝔽.
 #[expect(clippy::cast_possible_truncation)]
 pub fn to_uint16_f64(number: f64) -> u16 {
-    let i = to_core_int_f64(65536.0, number) as i64;
-    (if i < 0 { i + 65536 } else { i }).try_into().expect("Math results in in-bounds calculation")
+    let i = to_core_int_f64(65536.0, number) as i64; // will always be 0..65536
+    i.try_into().expect("Math results in in-bounds calculation")
 }
 impl ECMAScriptValue {
     pub fn to_uint16(&self) -> Completion<u16> {
@@ -1254,8 +1254,8 @@ impl ECMAScriptValue {
 impl ECMAScriptValue {
     #[expect(clippy::cast_possible_truncation)]
     pub fn to_uint8(&self) -> Completion<u8> {
-        let i = self.to_core_int(256.0)? as i64;
-        Ok((if i < 0 { i + 256 } else { i }).try_into().expect("Math results in in-bounds calculation"))
+        let i = self.to_core_int(256.0)? as i64; // will always be 0..256
+        Ok(i.try_into().expect("Math results in in-bounds calculation"))
     }
 }
 
