@@ -410,6 +410,7 @@ test_defs[ParsedText]="ParsedText parsed_text parser"
 test_defs[ParsedItem]="ParsedItem parsed_item parser"
 test_defs[direct_parse]="direct_parse direct_parse parser"
 test_defs[parse_text]="parse_text parse_text parser"
+test_defs[direct_parse]="direct_parse parse_text parser"
 test_defs[ParsedText_TryFrom]="core::result::Result@convert::TryFrom parsed_text::try_from parser"
 test_defs[ParsedText_thing]="core::result::Result@alloc::rc::Rc@scripts::Script@vec::Vec@object::Object@convert::TryFrom@ParsedText@try_from parsed_text::try_from parser"
 

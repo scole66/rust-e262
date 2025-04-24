@@ -655,6 +655,7 @@ pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError>
 //    If more than one parsing error or early error is present, the number and ordering of error objects in the list is
 //    implementation-defined, but at least one must be present.
 
+#[derive(Debug)]
 pub enum ParsedText {
     Errors(Vec<Object>),
     Script(Rc<Script>),

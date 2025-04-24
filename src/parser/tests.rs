@@ -763,6 +763,7 @@ mod parse_node_kind {
     #[test_case(ParseNodeKind::ContinueStatement => "ContinueStatement"; "ContinueStatement")]
     #[test_case(ParseNodeKind::DebuggerStatement => "DebuggerStatement"; "DebuggerStatement")]
     #[test_case(ParseNodeKind::Declaration => "Declaration"; "Declaration")]
+    #[test_case(ParseNodeKind::Elisions => "Elisions"; "Elisions")]
     #[test_case(ParseNodeKind::EmptyStatement => "EmptyStatement"; "EmptyStatement")]
     #[test_case(ParseNodeKind::ExponentiationExpression => "ExponentiationExpression"; "ExponentiationExpression")]
     #[test_case(ParseNodeKind::Expression => "Expression"; "Expression")]
@@ -815,29 +816,45 @@ mod parse_node_kind {
         format!("{pnk}")
     }
 }
-#[test]
-fn parse_text_01() {
+
+#[test_case("0;", ParseGoal::Script, false, false => "Script(0 ;)"; "complete (if simple) script")]
+#[test_case("for", ParseGoal::Script, false, false => "SyntaxError: 1:4: ‘(’ expected"; "incomplete script")]
+#[test_case("let x; let x;", ParseGoal::Script, false, false => "SyntaxError: Duplicate lexically declared names"; "duplicate lexical name error")]
+#[test_case("let x; let x;", ParseGoal::Module, false, false => panics "not yet implemented"; "module")]
+#[test_case("await, yield", ParseGoal::FormalParameters(YieldAllowed::No, AwaitAllowed::No), false, false => "FormalParameters(await , yield)"; "formal parameters(~,~): strict/f; direct/f; ok syntax")]
+#[test_case("await, yield", ParseGoal::FormalParameters(YieldAllowed::Yes, AwaitAllowed::No), false, false => "SyntaxError: identifier 'yield' not allowed when yield expressions are valid"; "formal parameters(+Yield, ~): strict/f, direct/f")]
+#[test_case("await, b=yield", ParseGoal::FormalParameters(YieldAllowed::Yes, AwaitAllowed::No), false, false => "FormalParameters(await , b = yield)"; "formal parameters(+Yield, ~): strict/f, direct/f (ok syntax)")]
+#[test_case("{ return 'value'; }", ParseGoal::FunctionBody(YieldAllowed::No, AwaitAllowed::No), true, false => "FunctionBody({ return 'value' ; })"; "function body")]
+#[test_case("{ yield a; }", ParseGoal::GeneratorBody, true, false => "GeneratorBody({ yield a ; })"; "generator body")]
+#[test_case("{ await a; }", ParseGoal::AsyncFunctionBody, true, false => "AsyncFunctionBody({ await a ; })"; "async function body")]
+#[test_case("{ yield await a; }", ParseGoal::AsyncGeneratorBody, true, false => "AsyncGeneratorBody({ yield await a ; })"; "async generator body")]
+#[test_case("function f() {}", ParseGoal::FunctionExpression, true, false => "FunctionExpression(function f ( ) { })"; "function expression")]
+#[test_case("function* f() {}", ParseGoal::GeneratorExpression, true, false => "GeneratorExpression(function * f ( ) { })"; "generator expression")]
+#[test_case("async function f() {}", ParseGoal::AsyncFunctionExpression, true, false => "AsyncFunctionExpression(async function f ( ) { })"; "async function expression")]
+#[test_case("async function* f() {}", ParseGoal::AsyncGeneratorExpression, true, false => "AsyncGeneratorExpression(async function * f ( ) { })"; "async generator expression")]
+#[test_case("run(); \n /* ", ParseGoal::Script, false, false => "SyntaxError: 1:7: end-of-file expected"; "unterminated comment")]
+#[test_case("a)", ParseGoal::FormalParameters(YieldAllowed::No, AwaitAllowed::No), true, false => "SyntaxError: parameters had unparsed trailing text"; "parameters with extra at the end")]
+#[test_case("function f() {} /*", ParseGoal::FunctionExpression, true, false => "SyntaxError: Unterminated /*-style comment. Started on line 1, column 17."; "function expression with trailing comment")]
+fn parse_text(src: &str, goal: ParseGoal, strict: bool, direct: bool) -> String {
     setup_test_agent();
-    let res = parse_text("0;", ParseGoal::Script, false, false);
-    assert!(matches!(res, ParsedText::Script(_)));
-}
-#[test]
-fn parse_text_02() {
-    setup_test_agent();
-    let res = parse_text("for", ParseGoal::Script, false, false);
-    assert!(matches!(res, ParsedText::Errors(_)));
-}
-#[test]
-fn parse_text_03() {
-    setup_test_agent();
-    let res = parse_text("let x; let x;", ParseGoal::Script, false, false);
-    assert!(matches!(res, ParsedText::Errors(_)));
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn parse_text_04() {
-    setup_test_agent();
-    parse_text("let x; let x;", ParseGoal::Module, false, false);
+    let res = super::parse_text(src, goal, strict, direct);
+    match res {
+        ParsedText::Script(s) => format!("Script({s})"),
+        ParsedText::Errors(errs) => errs.iter().map(unwind_any_error_object).join("; "),
+        ParsedText::FormalParameters(formal_parameters) => format!("FormalParameters({formal_parameters})",),
+        ParsedText::FunctionBody(function_body) => format!("FunctionBody({function_body})"),
+        ParsedText::GeneratorBody(generator_body) => format!("GeneratorBody({generator_body})"),
+        ParsedText::AsyncFunctionBody(async_function_body) => format!("AsyncFunctionBody({async_function_body})"),
+        ParsedText::AsyncGeneratorBody(async_generator_body) => format!("AsyncGeneratorBody({async_generator_body})"),
+        ParsedText::FunctionExpression(function_expression) => format!("FunctionExpression({function_expression})"),
+        ParsedText::GeneratorExpression(generator_expression) => format!("GeneratorExpression({generator_expression})"),
+        ParsedText::AsyncFunctionExpression(async_function_expression) => {
+            format!("AsyncFunctionExpression({async_function_expression})")
+        }
+        ParsedText::AsyncGeneratorExpression(async_generator_expression) => {
+            format!("AsyncGeneratorExpression({async_generator_expression})")
+        }
+    }
 }
 
 #[test_case(&["a"] => Vec::<String>::new(); "no dups")]
