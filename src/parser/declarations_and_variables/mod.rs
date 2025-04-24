@@ -1533,13 +1533,13 @@ impl ArrayBindingPattern {
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ArrayBindingPattern::RestOnly { elision: onode_a, bre: onode_b, .. } => {
-                onode_a.as_ref().is_some_and(|node| node.contains(kind))
+                onode_a.as_ref().is_some_and(|node| kind == ParseNodeKind::Elisions || node.contains(kind))
                     || onode_b.as_ref().is_some_and(|node| node.contains(kind))
             }
             ArrayBindingPattern::ListOnly { bel: node, .. } => node.contains(kind),
             ArrayBindingPattern::ListRest { bel: node, elision: onode_a, bre: onode_b, .. } => {
                 node.contains(kind)
-                    || onode_a.as_ref().is_some_and(|node| node.contains(kind))
+                    || onode_a.as_ref().is_some_and(|node| kind == ParseNodeKind::Elisions || node.contains(kind))
                     || onode_b.as_ref().is_some_and(|node| node.contains(kind))
             }
         }

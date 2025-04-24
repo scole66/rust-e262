@@ -346,31 +346,6 @@ fn lexical_binding_test_bound_names_02() {
     let (item, _) = LexicalBinding::parse(&mut newparser("{a}={b}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["a"]);
 }
-#[test]
-fn lexical_binding_test_contains_01() {
-    let (item, _) = LexicalBinding::parse(&mut newparser("a=1"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn lexical_binding_test_contains_02() {
-    let (item, _) = LexicalBinding::parse(&mut newparser("a"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn lexical_binding_test_contains_03() {
-    let (item, _) = LexicalBinding::parse(&mut newparser("[a=0]=[z]"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn lexical_binding_test_contains_04() {
-    let (item, _) = LexicalBinding::parse(&mut newparser("[a]=[0]"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn lexical_binding_test_contains_05() {
-    let (item, _) = LexicalBinding::parse(&mut newparser("[a]=[b]"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
 #[test_case("a" => true; "Identifer only")]
 #[test_case("a=item.#valid" => true; "Initializer valid")]
 #[test_case("[a=item.#valid]=[0]" => true; "Pattern valid")]
@@ -419,6 +394,17 @@ mod lexical_binding {
     #[test_case("  {c}=a" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 5 } }; "pattern")]
     fn location(src: &str) -> Location {
         Maker::new(src).lexical_binding().location()
+    }
+
+    #[test_case("a=1", ParseNodeKind::Literal => true; "binding with literal initializer contains literal")]
+    #[test_case("a", ParseNodeKind::Literal => false; "binding with no init does not contain literal")]
+    #[test_case("a", ParseNodeKind::IdentifierName => true; "binding contains identifier")]
+    #[test_case("a=b", ParseNodeKind::Literal => false; "binding with izer containing no literals")]
+    #[test_case("[a=0]=[z]", ParseNodeKind::Literal => true; "complex pattern binding with literal")]
+    #[test_case("[a]=[0]", ParseNodeKind::Literal => true; "pattern binding with literal initializer")]
+    #[test_case("[a]=[b]", ParseNodeKind::Literal => false; "pattern binding with no literal initializer")]
+    fn contains(src: &str, kind: ParseNodeKind) -> bool {
+        Maker::new(src).lexical_binding().contains(kind)
     }
 }
 
@@ -1348,96 +1334,6 @@ fn array_binding_pattern_test_bound_names_05() {
     let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a,]"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.bound_names(), &["a"]);
 }
-#[test]
-fn array_binding_pattern_test_contains_01() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn array_binding_pattern_test_contains_02() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[,]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn array_binding_pattern_test_contains_03() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[...{a=10}]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn array_binding_pattern_test_contains_04() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[...a]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn array_binding_pattern_test_contains_05() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[,...{a=0}]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn array_binding_pattern_test_contains_06() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[,...a]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn array_binding_pattern_test_contains_07() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a=0]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn array_binding_pattern_test_contains_08() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn array_binding_pattern_test_contains_09() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a=0,,...b]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn array_binding_pattern_test_contains_10() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a,,...{b=0}]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn array_binding_pattern_test_contains_11() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a,,...b]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn array_binding_pattern_test_contains_12() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a=0,...b]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn array_binding_pattern_test_contains_13() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a,...{b=0}]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn array_binding_pattern_test_contains_14() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a,...b]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn array_binding_pattern_test_contains_15() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a=0,,]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn array_binding_pattern_test_contains_16() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a,,]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn array_binding_pattern_test_contains_17() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a=0,]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn array_binding_pattern_test_contains_18() {
-    let (item, _) = ArrayBindingPattern::parse(&mut newparser("[a,]"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
 #[test_case("[]" => true; "Empty")]
 #[test_case("[,,]" => true; "Commas")]
 #[test_case("[...[a=item.#valid]]" => true; "RestOnly valid")]
@@ -1527,6 +1423,30 @@ mod array_binding_pattern {
     #[test_case("[a,...{b=0}]" => true; "list+rest; present (rest)")]
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).array_binding_pattern().contains_expression()
+    }
+
+    #[test_case("[]", ParseNodeKind::Literal => false; "empty")]
+    #[test_case("[,]", ParseNodeKind::Literal => false; "comma only")]
+    #[test_case("[,]", ParseNodeKind::Elisions => true; "elision only; has elision")]
+    #[test_case("[...{a=10}]", ParseNodeKind::Literal => true; "rest-pattern")]
+    #[test_case("[...a]", ParseNodeKind::Literal => false; "rest")]
+    #[test_case("[,...{a=0}]", ParseNodeKind::Literal => true; "comma-rest-pattern")]
+    #[test_case("[,...a]", ParseNodeKind::Elisions => true; "elision-rest has elision")]
+    #[test_case("[,...a]", ParseNodeKind::Literal => false; "comma-rest")]
+    #[test_case("[a=0]", ParseNodeKind::Literal => true; "name with izer")]
+    #[test_case("[a]", ParseNodeKind::Literal => false; "name only")]
+    #[test_case("[a=0,,...b]", ParseNodeKind::Literal => true; "literal, comma, rest")]
+    #[test_case("[a,,...{b=0}]", ParseNodeKind::Literal => true; "name, comma, pattern with literal")]
+    #[test_case("[a,,...b]", ParseNodeKind::Literal => false; "name, comma, name")]
+    #[test_case("[a=0,...b]", ParseNodeKind::Literal => true; "ized name, comma, name")]
+    #[test_case("[a,...{b=0}]", ParseNodeKind::Literal => true; "name, rest-pattern-izer")]
+    #[test_case("[a,...b]", ParseNodeKind::Literal => false; "name, rest")]
+    #[test_case("[a=0,,]", ParseNodeKind::Literal => true; "name-izer, elision")]
+    #[test_case("[a,,]", ParseNodeKind::Literal => false; "name, elison")]
+    #[test_case("[a=0,]", ParseNodeKind::Literal => true; "name-izer")]
+    #[test_case("[a,]", ParseNodeKind::Literal => false; "name")]
+    fn contains(src: &str, kind: ParseNodeKind) -> bool {
+        Maker::new(src).array_binding_pattern().contains(kind)
     }
 }
 
@@ -2264,21 +2184,6 @@ fn single_name_binding_test_bound_names_02() {
     let (item, _) = SingleNameBinding::parse(&mut newparser("a=x"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.bound_names(), &["a"]);
 }
-#[test]
-fn single_name_binding_test_contains_01() {
-    let (item, _) = SingleNameBinding::parse(&mut newparser("a"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn single_name_binding_test_contains_02() {
-    let (item, _) = SingleNameBinding::parse(&mut newparser("a=0"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn single_name_binding_test_contains_03() {
-    let (item, _) = SingleNameBinding::parse(&mut newparser("a=x"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
 #[test_case("a" => true; "Name Only")]
 #[test_case("a=item.#valid" => true; "Izer valid")]
 #[test_case("a=item.#invalid" => false; "Izer invalid")]
@@ -2331,6 +2236,14 @@ mod single_name_binding {
     #[test_case("x=a" => true; "with init")]
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).single_name_binding().contains_expression()
+    }
+
+    #[test_case("a", ParseNodeKind::Literal => false; "name doesn't have literal")]
+    #[test_case("a", ParseNodeKind::IdentifierName => true; "name has name")]
+    #[test_case("a=0", ParseNodeKind::Literal => true; "name has literal initializer")]
+    #[test_case("a=x", ParseNodeKind::Literal => false; "name doesn't have literal initializer")]
+    fn contains(src: &str, kind: ParseNodeKind) -> bool {
+        Maker::new(src).single_name_binding().contains(kind)
     }
 }
 
