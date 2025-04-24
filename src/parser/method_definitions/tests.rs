@@ -715,4 +715,16 @@ mod property_set_parameter_list {
     fn location(src: &str) -> Location {
         Maker::new(src).property_set_parameter_list().location()
     }
+
+    #[test_case("a" => false; "no expression")]
+    #[test_case("a=27" => true; "literal expression")]
+    fn contains_expression(src: &str) -> bool {
+        Maker::new(src).property_set_parameter_list().contains_expression()
+    }
+
+    #[test_case("a" => 1.0; "no initializer")]
+    #[test_case("a=27" => 0.0; "has intitializer")]
+    fn expected_argument_count(src: &str) -> f64 {
+        Maker::new(src).property_set_parameter_list().expected_argument_count()
+    }
 }
