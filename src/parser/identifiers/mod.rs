@@ -102,8 +102,8 @@ impl Identifier {
         self.location
     }
 
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
+    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+        kind == ParseNodeKind::IdentifierName
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, in_module: bool) {

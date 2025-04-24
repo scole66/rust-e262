@@ -8789,6 +8789,66 @@ mod binding_rest_element {
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
+
+    #[test_case("...a", true, EnvUsage::UsePutValue, &[]
+        => Ok((svec(&[
+            "STRING 0 (a)",
+            "STRICT_RESOLVE",
+            "JUMP_IF_ABRUPT l1",
+            "ROTATEDOWN_LIST 0",
+            "LIST_TO_ARRAY",
+            "PUT_VALUE",
+            "JUMP_IF_ABRUPT l2",
+            "POP",
+            "ZERO",
+            "JUMP l2",
+            "l1: UNWIND_LIST",
+            "l2:"
+        ]), Strictness::Strict));
+        "strict id"
+    )]
+    #[test_case("...a", false, EnvUsage::UseCurrentLexical, &[]
+        => Ok((svec(&[
+            "STRING 0 (a)",
+            "RESOLVE",
+            "JUMP_IF_ABRUPT l1",
+            "ROTATEDOWN_LIST 0",
+            "LIST_TO_ARRAY",
+            "IRB",
+            "JUMP_IF_ABRUPT l2",
+            "POP",
+            "ZERO",
+            "JUMP l2",
+            "l1: UNWIND_LIST",
+            "l2:"
+        ]), Strictness::NonStrict));
+        "nonstrict id"
+    )]
+    #[test_case("...a", true, EnvUsage::UseCurrentLexical, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "id; string table full")]
+    #[test_case("...[j]", true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["LIST_TO_ARRAY", "<BindingPattern Instructions 1>", "JUMP_IF_ABRUPT l1", "POP", "ZERO", "l1:"]), Strictness::Strict)); "pattern, strict")]
+    #[test_case("...[j]", false, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["LIST_TO_ARRAY", "<BindingPattern Instructions 1>", "JUMP_IF_ABRUPT l1", "POP", "ZERO", "l1:"]), Strictness::NonStrict)); "pattern, nonstrict")]
+    #[test_case("...[j]", true, EnvUsage::UseCurrentLexical, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "pattern, with error")]
+    fn compile_binding_initialization(
+        src: &str,
+        strict: bool,
+        env: EnvUsage,
+        what: &[(Fillable, usize)],
+    ) -> Result<(Vec<String>, Strictness), String> {
+        let node = Maker::new(src).binding_rest_element();
+        let mut c = complex_filled_chunk("x", what);
+        let _status = node.compile_binding_initialization(&mut c, strict, src, env).map_err(|e| e.to_string())?;
+        let strictness = c.analyze_strictness();
+
+        let inners = match node.as_ref() {
+            BindingRestElement::Identifier(..) => Vec::new(),
+            BindingRestElement::Pattern(binding_pattern, _) => {
+                let mut inner = Chunk::dup_without_code(&c, "BindingPattern");
+                binding_pattern.compile_binding_initialization(&mut inner, strict, src, env).unwrap();
+                vec![inner]
+            }
+        };
+        Ok((chunk_dump(&c, inners.iter().collect::<Vec<_>>().as_slice()), strictness))
+    }
 }
 
 mod binding_elision_element {
