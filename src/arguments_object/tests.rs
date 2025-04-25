@@ -463,12 +463,34 @@ mod arguments_object {
         obj.o.get_own_property(&name.into()).unwrap()
     }
 
+    #[expect(clippy::unnecessary_wraps)]
+    fn test_getter(
+        _this_value: &ECMAScriptValue,
+        _new_target: Option<&Object>,
+        _arguments: &[ECMAScriptValue],
+    ) -> Completion<ECMAScriptValue> {
+        Ok(ECMAScriptValue::from("getter override"))
+    }
+    fn make_getter() -> ECMAScriptValue {
+        let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
+        let getter = create_builtin_function(
+            Box::new(test_getter),
+            None,
+            0.0,
+            "first".into(),
+            &[],
+            None,
+            Some(function_proto),
+            Some("get".into()),
+        );
+        ECMAScriptValue::Object(getter)
+    }
     type DefineOwnPropertyTestResult =
         Result<(bool, AHashMap<String, ECMAScriptValue>, AHashMap<String, ECMAScriptValue>), String>;
     fn hm(data: &[(&str, ECMAScriptValue)]) -> AHashMap<String, ECMAScriptValue> {
         data.iter().map(|(s, v)| ((*s).to_string(), v.clone())).collect()
     }
-    #[test_case(test_ao, "10", PotentialPropertyDescriptor::new().value(101) => Ok((true, hm(&[
+    #[test_case(test_ao, "10", || PotentialPropertyDescriptor::new().value(101) => Ok((true, hm(&[
         ("0", "value of 'from'".into()),
         ("1", "value of 'the'".into()),
         ("2", "value of 'test'".into()),
@@ -479,7 +501,7 @@ mod arguments_object {
         ("the", "value of 'the'".into()),
         ("test", "value of 'test'".into()),
     ]))); "adding beyond")]
-    #[test_case(test_ao, "0", PotentialPropertyDescriptor::new().value(101) => Ok((true, hm(&[
+    #[test_case(test_ao, "0", || PotentialPropertyDescriptor::new().value(101) => Ok((true, hm(&[
         ("0", 101.into()),
         ("1", "value of 'the'".into()),
         ("2", "value of 'test'".into()),
@@ -489,7 +511,7 @@ mod arguments_object {
         ("the", "value of 'the'".into()),
         ("test", "value of 'test'".into()),
     ]))); "replacing existing")]
-    #[test_case(test_ao, "0", PotentialPropertyDescriptor::new().writable(false) => Ok((true, hm(&[
+    #[test_case(test_ao, "0", || PotentialPropertyDescriptor::new().writable(false) => Ok((true, hm(&[
         ("0", "value of 'from'".into()),
         ("1", "value of 'the'".into()),
         ("2", "value of 'test'".into()),
@@ -499,7 +521,7 @@ mod arguments_object {
         ("the", "value of 'the'".into()),
         ("test", "value of 'test'".into()),
     ]))); "removing writability")]
-    #[test_case(test_ao, "0", PotentialPropertyDescriptor::new().enumerable(true) => Ok((true, hm(&[
+    #[test_case(test_ao, "0", || PotentialPropertyDescriptor::new().enumerable(true) => Ok((true, hm(&[
         ("0", "value of 'from'".into()),
         ("1", "value of 'the'".into()),
         ("2", "value of 'test'".into()),
@@ -513,7 +535,7 @@ mod arguments_object {
         let obj = test_ao();
         obj.o.define_own_property("own".into(), PotentialPropertyDescriptor::new().value(0).writable(false).enumerable(true).configurable(false)).unwrap();
         obj
-    }, "own", PotentialPropertyDescriptor::new().value(99).configurable(true) => Ok((false, hm(&[
+    }, "own", || PotentialPropertyDescriptor::new().value(99).configurable(true) => Ok((false, hm(&[
         ("0", "value of 'from'".into()),
         ("1", "value of 'the'".into()),
         ("2", "value of 'test'".into()),
@@ -531,18 +553,29 @@ mod arguments_object {
         set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
 
         obj
-    }, "0", PotentialPropertyDescriptor::new().value(22) => Ok((true, hm(&[
+    }, "0", || PotentialPropertyDescriptor::new().value(22) => Ok((true, hm(&[
         ("0", 22.into()),
         ("1", "value of 'the'".into()),
         ("2", "value of 'test'".into()),
     ]), hm(&[]))); "unmapped")]
+    #[test_case(test_ao, "1", || PotentialPropertyDescriptor::new().get(make_getter()) => Ok((true, hm(&[
+        ("0", "value of 'from'".into()),
+        ("1", "getter override".into()),
+        ("2", "value of 'test'".into()),
+        ("100", "not in index".into()),
+    ]), hm(&[
+        ("from", "value of 'from'".into()),
+        ("the", "value of 'the'".into()),
+        ("test", "value of 'test'".into()),
+    ]))); "accessor descriptor")]
     fn define_own_property(
         make_object: impl FnOnce() -> Object,
         name: &str,
-        desc: PotentialPropertyDescriptor,
+        make_desc: impl FnOnce() -> PotentialPropertyDescriptor,
     ) -> DefineOwnPropertyTestResult {
         setup_test_agent();
         let obj = make_object();
+        let desc = make_desc();
         let env = current_lexical_environment().unwrap();
 
         let result = obj.o.define_own_property(name.into(), desc).map_err(unwind_any_error)?;
@@ -583,4 +616,26 @@ mod arguments_object {
 
         obj.o.prevent_extensions().unwrap()
     }
+
+    #[test]
+    fn kind() {
+        setup_test_agent();
+        let ao = test_ao();
+        assert_eq!(ao.o.kind(), ObjectTag::Arguments);
+    }
+
+    fn make() -> Object {
+        test_ao()
+    }
+    false_function!(is_bigint_object);
+    false_function!(is_generator_object);
+    none_function!(to_bigint_object);
+    none_function!(to_bound_function_object);
+    none_function!(to_builtin_function_with_revocable_proxy_slot);
+    none_function!(to_date_obj);
+    none_function!(to_for_in_iterator);
+    none_function!(to_generator_object);
+    none_function!(to_map_obj);
+    none_function!(to_regexp_object);
+    none_function!(to_string_obj);
 }
