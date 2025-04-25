@@ -388,6 +388,7 @@ test_defs[RelationalExpression]="RelationalExpression relational_expression pars
 test_defs[ReturnStatement]="ReturnStatement return_statement parser::return_statement"
 test_defs[Script]="Script script parser::scripts"
 test_defs[ScriptBody]="ScriptBody script_body parser::scripts"
+test_defs[VarScopeDecl]="VarScopeDecl var_scope_decl parser::scripts"
 test_defs[Statement]="Statement statement parser::statements_and_declarations"
 test_defs[Declaration]="Declaration declaration parser::statements_and_declarations"
 test_defs[HoistableDeclaration]="HoistableDeclaration hoistable_declaration parser::statements_and_declarations"

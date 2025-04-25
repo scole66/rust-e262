@@ -56,6 +56,16 @@ mod var_scope_decl {
         let copy = vsd.clone();
         assert_eq!(vsd.to_string(), copy.to_string());
     }
+
+    #[test_case(&VarScopeDecl::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => svec(&["a"]); "function decl")]
+    #[test_case(&VarScopeDecl::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => svec(&["a"]); "generator decl")]
+    #[test_case(&VarScopeDecl::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => svec(&["a"]); "async function decl")]
+    #[test_case(&VarScopeDecl::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => svec(&["a"]); "async generator decl")]
+    #[test_case(&VarScopeDecl::VariableDeclaration(Maker::new("a").variable_declaration()) => svec(&["a"]); "var decl")]
+    #[test_case(&VarScopeDecl::ForBinding(Maker::new("a").for_binding()) => svec(&["a"]); "for binding")]
+    fn bound_names(part: &VarScopeDecl) -> Vec<String> {
+        part.bound_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
 }
 
 // SCRIPT
@@ -309,5 +319,19 @@ mod script_body {
     #[test_case("let a; var b; const c=0; function foo(){}" => svec(&["a", "c"]); "names")]
     fn lexically_declared_names(src: &str) -> Vec<String> {
         Maker::new(src).script_body().lexically_declared_names().into_iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("a;" => false; "no arguments")]
+    #[test_case("b = arguments;" => true; "arguments")]
+    fn contains_arguments(src: &str) -> bool {
+        Maker::new(src).script_body().contains_arguments()
+    }
+
+    #[test_case("a;", &[] => true; "no names")]
+    #[test_case("a.#private;", &["#private"] => true; "one valid name")]
+    #[test_case("a.#private;", &["#other"] => false; "one invalid name")]
+    fn all_private_identifiers_valid(src: &str, names: &[&str]) -> bool {
+        let js_names = names.iter().map(|&name| JSString::from(name)).collect::<Vec<_>>();
+        Maker::new(src).script_body().all_private_identifiers_valid(js_names.as_slice())
     }
 }
