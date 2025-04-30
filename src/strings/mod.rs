@@ -245,6 +245,19 @@ impl JSString {
         }
         code_points
     }
+
+    pub fn is_string_well_formed_unicode(&self) -> bool {
+        let len = self.len();
+        let mut k = 0;
+        while k < len {
+            let cp = code_point_at(self, k);
+            if cp.is_unpaired_surrogate {
+                return false;
+            }
+            k += cp.code_unit_count as usize;
+        }
+        true
+    }
 }
 
 #[allow(clippy::cast_possible_truncation)]

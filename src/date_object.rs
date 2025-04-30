@@ -1341,7 +1341,7 @@ fn date_constructor_function(
                         None => {
                             let v = value.to_primitive(None)?;
                             match v {
-                                ECMAScriptValue::String(s) => parse_date(&s),
+                                PrimitiveValue::String(s) => parse_date(&s),
                                 _ => v.to_number()?,
                             }
                         }
@@ -2763,7 +2763,7 @@ fn date_prototype_tojson(
     let o = ECMAScriptValue::Object(to_object(this_value.clone())?);
     let tv = o.to_primitive(Some(ConversionHint::Number))?;
     match tv {
-        ECMAScriptValue::Number(v) if !v.is_finite() => Ok(ECMAScriptValue::Null),
+        PrimitiveValue::Number(v) if !v.is_finite() => Ok(ECMAScriptValue::Null),
         _ => o.invoke(&PropertyKey::from("toISOString"), &[]),
     }
 }
@@ -3118,7 +3118,7 @@ fn date_prototype_toprimitive(
         } else {
             return Err(create_type_error("Date.prototype[Symbol.toPrimitive]: invalid hint"));
         };
-        ordinary_to_primitive(o, try_first)
+        ordinary_to_primitive(o, try_first).map(ECMAScriptValue::from)
     } else {
         Err(create_type_error("Date.prototype[Symbol.toPrimitive] called on incompatible receiver"))
     }

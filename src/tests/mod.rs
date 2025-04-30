@@ -991,6 +991,17 @@ macro_rules! default_set_test {
     };
 }
 #[macro_export]
+macro_rules! default_kind_test {
+    () => {
+        #[test]
+        fn kind() {
+            setup_test_agent();
+            let obj = make();
+            assert_eq!(obj.o.kind(), ObjectTag::Object);
+        }
+    };
+}
+#[macro_export]
 macro_rules! default_own_property_keys_test {
     () => {
         #[test]
