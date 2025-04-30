@@ -1059,6 +1059,36 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => Ok(ECMAScriptValue::Boolean(true));
     "strict in inner function"
 )]
+// More coverage for Object.prototype.toString
+#[test_case("Object.prototype.toString.call([])" => vok("[object Array]"); "Object.prototype.toString array tag")]
+#[test_case("Object.prototype.toString.call((()=>{let p=Proxy.revocable({},{});p.revoke();return p.proxy;})())" => serr("Thrown: TypeError: Proxy has been revoked"); "Object.prototype.toString revoked proxy")]
+// BigInt constructor
+#[test_case("new BigInt()" => serr("Thrown: TypeError: BigInt may not be used as a constructor"); "bigint_constructor is not actually")]
+#[test_case("BigInt({})" => serr("Thrown: SyntaxError: Invalid character sequence for bigint"); "bigint_constructor non-numeric object")]
+#[test_case("BigInt({[Symbol.toPrimitive]: function () { throw 'oops'; }})" => serr("Thrown: oops"); "bigint_constructor to-primitive throws")]
+#[test_case("BigInt(10)" => vok(Rc::new(BigInt::from(10))); "bigint_constructor integral number")]
+#[test_case("BigInt(16.25)" => serr("Thrown: RangeError: Non-integral number used in bigint creation"); "bigint_constructor fractional number")]
+#[test_case("BigInt(true)" => vok(Rc::new(BigInt::from(1))); "bigint_constructor bool")]
+// BigInt.asIntN
+#[test_case("BigInt.asIntN(10,255n)" => vok(Rc::new(BigInt::from(255))); "bigint_asintn normal")]
+#[test_case("BigInt.asIntN(10n,255n)" => serr("Thrown: TypeError: BigInt values cannot be converted to Number values"); "bigint_asintn index throws")]
+#[test_case("BigInt.asIntN(10,undefined)" => serr("Thrown: TypeError: Value cannot be converted to bigint"); "bigint_asintn tobigint throws")]
+#[test_case("BigInt.asIntN(1,255n)" => vok(Rc::new(BigInt::from(-1))); "bigint_asintn negative")]
+#[test_case("BigInt.asIntN(0,1n)" => vok(Rc::new(BigInt::from(0))); "bigint_asintn zero bits")]
+// BigInt.asUintN
+#[test_case("BigInt.asUintN(10,255n)" => vok(Rc::new(BigInt::from(255))); "bigint_asUintn normal")]
+#[test_case("BigInt.asUintN(10n,255n)" => serr("Thrown: TypeError: BigInt values cannot be converted to Number values"); "bigint_asUintn index throws")]
+#[test_case("BigInt.asUintN(10,undefined)" => serr("Thrown: TypeError: Value cannot be converted to bigint"); "bigint_asUintn tobigint throws")]
+// BigInt.prototype.toLocaleString
+#[test_case("1n.toLocaleString()" => vok("1"); "BigInt.prototype.toLocaleString")]
+// BigInt.prototype.toString
+#[test_case("1n.toString()" => vok("1"); "BigInt.prototype.toString normal")]
+#[test_case("BigInt.prototype.toString.call()" => serr("Thrown: TypeError: Value is not a Big Int"); "BigInt.prototype.toString: ThisBigIntValue throws")]
+#[test_case("1n.toString(NaN)" => serr("Thrown: RangeError: A radix must be an interger between 2 and 36, inclusive"); "BigInt.prototype.toString: Radix is NaN")]
+#[test_case("1n.toString(1n)" => serr("Thrown: TypeError: BigInt values cannot be converted to Number values"); "BigInt.prototype.toString: Radix not a number")]
+// BigInt.prototype.valueOf
+#[test_case("BigInt.prototype.valueOf.call()" => serr("Thrown: TypeError: Value is not a Big Int"); "BigInt.prototype.valueOf: ThisBigIntValue throws")]
+#[test_case("56n.valueOf()" => vok(Rc::new(BigInt::from(56))); "BigInt.prototype.valueOf normal")]
 fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

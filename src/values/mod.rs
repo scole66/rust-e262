@@ -12,6 +12,52 @@ use std::sync::LazyLock;
 use uid::Id as IdT;
 
 #[derive(Clone, Debug)]
+pub enum PrimitiveValue {
+    Undefined,
+    Null,
+    Boolean(bool),
+    String(JSString),
+    Number(f64),
+    BigInt(Rc<BigInt>),
+    Symbol(Symbol),
+}
+impl From<PrimitiveValue> for ECMAScriptValue {
+    fn from(pv: PrimitiveValue) -> Self {
+        match pv {
+            PrimitiveValue::Undefined => ECMAScriptValue::Undefined,
+            PrimitiveValue::Null => ECMAScriptValue::Null,
+            PrimitiveValue::Boolean(b) => ECMAScriptValue::Boolean(b),
+            PrimitiveValue::String(s) => ECMAScriptValue::String(s),
+            PrimitiveValue::Number(n) => ECMAScriptValue::Number(n),
+            PrimitiveValue::BigInt(bi) => ECMAScriptValue::BigInt(bi),
+            PrimitiveValue::Symbol(s) => ECMAScriptValue::Symbol(s),
+        }
+    }
+}
+impl TryFrom<ECMAScriptValue> for PrimitiveValue {
+    type Error = anyhow::Error;
+    fn try_from(ev: ECMAScriptValue) -> Result<Self, Self::Error> {
+        match ev {
+            ECMAScriptValue::Undefined => Ok(PrimitiveValue::Undefined),
+            ECMAScriptValue::Null => Ok(PrimitiveValue::Null),
+            ECMAScriptValue::Boolean(b) => Ok(PrimitiveValue::Boolean(b)),
+            ECMAScriptValue::String(s) => Ok(PrimitiveValue::String(s)),
+            ECMAScriptValue::Number(n) => Ok(PrimitiveValue::Number(n)),
+            ECMAScriptValue::BigInt(bi) => Ok(PrimitiveValue::BigInt(bi)),
+            ECMAScriptValue::Symbol(s) => Ok(PrimitiveValue::Symbol(s)),
+            ECMAScriptValue::Object(_) => Err(anyhow!("not a primitive")),
+        }
+    }
+}
+impl PartialEq for PrimitiveValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.same_value(other)
+    }
+}
+
+impl Eq for PrimitiveValue {}
+
+#[derive(Clone, Debug)]
 pub enum ECMAScriptValue {
     Undefined,
     Null,
@@ -794,7 +840,7 @@ pub enum ConversionHint {
     String,
     Number,
 }
-pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<ECMAScriptValue> {
+pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<PrimitiveValue> {
     let method_names = match hint {
         ConversionHint::String => {
             vec![PropertyKey::from("toString"), PropertyKey::from("valueOf")]
@@ -807,8 +853,8 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
         let method = obj.get(name)?;
         if is_callable(&method) {
             let result = call(&method, &ECMAScriptValue::from(obj), &[])?;
-            if !result.is_object() {
-                return Ok(result);
+            if let Ok(pv) = PrimitiveValue::try_from(result) {
+                return Ok(pv);
             }
         }
     }
@@ -842,7 +888,7 @@ pub fn ordinary_to_primitive(obj: &Object, hint: ConversionHint) -> Completion<E
 //          specification only Date objects (see 21.4.4.45) and Symbol objects (see 20.4.3.5) over-ride the default
 //          ToPrimitive behaviour. Date objects treat no hint as if the hint were string.
 impl Object {
-    pub fn to_primitive(&self, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
+    pub fn to_primitive(&self, preferred_type: Option<ConversionHint>) -> Completion<PrimitiveValue> {
         let exotic_to_prim = self.get_method(&PropertyKey::from(wks(WksId::ToPrimitive)))?;
         if !exotic_to_prim.is_undefined() {
             let hint = ECMAScriptValue::from(match preferred_type {
@@ -851,23 +897,25 @@ impl Object {
                 Some(ConversionHint::String) => "string",
             });
             let result = call(&exotic_to_prim, &ECMAScriptValue::Object(self.clone()), &[hint])?;
-            if !result.is_object() {
-                return Ok(result);
-            }
-            return Err(create_type_error("Cannot convert object to primitive value"));
+            return PrimitiveValue::try_from(result)
+                .map_err(|_| create_type_error("Cannot convert object to primitive value"));
         }
         let pt = preferred_type.unwrap_or(ConversionHint::Number);
         ordinary_to_primitive(self, pt)
     }
 }
 
-pub fn to_primitive(input: &ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
+pub fn to_primitive(input: &ECMAScriptValue, preferred_type: Option<ConversionHint>) -> Completion<PrimitiveValue> {
     input.to_primitive(preferred_type)
 }
 
 impl ECMAScriptValue {
-    pub fn to_primitive(&self, preferred_type: Option<ConversionHint>) -> Completion<ECMAScriptValue> {
-        if let ECMAScriptValue::Object(obj) = self { obj.to_primitive(preferred_type) } else { Ok(self.clone()) }
+    pub fn to_primitive(&self, preferred_type: Option<ConversionHint>) -> Completion<PrimitiveValue> {
+        if let ECMAScriptValue::Object(obj) = self {
+            obj.to_primitive(preferred_type)
+        } else {
+            Ok(PrimitiveValue::try_from(self.clone()).expect("self should not be an object"))
+        }
     }
 }
 
@@ -928,7 +976,7 @@ impl ECMAScriptValue {
     pub fn to_numeric(&self) -> Completion<Numeric> {
         let prim_value = self.to_primitive(Some(ConversionHint::Number))?;
         match prim_value {
-            ECMAScriptValue::BigInt(bi) => Ok(Numeric::BigInt(bi)),
+            PrimitiveValue::BigInt(bi) => Ok(Numeric::BigInt(bi)),
             _ => Ok(Numeric::Number(prim_value.to_number()?)),
         }
     }
@@ -961,17 +1009,25 @@ impl ECMAScriptValue {
 // |               |     1. Let primValue be ? ToPrimitive(argument, number).          |
 // |               |     2. Return ? ToNumber(primValue).                              |
 // +---------------+-------------------------------------------------------------------+
-impl ECMAScriptValue {
+impl PrimitiveValue {
     pub fn to_number(&self) -> Completion<f64> {
         match self {
-            ECMAScriptValue::Undefined => Ok(f64::NAN),
-            ECMAScriptValue::Null => Ok(0_f64),
-            ECMAScriptValue::Boolean(b) => Ok(if *b { 1_f64 } else { 0_f64 }),
-            ECMAScriptValue::Number(n) => Ok(*n),
-            ECMAScriptValue::String(s) => Ok(s.to_number()),
-            ECMAScriptValue::BigInt(_) => Err(create_type_error("BigInt values cannot be converted to Number values")),
-            ECMAScriptValue::Symbol(_) => Err(create_type_error("Symbol values cannot be converted to Number values")),
-            ECMAScriptValue::Object(_) => self.to_primitive(Some(ConversionHint::Number))?.to_number(),
+            PrimitiveValue::Undefined => Ok(f64::NAN),
+            PrimitiveValue::Null => Ok(0_f64),
+            PrimitiveValue::Boolean(b) => Ok(if *b { 1_f64 } else { 0_f64 }),
+            PrimitiveValue::Number(n) => Ok(*n),
+            PrimitiveValue::String(s) => Ok(s.to_number()),
+            PrimitiveValue::BigInt(_) => Err(create_type_error("BigInt values cannot be converted to Number values")),
+            PrimitiveValue::Symbol(_) => Err(create_type_error("Symbol values cannot be converted to Number values")),
+        }
+    }
+}
+impl ECMAScriptValue {
+    pub fn to_number(&self) -> Completion<f64> {
+        if let Ok(val) = PrimitiveValue::try_from(self.clone()) {
+            val.to_number()
+        } else {
+            self.to_primitive(Some(ConversionHint::Number))?.to_number()
         }
     }
 }
@@ -1290,13 +1346,18 @@ impl ECMAScriptValue {
 impl Object {
     pub fn to_string(&self) -> Completion<JSString> {
         let prim_value = self.to_primitive(Some(ConversionHint::String))?;
-        to_string(prim_value)
+        prim_value.to_string()
+    }
+}
+impl PrimitiveValue {
+    pub fn to_string(self) -> Completion<JSString> {
+        JSString::try_from(self).map_err(|e| create_type_error(e.to_string()))
     }
 }
 pub fn to_string(val: ECMAScriptValue) -> Completion<JSString> {
     if val.is_object() {
         let prim_value = val.to_primitive(Some(ConversionHint::String))?;
-        to_string(prim_value)
+        prim_value.to_string()
     } else {
         JSString::try_from(val).map_err(|e| create_type_error(e.to_string()))
     }
@@ -1320,18 +1381,28 @@ impl From<i64> for JSString {
     }
 }
 
+impl TryFrom<PrimitiveValue> for JSString {
+    type Error = anyhow::Error;
+    fn try_from(val: PrimitiveValue) -> Result<Self, Self::Error> {
+        match val {
+            PrimitiveValue::Undefined => Ok(JSString::from("undefined")),
+            PrimitiveValue::Null => Ok(JSString::from("null")),
+            PrimitiveValue::Boolean(b) => Ok(JSString::from(if b { "true" } else { "false" })),
+            PrimitiveValue::Number(n) => Ok(JSString::from(n)),
+            PrimitiveValue::String(s) => Ok(s),
+            PrimitiveValue::BigInt(bi) => Ok(JSString::from(bi)),
+            PrimitiveValue::Symbol(_) => Err(anyhow!("Symbols may not be converted to strings")),
+        }
+    }
+}
+
 impl TryFrom<ECMAScriptValue> for JSString {
     type Error = anyhow::Error;
     fn try_from(val: ECMAScriptValue) -> Result<Self, Self::Error> {
-        match val {
-            ECMAScriptValue::Undefined => Ok(JSString::from("undefined")),
-            ECMAScriptValue::Null => Ok(JSString::from("null")),
-            ECMAScriptValue::Boolean(b) => Ok(JSString::from(if b { "true" } else { "false" })),
-            ECMAScriptValue::String(s) => Ok(s),
-            ECMAScriptValue::Number(n) => Ok(JSString::from(n)),
-            ECMAScriptValue::BigInt(bi) => Ok(JSString::from(bi)),
-            ECMAScriptValue::Symbol(_) => Err(anyhow!("Symbols may not be converted to strings")),
-            ECMAScriptValue::Object(_) => Err(anyhow!("Object to string conversions require an agent")),
+        if let Ok(pv) = PrimitiveValue::try_from(val) {
+            JSString::try_from(pv)
+        } else {
+            Err(anyhow!("Object to string conversions require an agent"))
         }
     }
 }
@@ -1397,8 +1468,8 @@ impl ECMAScriptValue {
     pub fn to_property_key(&self) -> Completion<PropertyKey> {
         let key = self.to_primitive(Some(ConversionHint::String))?;
         match key {
-            ECMAScriptValue::Symbol(sym) => Ok(PropertyKey::from(sym)),
-            _ => Ok(PropertyKey::from(to_string(key).unwrap())),
+            PrimitiveValue::Symbol(sym) => Ok(PropertyKey::from(sym)),
+            _ => Ok(PropertyKey::from(key.to_string().unwrap())),
         }
     }
 }
@@ -1591,6 +1662,31 @@ impl ECMAScriptValue {
     }
 }
 
+impl PrimitiveValue {
+    #[inline]
+    pub fn same_value_non_numeric(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Undefined, Self::Undefined) | (Self::Null, Self::Null) => true,
+            (Self::String(a), Self::String(b)) => a == b,
+            (Self::Boolean(a), Self::Boolean(b)) => a == b,
+            (Self::Symbol(a), Self::Symbol(b)) => a == b,
+            _ => panic!("Invalid input args"),
+        }
+    }
+    pub fn same_value(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Number(a), Self::Number(b)) => number_same_value(*a, *b),
+            (Self::BigInt(a), Self::BigInt(b)) => a == b,
+            (Self::Undefined, Self::Undefined)
+            | (Self::Null, Self::Null)
+            | (Self::String(_), Self::String(_))
+            | (Self::Boolean(_), Self::Boolean(_))
+            | (Self::Symbol(_), Self::Symbol(_)) => self.same_value_non_numeric(other),
+            _ => false,
+        }
+    }
+}
+
 pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<bool> {
     match (x, y) {
         (ECMAScriptValue::Number(_), ECMAScriptValue::Number(_))
@@ -1635,7 +1731,7 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
             | ECMAScriptValue::Symbol(_),
             ECMAScriptValue::Object(_),
         ) => {
-            let new_y = y.to_primitive(None)?;
+            let new_y = ECMAScriptValue::from(y.to_primitive(None)?);
             is_loosely_equal(x, &new_y)
         }
         (
@@ -1645,7 +1741,7 @@ pub fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Completion<
             | ECMAScriptValue::BigInt(_)
             | ECMAScriptValue::Symbol(_),
         ) => {
-            let new_x = x.to_primitive(None)?;
+            let new_x = ECMAScriptValue::from(x.to_primitive(None)?);
             is_loosely_equal(&new_x, y)
         }
         (&ECMAScriptValue::Number(n), ECMAScriptValue::BigInt(b))

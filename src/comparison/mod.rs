@@ -60,16 +60,17 @@ where
 //  3. If floor(abs(ℝ(argument))) ≠ abs(ℝ(argument)), return false.
 //  4. Return true.
 #[expect(clippy::float_cmp)]
+pub fn is_integral_number_f64(n: f64) -> bool {
+    if n.is_finite() {
+        let magnitude = n.abs();
+        magnitude.floor() == magnitude
+    } else {
+        false
+    }
+}
 pub fn is_integral_number(argument: &ECMAScriptValue) -> bool {
     match argument {
-        ECMAScriptValue::Number(n) => {
-            if n.is_finite() {
-                let magnitude = n.abs();
-                magnitude.floor() == magnitude
-            } else {
-                false
-            }
-        }
+        ECMAScriptValue::Number(n) => is_integral_number_f64(*n),
         _ => false,
     }
 }

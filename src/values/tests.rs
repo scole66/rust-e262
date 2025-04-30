@@ -17,6 +17,16 @@ fn check_value(expected: f64) -> impl Fn(f64) {
     }
 }
 
+fn check_value_result<T>(expected: f64) -> impl Fn(Result<f64, T>)
+where
+    T: fmt::Debug,
+{
+    move |actual: Result<f64, T>| {
+        let aval = actual.unwrap();
+        assert!(number_same_value(aval, expected), "{aval} did not match expected {expected}");
+    }
+}
+
 #[test]
 fn nts_test_nan() {
     let mut s = Vec::new();
@@ -771,7 +781,7 @@ mod ecmascript_value {
     ) -> Result<ECMAScriptValue, String> {
         setup_test_agent();
         let val = make_val();
-        val.to_primitive(preferred).map_err(unwind_any_error)
+        val.to_primitive(preferred).map_err(unwind_any_error).map(ECMAScriptValue::from)
     }
 
     #[test_case(|| Some(450) => "450".to_string(); "a number")]
@@ -1829,10 +1839,10 @@ pub fn make_test_obj_uncallable() -> Object {
 fn ordinary_to_primitive_nonoobj() {
     setup_test_agent();
     let test_obj = make_test_obj(FauxKind::Primitive, FauxKind::Primitive);
-    let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
+    let result_1 = ECMAScriptValue::from(ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap());
     assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
-    let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap();
+    let result_2 = ECMAScriptValue::from(ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap());
     assert_eq!(result_2, ECMAScriptValue::from("test result"));
 }
 #[test]
@@ -1849,27 +1859,27 @@ fn ordinary_to_primitive_obj() {
 fn ordinary_to_primitive_obj_nonobj() {
     setup_test_agent();
     let test_obj = make_test_obj(FauxKind::Object, FauxKind::Primitive);
-    let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
+    let result_1 = ECMAScriptValue::from(ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap());
     assert_eq!(result_1, ECMAScriptValue::from("test result"));
 
-    let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap();
+    let result_2 = ECMAScriptValue::from(ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap());
     assert_eq!(result_2, ECMAScriptValue::from("test result"));
 }
 #[test]
 fn ordinary_to_primitive_nonobj_obj() {
     setup_test_agent();
     let test_obj = make_test_obj(FauxKind::Primitive, FauxKind::Object);
-    let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
+    let result_1 = ECMAScriptValue::from(ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap());
     assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
-    let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap();
+    let result_2 = ECMAScriptValue::from(ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap());
     assert_eq!(result_2, ECMAScriptValue::from(123_456));
 }
 #[test]
 fn ordinary_to_primitive_call_errors() {
     setup_test_agent();
     let test_obj = make_test_obj(FauxKind::Primitive, FauxKind::Error);
-    let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
+    let result_1 = ECMAScriptValue::from(ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap());
     assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
     let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap_err();
@@ -1879,7 +1889,7 @@ fn ordinary_to_primitive_call_errors() {
 fn ordinary_to_primitive_get_errors() {
     setup_test_agent();
     let test_obj = make_tostring_getter_error();
-    let result_1 = ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap();
+    let result_1 = ECMAScriptValue::from(ordinary_to_primitive(&test_obj, ConversionHint::Number).unwrap());
     assert_eq!(result_1, ECMAScriptValue::from(123_456));
 
     let result_2 = ordinary_to_primitive(&test_obj, ConversionHint::String).unwrap_err();
@@ -1901,27 +1911,27 @@ fn to_primitive_no_change() {
     setup_test_agent();
     // Undefined
     let result = ECMAScriptValue::Undefined.to_primitive(None).unwrap();
-    assert!(result.is_undefined());
+    assert_eq!(result, PrimitiveValue::Undefined);
     // Null
     let result = ECMAScriptValue::Null.to_primitive(None).unwrap();
-    assert!(result.is_null());
+    assert_eq!(result, PrimitiveValue::Null);
     // Boolean
     let result = ECMAScriptValue::from(true).to_primitive(None).unwrap();
-    assert_eq!(result, ECMAScriptValue::from(true));
+    assert_eq!(result, PrimitiveValue::Boolean(true));
     // Number
     let result = ECMAScriptValue::from(20).to_primitive(None).unwrap();
-    assert_eq!(result, ECMAScriptValue::from(20));
+    assert_eq!(result, PrimitiveValue::Number(20.0));
     // String
     let result = ECMAScriptValue::from("test").to_primitive(None).unwrap();
-    assert_eq!(result, ECMAScriptValue::from("test"));
+    assert_eq!(result, PrimitiveValue::String(JSString::from("test")));
     // Symbol
     let sym = Symbol::new(Some(JSString::from("Symbolic")));
     let result = ECMAScriptValue::from(sym.clone()).to_primitive(None).unwrap();
-    assert_eq!(result, ECMAScriptValue::from(sym));
+    assert_eq!(result, PrimitiveValue::Symbol(sym));
     // BigInt
     let bi = "123456789012345678901234567890".parse::<BigInt>().unwrap();
     let result = ECMAScriptValue::from(bi).to_primitive(None).unwrap();
-    assert_eq!(result, ECMAScriptValue::from("123456789012345678901234567890".parse::<BigInt>().unwrap()));
+    assert_eq!(result, PrimitiveValue::BigInt(Rc::new("123456789012345678901234567890".parse::<BigInt>().unwrap())));
 }
 #[test]
 fn to_primitive_prefer_number() {
@@ -1930,11 +1940,11 @@ fn to_primitive_prefer_number() {
     let test_value = ECMAScriptValue::from(test_obj);
 
     let result = test_value.to_primitive(None).unwrap();
-    assert_eq!(result, ECMAScriptValue::from(123_456));
+    assert_eq!(result, PrimitiveValue::Number(123_456.0));
     let result = test_value.to_primitive(Some(ConversionHint::Number)).unwrap();
-    assert_eq!(result, ECMAScriptValue::from(123_456));
+    assert_eq!(result, PrimitiveValue::Number(123_456.0));
     let result = test_value.to_primitive(Some(ConversionHint::String)).unwrap();
-    assert_eq!(result, ECMAScriptValue::from("test result"));
+    assert_eq!(result, PrimitiveValue::String(JSString::from("test result")));
 }
 #[expect(clippy::unnecessary_wraps)]
 fn exotic_to_prim(
@@ -1993,11 +2003,11 @@ fn to_primitive_uses_exotics() {
     let test_value = ECMAScriptValue::from(test_obj);
 
     let result = test_value.to_primitive(None).unwrap();
-    assert_eq!(result, ECMAScriptValue::from("Saw default"));
+    assert_eq!(result, PrimitiveValue::String(JSString::from("Saw default")));
     let result = test_value.to_primitive(Some(ConversionHint::Number)).unwrap();
-    assert_eq!(result, ECMAScriptValue::from("Saw number"));
+    assert_eq!(result, PrimitiveValue::String(JSString::from("Saw number")));
     let result = test_value.to_primitive(Some(ConversionHint::String)).unwrap();
-    assert_eq!(result, ECMAScriptValue::from("Saw string"));
+    assert_eq!(result, PrimitiveValue::String(JSString::from("Saw string")));
 }
 #[expect(clippy::unnecessary_wraps)]
 fn exotic_returns_object(
@@ -2542,5 +2552,99 @@ fn to_primitive(
 ) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     let val = make_val();
-    super::to_primitive(&val, hint).map_err(unwind_any_error)
+    super::to_primitive(&val, hint).map_err(unwind_any_error).map(ECMAScriptValue::from)
+}
+
+mod primitive_value {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| PrimitiveValue::Undefined => sok("undefined"); "undefined")]
+    #[test_case(|| PrimitiveValue::Symbol(wks(WksId::ToPrimitive)) => serr("TypeError: Symbols may not be converted to strings"); "symbol")]
+    fn to_string(make_val: impl FnOnce() -> PrimitiveValue) -> Result<String, String> {
+        setup_test_agent();
+        let val = make_val();
+        val.to_string().map(String::from).map_err(unwind_any_error)
+    }
+
+    #[test_case(|| PrimitiveValue::Undefined => using check_value_result(f64::NAN); "undefined")]
+    #[test_case(|| PrimitiveValue::Null => using check_value_result(0.0); "null")]
+    #[test_case(|| PrimitiveValue::Boolean(false) => using check_value_result(0.0); "bool false")]
+    #[test_case(|| PrimitiveValue::Boolean(true) => using check_value_result(1.0); "bool true")]
+    #[test_case(|| PrimitiveValue::Number(37.5) => using check_value_result(37.5); "number")]
+    #[test_case(|| PrimitiveValue::String(JSString::from("78.25")) => using check_value_result(78.25); "numberlike string")]
+    #[test_case(|| PrimitiveValue::BigInt(Rc::new(BigInt::from(1234))) => serr("TypeError: BigInt values cannot be converted to Number values"); "bigint")]
+    #[test_case(|| PrimitiveValue::Symbol(wks(WksId::ToPrimitive)) => serr("TypeError: Symbol values cannot be converted to Number values"); "symbol")]
+    fn to_number(make_val: impl FnOnce() -> PrimitiveValue) -> Result<f64, String> {
+        setup_test_agent();
+        let val = make_val();
+        val.to_number().map_err(unwind_any_error)
+    }
+
+    #[test_case(|| (PrimitiveValue::Undefined, PrimitiveValue::Undefined) => true; "undefined")]
+    #[test_case(|| (PrimitiveValue::Null, PrimitiveValue::Null) => true; "null")]
+    #[test_case(|| (PrimitiveValue::String(JSString::from("bob")), PrimitiveValue::String(JSString::from("bob"))) => true; "matching strings")]
+    #[test_case(|| (PrimitiveValue::String(JSString::from("bob")), PrimitiveValue::String(JSString::from("alice"))) => false; "non-matching strings")]
+    #[test_case(|| (PrimitiveValue::Boolean(true), PrimitiveValue::Boolean(true)) => true; "matching booleans")]
+    #[test_case(|| (PrimitiveValue::Boolean(true), PrimitiveValue::Boolean(false)) => false; "non-matching booleans")]
+    #[test_case(|| (PrimitiveValue::Symbol(wks(WksId::Species)), PrimitiveValue::Symbol(wks(WksId::Species))) => true; "matching symbols")]
+    #[test_case(|| (PrimitiveValue::Symbol(wks(WksId::Species)), PrimitiveValue::Symbol(wks(WksId::ToPrimitive))) => false; "non-matching symbols")]
+    #[test_case(|| (PrimitiveValue::Boolean(true), PrimitiveValue::Null) => panics "Invalid input args"; "mismatched types")]
+    fn same_value_non_numeric(make_vals: impl FnOnce() -> (PrimitiveValue, PrimitiveValue)) -> bool {
+        setup_test_agent();
+        let (left, right) = make_vals();
+        left.same_value_non_numeric(&right)
+    }
+
+    #[test_case(|| (PrimitiveValue::Undefined, PrimitiveValue::Undefined) => true; "undefined")]
+    #[test_case(|| (PrimitiveValue::Null, PrimitiveValue::Null) => true; "null")]
+    #[test_case(|| (PrimitiveValue::String(JSString::from("bob")), PrimitiveValue::String(JSString::from("bob"))) => true; "matching strings")]
+    #[test_case(|| (PrimitiveValue::String(JSString::from("bob")), PrimitiveValue::String(JSString::from("alice"))) => false; "non-matching strings")]
+    #[test_case(|| (PrimitiveValue::Boolean(true), PrimitiveValue::Boolean(true)) => true; "matching booleans")]
+    #[test_case(|| (PrimitiveValue::Boolean(true), PrimitiveValue::Boolean(false)) => false; "non-matching booleans")]
+    #[test_case(|| (PrimitiveValue::Symbol(wks(WksId::Species)), PrimitiveValue::Symbol(wks(WksId::Species))) => true; "matching symbols")]
+    #[test_case(|| (PrimitiveValue::Symbol(wks(WksId::Species)), PrimitiveValue::Symbol(wks(WksId::ToPrimitive))) => false; "non-matching symbols")]
+    #[test_case(|| (PrimitiveValue::Number(10.25), PrimitiveValue::Number(10.25)) => true; "matching number")]
+    #[test_case(|| (PrimitiveValue::Number(10.25), PrimitiveValue::Number(10.0)) => false; "non-matching number")]
+    #[test_case(|| (PrimitiveValue::BigInt(Rc::new(BigInt::from(1234))), PrimitiveValue::BigInt(Rc::new(BigInt::from(1234)))) => true; "matching big int")]
+    #[test_case(|| (PrimitiveValue::BigInt(Rc::new(BigInt::from(1234))), PrimitiveValue::BigInt(Rc::new(BigInt::from(1235)))) => false; "non-matching big int")]
+    #[test_case(|| (PrimitiveValue::Boolean(true), PrimitiveValue::Null) => false; "mismatched types")]
+    fn same_value(make_vals: impl FnOnce() -> (PrimitiveValue, PrimitiveValue)) -> bool {
+        setup_test_agent();
+        let (left, right) = make_vals();
+        left.same_value(&right)
+    }
+
+    #[test_case(|| (PrimitiveValue::Undefined, PrimitiveValue::Undefined) => true; "undefined")]
+    #[test_case(|| (PrimitiveValue::Null, PrimitiveValue::Null) => true; "null")]
+    #[test_case(|| (PrimitiveValue::String(JSString::from("bob")), PrimitiveValue::String(JSString::from("bob"))) => true; "matching strings")]
+    #[test_case(|| (PrimitiveValue::String(JSString::from("bob")), PrimitiveValue::String(JSString::from("alice"))) => false; "non-matching strings")]
+    #[test_case(|| (PrimitiveValue::Boolean(true), PrimitiveValue::Boolean(true)) => true; "matching booleans")]
+    #[test_case(|| (PrimitiveValue::Boolean(true), PrimitiveValue::Boolean(false)) => false; "non-matching booleans")]
+    #[test_case(|| (PrimitiveValue::Symbol(wks(WksId::Species)), PrimitiveValue::Symbol(wks(WksId::Species))) => true; "matching symbols")]
+    #[test_case(|| (PrimitiveValue::Symbol(wks(WksId::Species)), PrimitiveValue::Symbol(wks(WksId::ToPrimitive))) => false; "non-matching symbols")]
+    #[test_case(|| (PrimitiveValue::Number(10.25), PrimitiveValue::Number(10.25)) => true; "matching number")]
+    #[test_case(|| (PrimitiveValue::Number(10.25), PrimitiveValue::Number(10.0)) => false; "non-matching number")]
+    #[test_case(|| (PrimitiveValue::BigInt(Rc::new(BigInt::from(1234))), PrimitiveValue::BigInt(Rc::new(BigInt::from(1234)))) => true; "matching big int")]
+    #[test_case(|| (PrimitiveValue::BigInt(Rc::new(BigInt::from(1234))), PrimitiveValue::BigInt(Rc::new(BigInt::from(1235)))) => false; "non-matching big int")]
+    #[test_case(|| (PrimitiveValue::Boolean(true), PrimitiveValue::Null) => false; "mismatched types")]
+    fn eq(make_vals: impl FnOnce() -> (PrimitiveValue, PrimitiveValue)) -> bool {
+        setup_test_agent();
+        let (left, right) = make_vals();
+        left.eq(&right)
+    }
+
+    #[test_case(|| ECMAScriptValue::Undefined => Ok(PrimitiveValue::Undefined); "undefined")]
+    #[test_case(|| ECMAScriptValue::Null => Ok(PrimitiveValue::Null); "null")]
+    #[test_case(|| ECMAScriptValue::Boolean(true) => Ok(PrimitiveValue::Boolean(true)); "bool true")]
+    #[test_case(|| ECMAScriptValue::from("testcase") => Ok(PrimitiveValue::String(JSString::from("testcase"))); "string")]
+    #[test_case(|| ECMAScriptValue::from(1234) => Ok(PrimitiveValue::Number(1234.0)); "number")]
+    #[test_case(|| ECMAScriptValue::BigInt(Rc::new(BigInt::from(4321))) => Ok(PrimitiveValue::BigInt(Rc::new(BigInt::from(4321)))); "big int")]
+    #[test_case(|| ECMAScriptValue::Symbol(wks(WksId::ToPrimitive)) => Ok(PrimitiveValue::Symbol(wks(WksId::ToPrimitive))); "symbol")]
+    #[test_case(|| ECMAScriptValue::Object(intrinsic(IntrinsicId::ObjectPrototype)) => serr("not a primitive"); "object")]
+    fn try_from_ecmascriptvalue(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<PrimitiveValue, String> {
+        setup_test_agent();
+        let val = make_val();
+        PrimitiveValue::try_from(val).map_err(|e| e.to_string())
+    }
 }

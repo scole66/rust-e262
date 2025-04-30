@@ -150,7 +150,7 @@ fn bigint_constructor_function(
     } else {
         let prim = value.to_primitive(Some(ConversionHint::Number))?;
         match prim {
-            ECMAScriptValue::Number(_) => Ok(prim.number_to_big_int()?.into()),
+            PrimitiveValue::Number(num) => Ok(number_to_big_int(num)?.into()),
             _ => Ok(prim.to_big_int()?.into()),
         }
     }
@@ -443,20 +443,34 @@ fn this_bigint_value(value: ECMAScriptValue) -> Completion<Rc<BigInt>> {
     }
 }
 
-impl ECMAScriptValue {
-    fn number_to_big_int(&self) -> Completion<Rc<BigInt>> {
-        // NumberToBigInt ( number )
-        // The abstract operation NumberToBigInt takes argument number (a Number) and returns either a normal completion
-        // containing a BigInt or a throw completion. It performs the following steps when called:
-        //
-        //  1. If IsIntegralNumber(number) is false, throw a RangeError exception.
-        //  2. Return ℤ(ℝ(number)).
-        const ERRMSG: &str = "Non-integral number used in bigint creation";
-        if is_integral_number(self) {
-            let num = self.to_number().unwrap();
-            Ok(Rc::new(BigInt::from_f64(num).ok_or_else(|| create_range_error(ERRMSG))?))
-        } else {
-            Err(create_range_error(ERRMSG))
+fn number_to_big_int(number: f64) -> Completion<Rc<BigInt>> {
+    // NumberToBigInt ( number )
+    // The abstract operation NumberToBigInt takes argument number (a Number) and returns either a normal completion
+    // containing a BigInt or a throw completion. It performs the following steps when called:
+    //
+    //  1. If IsIntegralNumber(number) is false, throw a RangeError exception.
+    //  2. Return ℤ(ℝ(number)).
+    const ERRMSG: &str = "Non-integral number used in bigint creation";
+    if is_integral_number_f64(number) {
+        Ok(Rc::new(BigInt::from_f64(number).expect("all integral f64s fit in a bigint")))
+    } else {
+        Err(create_range_error(ERRMSG))
+    }
+}
+
+impl PrimitiveValue {
+    pub fn to_big_int(&self) -> Completion<Rc<BigInt>> {
+        match self {
+            PrimitiveValue::Undefined
+            | PrimitiveValue::Null
+            | PrimitiveValue::Number(_)
+            | PrimitiveValue::Symbol(_) => Err(create_type_error("Value cannot be converted to bigint")),
+            PrimitiveValue::Boolean(b) => Ok(Rc::new(BigInt::from(*b))),
+            PrimitiveValue::String(s) => {
+                let n = s.to_bigint();
+                n.ok_or_else(|| create_syntax_error("Invalid character sequence for bigint", None))
+            }
+            PrimitiveValue::BigInt(bi) => Ok(bi.clone()),
         }
     }
 }
@@ -492,19 +506,7 @@ impl ECMAScriptValue {
         //  | Symbol        | Throw a TypeError exception.                         |
         //  +---------------+------------------------------------------------------|
         let prim = self.to_primitive(Some(ConversionHint::Number))?;
-        match prim {
-            ECMAScriptValue::Undefined
-            | ECMAScriptValue::Null
-            | ECMAScriptValue::Number(_)
-            | ECMAScriptValue::Symbol(_) => Err(create_type_error("Value cannot be converted to bigint")),
-            ECMAScriptValue::Boolean(b) => Ok(Rc::new(BigInt::from(b))),
-            ECMAScriptValue::String(s) => {
-                let n = s.to_bigint();
-                n.ok_or_else(|| create_syntax_error("Invalid character sequence for bigint", None))
-            }
-            ECMAScriptValue::BigInt(bi) => Ok(bi),
-            ECMAScriptValue::Object(_) => unreachable!(),
-        }
+        prim.to_big_int()
     }
 }
 

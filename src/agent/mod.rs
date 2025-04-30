@@ -4243,8 +4243,8 @@ fn typeof_operator(expr: FullCompletion) -> FullCompletion {
 
 fn apply_string_or_numeric_binary_operator(left: ECMAScriptValue, right: ECMAScriptValue, op: BinOp) -> FullCompletion {
     let (left, right) = if op == BinOp::Add {
-        let left_prim = left.to_primitive(None)?;
-        let right_prim = right.to_primitive(None)?;
+        let left_prim = ECMAScriptValue::from(left.to_primitive(None)?);
+        let right_prim = ECMAScriptValue::from(right.to_primitive(None)?);
         if left_prim.is_string() || right_prim.is_string() {
             let left_str = to_string(left_prim)?;
             let right_str = to_string(right_prim)?;
@@ -4477,11 +4477,11 @@ impl ECMAScriptValue {
         let (px, py) = if self_first {
             let px = self.to_primitive(None)?;
             let py = other.to_primitive(None)?;
-            (px, py)
+            (ECMAScriptValue::from(px), ECMAScriptValue::from(py))
         } else {
             let py = other.to_primitive(None)?;
             let px = self.to_primitive(None)?;
-            (px, py)
+            (ECMAScriptValue::from(px), ECMAScriptValue::from(py))
         };
         if px.is_string() && py.is_string() {
             let sx = JSString::try_from(px).expect("String values must be strings");
