@@ -144,9 +144,9 @@ impl fmt::Display for ClassItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ClassItem::StaticPrivateElement(pe) => {
-                write!(f, "Static({pe})")
+                write!(f, "Static Element({pe})")
             }
-            ClassItem::PrivateElement(_) => todo!(),
+            ClassItem::PrivateElement(pe) => write!(f, "Element({pe})"),
             ClassItem::StaticClassFieldDefinition(ClassFieldDefinitionRecord {
                 name,
                 initializer: Some(initializer),
