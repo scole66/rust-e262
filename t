@@ -893,6 +893,8 @@ test_defs[put_value]="put_value put_value reference"
 
 test_defs[NormalCompletion]="NormalCompletion normal_completion cr"
 test_defs[NormalCompletion_from]="NormalCompletion@from normal_completion::from:: cr"
+test_defs[NormalCompletion_try_from]='core::convert::TryFrom@NormalCompletion@try_from normal_completion::try_from cr'
+test_defs[NormalCompletion_tryfrom_for_environmentrecord]="alloc::rc::Rc@environment_record::EnvironmentRecord@core::convert::TryFrom@NormalCompletion@try_from normal_completion::try_from::environment_record cr"
 
 test_defs[Token]="Token token scanner"
 test_defs[debug_token]="debug_token debug_token scanner"
@@ -945,7 +947,7 @@ for name in ${names[@]}; do
       for part in ${frontparts[@]}; do
         frontmangled=${frontmangled}${#part}${part}
       done
-      regex="_3res${filemangled}([^0-9][^_]+_)?${frontmangled}"
+      regex="_3res${filemangled}([^0-9][^_]+_)?(.*[^0-9])?${frontmangled}"
       backchunks=($(first=true; for x in ${chunks[@]}; do if $first; then first=false; else echo $x; fi; done))
       for chunk in ${backchunks[@]}; do
         backparts=($(echo ${chunk} | tr : ' '))
@@ -953,7 +955,7 @@ for name in ${names[@]}; do
         for part in ${backparts[@]}; do
           backmangled=${backmangled}${#part}${part}
         done
-        regex="${regex}.*${backmangled}"
+        regex="${regex}.*[^0-9]${backmangled}"
       done
       ;;
   esac

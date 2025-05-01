@@ -23,6 +23,9 @@ mod normal_completion {
     #[test_case(&NormalCompletion::PrivateName(PrivateName::new("alice")),
                 &NormalCompletion::PrivateName(PrivateName::new("bob"))
                 => false; "both pn")]
+    #[test_case(&NormalCompletion::ClassItem(Box::new(ClassItem::PrivateElement(PrivateElement { key: PrivateName::new("bob"), kind: PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::Number(10.0))} }))),
+                &NormalCompletion::ClassItem(Box::new(ClassItem::PrivateElement(PrivateElement { key: PrivateName::new("bob"), kind: PrivateElementKind::Field{value: RefCell::new(ECMAScriptValue::Number(10.0))} })))
+                => false; "almost same class item (those are actually different private names)")]
     fn eq(left: &NormalCompletion, right: &NormalCompletion) -> bool {
         left == right
     }
@@ -311,6 +314,37 @@ mod normal_completion {
                 assert_eq!(obj, extracted);
             }
         }
+
+        #[test_case(|| NormalCompletion::from(ECMAScriptValue::Undefined) => serr("Not environment data"); "not an environment")]
+        #[test_case(|| {
+            let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap() as Rc<dyn EnvironmentRecord>;
+            NormalCompletion::Environment(env)
+        } => sok("realm-global"); "environment")]
+        fn environment_record(make_nc: impl FnOnce() -> NormalCompletion) -> Result<String, String> {
+            setup_test_agent();
+            let nc = make_nc();
+            let env: Rc<dyn EnvironmentRecord> = nc.try_into().map_err(|e: anyhow::Error| e.to_string())?;
+            Ok(env.name())
+        }
+
+        #[test_case(|| NormalCompletion::from(ECMAScriptValue::Undefined) => serr("reference expected"); "not a reference")]
+        #[test_case(|| NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "a", false, None))) => sok("a"); "a real reference")]
+        fn reference(make_nc: impl FnOnce() -> NormalCompletion) -> Result<String, String> {
+            setup_test_agent();
+            let nc = make_nc();
+            let val_ref: Box<Reference> = nc.try_into().map_err(|e: anyhow::Error| e.to_string())?;
+            let name = val_ref.referenced_name;
+            Ok(format!("{name}"))
+        }
+
+        #[test_case(|| NormalCompletion::from(ECMAScriptValue::Undefined) => serr("Not a private name"); "not a private name")]
+        #[test_case(|| NormalCompletion::PrivateName(PrivateName::new("private-element")) => sok("PN[private-element]"); "private name")]
+        fn private_name(make_nc: impl FnOnce() -> NormalCompletion) -> Result<String, String> {
+            setup_test_agent();
+            let nc = make_nc();
+            let privatename: PrivateName = nc.try_into().map_err(|e: anyhow::Error| e.to_string())?;
+            Ok(format!("{privatename}"))
+        }
     }
 
     #[test_case(() => NormalCompletion::Empty; "unit")]
@@ -323,6 +357,22 @@ mod normal_completion {
     #[test_case(&NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "a", false, None))) => "Ref(unresolvable->a)"; "non-strict reference")]
     #[test_case(&NormalCompletion::Reference(Box::new(Reference::new(Base::Unresolvable, "b", true, None))) => "SRef(unresolvable->b)"; "strict reference")]
     #[test_case(&NormalCompletion::PrivateName(PrivateName::new("alpha")) => "PN[alpha]"; "private name")]
+    #[test_case(
+        &NormalCompletion::ClassItem(
+            Box::new(
+                ClassItem::PrivateElement(
+                    PrivateElement {
+                        key: PrivateName::new("bob"),
+                        kind: PrivateElementKind::Field {
+                            value: RefCell::new(ECMAScriptValue::Number(10.0))
+                        }
+                    }
+                )
+            )
+        )
+        => "Element(PrivateElement{PN[bob]: Field(10)})";
+        "class item"
+    )]
     fn display(n: &NormalCompletion) -> String {
         format!("{n}")
     }
