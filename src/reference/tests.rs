@@ -469,6 +469,30 @@ mod get_value {
         assert_eq!(result, value);
     }
     #[test]
+    fn bool_value() {
+        setup_test_agent();
+        let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let normal_object = ordinary_object_create(Some(object_proto));
+        let value = ECMAScriptValue::from("bool_value test value");
+        let descriptor = PotentialPropertyDescriptor::new().value(value.clone());
+        define_property_or_throw(&normal_object, PropertyKey::from("true"), descriptor).unwrap();
+        let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object)), true, true, None);
+
+        let result = get_value(Ok(NormalCompletion::from(reference))).unwrap();
+        assert_eq!(result, value);
+    }
+
+    #[test]
+    fn to_property_key_throws() {
+        setup_test_agent();
+        let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let normal_object = ordinary_object_create(Some(object_proto));
+        let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object)), DeadObject::object(), true, None);
+
+        let result = get_value(Ok(NormalCompletion::from(reference))).unwrap_err();
+        assert_eq!(unwind_type_error(result), "get called on DeadObject");
+    }
+    #[test]
     fn to_object_err() {
         setup_test_agent();
         let reference = Reference::new(Base::Value(ECMAScriptValue::Undefined), "test_value", true, None);
