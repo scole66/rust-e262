@@ -1,4 +1,5 @@
 use super::*;
+use crate::parser::testhelp::*;
 use ahash::AHashMap;
 use itertools::Itertools;
 use regex::Regex;
@@ -1239,6 +1240,26 @@ mod adaptable_object {
     false_function!(is_symbol_object);
     none_function!(to_proxy_object);
     none_function!(to_symbol_obj);
+}
+
+pub fn make_fer(src: &str, new_target: Option<Object>) -> (Object, FunctionEnvironmentRecord) {
+    let ae = Maker::new(src).assignment_expression();
+    let this_mode = if ae.contains(ParseNodeKind::ArrowFunction) || ae.contains(ParseNodeKind::AsyncArrowFunction) {
+        ThisLexicality::LexicalThis
+    } else {
+        ThisLexicality::NonLexicalThis
+    };
+    let node = ae.function_definition().unwrap();
+    let params = node.params();
+    let body = node.body();
+
+    let realm = current_realm_record().unwrap();
+    let global_env = realm.borrow().global_env.clone().unwrap();
+    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
+    let chunk = Rc::new(Chunk::new("empty"));
+    let closure =
+        ordinary_function_create(function_prototype, src, params, body, this_mode, global_env, None, true, chunk);
+    (closure.clone(), FunctionEnvironmentRecord::new(closure, new_target, "environment_tag".to_string()))
 }
 
 mod integration;

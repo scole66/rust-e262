@@ -1,7 +1,9 @@
 #![expect(clippy::bool_assert_comparison)]
 use super::*;
+use crate::parser::testhelp::*;
 use crate::tests::*;
 use std::rc::Rc;
+use test_case::test_case;
 
 mod base {
     use super::*;
@@ -71,6 +73,27 @@ mod base {
             let result: Result<Rc<dyn EnvironmentRecord>, String> =
                 b.try_into().map_err(|e: anyhow::Error| e.to_string());
             result.map(|er| format!("{er:?}"))
+        }
+    }
+
+    #[test_case(|| None::<Object> => "undefined"; "none")]
+    #[test_case(|| {
+        let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(Some(object_proto));
+        define_property_or_throw(&obj, "apple", PotentialPropertyDescriptor::new().value("popsicle")).unwrap();
+        Some(obj)
+    } => "apple:popsicle"; "object")]
+    fn from<T>(make_arg: impl FnOnce() -> T) -> String
+    where
+        T: Into<Base>,
+    {
+        setup_test_agent();
+        let arg: T = make_arg();
+        let b: Base = arg.into();
+        match b {
+            Base::Unresolvable => "unresolvable".to_string(),
+            Base::Value(v) => v.test_result_string(),
+            Base::Environment(_) => "environment".to_string(),
         }
     }
 }
@@ -169,6 +192,7 @@ mod referenced_name {
 
     mod try_from {
         use super::*;
+        use test_case::test_case;
 
         mod jsstring {
             use super::*;
@@ -218,6 +242,14 @@ mod referenced_name {
                 assert_eq!(&err, "property key (string or symbol) expected");
             }
         }
+
+        #[test_case(|| ReferencedName::Value(ECMAScriptValue::from("bob")) => vok("bob"); "value")]
+        #[test_case(|| ReferencedName::PrivateName(PrivateName::new("bob")) => serr("value expected"); "private name")]
+        fn ecmascript_value(make_rn: impl FnOnce() -> ReferencedName) -> Result<ECMAScriptValue, String> {
+            setup_test_agent();
+            let val = make_rn();
+            ECMAScriptValue::try_from(val).map_err(|e| e.to_string())
+        }
     }
 
     mod display {
@@ -243,6 +275,7 @@ mod referenced_name {
 
 mod reference {
     use super::*;
+    use test_case::test_case;
 
     #[test]
     fn debug() {
@@ -414,6 +447,51 @@ mod reference {
             .get_this_value();
         }
     }
+
+    #[test_case(|| (ECMAScriptValue::Undefined, ECMAScriptValue::Undefined), true => serr("current environment has no super"); "no super")]
+    #[test_case(|| {
+        let (fobj, fenv) = make_fer("function a(){}", None);
+        let env_ptr: Rc<dyn EnvironmentRecord> = Rc::new(fenv);
+        set_lexical_environment(Some(env_ptr));
+        (ECMAScriptValue::from(fobj), ECMAScriptValue::from("name"))
+    }, true => Ok(("undefined".to_string(), "name".to_string(), true, ssome("length:0"))); "function env")]
+    #[test_case(|| {
+        let (fobj, fenv) = make_fer("function a(){}", None);
+        let env_ptr: Rc<dyn EnvironmentRecord> = Rc::new(fenv);
+        set_lexical_environment(Some(env_ptr));
+        (ECMAScriptValue::from(fobj), ECMAScriptValue::from("name"))
+    }, false => Ok(("undefined".to_string(), "name".to_string(), false, ssome("length:0"))); "function env (not strict)")]
+    #[test_case(|| {
+        let (fobj, fenv) = make_fer("() => 3)", None);
+        let env_ptr: Rc<dyn EnvironmentRecord> = Rc::new(fenv);
+        set_lexical_environment(Some(env_ptr));
+        (ECMAScriptValue::from(fobj), ECMAScriptValue::from("name"))
+    }, false => serr("current environment has no super"); "function env but no home obj")]
+    fn make_super_property_reference(
+        setup: impl FnOnce() -> (ECMAScriptValue, ECMAScriptValue),
+        strict: bool,
+    ) -> Result<(String, String, bool, Option<String>), String> {
+        setup_test_agent();
+        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let lexenv = Rc::new(DeclarativeEnvironmentRecord::new(Some(env), "make_super_property_reference test"))
+            as Rc<dyn EnvironmentRecord>;
+        set_lexical_environment(Some(lexenv.clone()));
+
+        let (this_value, key) = setup();
+        let reference = Reference::make_super_property_reference(this_value, key, strict).map_err(|e| e.to_string())?;
+        let reference = reference.map_err(unwind_any_error)?;
+        let base = match &reference.base {
+            Base::Unresolvable => "unresolvable".to_string(),
+            Base::Environment(environment_record) => format!("Environment[{}]", environment_record.name()),
+            Base::Value(v) => v.test_result_string(),
+        };
+        let name = match &reference.referenced_name {
+            ReferencedName::PrivateName(private_name) => format!("PrivateName[{private_name}]"),
+            ReferencedName::Value(v) => v.test_result_string(),
+        };
+        let this_value = reference.this_value.as_ref().map(ECMAScriptValue::test_result_string);
+        Ok((base, name, reference.strict, this_value))
+    }
 }
 
 mod get_value {
@@ -467,6 +545,31 @@ mod get_value {
 
         let result = get_value(Ok(NormalCompletion::from(reference))).unwrap();
         assert_eq!(result, value);
+    }
+    #[test]
+    fn bool_value() {
+        setup_test_agent();
+        let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let normal_object = ordinary_object_create(Some(object_proto));
+        let value = ECMAScriptValue::from("bool_value test value");
+        let descriptor = PotentialPropertyDescriptor::new().value(value.clone());
+        define_property_or_throw(&normal_object, PropertyKey::from("true"), descriptor).unwrap();
+        let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object)), true, true, None);
+
+        let result = get_value(Ok(NormalCompletion::from(reference))).unwrap();
+        assert_eq!(result, value);
+    }
+
+    #[test]
+    fn to_property_key_throws() {
+        setup_test_agent();
+        let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let normal_object = ordinary_object_create(Some(object_proto));
+        let reference =
+            Reference::new(Base::Value(ECMAScriptValue::from(normal_object)), DeadObject::object(), true, None);
+
+        let result = get_value(Ok(NormalCompletion::from(reference))).unwrap_err();
+        assert_eq!(unwind_type_error(result), "get called on DeadObject");
     }
     #[test]
     fn to_object_err() {
@@ -705,6 +808,34 @@ mod put_value {
         let completion = Ok(NormalCompletion::from(ir));
         put_value(completion, Ok(ECMAScriptValue::Undefined)).unwrap();
     }
+
+    #[test]
+    fn bool_value() {
+        setup_test_agent();
+        let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let normal_object = ordinary_object_create(Some(object_proto));
+        let value = ECMAScriptValue::from("bool_value test value");
+        let descriptor = PotentialPropertyDescriptor::new().value(value).writable(true);
+        define_property_or_throw(&normal_object, PropertyKey::from("true"), descriptor).unwrap();
+        let reference = Reference::new(Base::Value(ECMAScriptValue::from(normal_object.clone())), true, true, None);
+
+        put_value(Ok(NormalCompletion::from(reference)), Ok(ECMAScriptValue::from("blue"))).unwrap();
+
+        let result = normal_object.get(&PropertyKey::from("true")).unwrap();
+        assert_eq!(result, ECMAScriptValue::from("blue"));
+    }
+
+    #[test]
+    fn to_property_key_throws() {
+        setup_test_agent();
+        let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let normal_object = ordinary_object_create(Some(object_proto));
+        let reference =
+            Reference::new(Base::Value(ECMAScriptValue::from(normal_object)), DeadObject::object(), true, None);
+
+        let result = put_value(Ok(NormalCompletion::from(reference)), Ok(ECMAScriptValue::from("unseen"))).unwrap_err();
+        assert_eq!(unwind_type_error(result), "get called on DeadObject");
+    }
 }
 
 mod initialize_referenced_binding {
@@ -766,4 +897,44 @@ mod initialize_referenced_binding {
         )
         .unwrap();
     }
+}
+
+#[test_case(|| (ECMAScriptValue::Undefined, "broken") => serr("no active private environment"); "no private environment")]
+#[test_case(
+    || {
+        let outer_private_environment = current_private_environment();
+        let mut new_private_environment = PrivateEnvironmentRecord::new(outer_private_environment);
+        let pn = PrivateName::new(JSString::from("test-private-name"));
+        new_private_environment.names.push(pn);
+
+        set_private_environment(Some(Rc::new(RefCell::new(new_private_environment))));
+
+        let objproto = intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(Some(objproto));
+        obj.create_data_property_or_throw("myname", "myvalue").unwrap();
+
+        (ECMAScriptValue::from(obj), "test-private-name")
+    }
+    => Ok(("myname:myvalue".to_string(), "PrivateName[PN[test-private-name]]".to_string(), true, None));
+    "has a pe"
+)]
+fn make_private_reference(
+    make_args: impl FnOnce() -> (ECMAScriptValue, &'static str),
+) -> Result<(String, String, bool, Option<String>), String> {
+    setup_test_agent();
+    let (base_value, id) = make_args();
+    let private_identifier = JSString::from(id);
+    let reference = super::make_private_reference(base_value, &private_identifier).map_err(|e| e.to_string())?;
+
+    let base = match &reference.base {
+        Base::Unresolvable => "unresolvable".to_string(),
+        Base::Environment(environment_record) => format!("Environment[{}]", environment_record.name()),
+        Base::Value(v) => v.test_result_string(),
+    };
+    let name = match &reference.referenced_name {
+        ReferencedName::PrivateName(private_name) => format!("PrivateName[{private_name}]"),
+        ReferencedName::Value(v) => v.test_result_string(),
+    };
+    let this_value = reference.this_value.as_ref().map(ECMAScriptValue::test_result_string);
+    Ok((base, name, reference.strict, this_value))
 }
