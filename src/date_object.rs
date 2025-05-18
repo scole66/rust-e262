@@ -1110,7 +1110,7 @@ fn make_day(year: f64, month: f64, date: f64) -> anyhow::Result<f64> {
             };
 
             loop {
-                let probe = (upper + lower) / 2.0;
+                let probe = upper.midpoint(lower);
                 match compare(probe, ym, mn) {
                     std::cmp::Ordering::Less => {
                         lower = probe;
@@ -1579,7 +1579,7 @@ fn parse_date(date_str: &JSString) -> f64 {
             );
             Regex::new(&tostring_pattern).expect("regular expressions not based on user input should not fail")
         });
-        let second_try = match TOSTRING_MATCHER.captures(&date_str) {
+        match TOSTRING_MATCHER.captures(&date_str) {
             None => f64::NAN,
             Some(caps) => {
                 let (year, year_as_int) = {
@@ -1642,9 +1642,7 @@ fn parse_date(date_str: &JSString) -> f64 {
                     tv
                 }
             }
-        };
-
-        second_try
+        }
     } else {
         first_try
     }

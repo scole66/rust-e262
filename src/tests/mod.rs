@@ -28,7 +28,7 @@ where
         self.count += 1;
         if self.count >= self.target {
             self.error_generated = true;
-            Err(std::io::Error::new(std::io::ErrorKind::Other, "oh no!"))
+            Err(std::io::Error::other("oh no!"))
         } else {
             self.writer.write(buf)
         }
