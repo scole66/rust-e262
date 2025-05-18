@@ -37,7 +37,7 @@ function summary() {
   cd ~/*/rust-e262
   local profile=res.profdata
   if [ $# -gt 0 ]; then profile="$1"; fi
-  cargo cov -- report --use-color --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs|/tests/' --instr-profile="$profile" $(objects)
+  cargo cov -- report --use-color --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/.*tests\.rs|/testhelp\.rs|/tests/' --instr-profile="$profile" $(objects)
   cd $here
 }
 
@@ -52,7 +52,7 @@ function s() {
   cd ~/*/rust-e262
   cargo cov -- show \
     --use-color \
-    --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs|/tests/' \
+    --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/.*tests\.rs|/testhelp\.rs|/tests/' \
     --instr-profile=res.profdata $(objects) \
     --show-instantiations \
     --show-line-counts-or-regions \
@@ -97,7 +97,7 @@ function report() {
 
   cargo cov -- show \
     $color \
-    --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/tests\.rs|/testhelp\.rs|/tests/' \
+    --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/.*tests\.rs|/testhelp\.rs|/tests/' \
     --instr-profile="$profile" $(objects) \
     --show-line-counts-or-regions \
     "${extra_args[@]}" | "${pager[@]}"

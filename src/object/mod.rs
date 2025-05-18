@@ -2953,4 +2953,4 @@ impl Object {
 }
 
 #[cfg(test)]
-mod tests;
+mod objtests;
