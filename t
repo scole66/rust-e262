@@ -890,6 +890,11 @@ test_defs[add_entries_from_iterable]="add_entries_from_iterable add_entries_from
 
 test_defs[get_value]="get_value get_value reference"
 test_defs[put_value]="put_value put_value reference"
+test_defs[reference_try_from_base]="core::convert::TryFrom@Base@try_from base::try_from reference"
+test_defs[reference_try_from_referenced_name]="core::convert::TryFrom@ReferencedName@try_from referenced_name::try_from reference"
+test_defs[Base_from]="Base@core::convert::From@from base::from reference"
+test_defs[make_super_property_reference]="Reference::make_super_property_reference reference::make_super_property_reference reference"
+test_defs[make_private_reference]="make_private_reference make_private_reference reference"
 
 test_defs[NormalCompletion]="NormalCompletion normal_completion cr"
 test_defs[NormalCompletion_from]="NormalCompletion@from normal_completion::from:: cr"
