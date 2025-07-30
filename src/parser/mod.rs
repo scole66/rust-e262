@@ -645,7 +645,7 @@ pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError>
 // 11.1.6 Static Semantics: ParseText ( sourceText, goalSymbol )
 //
 // The abstract operation ParseText takes arguments sourceText (a sequence of Unicode code points) and goalSymbol (a
-// nonterminal in one of the ECMAScript gramma =rs). It performs the following steps when called:
+// nonterminal in one of the ECMAScript grammars). It performs the following steps when called:
 //
 // 1. Attempt to parse sourceText using goalSymbol as the goal symbol, and analyse the parse result for any early error
 //    conditions. Parsing and early error detection may be interleaved in an implementation-defined manner.
@@ -679,6 +679,77 @@ impl TryFrom<ParsedText> for Result<Rc<Script>, Vec<Object>> {
             ParsedText::Errors(errs) => Ok(Err(errs)),
             ParsedText::Script(sr) => Ok(Ok(sr)),
             _ => Err(anyhow!("Expected a Script or Syntax Errors")),
+        }
+    }
+}
+
+impl TryFrom<ParsedText> for Result<Rc<FormalParameters>, Vec<Object>> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ParsedText) -> Result<Self, Self::Error> {
+        match value {
+            ParsedText::Errors(errs) => Ok(Err(errs)),
+            ParsedText::FormalParameters(fp) => Ok(Ok(fp)),
+            _ => Err(anyhow!("Expected FormalParameters or Syntax Errors")),
+        }
+    }
+}
+
+pub enum ParsedBody {
+    FunctionBody(Rc<FunctionBody>),
+    GeneratorBody(Rc<GeneratorBody>),
+    AsyncFunctionBody(Rc<AsyncFunctionBody>),
+    AsyncGeneratorBody(Rc<AsyncGeneratorBody>),
+}
+impl TryFrom<ParsedText> for Result<ParsedBody, Vec<Object>> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ParsedText) -> Result<Self, Self::Error> {
+        match value {
+            ParsedText::Errors(errs) => Ok(Err(errs)),
+            ParsedText::FunctionBody(node) => Ok(Ok(ParsedBody::FunctionBody(node))),
+            ParsedText::GeneratorBody(node) => Ok(Ok(ParsedBody::GeneratorBody(node))),
+            ParsedText::AsyncFunctionBody(node) => Ok(Ok(ParsedBody::AsyncFunctionBody(node))),
+            ParsedText::AsyncGeneratorBody(node) => Ok(Ok(ParsedBody::AsyncGeneratorBody(node))),
+            _ => Err(anyhow!("Expected Some kind of function body or Syntax Errors")),
+        }
+    }
+}
+impl TryFrom<BodySource> for ParsedBody {
+    type Error = anyhow::Error;
+
+    fn try_from(value: BodySource) -> Result<Self, Self::Error> {
+        match value {
+            BodySource::Function(function_body) => Ok(Self::FunctionBody(function_body)),
+            BodySource::Generator(generator_body) => Ok(Self::GeneratorBody(generator_body)),
+            BodySource::AsyncFunction(async_function_body) => Ok(Self::AsyncFunctionBody(async_function_body)),
+            BodySource::AsyncGenerator(async_generator_body) => Ok(Self::AsyncGeneratorBody(async_generator_body)),
+            _ => Err(anyhow!("Some kind of normal function body expected")),
+        }
+    }
+}
+
+pub enum ParsedFunctionExpression {
+    FunctionExpression(Rc<FunctionExpression>),
+    GeneratorExpression(Rc<GeneratorExpression>),
+    AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
+    AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
+}
+impl TryFrom<ParsedText> for Result<ParsedFunctionExpression, Vec<Object>> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ParsedText) -> Result<Self, Self::Error> {
+        match value {
+            ParsedText::Errors(errs) => Ok(Err(errs)),
+            ParsedText::FunctionExpression(node) => Ok(Ok(ParsedFunctionExpression::FunctionExpression(node))),
+            ParsedText::GeneratorExpression(node) => Ok(Ok(ParsedFunctionExpression::GeneratorExpression(node))),
+            ParsedText::AsyncFunctionExpression(node) => {
+                Ok(Ok(ParsedFunctionExpression::AsyncFunctionExpression(node)))
+            }
+            ParsedText::AsyncGeneratorExpression(node) => {
+                Ok(Ok(ParsedFunctionExpression::AsyncGeneratorExpression(node)))
+            }
+            _ => Err(anyhow!("Expected Some kind of function expression or Syntax Errors")),
         }
     }
 }

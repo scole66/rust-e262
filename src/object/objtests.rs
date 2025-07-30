@@ -4922,34 +4922,100 @@ fn ecmascriptvalue_get(make_items: impl FnOnce() -> (ECMAScriptValue, PropertyKe
     v.get(&p).map_err(unwind_any_error).map(|v| v.test_result_string())
 }
 
-#[test_case(
-    || ordinary_object_create(None),
-    &ClassFieldDefinitionRecord{name: ClassName::String(JSString::from("my_field")), initializer: None}
-    => Ok((svec(&[]), svec(&["my_field: { undefined wec }"])));
-    "no initializer"
-)]
-#[test_case(
-    DeadObject::object,
-    &ClassFieldDefinitionRecord{name: ClassName::String(JSString::from("my_field")), initializer: None}
-    => serr("TypeError: define_own_property called on DeadObject");
-    "fails"
-)]
-fn define_field(
-    make_obj: impl FnOnce() -> Object,
-    fdr: &ClassFieldDefinitionRecord,
-) -> Result<(Vec<String>, Vec<String>), String> {
-    setup_test_agent();
-    let obj = make_obj();
-    super::define_field(&obj, fdr).map_err(unwind_any_error).map(|()| {
-        let data = obj.o.common_object_data().borrow();
-        (
-            data.private_elements.iter().map(|item| format!("{item}")).collect::<Vec<_>>(),
-            data.properties
-                .iter()
-                .map(|(key, value)| format!("{key}: {:?}", ConcisePropertyDescriptor::from(value)))
-                .collect::<Vec<_>>(),
-        )
-    })
+mod define_field {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("
+    class A {
+        static field1 = 10;
+        field2 = 20;
+        #field3 = 30;
+        field4;
+        [Symbol.toStringTag] = 40;
+        dump() {
+            return `f1: ${A.field1}, f2: ${this.field2}, f3: ${this.#field3}, f4: ${this.field4}, sym: ${this[Symbol.toStringTag]}`;
+        }
+    };
+    let item = new A();
+    item.dump();
+    " => vok("f1: 10, f2: 20, f3: 30, f4: undefined, sym: 40"); "normal")]
+    #[test_case("class A { field = (() => { throw 'oops'; })(); }; new A()" => serr("Thrown: oops"); "initializer throws")]
+    #[test_case("
+    class Base {
+        constructor() {
+            const proxy = new Proxy({}, {
+                defineProperty(target, key, descriptor) {
+                    throw new TypeError(`CreateDataPropertyOrThrow failed: ${String(key)}`);
+                }
+            });
+            return proxy;
+        }
+    }
+
+    class Breaks extends Base {
+        x = 123; // This will throw
+    }
+
+    new Breaks()
+  " => serr("Thrown: TypeError: CreateDataPropertyOrThrow failed: x"); "string create_data_property fails")]
+    #[test_case("
+// Symbol key for the class field
+const sym = Symbol('boom');
+
+class Base {
+  constructor() {
+    const proxy = new Proxy({}, {
+      defineProperty(target, key, descriptor) {
+        if (key === sym) {
+          throw new TypeError('CreateDataPropertyOrThrow failed on symbol key');
+        }
+        return Reflect.defineProperty(target, key, descriptor);
+      }
+    });
+    return proxy;
+  }
+}
+
+class Breaks extends Base {
+  [sym] = 123; // Field initializer with symbol key
+}
+
+new Breaks()
+" => serr("Thrown: TypeError: CreateDataPropertyOrThrow failed on symbol key"); "symbol create-data-property fails")]
+    fn integration(src: &str) -> Result<ECMAScriptValue, String> {
+        crate::tests::integration::code(src)
+    }
+
+    #[test_case(
+        || ordinary_object_create(None),
+        &ClassFieldDefinitionRecord{name: ClassName::String(JSString::from("my_field")), initializer: None}
+        => Ok((svec(&[]), svec(&["my_field: { undefined wec }"])));
+        "no initializer"
+    )]
+    #[test_case(
+        DeadObject::object,
+        &ClassFieldDefinitionRecord{name: ClassName::String(JSString::from("my_field")), initializer: None}
+        => serr("TypeError: define_own_property called on DeadObject");
+        "fails"
+    )]
+    fn define_field(
+        make_obj: impl FnOnce() -> Object,
+        fdr: &ClassFieldDefinitionRecord,
+    ) -> Result<(Vec<String>, Vec<String>), String> {
+        setup_test_agent();
+        let obj = make_obj();
+        super::define_field(&obj, fdr).map_err(unwind_any_error).map(|()| {
+            let data = obj.o.common_object_data().borrow();
+            (
+                data.private_elements.iter().map(|item| format!("{item}")).collect::<Vec<_>>(),
+                data.properties
+                    .iter()
+                    .map(|(key, value)| format!("{key}: {:?}", ConcisePropertyDescriptor::from(value)))
+                    .collect::<Vec<_>>(),
+            )
+        })
+    }
 }
 
 mod property_info {

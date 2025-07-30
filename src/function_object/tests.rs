@@ -110,18 +110,12 @@ mod function_declaration {
 
 mod generator_declaration {
     use super::*;
-    #[test]
-    fn instantiate_function_object() {
-        let src = "function *a(){}";
-        let fd = Maker::new(src).generator_declaration();
-        setup_test_agent();
-        let global_env = {
-            let realm_rc = current_realm_record().unwrap();
-            let realm = realm_rc.borrow();
-            realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
-        };
+    use test_case::test_case;
 
-        fd.instantiate_function_object(global_env, None, false, src).unwrap();
+    #[test_case("function *a(){ yield 1; yield 2;} let ary=Array.from(a()); ary.join(',')" => vok("1,2"); "simple")]
+    #[test_case("function *a(){ @@!; yield 'new string';} let g=a();" => serr("Thrown: TypeError: Out of room for strings in this compilation unit"); "compile error")]
+    fn instantiate_function_object(src: &str) -> Result<ECMAScriptValue, String> {
+        crate::tests::integration::code(src)
     }
 }
 
@@ -264,6 +258,49 @@ fn function_prototype_call(
     || BuiltInFunctionObject::object(None, true, current_realm_record().unwrap(), None, Box::new(do_nothing), None)
     => sok("function () { [native code] }");
     "built-in without InitialName"
+)]
+#[test_case(
+    || {
+        let bif = BuiltInFunctionObject::object(None, true, current_realm_record().unwrap(), None, Box::new(do_nothing), None);
+        {
+            let bif_obj = bif.o.to_builtin_function_obj().unwrap();
+            let mut bif_data = bif_obj.builtin_function_data().borrow_mut();
+            bif_data.source_text = Some(String::from("function foo(param) { do_something(); }"));
+        }
+        bif
+    }
+    => sok("function foo(param) { do_something(); }");
+    "built-in with attached source"
+)]
+#[test_case(
+    || {
+        let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
+        let params = ParamSource::FormalParameters(Maker::new("(a, b, c)").formal_parameters());
+        let body = BodySource::Function(Maker::new("{ return a + b + c; }").function_body());
+        let realm = current_realm_record().unwrap();
+        let func = FunctionObject::object(
+            None,
+            env,
+            None,
+            params,
+            body,
+            ConstructorKind::Base,
+            realm,
+            None,
+            ThisMode::Global,
+            false,
+            None,
+            "function(a, b, c) { return a+b+c; }",
+            vec![],
+            vec![],
+            None,
+            false,
+            Rc::new(Chunk::new("tester")),
+        );
+        BoundFunctionObject::create(func, ECMAScriptValue::Undefined, &[]).unwrap()
+    }
+    => sok("function () { [native code] }");
+    "bound function"
 )]
 fn function_prototype_to_string<T>(make_this: impl FnOnce() -> T) -> Result<String, String>
 where
@@ -485,6 +522,48 @@ mod class_name {
         ClassName::from(val)
     }
 
+    #[test_case(|| ClassName::String(JSString::from("bob")) => "String(bob)"; "ClassName::String")]
+    #[test_case(|| ClassName::Symbol(wks(WksId::ToStringTag)) => "Symbol(Symbol(Symbol.toStringTag))"; "ClassName::Symbol")]
+    #[test_case(|| ClassName::Private(PrivateName::new("alice")) => "Private(PN[alice])"; "ClassName::Private")]
+    fn into_function_name(make_val: impl FnOnce() -> ClassName) -> String {
+        setup_test_agent();
+        let cn = make_val();
+        let fname = FunctionName::from(cn);
+        match fname {
+            FunctionName::String(s) => format!("String({s})"),
+            FunctionName::Symbol(s) => format!("Symbol({s})"),
+            FunctionName::PrivateName(pn) => format!("Private({pn})"),
+        }
+    }
+
+    #[test_case(|| Some(ClassName::String(JSString::from("bob"))) => "\"bob\""; "ClassName::String")]
+    #[test_case(|| None => "[empty]"; "it's none")]
+    fn optional_into_normal_completion(make_val: impl FnOnce() -> Option<ClassName>) -> String {
+        setup_test_agent();
+        let ocn = make_val();
+        let nc = NormalCompletion::from(ocn);
+        nc.to_string()
+    }
+
+    #[test_case(|| ClassName::String(JSString::from("bob")) => "\"bob\""; "ClassName::String")]
+    #[test_case(|| ClassName::Symbol(wks(WksId::ToStringTag)) => "Symbol(Symbol.toStringTag)"; "ClassName::Symbol")]
+    #[test_case(|| ClassName::Private(PrivateName::new("alice")) => "PN[alice]"; "ClassName::Private")]
+    fn into_normal_completion(make_val: impl FnOnce() -> ClassName) -> String {
+        setup_test_agent();
+        let cn = make_val();
+        let nc = NormalCompletion::from(cn);
+        nc.to_string()
+    }
+
+    #[test_case(|| ClassName::String(JSString::from("bob")) => "bob"; "ClassName::String")]
+    #[test_case(|| ClassName::Symbol(wks(WksId::ToStringTag)) => "Symbol(Symbol.toStringTag)"; "ClassName::Symbol")]
+    #[test_case(|| ClassName::Private(PrivateName::new("alice")) => "PN[alice]"; "ClassName::Private")]
+    fn fmt(make_val: impl FnOnce() -> ClassName) -> String {
+        setup_test_agent();
+        let cn = make_val();
+        format!("{cn}")
+    }
+
     #[test_case(|| NormalCompletion::Empty => sok("Empty"); "empty")]
     #[test_case(|| NormalCompletion::from("bob") => sok("String(bob)"); "string")]
     #[test_case(
@@ -549,6 +628,9 @@ mod function_name {
     #[test_case(|| PropertyKey::from(wks(WksId::ToStringTag)) => "Symbol(Symbol(Symbol.toStringTag))"; "symbol as property key")]
     #[test_case(|| PrivateName::new("alice") => "Private(PN[alice])"; "private name")]
     #[test_case(|| "bob" => "String(bob)"; "string slice")]
+    #[test_case(|| ClassName::String(JSString::from("bob")) => "String(bob)"; "ClassName::String")]
+    #[test_case(|| ClassName::Symbol(wks(WksId::ToStringTag)) => "Symbol(Symbol(Symbol.toStringTag))"; "ClassName::Symbol")]
+    #[test_case(|| ClassName::Private(PrivateName::new("alice")) => "Private(PN[alice])"; "ClassName::Private")]
     fn from<T>(make_item: impl FnOnce() -> T) -> String
     where
         FunctionName: From<T>,
@@ -594,6 +676,34 @@ mod function_name {
             let item = make();
             FunctionName::try_from(item).map_err(|e| e.to_string()).map(|fname| format!("{fname}"))
         }
+
+        #[test_case(|| ECMAScriptValue::Undefined => serr("String or Symbol value expected"); "undefined")]
+        #[test_case(|| ECMAScriptValue::Null => serr("String or Symbol value expected"); "null")]
+        #[test_case(|| ECMAScriptValue::from(true) => serr("String or Symbol value expected"); "boolean")]
+        #[test_case(|| ECMAScriptValue::from(67) => serr("String or Symbol value expected"); "number")]
+        #[test_case(|| ECMAScriptValue::from(BigInt::from(99)) => serr("String or Symbol value expected"); "big int")]
+        #[test_case(|| ECMAScriptValue::from(intrinsic(IntrinsicId::ObjectPrototype)) => serr("String or Symbol value expected"); "object")]
+        #[test_case(|| ECMAScriptValue::from("a") => sok("a"); "string")]
+        #[test_case(|| ECMAScriptValue::from(wks(WksId::ToStringTag)) => sok("[Symbol(Symbol.toStringTag)]"); "symbol")]
+        fn ecmascriptvalue(make: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+            setup_test_agent();
+            let item = make();
+            FunctionName::try_from(item).map_err(|e| e.to_string()).map(|fname| format!("{fname}"))
+        }
+    }
+
+    mod try_into {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(|| FunctionName::String(JSString::from("bob")) => sok("bob"); "string")]
+        #[test_case(|| FunctionName::Symbol(wks(WksId::ToStringTag)) => sok("Symbol(Symbol.toStringTag)"); "symbol")]
+        #[test_case(|| FunctionName::PrivateName(PrivateName::new("alice")) => serr("PrivateName can't be converted to PropertyKey"); "private name")]
+        fn property_key(make: impl FnOnce() -> FunctionName) -> Result<String, String> {
+            setup_test_agent();
+            let item = make();
+            PropertyKey::try_from(item).map_err(|e| e.to_string()).map(|pk| pk.to_string())
+        }
     }
 }
 
@@ -624,6 +734,7 @@ mod param_source {
         AsyncArrow,
         ArrowFormals,
         Unique,
+        SetParameter,
     }
     fn same(kind: Kind) -> (ParamSource, ParamSource) {
         match kind {
@@ -646,6 +757,10 @@ mod param_source {
             Kind::Unique => {
                 let params = Maker::new("a").unique_formal_parameters();
                 (ParamSource::UniqueFormalParameters(params.clone()), ParamSource::UniqueFormalParameters(params))
+            }
+            Kind::SetParameter => {
+                let params = Maker::new("a").property_set_parameter_list();
+                (ParamSource::PropertySetParameterList(params.clone()), ParamSource::PropertySetParameterList(params))
             }
         }
     }
@@ -676,6 +791,11 @@ mod param_source {
                 let right = Maker::new("b").unique_formal_parameters();
                 (ParamSource::UniqueFormalParameters(left), ParamSource::UniqueFormalParameters(right))
             }
+            Kind::SetParameter => {
+                let left = Maker::new("a").property_set_parameter_list();
+                let right = Maker::new("b").property_set_parameter_list();
+                (ParamSource::PropertySetParameterList(left), ParamSource::PropertySetParameterList(right))
+            }
         }
     }
     fn diff2(left_kind: Kind, right_kind: Kind) -> (ParamSource, ParamSource) {
@@ -685,6 +805,7 @@ mod param_source {
             Kind::AsyncArrow => ParamSource::AsyncArrowBinding(Maker::new("a").async_arrow_binding_identifier()),
             Kind::ArrowFormals => ParamSource::ArrowFormals(Maker::new("(a)").arrow_formal_parameters()),
             Kind::Unique => ParamSource::UniqueFormalParameters(Maker::new("a").unique_formal_parameters()),
+            Kind::SetParameter => ParamSource::PropertySetParameterList(Maker::new("a").property_set_parameter_list()),
         };
         let right = match right_kind {
             Kind::Formal => ParamSource::FormalParameters(Maker::new("b").formal_parameters()),
@@ -692,6 +813,7 @@ mod param_source {
             Kind::AsyncArrow => ParamSource::AsyncArrowBinding(Maker::new("b").async_arrow_binding_identifier()),
             Kind::ArrowFormals => ParamSource::ArrowFormals(Maker::new("(b)").arrow_formal_parameters()),
             Kind::Unique => ParamSource::UniqueFormalParameters(Maker::new("b").unique_formal_parameters()),
+            Kind::SetParameter => ParamSource::PropertySetParameterList(Maker::new("b").property_set_parameter_list()),
         };
         (left, right)
     }
@@ -700,31 +822,43 @@ mod param_source {
     #[test_case(|| same(Kind::AsyncArrow) => true; "async arrow: cloned parse objects")]
     #[test_case(|| same(Kind::ArrowFormals) => true; "arrow formals: cloned parse objects")]
     #[test_case(|| same(Kind::Unique) => true; "unique formals: cloned parse objects")]
+    #[test_case(|| same(Kind::SetParameter) => true; "property set paramter: cloned parse objects")]
     #[test_case(|| different(Kind::Formal) => false; "formals: type-same parse objects")]
     #[test_case(|| different(Kind::Arrow) => false; "Arrow: type-same parse objects")]
     #[test_case(|| different(Kind::AsyncArrow) => false; "async arrow: type-same parse objects")]
     #[test_case(|| different(Kind::ArrowFormals) => false; "arrow formals: type-same parse objects")]
     #[test_case(|| different(Kind::Unique) => false; "unique formals: type-same parse objects")]
+    #[test_case(|| different(Kind::SetParameter) => false; "unique set-parameters: type-same parse objects")]
     #[test_case(|| diff2(Kind::Formal, Kind::Arrow) => false; "formal/arrow; diff-type")]
     #[test_case(|| diff2(Kind::Formal, Kind::AsyncArrow) => false; "formal/AsyncArrow; diff-type")]
     #[test_case(|| diff2(Kind::Formal, Kind::ArrowFormals) => false; "formal/ArrowFormals; diff-type")]
     #[test_case(|| diff2(Kind::Formal, Kind::Unique) => false; "formal/Unique; diff-type")]
+    #[test_case(|| diff2(Kind::Formal, Kind::SetParameter) => false; "formal/PropertySetParameterList; diff-type")]
     #[test_case(|| diff2(Kind::Arrow, Kind::Formal) => false; "arrow/formal; diff-type")]
     #[test_case(|| diff2(Kind::Arrow, Kind::AsyncArrow) => false; "Arrow/AsyncArrow; diff-type")]
     #[test_case(|| diff2(Kind::Arrow, Kind::ArrowFormals) => false; "Arrow/ArrowFormals; diff-type")]
     #[test_case(|| diff2(Kind::Arrow, Kind::Unique) => false; "Arrow/Unique; diff-type")]
+    #[test_case(|| diff2(Kind::Arrow, Kind::SetParameter) => false; "Arrow/PropertySetParameterList; diff-type")]
     #[test_case(|| diff2(Kind::AsyncArrow, Kind::Formal) => false; "AsyncArrow/formal; diff-type")]
     #[test_case(|| diff2(Kind::AsyncArrow, Kind::Arrow) => false; "AsyncArrow/Arrow; diff-type")]
     #[test_case(|| diff2(Kind::AsyncArrow, Kind::ArrowFormals) => false; "AsyncArrow/ArrowFormals; diff-type")]
     #[test_case(|| diff2(Kind::AsyncArrow, Kind::Unique) => false; "AsyncArrow/Unique; diff-type")]
+    #[test_case(|| diff2(Kind::AsyncArrow, Kind::SetParameter) => false; "AsyncArrow/PropertySetParameterList; diff-type")]
     #[test_case(|| diff2(Kind::ArrowFormals, Kind::Formal) => false; "ArrowFormals/formal; diff-type")]
     #[test_case(|| diff2(Kind::ArrowFormals, Kind::Arrow) => false; "ArrowFormals/Arrow; diff-type")]
     #[test_case(|| diff2(Kind::ArrowFormals, Kind::AsyncArrow) => false; "ArrowFormals/AsyncArrow; diff-type")]
     #[test_case(|| diff2(Kind::ArrowFormals, Kind::Unique) => false; "ArrowFormals/Unique; diff-type")]
+    #[test_case(|| diff2(Kind::ArrowFormals, Kind::SetParameter) => false; "ArrowFormals/PropertySetParameterList; diff-type")]
     #[test_case(|| diff2(Kind::Unique, Kind::Formal) => false; "Unique/formal; diff-type")]
     #[test_case(|| diff2(Kind::Unique, Kind::Arrow) => false; "Unique/Arrow; diff-type")]
     #[test_case(|| diff2(Kind::Unique, Kind::AsyncArrow) => false; "Unique/AsyncArrow; diff-type")]
     #[test_case(|| diff2(Kind::Unique, Kind::ArrowFormals) => false; "Unique/ArrowFormals; diff-type")]
+    #[test_case(|| diff2(Kind::Unique, Kind::SetParameter) => false; "Unique/PropertySetParameterList; diff-type")]
+    #[test_case(|| diff2(Kind::SetParameter, Kind::Formal) => false; "SetParameter/formal; diff-type")]
+    #[test_case(|| diff2(Kind::SetParameter, Kind::Arrow) => false; "SetParameter/Arrow; diff-type")]
+    #[test_case(|| diff2(Kind::SetParameter, Kind::AsyncArrow) => false; "SetParameter/AsyncArrow; diff-type")]
+    #[test_case(|| diff2(Kind::SetParameter, Kind::ArrowFormals) => false; "SetParameter/ArrowFormals; diff-type")]
+    #[test_case(|| diff2(Kind::SetParameter, Kind::Unique) => false; "SetParameter/Unique; diff-type")]
     fn eq(make_pair: impl FnOnce() -> (ParamSource, ParamSource)) -> bool {
         let (left, right) = make_pair();
         left == right
@@ -770,6 +904,14 @@ mod param_source {
         => true;
         "arrow_parameters"
     )]
+    #[test_case(
+        || {
+            let node = Maker::new("a").property_set_parameter_list();
+            (node.clone(), ParamSource::PropertySetParameterList(node))
+        }
+        => true;
+        "property_set_parameter_list"
+    )]
     fn from<T>(make_item: impl FnOnce() -> (T, ParamSource)) -> bool
     where
         ParamSource: From<T>,
@@ -791,6 +933,7 @@ mod param_source {
         &ParamSource::from(Maker::new("(a,b,c)").arrow_formal_parameters()) => "( a , b , c )"; "arrow_formal_parameters"
     )]
     #[test_case(&ParamSource::from(Maker::new("a").arrow_parameters()) => "a"; "arrow_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("a").property_set_parameter_list()) => "a"; "property set parameter list")]
     fn display_fmt(item: &ParamSource) -> String {
         format!("{item}")
     }
@@ -804,6 +947,8 @@ mod param_source {
     #[test_case(&ParamSource::from(Maker::new("(a=1)").arrow_formal_parameters()) => true; "arrow_formal_parameters / true")]
     #[test_case(&ParamSource::from(Maker::new("a").arrow_parameters()) => false; "arrow_parameters / false")]
     #[test_case(&ParamSource::from(Maker::new("(a=1)").arrow_parameters()) => true; "arrow_parameters / true")]
+    #[test_case(&ParamSource::from(Maker::new("a=1").property_set_parameter_list()) => true; "set parameter / true")]
+    #[test_case(&ParamSource::from(Maker::new("a").property_set_parameter_list()) => false; "set parameter / false")]
     fn contains_expression(item: &ParamSource) -> bool {
         item.contains_expression()
     }
@@ -813,6 +958,7 @@ mod param_source {
     #[test_case(&ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => 1.0; "async_arrow_binding_identifier")]
     #[test_case(&ParamSource::from(Maker::new("(a, b)").arrow_formal_parameters()) => 2.0; "arrow_formal_parameters")]
     #[test_case(&ParamSource::from(Maker::new("(a=1,q)").arrow_parameters()) => 0.0; "arrow_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("a").property_set_parameter_list()) => 1.0; "set parameters")]
     fn expected_argument_count(item: &ParamSource) -> f64 {
         item.expected_argument_count()
     }
@@ -822,6 +968,7 @@ mod param_source {
     #[test_case(&ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => svec(&["a"]); "async_arrow_binding_identifier")]
     #[test_case(&ParamSource::from(Maker::new("(a,b)").arrow_formal_parameters()) => svec(&["a", "b"]); "arrow_formal_parameters")]
     #[test_case(&ParamSource::from(Maker::new("(c,b,a)").arrow_parameters()) => svec(&["c", "b", "a"]); "arrow_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("a").property_set_parameter_list()) => svec(&["a"]); "set parameters")]
     fn bound_names(item: &ParamSource) -> Vec<String> {
         item.bound_names().into_iter().map(String::from).collect()
     }
@@ -831,8 +978,15 @@ mod param_source {
     #[test_case(&ParamSource::from(Maker::new("a").async_arrow_binding_identifier()) => true; "async_arrow_binding_identifier")]
     #[test_case(&ParamSource::from(Maker::new("(a,b)").arrow_formal_parameters()) => true; "arrow_formal_parameters")]
     #[test_case(&ParamSource::from(Maker::new("(c,b,a)").arrow_parameters()) => true; "arrow_parameters")]
+    #[test_case(&ParamSource::from(Maker::new("a").property_set_parameter_list()) => true; "set parameters")]
     fn is_simple_parameter_list(item: &ParamSource) -> bool {
         item.is_simple_parameter_list()
+    }
+
+    #[test_case(ParamSource::from(Maker::new("a").arrow_parameters()) => serr("Not FormalParameters"); "not formal parameters")]
+    #[test_case(ParamSource::from(Maker::new("a").formal_parameters()) => sok("a"); "formal parameters")]
+    fn try_into_formal_parameters(ps: ParamSource) -> Result<String, String> {
+        Rc::<FormalParameters>::try_from(ps).map_err(|e| e.to_string()).map(|fp| fp.to_string())
     }
 }
 
@@ -1038,10 +1192,15 @@ mod function_object {
     none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
+    none_function!(to_bound_function_object);
+    none_function!(to_builtin_function_with_revocable_proxy_slot);
+    none_function!(to_date_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_generator_object);
+    none_function!(to_map_obj);
     none_function!(to_number_obj);
     none_function!(to_proxy_object);
+    none_function!(to_regexp_object);
     none_function!(to_string_obj);
     none_function!(to_symbol_obj);
 
@@ -1186,112 +1345,135 @@ mod function_object {
         Ok((stack_depth_delta, args_on_stack, func_marker, this_marker))
     }
 
-    type ConstructorTestSuccess = (usize, Vec<String>, String, Option<String>, String);
-    #[test_case(
-        make_working_function_object,
-        Vec::new,
-        DeadObject::object
-        => serr("TypeError: get called on DeadObject");
-        "bad constructor"
-    )]
-    #[test_case(
-        make_working_function_object,
-        || vec![ECMAScriptValue::from(11), ECMAScriptValue::from("additional")],
-        || {
-            let proto = intrinsic(IntrinsicId::NumberPrototype);
-            proto.create_data_property_or_throw("marker", "test-number-proto").unwrap();
-            intrinsic(IntrinsicId::Number)
-        }
-        => Ok(
-            (
-                1,
-                svec(&["additional", "11"]),
-                "test_func".to_string(),
-                ssome("test-number-proto"),
-                "function test_function(radix){ return this.toSt...".to_string()
-            )
-        );
-        "standard constructor"
-    )]
-    #[test_case(
-        || {
-            let cstr = make_working_function_object();
-            let dup = cstr.clone();
-            let co = dup.o.to_function_obj().unwrap();
-            let mut data = co.function_data().borrow_mut();
-            data.is_class_constructor = true;
-            data.constructor_kind = ConstructorKind::Derived;
-            cstr
-        },
-        || vec![ECMAScriptValue::from(11), ECMAScriptValue::from("additional")],
-        || {
-            let proto = intrinsic(IntrinsicId::NumberPrototype);
-            proto.create_data_property_or_throw("marker", "test-number-proto").unwrap();
-            intrinsic(IntrinsicId::Number)
-        }
-        => Ok(
-            (
-                1,
-                svec(&["additional", "11"]),
-                "test_func".to_string(),
-                None,
-                "function test_function(radix){ return this.toSt...".to_string()
-            )
-        );
-        "derived constructor"
-    )]
-    fn construct(
-        make_obj: impl FnOnce() -> Object,
-        make_args: impl FnOnce() -> Vec<ECMAScriptValue>,
-        make_nt: impl FnOnce() -> Object,
-    ) -> Result<ConstructorTestSuccess, String> {
-        setup_runnable_state();
+    mod construct {
+        use super::*;
+        use test_case::test_case;
 
-        let starting_ec_stack_depth = execution_context_stack_len();
-        let callable_obj = make_obj();
-        let args = make_args();
-        let new_target = make_nt();
-        let duplicate = callable_obj.clone();
-        let callable = duplicate.o.to_callable_obj().ok_or_else(|| "Callable wasn't actually callable".to_string())?;
-        callable.construct(&callable_obj, &args, &new_target);
-        let stack_depth_delta = execution_context_stack_len() - starting_ec_stack_depth;
-        let arg_count = to_usize(
-            ECMAScriptValue::try_from(ec_peek(0).ok_or_else(|| "Stack was empty".to_string())??)
-                .map_err(|e| e.to_string())?
-                .to_length()?,
-        )
-        .map_err(|e| e.to_string())?;
-        let args_on_stack = itertools::repeat_n((), arg_count)
-            .enumerate()
-            .map(|idx| {
-                Ok(ECMAScriptValue::try_from(
-                    ec_peek(idx.0 + 1).ok_or_else(|| "Stack didn't have enough items".to_string())??,
-                )
-                .map_err(|e| e.to_string())?
-                .test_result_string())
-            })
-            .collect::<Result<Vec<_>, String>>()?;
-        let func_on_stack =
-            ECMAScriptValue::try_from(ec_peek(arg_count + 1).ok_or_else(|| "Stack not deep enough".to_string())??)
-                .map_err(|e| e.to_string())?;
-        let func_on_stack_obj = Object::try_from(func_on_stack).map_err(|e| e.to_string())?;
-        let func_marker = func_on_stack_obj.get(&PropertyKey::from("marker"))?.test_result_string();
-        let this_on_stack =
-            ECMAScriptValue::try_from(ec_peek(arg_count + 2).ok_or_else(|| "Stack not deep enough".to_string())??)
-                .map_err(|e| e.to_string())?;
-        let this_marker = match this_on_stack {
-            ECMAScriptValue::Object(obj) => Some(obj.get(&PropertyKey::from("marker"))?.test_result_string()),
-            ECMAScriptValue::Null => None,
-            _ => {
-                return Err("Improper `this` value".to_string());
+        type ConstructorTestSuccess = (usize, Vec<String>, String, Option<String>, String);
+        #[test_case(
+            make_working_function_object,
+            Vec::new,
+            DeadObject::object
+            => serr("TypeError: get called on DeadObject");
+            "bad constructor"
+        )]
+        #[test_case(
+            make_working_function_object,
+            || vec![ECMAScriptValue::from(11), ECMAScriptValue::from("additional")],
+            || {
+                let proto = intrinsic(IntrinsicId::NumberPrototype);
+                proto.create_data_property_or_throw("marker", "test-number-proto").unwrap();
+                intrinsic(IntrinsicId::Number)
             }
-        };
-        let constructor_env: Rc<dyn EnvironmentRecord> = ec_peek(arg_count + 3)
-            .ok_or_else(|| "Stack not deep enough".to_string())??
-            .try_into()
-            .map_err(|e: anyhow::Error| e.to_string())?;
+            => Ok(
+                (
+                    1,
+                    svec(&["additional", "11"]),
+                    "test_func".to_string(),
+                    ssome("test-number-proto"),
+                    "function test_function(radix){ return this.toSt...".to_string()
+                )
+            );
+            "standard constructor"
+        )]
+        #[test_case(
+            || {
+                let cstr = make_working_function_object();
+                let dup = cstr.clone();
+                let co = dup.o.to_function_obj().unwrap();
+                let mut data = co.function_data().borrow_mut();
+                data.is_class_constructor = true;
+                data.constructor_kind = ConstructorKind::Derived;
+                cstr
+            },
+            || vec![ECMAScriptValue::from(11), ECMAScriptValue::from("additional")],
+            || {
+                let proto = intrinsic(IntrinsicId::NumberPrototype);
+                proto.create_data_property_or_throw("marker", "test-number-proto").unwrap();
+                intrinsic(IntrinsicId::Number)
+            }
+            => Ok(
+                (
+                    1,
+                    svec(&["additional", "11"]),
+                    "test_func".to_string(),
+                    None,
+                    "function test_function(radix){ return this.toSt...".to_string()
+                )
+            );
+            "derived constructor"
+        )]
+        fn construct(
+            make_obj: impl FnOnce() -> Object,
+            make_args: impl FnOnce() -> Vec<ECMAScriptValue>,
+            make_nt: impl FnOnce() -> Object,
+        ) -> Result<ConstructorTestSuccess, String> {
+            setup_runnable_state();
 
-        Ok((stack_depth_delta, args_on_stack, func_marker, this_marker, constructor_env.name()))
+            let starting_ec_stack_depth = execution_context_stack_len();
+            let callable_obj = make_obj();
+            let args = make_args();
+            let new_target = make_nt();
+            let duplicate = callable_obj.clone();
+            let callable =
+                duplicate.o.to_callable_obj().ok_or_else(|| "Callable wasn't actually callable".to_string())?;
+            callable.construct(&callable_obj, &args, &new_target);
+            let stack_depth_delta = execution_context_stack_len() - starting_ec_stack_depth;
+            let arg_count = to_usize(
+                ECMAScriptValue::try_from(ec_peek(0).ok_or_else(|| "Stack was empty".to_string())??)
+                    .map_err(|e| e.to_string())?
+                    .to_length()?,
+            )
+            .map_err(|e| e.to_string())?;
+            let args_on_stack = itertools::repeat_n((), arg_count)
+                .enumerate()
+                .map(|idx| {
+                    Ok(ECMAScriptValue::try_from(
+                        ec_peek(idx.0 + 1).ok_or_else(|| "Stack didn't have enough items".to_string())??,
+                    )
+                    .map_err(|e| e.to_string())?
+                    .test_result_string())
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            let func_on_stack =
+                ECMAScriptValue::try_from(ec_peek(arg_count + 1).ok_or_else(|| "Stack not deep enough".to_string())??)
+                    .map_err(|e| e.to_string())?;
+            let func_on_stack_obj = Object::try_from(func_on_stack).map_err(|e| e.to_string())?;
+            let func_marker = func_on_stack_obj.get(&PropertyKey::from("marker"))?.test_result_string();
+            let this_on_stack =
+                ECMAScriptValue::try_from(ec_peek(arg_count + 2).ok_or_else(|| "Stack not deep enough".to_string())??)
+                    .map_err(|e| e.to_string())?;
+            let this_marker = match this_on_stack {
+                ECMAScriptValue::Object(obj) => Some(obj.get(&PropertyKey::from("marker"))?.test_result_string()),
+                ECMAScriptValue::Null => None,
+                _ => {
+                    return Err("Improper `this` value".to_string());
+                }
+            };
+            let constructor_env: Rc<dyn EnvironmentRecord> = ec_peek(arg_count + 3)
+                .ok_or_else(|| "Stack not deep enough".to_string())??
+                .try_into()
+                .map_err(|e: anyhow::Error| e.to_string())?;
+
+            Ok((stack_depth_delta, args_on_stack, func_marker, this_marker, constructor_env.name()))
+        }
+
+        #[test_case("
+            class Broken2 {
+              constructor() {} // Necessary to get to Function.[[Construct]]; as the default is a builtin
+              myField = (() => { throw new Error('Boom! from public field initializer'); })();
+            }
+            new Broken2(); // 💥 Throws
+            " => serr("Thrown: Error: Boom! from public field initializer"); "error in field initialization")]
+        fn integration(src: &str) -> Result<ECMAScriptValue, String> {
+            crate::tests::integration::code(src)
+        }
+    }
+
+    // Just for coverage
+    #[test_case("function a(){}" => Ok(ECMAScriptValue::Undefined); "make")]
+    fn object(src: &str) -> Result<ECMAScriptValue, String> {
+        crate::tests::integration::code(src)
     }
 }
 
@@ -1334,11 +1516,16 @@ mod built_in_function_object {
     none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
+    none_function!(to_bound_function_object);
+    none_function!(to_builtin_function_with_revocable_proxy_slot);
+    none_function!(to_date_obj);
     none_function!(to_for_in_iterator);
     none_function!(to_function_obj);
     none_function!(to_generator_object);
+    none_function!(to_map_obj);
     none_function!(to_number_obj);
     none_function!(to_proxy_object);
+    none_function!(to_regexp_object);
     none_function!(to_string_obj);
     none_function!(to_symbol_obj);
 
@@ -1567,6 +1754,14 @@ mod built_in_function_object {
         })
     }
 
+    #[test]
+    fn kind() {
+        setup_test_agent();
+        let obj = make();
+
+        assert_eq!(obj.o.kind(), ObjectTag::Function);
+    }
+
     #[test_case(make => panics "end_evaluation called for builtin callable"; "always panics")]
     fn end_evaluation(make_obj: impl FnOnce() -> Object) {
         setup_test_agent();
@@ -1717,7 +1912,7 @@ mod rc_try_from {
     )]
     #[test_case(
         || FunctionSource::from(Maker::new("function () {}").function_expression())
-        => serr("ClassStaticBody expected");
+        => serr("ClassStaticBlock expected");
         "not class static block"
     )]
     fn class_static_block_from_function_source(make_source: impl FnOnce() -> FunctionSource) -> Result<String, String> {
@@ -1791,6 +1986,40 @@ mod rc_try_from {
     fn function_body_from_body_source(make_source: impl FnOnce() -> BodySource) -> Result<String, String> {
         setup_test_agent();
         <Rc<FunctionBody> as TryFrom<BodySource>>::try_from(make_source())
+            .as_ref()
+            .map(ToString::to_string)
+            .map_err(ToString::to_string)
+    }
+
+    #[test_case(|| FunctionSource::from(Maker::new("function *(){}").generator_expression()) => sok("function * ( ) { }"); "GeneratorExpression")]
+    #[test_case(|| FunctionSource::from(Maker::new("function (){}").function_expression()) => serr("Generator Expression expected"); "FunctionExpression")]
+    fn generator_expression_from_function_source(
+        make_source: impl FnOnce() -> FunctionSource,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        <Rc<GeneratorExpression> as TryFrom<FunctionSource>>::try_from(make_source())
+            .as_ref()
+            .map(ToString::to_string)
+            .map_err(ToString::to_string)
+    }
+
+    #[test_case(|| FunctionSource::from(Maker::new("function *a(){}").generator_declaration()) => sok("function * a ( ) { }"); "GeneratorDeclaration")]
+    #[test_case(|| FunctionSource::from(Maker::new("function (){}").function_expression()) => serr("GeneratorDeclaration expected"); "FunctionExpression")]
+    fn generator_declaration_from_function_source(
+        make_source: impl FnOnce() -> FunctionSource,
+    ) -> Result<String, String> {
+        setup_test_agent();
+        <Rc<GeneratorDeclaration> as TryFrom<FunctionSource>>::try_from(make_source())
+            .as_ref()
+            .map(ToString::to_string)
+            .map_err(ToString::to_string)
+    }
+
+    #[test_case(|| FunctionSource::from(Maker::new("*a(){}").generator_method()) => sok("* a ( ) { }"); "GeneratorMethod")]
+    #[test_case(|| FunctionSource::from(Maker::new("function (){}").function_expression()) => serr("GeneratorMethod expected"); "FunctionExpression")]
+    fn generator_method_from_function_source(make_source: impl FnOnce() -> FunctionSource) -> Result<String, String> {
+        setup_test_agent();
+        <Rc<GeneratorMethod> as TryFrom<FunctionSource>>::try_from(make_source())
             .as_ref()
             .map(ToString::to_string)
             .map_err(ToString::to_string)
@@ -2083,6 +2312,18 @@ mod body_source {
         let (left, right) = make_pair();
         left == right
     }
+
+    #[test_case(|| BodySource::Generator(Maker::new("var x=10; const a=12; let c=99;").generator_body()) => serr("Not a FunctionBody"); "Generator")]
+    #[test_case(|| BodySource::AsyncFunction(Maker::new("var x=10; const a=12; let c=99;").async_function_body()) => serr("Not a FunctionBody"); "AsyncFunction")]
+    #[test_case(|| BodySource::AsyncGenerator(Maker::new("var x=10; const a=12; let c=99;").async_generator_body()) => serr("Not a FunctionBody"); "AsyncGenerator")]
+    #[test_case(|| BodySource::ConciseBody(Maker::new("{ var x=10; const a=12; let c=99; }").concise_body()) => serr("Not a FunctionBody"); "Concise")]
+    #[test_case(|| BodySource::AsyncConciseBody(Maker::new("{ var x=10; const a=12; let c=99; }").async_concise_body()) => serr("Not a FunctionBody"); "AsyncConcise")]
+    #[test_case(|| BodySource::ClassStaticBlockBody(Maker::new("{ var x; }").class_static_block_body()) => serr("Not a FunctionBody"); "ClassStaticBlockBody")]
+    #[test_case(|| BodySource::Initializer(Maker::new("=0").initializer()) => serr("Not a FunctionBody"); "initializer")]
+    #[test_case(|| BodySource::Function(Maker::new("0;").function_body()) => sok("0 ;"); "actual FunctionBody")]
+    fn try_into_function_body(make: impl FnOnce() -> BodySource) -> Result<String, String> {
+        Rc::<FunctionBody>::try_from(make()).map_err(|e| e.to_string()).map(|fb| fb.to_string())
+    }
 }
 
 mod function_source {
@@ -2110,6 +2351,9 @@ mod function_source {
     #[test_case(|| Maker::new("a").field_definition() => "a"; "FieldDefinition")]
     #[test_case(|| Maker::new("static {}").class_static_block() => "static { }"; "ClassStaticBlock")]
     #[test_case(|| Maker::new("a(){}").method_definition() => "a ( ) { }"; "MethodDefinition")]
+    #[test_case(|| Maker::new("*a(){}").generator_method() => "* a ( ) { }"; "GeneratorMethod")]
+    #[test_case(|| Maker::new("function *a(){}").generator_declaration() => "function * a ( ) { }"; "GeneratorDeclaration")]
+    #[test_case(|| Maker::new("function *(){}").generator_expression() => "function * ( ) { }"; "GeneratorExpression")]
     fn from<T>(make_value: impl FnOnce() -> T) -> String
     where
         FunctionSource: From<T>,
@@ -2118,6 +2362,36 @@ mod function_source {
         let value = make_value();
         let result = FunctionSource::from(value);
         format!("{result}")
+    }
+
+    #[test_case(|| FunctionSource::from(Maker::new("a(){}").method_definition()), Rc::<FunctionExpression>::try_from => serr("FunctionExpression expected"); "method definition into function expression")]
+    #[test_case(|| FunctionSource::from(Maker::new("function () {}").function_expression()), Rc::<FunctionExpression>::try_from => sok("function ( ) { }"); "function expression all the way")]
+    #[test_case(|| FunctionSource::from(Maker::new("a(){}").method_definition()), Rc::<ArrowFunction>::try_from => serr("ArrowFunction expected"); "method definition into arrow function")]
+    #[test_case(|| FunctionSource::from(Maker::new("x => 0").arrow_function()), Rc::<ArrowFunction>::try_from => sok("x => 0"); "arrow function all the way")]
+    #[test_case(|| FunctionSource::from(Maker::new("function *(){}").generator_expression()), Rc::<GeneratorExpression>::try_from => sok("function * ( ) { }"); "generator expression all the way")]
+    #[test_case(|| FunctionSource::from(Maker::new("x => 0").arrow_function()), Rc::<GeneratorExpression>::try_from => serr("Generator Expression expected"); "arrow function into generator expression")]
+    #[test_case(|| FunctionSource::from(Maker::new("function a(){}").function_declaration()), Rc::<FunctionDeclaration>::try_from => sok("function a ( ) { }"); "function declaration all the way")]
+    #[test_case(|| FunctionSource::from(Maker::new("x => 0").arrow_function()), Rc::<FunctionDeclaration>::try_from => serr("FunctionDeclaration expected"); "arrow function into function declaration")]
+    #[test_case(|| FunctionSource::from(Maker::new("function *a(){}").generator_declaration()), Rc::<GeneratorDeclaration>::try_from => sok("function * a ( ) { }"); "generator declaration all the way")]
+    #[test_case(|| FunctionSource::from(Maker::new("x => 0").arrow_function()), Rc::<GeneratorDeclaration>::try_from => serr("GeneratorDeclaration expected"); "arrow function into generator declaration")]
+    #[test_case(|| FunctionSource::from(Maker::new("*a(){}").generator_method()), Rc::<GeneratorMethod>::try_from => sok("* a ( ) { }"); "generator method all the way")]
+    #[test_case(|| FunctionSource::from(Maker::new("x => 0").arrow_function()), Rc::<GeneratorMethod>::try_from => serr("GeneratorMethod expected"); "arrow function into generator method")]
+    #[test_case(|| FunctionSource::from(Maker::new("a(){}").method_definition()), Rc::<MethodDefinition>::try_from => sok("a ( ) { }"); "method definition all the way")]
+    #[test_case(|| FunctionSource::from(Maker::new("x => 0").arrow_function()), Rc::<MethodDefinition>::try_from => serr("MethodDefinition expected"); "arrow function into method definition")]
+    #[test_case(|| FunctionSource::from(Maker::new("a").field_definition()), Rc::<FieldDefinition>::try_from => sok("a"); "field definition all the way")]
+    #[test_case(|| FunctionSource::from(Maker::new("x => 0").arrow_function()), Rc::<FieldDefinition>::try_from => serr("FieldDefinition expected"); "arrow function into field definition")]
+    #[test_case(|| FunctionSource::from(Maker::new("static{}").class_static_block()), Rc::<ClassStaticBlock>::try_from => sok("static { }"); "class static block all the way")]
+    #[test_case(|| FunctionSource::from(Maker::new("x => 0").arrow_function()), Rc::<ClassStaticBlock>::try_from => serr("ClassStaticBlock expected"); "arrow function into class static block")]
+    fn try_into<T>(
+        make: impl FnOnce() -> FunctionSource,
+        tf: impl FnOnce(FunctionSource) -> Result<T, anyhow::Error>,
+    ) -> Result<String, String>
+    where
+        T: TryFrom<FunctionSource> + ToString,
+    {
+        setup_test_agent();
+        let item = make();
+        tf(item).map(|p| p.to_string()).map_err(|e| e.to_string())
     }
 
     #[test_case(
@@ -2216,6 +2490,38 @@ mod function_source {
         => false;
         "different"
     )]
+    #[test_case(
+        || {
+            let item = FunctionSource::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration());
+            (item.clone(), item)
+        }
+        => true;
+        "GeneratorDeclaration; same"
+    )]
+    #[test_case(
+        || (
+            FunctionSource::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()),
+            FunctionSource::ClassStaticBlock(Maker::new("static{}").class_static_block())
+        )
+        => false;
+        "GeneratorDeclaration; different"
+    )]
+    #[test_case(
+        || {
+            let item = FunctionSource::GeneratorMethod(Maker::new("*a(){}").generator_method());
+            (item.clone(), item)
+        }
+        => true;
+        "GeneratorMethod; same"
+    )]
+    #[test_case(
+        || (
+            FunctionSource::GeneratorMethod(Maker::new("*a(){}").generator_method()),
+            FunctionSource::ClassStaticBlock(Maker::new("static{}").class_static_block())
+        )
+        => false;
+        "GeneratorMethod; different"
+    )]
     fn eq(make_pair: impl FnOnce() -> (FunctionSource, FunctionSource)) -> bool {
         let (left, right) = make_pair();
         left == right
@@ -2303,4 +2609,122 @@ fn ordinary_call_bind_this(
             }
         })
     })
+}
+
+#[test_case(
+    || {
+        let objproto = intrinsic(IntrinsicId::ObjectPrototype);
+        let func_val = objproto.get(&"toString".into()).unwrap();
+        Object::try_from(func_val).unwrap()
+    },
+    false,
+    |_| None
+    => (true, "constructor:function toString".to_string(), true, "length:0,name:toString,prototype:27".to_string(), true);
+    "builtin"
+)]
+#[test_case(
+    || make_ecmascript_function("function x() {}"),
+    false,
+    |_| {
+        let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
+        let obj = ordinary_object_create(Some(obj_proto));
+        obj.create_data_property_or_throw("sentinel", "sentinel value").unwrap();
+        obj.create_data_property_or_throw("constructor", "something else").unwrap();
+        Some(obj)
+    }
+    => (true, "sentinel:sentinel value,constructor:something else".to_string(), false, "something else".to_string(), true);
+    "not builtin"
+)]
+fn make_constructor(
+    make_func: impl FnOnce() -> Object,
+    writable_prototype: bool,
+    make_prototype: impl FnOnce(&Object) -> Option<Object>,
+) -> (bool, String, bool, String, bool) {
+    setup_test_agent();
+
+    let func = make_func();
+    let prototype = make_prototype(&func);
+
+    let opts = prototype.map(|obj| (writable_prototype, obj));
+
+    super::make_constructor(&func, opts);
+
+    let is = func.is_constructor();
+    let proto_val = func.get(&"prototype".into()).unwrap();
+    let proto_result = proto_val.test_result_string();
+    let proto = Object::try_from(proto_val).unwrap();
+    let proto_is_writable = func.set("prototype", 27, true).is_ok();
+    let cstr = proto.get(&"constructor".into()).unwrap();
+    let cstr_result = cstr.test_result_string();
+    let cstr_is_writable = proto.set("constructor", 27, true).is_ok();
+    (is, proto_result, proto_is_writable, cstr_result, cstr_is_writable)
+}
+
+#[test_case(|| (intrinsic(IntrinsicId::Object), None, FunctionKind::Normal, vec![], ECMAScriptValue::Undefined) => sok("function anonymous(\n) {\nundefined\n}"); "simple arguments")]
+#[test_case(|| (intrinsic(IntrinsicId::Object), None, FunctionKind::Generator, vec![], ECMAScriptValue::Undefined) => sok("function* anonymous(\n) {\nundefined\n}"); "generator: simple arguments")]
+#[test_case(|| (intrinsic(IntrinsicId::Object), None, FunctionKind::Async, vec![], ECMAScriptValue::Undefined) => sok("async function anonymous(\n) {\nundefined\n}"); "async: simple arguments")]
+#[test_case(|| (intrinsic(IntrinsicId::Object), None, FunctionKind::AsyncGenerator, vec![], ECMAScriptValue::Undefined) => sok("async function* anonymous(\n) {\nundefined\n}"); "async generator: simple arguments")]
+#[test_case(|| (intrinsic(IntrinsicId::Object), None, FunctionKind::Normal, vec![ECMAScriptValue::from(wks(WksId::ToStringTag))], ECMAScriptValue::Undefined) => serr("TypeError: Symbols may not be converted to strings"); "bad parameters")]
+#[test_case(|| (intrinsic(IntrinsicId::Object), None, FunctionKind::Normal, vec![], ECMAScriptValue::from(wks(WksId::ToStringTag))) => serr("TypeError: Symbols may not be converted to strings"); "bad body")]
+#[test_case(|| (intrinsic(IntrinsicId::Object), None, FunctionKind::Normal, vec![ECMAScriptValue::from("a"), ECMAScriptValue::from("second")], ECMAScriptValue::Undefined) => sok("function anonymous(a,second\n) {\nundefined\n}"); "func with params")]
+#[test_case(|| (intrinsic(IntrinsicId::Object), None, FunctionKind::Normal, vec![ECMAScriptValue::from("a+b"), ECMAScriptValue::from("!@!@")], ECMAScriptValue::Undefined) => serr("SyntaxError: parameters had unparsed trailing text"); "func with param syntax errs")]
+#[test_case(|| (intrinsic(IntrinsicId::Object), None, FunctionKind::Normal, vec![], ECMAScriptValue::from("@")) => serr("SyntaxError: function body had unparsed trailing text"); "body has syntax errors")]
+#[test_case(|| (intrinsic(IntrinsicId::Object), None, FunctionKind::Normal, vec![ECMAScriptValue::from("c"), ECMAScriptValue::from("c")], ECMAScriptValue::from("'use strict';")) => serr("SyntaxError: ‘c’ already defined"); "syntax err when body + params are combined")]
+#[test_case(|| (intrinsic(IntrinsicId::Object), None, FunctionKind::Normal, vec![], ECMAScriptValue::from("@@!; return 'string';")) => serr("TypeError: Out of room for strings in this compilation unit"); "compile fails")]
+#[test_case(|| (intrinsic(IntrinsicId::Object), Some(DeadObject::object()), FunctionKind::Normal, vec![], ECMAScriptValue::Undefined) => serr("TypeError: get called on DeadObject"); "bad newtarget prototoype")]
+fn create_dynamic_function(
+    make_args: impl FnOnce() -> (Object, Option<Object>, FunctionKind, Vec<ECMAScriptValue>, ECMAScriptValue),
+) -> Result<String, String> {
+    setup_test_agent();
+    let (constructor, new_target, kind, parameter_args, body_arg) = make_args();
+    let dynfunc =
+        super::create_dynamic_function(&constructor, new_target.as_ref(), kind, parameter_args.as_slice(), &body_arg)
+            .map_err(unwind_any_error)?;
+
+    Ok(super::function_prototype_to_string(&ECMAScriptValue::from(dynfunc), None, &[]).unwrap().to_string())
+}
+
+// Function constructor
+#[test_case("Function('a', 'b', 'c', 'return a+b+c;').toString()" => vok("function anonymous(a,b,c\n) {\nreturn a+b+c;\n}"); "with args")]
+#[test_case("Function().toString()" => vok("function anonymous(\n) {\n\n}"); "without params")]
+fn function_constructor_function(src: &str) -> Result<ECMAScriptValue, String> {
+    crate::tests::integration::code(src)
+}
+// Function.prototype.apply
+#[test_case("Number.prototype.valueOf.apply(new Number(10))" => vok(10); "with arg (builtin)")]
+#[test_case("Function.prototype.apply.apply(10)" => serr("Thrown: TypeError: Function.prototype.apply requires that 'this' be callable"); "on a non-callable")]
+#[test_case("Array.of.apply(undefined, null).join(',')" => vok(""); "with null 2nd arg")]
+#[test_case("Array.of.apply(undefined, [1, 2, 3, 4, 5]).join(',')" => vok("1,2,3,4,5"); "with full parameter list")]
+#[test_case("Array.of.apply(undefined, 45)" => serr("Thrown: TypeError: CreateListFromArrayLike called on non-object"); "without arraylike")]
+fn function_prototype_apply(src: &str) -> Result<ECMAScriptValue, String> {
+    crate::tests::integration::code(src)
+}
+
+// Function.prototype.bind
+#[test_case("Number.prototype.valueOf.bind(88)()" => vok(88); "ordinary")]
+#[test_case("Function.prototype.bind.apply(10)" => serr("Thrown: TypeError: Bind must be called on a function"); "not a function")]
+#[test_case("new Proxy(function(){},{'getPrototypeOf':function(){throw 'oops';}}).bind(10)" => serr("Thrown: oops"); "BoundFunctionCreate fails")]
+#[test_case("new Proxy(function(){},{'getOwnPropertyDescriptor':function(target,key){if(key=='length')throw'oops';}}).bind(10)" => serr("Thrown: oops"); "HasOwnProperty fails")]
+#[test_case("new Proxy(function(){},{'get':function(target,key,receiver){if(key=='length'){throw'oops';}else{return Reflect.get(target,key,receiver);}}}).bind(10)" => serr("Thrown: oops"); "get-length fails")]
+#[test_case("new Proxy(function(){},{'get':function(target,key,receiver){if(key=='length'){return Infinity;}else{return Reflect.get(target,key,receiver);}}}).bind(1,2,3).length" => vok(f64::INFINITY); "target has infinite length")]
+#[test_case("new Proxy(function(){},{'get':function(target,key,receiver){if(key=='length'){return-Infinity;}else{return Reflect.get(target,key,receiver);}}}).bind(1,2,3).length" => vok(0); "target has negative infinite length")]
+#[test_case("new Proxy(function(){},{'get':function(target,key,receiver){if(key=='name'){throw'oops';}else{return Reflect.get(target,key,receiver);}}}).bind(10)" => serr("Thrown: oops"); "get-name fails")]
+#[test_case("new Proxy(function(){},{'get':function(target,key,receiver){if(key=='name'){return undefined;}else{return Reflect.get(target,key,receiver);}}}).bind(1,2,3).name" => vok("bound "); "target has no name")]
+#[test_case("new Proxy(function(a){},{'get':function(target,key,receiver){if(key=='length'){return Symbol.toStringTag;}else{return Reflect.get(target,key,receiver);}}}).bind().length" => vok(0); "length is not a number")]
+#[test_case("new Proxy(function(a){},{'getOwnPropertyDescriptor':function(target,key){if(key!='length'){return Reflect.getOwnPropertyDescriptor(target,key);}}}).bind().length" => vok(0); "length is not there")]
+fn function_prototype_bind(src: &str) -> Result<ECMAScriptValue, String> {
+    crate::tests::integration::code(src)
+}
+
+#[test_case("(() => 3).length" => vok(0); "lexical this")]
+#[test_case("(function a(x,y){}).length" => vok(2); "global this")]
+#[test_case("(function b(z){'use strict'; return 0;}).length" => vok(1); "strict this")]
+fn ordinary_function_create(src: &str) -> Result<ECMAScriptValue, String> {
+    crate::tests::integration::code(src)
+}
+
+#[test_case("(()=>3)()" => vok(3); "concise body, no args")]
+#[test_case("((a,b)=>a+b)(10,3)" => vok(13); "concise body, two args")]
+fn ordinary_call_evaluate_body(src: &str) -> Result<ECMAScriptValue, String> {
+    crate::tests::integration::code(src)
 }

@@ -1243,6 +1243,11 @@ mod adaptable_object {
 }
 
 pub fn make_fer(src: &str, new_target: Option<Object>) -> (Object, FunctionEnvironmentRecord) {
+    let closure = make_ecmascript_function(src);
+    (closure.clone(), FunctionEnvironmentRecord::new(closure, new_target, "environment_tag".to_string()))
+}
+
+pub fn make_ecmascript_function(src: &str) -> Object {
     let ae = Maker::new(src).assignment_expression();
     let this_mode = if ae.contains(ParseNodeKind::ArrowFunction) || ae.contains(ParseNodeKind::AsyncArrowFunction) {
         ThisLexicality::LexicalThis
@@ -1257,9 +1262,7 @@ pub fn make_fer(src: &str, new_target: Option<Object>) -> (Object, FunctionEnvir
     let global_env = realm.borrow().global_env.clone().unwrap();
     let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
     let chunk = Rc::new(Chunk::new("empty"));
-    let closure =
-        ordinary_function_create(function_prototype, src, params, body, this_mode, global_env, None, true, chunk);
-    (closure.clone(), FunctionEnvironmentRecord::new(closure, new_target, "environment_tag".to_string()))
+    ordinary_function_create(function_prototype, src, params, body, this_mode, global_env, None, true, chunk)
 }
 
-mod integration;
+pub mod integration;
