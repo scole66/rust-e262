@@ -105,7 +105,6 @@ mod ecmascript_value {
     use test_case::test_case;
 
     #[test]
-    #[expect(clippy::redundant_clone)]
     fn clone() {
         let v1 = ECMAScriptValue::Undefined;
         let v2 = v1.clone();
@@ -921,7 +920,6 @@ fn symbol_display_empty() {
     assert_eq!(format!("{symbol}"), "Symbol()");
 }
 #[test]
-#[expect(clippy::redundant_clone)]
 fn symbol_clone() {
     setup_test_agent();
     let s1 = wks(WksId::ToPrimitive);
@@ -929,7 +927,6 @@ fn symbol_clone() {
     assert_eq!(s1, s2);
 }
 #[test]
-#[expect(clippy::redundant_clone)]
 fn symbol_hash() {
     setup_test_agent();
     let s1 = wks(WksId::ToPrimitive);
@@ -950,7 +947,6 @@ fn symbol_hash() {
     assert_ne!(calculate_hash(&f2, &s1), calculate_hash(&f2, &s3));
 }
 #[test]
-#[expect(clippy::redundant_clone)]
 fn symbol_new() {
     setup_test_agent();
     let s1 = Symbol::new(Some(JSString::from("Symbol #1")));
@@ -976,7 +972,6 @@ fn symbol_internals_debug() {
     assert_ne!(format!("{:?}", SymbolInternals { id: 10, description: Some(JSString::from("description")) }), "");
 }
 #[test]
-#[expect(clippy::redundant_clone)]
 fn symbol_internals_clone() {
     let si1 = SymbolInternals { id: 10, description: Some(JSString::from("description")) };
     let si2 = si1.clone();
@@ -1029,7 +1024,6 @@ mod private_name {
         assert_eq!(pn1 == pn2, false);
     }
     #[test]
-    #[expect(clippy::redundant_clone)]
     fn clone() {
         let pn1 = PrivateName::new("a");
         let pn2 = pn1.clone();
@@ -1268,7 +1262,6 @@ mod property_key {
         assert_eq!(format!("{}", PropertyKey::from(sym)), "Symbol(Symbol.hasInstance)");
     }
     #[test]
-    #[expect(clippy::redundant_clone)]
     fn clone() {
         let pk1 = PropertyKey::from("a");
         let pk2 = pk1.clone();

@@ -50,7 +50,6 @@ mod var_scope_decl {
     }
 
     #[test]
-    #[expect(clippy::redundant_clone)]
     fn clone() {
         let vsd = VarScopeDecl::FunctionDeclaration(Maker::new("function a(){grape;}").function_declaration());
         let copy = vsd.clone();

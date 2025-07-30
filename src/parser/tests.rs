@@ -122,7 +122,6 @@ mod pe_code {
     }
 
     #[test]
-    #[expect(clippy::redundant_clone)]
     fn clone() {
         let code_a = PECode::TryBlockError;
         let code_b = code_a.clone();
@@ -898,7 +897,6 @@ mod parse_error {
     }
 
     #[test]
-    #[expect(clippy::redundant_clone)]
     fn clone() {
         let e1 = ParseError::new(PECode::Generic, 1);
         let e2 = ParseError::new(PECode::OneOfKeywordExpected(vec![Keyword::For, Keyword::Const]), 1);
