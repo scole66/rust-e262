@@ -227,6 +227,16 @@ impl From<Rc<ClassStaticBlockBody>> for BodySource {
         Self::ClassStaticBlockBody(value)
     }
 }
+impl From<ParsedBody> for BodySource {
+    fn from(value: ParsedBody) -> Self {
+        match value {
+            ParsedBody::FunctionBody(function_body) => BodySource::Function(function_body),
+            ParsedBody::GeneratorBody(generator_body) => BodySource::Generator(generator_body),
+            ParsedBody::AsyncFunctionBody(async_function_body) => BodySource::AsyncFunction(async_function_body),
+            ParsedBody::AsyncGeneratorBody(async_generator_body) => BodySource::AsyncGenerator(async_generator_body),
+        }
+    }
+}
 
 impl PartialEq for BodySource {
     fn eq(&self, other: &Self) -> bool {
@@ -680,7 +690,7 @@ impl TryFrom<FunctionSource> for Rc<ClassStaticBlock> {
     fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
         match value {
             FunctionSource::ClassStaticBlock(csb) => Ok(csb),
-            _ => bail!("ClassStaticBody expected"),
+            _ => bail!("ClassStaticBlock expected"),
         }
     }
 }
@@ -1037,15 +1047,11 @@ pub fn initialize_instance_elements(this_argument: &Object, constructor: &Object
             let data = func.function_data().borrow();
             work(this_argument, &data.private_methods, &data.fields)
         }
-        None => match constructor.o.to_builtin_function_obj() {
-            Some(bif) => {
-                let data = bif.builtin_function_data().borrow();
-                work(this_argument, &data.private_methods, &data.fields)
-            }
-            None => {
-                panic!("Function object or Builtin Function object expected");
-            }
-        },
+        None => {
+            let bif = constructor.o.to_builtin_function_obj().expect("should be a builtin");
+            let data = bif.builtin_function_data().borrow();
+            work(this_argument, &data.private_methods, &data.fields)
+        }
     }
 }
 
@@ -1236,9 +1242,6 @@ fn ordinary_call_bind_this(func: &Object, this_argument: ECMAScriptValue) {
     //      initialized.
     //   9. Perform ! localEnv.BindThisValue(thisValue).
     //  10. Return unused.
-    let name = to_string(func.get(&PropertyKey::from("name")).unwrap_or_else(|_| ECMAScriptValue::from("[anonymous]")))
-        .unwrap();
-    println!("BUGHUNT: Entering function {name}; assigning {this_argument:?} to 'this'");
     let (this_mode, callee_realm) = {
         let function_data = func
             .o
@@ -1252,7 +1255,6 @@ fn ordinary_call_bind_this(func: &Object, this_argument: ECMAScriptValue) {
         }
         (this_mode, function_data.realm.clone())
     };
-    println!("BUGHUNT: This Mode: {this_mode:?}");
     let local_env = current_lexical_environment().expect("Context must have a lexical environment");
     let this_value = if this_mode == ThisMode::Strict {
         this_argument
@@ -1920,10 +1922,11 @@ impl GeneratorDeclaration {
         // NOTE | An anonymous GeneratorDeclaration can only occur as part of an export default declaration, and its
         // function code is therefore always strict mode code.
 
-        let name = match &self.ident {
-            None => JSString::from("default"),
-            Some(id) => id.string_value(),
-        };
+        //let name = match &self.ident {
+        //    None => JSString::from("default"),
+        //    Some(id) => id.string_value(),
+        //};
+        let name = self.ident.as_ref().expect("export decls should not yet work").string_value();
         let strict = strict || self.body.function_body_contains_use_strict();
         let span = self.location().span;
         let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
@@ -2133,13 +2136,11 @@ pub fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
             func_data.is_constructor = true;
             func_data.constructor_kind = ConstructorKind::Base;
         }
-        None => match func.o.to_builtin_function_obj() {
-            Some(bi_obj) => {
-                let mut bi_data = bi_obj.builtin_function_data().borrow_mut();
-                bi_data.constructor_kind = Some(ConstructorKind::Base);
-            }
-            None => unreachable!(),
-        },
+        None => {
+            let bi_obj = func.o.to_builtin_function_obj().expect("a function should be either builtin or not");
+            let mut bi_data = bi_obj.builtin_function_data().borrow_mut();
+            bi_data.constructor_kind = Some(ConstructorKind::Base);
+        }
     }
     let writable_prototype = writable_prototype_arg.unwrap_or(true);
     let prototype = match prototype_arg {
@@ -2383,12 +2384,13 @@ pub fn create_dynamic_function(
         false,
         false,
     );
+    let parameters: Result<Rc<FormalParameters>, Vec<Object>> =
+        parameters.try_into().expect("only fp should come back");
     let parameters = match parameters {
-        ParsedText::Errors(mut errs) => {
+        Err(mut errs) => {
             return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
         }
-        ParsedText::FormalParameters(fp) => fp,
-        _ => unreachable!(),
+        Ok(fp) => fp,
     };
     let body_parse_string = String::from(body_parse_string);
     let body = parse_text(
@@ -2402,18 +2404,18 @@ pub fn create_dynamic_function(
         false,
         false,
     );
+    let body: Result<ParsedBody, Vec<Object>> = body.try_into().expect("function body should be there");
     let body = match body {
-        ParsedText::Errors(mut errs) => {
+        Err(mut errs) => {
             return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
         }
-        ParsedText::FunctionBody(fb) => BodySource::from(fb),
-        ParsedText::GeneratorBody(gb) => BodySource::from(gb),
-        ParsedText::AsyncFunctionBody(afb) => BodySource::from(afb),
-        ParsedText::AsyncGeneratorBody(agb) => BodySource::from(agb),
-        _ => unreachable!(),
+        Ok(ParsedBody::FunctionBody(fb)) => BodySource::from(fb),
+        Ok(ParsedBody::GeneratorBody(gb)) => BodySource::from(gb),
+        Ok(ParsedBody::AsyncFunctionBody(afb)) => BodySource::from(afb),
+        Ok(ParsedBody::AsyncGeneratorBody(agb)) => BodySource::from(agb),
     };
     let body_contains_use_strict = body.contains_use_strict();
-    let function_source = match parse_text(
+    let function_expression = parse_text(
         &source_text,
         match kind {
             FunctionKind::Normal => ParseGoal::FunctionExpression,
@@ -2423,15 +2425,17 @@ pub fn create_dynamic_function(
         },
         body_contains_use_strict,
         false,
-    ) {
-        ParsedText::Errors(mut errs) => {
+    );
+    let function_expression: Result<ParsedFunctionExpression, Vec<Object>> =
+        function_expression.try_into().expect("function expressions are expected");
+    let function_source = match function_expression {
+        Err(mut errs) => {
             return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
         }
-        ParsedText::FunctionExpression(fe) => FunctionSource::FunctionExpression(fe),
-        ParsedText::GeneratorExpression(ge) => FunctionSource::GeneratorExpression(ge),
-        ParsedText::AsyncFunctionExpression(afe) => FunctionSource::AsyncFunctionExpression(afe),
-        ParsedText::AsyncGeneratorExpression(age) => FunctionSource::AsyncGeneratorExpression(age),
-        _ => unreachable!(),
+        Ok(ParsedFunctionExpression::FunctionExpression(fe)) => FunctionSource::FunctionExpression(fe),
+        Ok(ParsedFunctionExpression::GeneratorExpression(ge)) => FunctionSource::GeneratorExpression(ge),
+        Ok(ParsedFunctionExpression::AsyncFunctionExpression(afe)) => FunctionSource::AsyncFunctionExpression(afe),
+        Ok(ParsedFunctionExpression::AsyncGeneratorExpression(age)) => FunctionSource::AsyncGeneratorExpression(age),
     };
     let proto = new_target.get_prototype_from_constructor(fallback_proto)?;
     let env = current_realm.borrow().global_env.clone().expect("There should be a global environment");
@@ -2446,12 +2450,14 @@ pub fn create_dynamic_function(
         to_compile: function_source,
         this_mode: ThisLexicality::NonLexicalThis,
     };
+    let body = ParsedBody::try_from(body).expect("body should be a function body");
     let compilation_status = match &body {
-        BodySource::Function(fb) => fb.compile_body(&mut compiled, &source_text, &function_data),
-        BodySource::Generator(gb) => gb.evaluate_generator_body(&mut compiled, &source_text, &function_data),
-        BodySource::AsyncFunction(_) => todo!(),
-        BodySource::AsyncGenerator(_) => todo!(),
-        _ => unreachable!(),
+        ParsedBody::FunctionBody(fb) => fb.compile_body(&mut compiled, &source_text, &function_data),
+        ParsedBody::GeneratorBody(gb) => gb.evaluate_generator_body(&mut compiled, &source_text, &function_data),
+        ParsedBody::AsyncFunctionBody(_) | ParsedBody::AsyncGeneratorBody(_) => {
+            compiled.op(Insn::ToDo);
+            Ok(AbruptResult::Never)
+        }
     };
     if let Err(err) = compilation_status {
         let typeerror = create_type_error(err.to_string());
@@ -2461,6 +2467,7 @@ pub fn create_dynamic_function(
         println!("{line}");
     }
 
+    let body = BodySource::from(body);
     let f = ordinary_function_create(
         proto,
         &source_text,

@@ -692,7 +692,6 @@ test_defs[make_constructor]="make_constructor make_constructor function_object"
 test_defs[ClassName]="ClassName class_name function_object"
 test_defs[FunctionName]="FunctionName function_name function_object"
 test_defs[FunctionName_display]="FunctionName@core::fmt::Display::fmt function_name::fmt_display function_object"
-test_defs[ClassFieldDefinitionRecord]="ClassFieldDefinitionRecord class_field_definition_record function_object"
 test_defs[BodySource]="BodySource body_source function_object"
 test_defs[ParamSource]="ParamSource param_source function_object"
 test_defs[ParamSource_eq]="ParamSource@eq param_source::eq:: function_object"
@@ -709,7 +708,7 @@ test_defs[ordinary_call_bind_this]="ordinary_call_bind_this ordinary_call_bind_t
 test_defs[ordinary_call_evaluate_body]="ordinary_call_evaluate_body ordinary_call_evaluate_body function_object"
 test_defs[nameify]="nameify nameify function_object"
 test_defs[BuiltInFunctionObject]="BuiltInFunctionObject built_in_function_object function_object"
-test_defs[FunctionObject_GeneratorDeclaration_instantiate_function_object]="parser::generator_function_definitions::GeneratorDeclaration generator_declaration::instantiate_function_object function_object"
+test_defs[FunctionObject_GeneratorDeclaration_instantiate_function_object]="parser::generator_function_definitions::GeneratorDeclaration::instantiate_function_object generator_declaration::instantiate_function_object function_object"
 test_defs[FunctionObject_AsyncFunctionDeclaration_instantiate_function_object]="parser::async_function_definitions::AsyncFunctionDeclaration async_function_declaration::instantiate_function_object function_object"
 test_defs[FunctionObject_AsyncGeneratorDeclaration_instantiate_function_object]="parser::async_generator_function_definitions::AsyncGeneratorDeclaration async_generator_declaration::instantiate_function_object function_object"
 test_defs[function_prototype_call]="function_prototype_call function_prototype_call function_object"
@@ -721,9 +720,9 @@ test_defs[ConciseParamSource]="ConciseParamSource concise_param_source function_
 test_defs[make_method]="make_method make_method function_object"
 test_defs[function_prototype_call]="function_prototype_call function_prototype_call function_object"
 test_defs[provision_function_intrinsic]="provision_function_intrinsic provision_function_intrinsic function_object"
-test_defs[function_constructor_function]="function_constructor_function todo::function_constructor_function function_object"
-test_defs[function_prototype_apply]="function_prototype_apply todo::function_prototype_apply function_object"
-test_defs[function_prototype_bind]="function_prototype_bind todo::function_prototype_bind function_object"
+test_defs[function_constructor_function]="function_constructor_function function_constructor_function function_object"
+test_defs[function_prototype_apply]="function_prototype_apply function_prototype_apply function_object"
+test_defs[function_prototype_bind]="function_prototype_bind function_prototype_bind function_object"
 test_defs[function_prototype_to_string]="function_prototype_to_string function_prototype_to_string function_object"
 test_defs[function_prototype_has_instance]="function_prototype_has_instance function_prototype_has_instance function_object"
 test_defs[FunctionObject_Rc_TryFrom]="alloc::rc::Rc@core::convert::TryFrom rc_try_from function_object"
@@ -965,12 +964,18 @@ for name in ${names[@]}; do
       ;;
   esac
 
-  echo "Testing ${file}::tests::${modname}"
+  if [ "${file}" == object ]; then
+    testmod=objtests
+  else
+    testmod=tests
+  fi
+
+  echo "Testing ${file}::${testmod}::${modname}"
 
   location=$(mktemp -d)
   results=("${results[@]}" $location)
 
-  tst -o=${location}/coverage.profdata ${file}::tests::${modname}
+  tst -o=${location}/coverage.profdata ${file}::${testmod}::${modname}
   if [ $? -ne 0 ]; then
     for d in ${results[@]}; do
       rm -rf $d
