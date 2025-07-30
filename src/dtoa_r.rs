@@ -35,7 +35,15 @@ pub fn dtoa(value: f64) -> DtoAResult {
         let _locked = lock.lock().unwrap();
 
         unsafe {
-            dtoa_rust(value as c_double, 0, 0, &mut decpt, &mut sign, digits.as_mut_ptr(), digits.len() as size_t);
+            dtoa_rust(
+                value as c_double,
+                0,
+                0,
+                &raw mut decpt,
+                &raw mut sign,
+                digits.as_mut_ptr(),
+                digits.len() as size_t,
+            );
         }
     }
     DtoAResult {
@@ -59,8 +67,8 @@ pub fn dtoa_precise(value: f64, num_digits: i32) -> DtoAResult {
                 value as c_double,
                 2,
                 num_digits,
-                &mut decpt,
-                &mut sign,
+                &raw mut decpt,
+                &raw mut sign,
                 digits.as_mut_ptr(),
                 digits.len() as size_t,
             );
@@ -86,8 +94,8 @@ pub fn dtoa_fixed(value: f64, num_digits: i32) -> DtoAResult {
                 value as c_double,
                 3,
                 num_digits,
-                &mut decpt,
-                &mut sign,
+                &raw mut decpt,
+                &raw mut sign,
                 digits.as_mut_ptr(),
                 digits.len() as size_t,
             );
