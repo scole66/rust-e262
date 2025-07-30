@@ -21,7 +21,6 @@ mod script_record {
     }
 
     #[test]
-    #[expect(clippy::redundant_clone)]
     fn clone() {
         setup_test_agent();
         let sr = ScriptRecord::new_empty(current_realm_record().unwrap());
