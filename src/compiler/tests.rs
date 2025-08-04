@@ -7782,7 +7782,7 @@ mod catch_parameter {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a", true, &[] => Ok((svec(&["ILB 0 (a)"]), false)); "ident")]
+    #[test_case("a", true, &[] => Ok((svec(&["ILB 0 (a)", "EMPTY"]), false)); "ident")]
     #[test_case("{a}", true, &[] => Ok((svec(&[
         "REQ_COER",
         "JUMP_IF_ABRUPT 30",
@@ -8002,12 +8002,13 @@ mod catch {
     #[test_case("catch{}", true, &[] => Ok((svec(&["POP", "EMPTY"]), false)); "minimal")]
     #[test_case("catch{a;}", true, &[] => Ok((svec(&["POP", "PNLE", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "PLE"]), true)); "no-param/fallible/strict")]
     #[test_case("catch{a;}", false, &[] => Ok((svec(&["POP", "PNLE", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "PLE"]), true)); "no-param/fallible/non-strict")]
-    #[test_case("catch(e){e;}", true, &[] => Ok((svec(&["PNLE", "CPMLB 0 (e)", "EXTRACT_THROW", "ILB 0 (e)", "PNLE", "STRING 0 (e)", "STRICT_RESOLVE", "GET_VALUE", "PLE", "PLE"]), true)); "param/fallible/strict")]
-    #[test_case("catch(e){e;}", false, &[] => Ok((svec(&["PNLE", "CPMLB 0 (e)", "EXTRACT_THROW", "ILB 0 (e)", "PNLE", "STRING 0 (e)", "RESOLVE", "GET_VALUE", "PLE", "PLE"]), true)); "param/fallible/non-strict")]
+    #[test_case("catch(e){e;}", true, &[] => Ok((svec(&["PNLE", "CPMLB 0 (e)", "EXTRACT_THROW", "ILB 0 (e)", "EMPTY", "POP", "PNLE", "STRING 0 (e)", "STRICT_RESOLVE", "GET_VALUE", "PLE", "PLE"]), true)); "param/fallible/strict")]
+    #[test_case("catch(e){e;}", false, &[] => Ok((svec(&["PNLE", "CPMLB 0 (e)", "EXTRACT_THROW", "ILB 0 (e)", "EMPTY", "POP", "PNLE", "STRING 0 (e)", "RESOLVE", "GET_VALUE", "PLE", "PLE"]), true)); "param/fallible/non-strict")]
     #[test_case("catch(e){0;}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "string table full")]
-    #[test_case("catch({a}){x;}", true, &[] => panics "not yet implemented"; "binding maybe abrupt")]
+    #[test_case("catch({a}){x;}", true, &[] => Ok((svec(&["PNLE", "CPMLB 0 (a)", "EXTRACT_THROW", "REQ_COER", "JUMP_IF_ABRUPT 30", "STRING 0 (a)", "STRING 0 (a)", "STRICT_RESOLVE", "JUMP_IF_ABRUPT 8", "ROTATEDOWN 3", "GETV", "JUMP_IF_ABRUPT 5", "IRB", "JUMP 4", "UNWIND 1", "UNWIND 1", "JUMP_IF_ABRUPT 5", "POP", "STRING 0 (a)", "FLOAT 0 (1)", "JUMP_IF_ABRUPT 2", "POP_LIST", "EMPTY", "JUMP_IF_ABRUPT 7", "POP", "PNLE", "STRING 1 (x)", "STRICT_RESOLVE", "GET_VALUE", "PLE", "PLE"]), true)); "binding maybe abrupt")]
     #[test_case("catch(e){0;}", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "block compile fail")]
     #[test_case("catch({e=9n}){}", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "binding init compile fails")]
+    #[test_case("catch({a}){@@@;}", false, &[] => serr("out of range integral type conversion attempted"); "block too big")]
     fn compile_catch_clause_evaluation(
         src: &str,
         strict: bool,

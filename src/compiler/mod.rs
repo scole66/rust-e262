@@ -7406,6 +7406,12 @@ impl Catch {
         // Stack: Throw(value) ...
         match &self.parameter {
             None => {
+                // Catch : catch Block
+                //   1. Return ? Evaluation of Block.
+                //
+                // start:                 Throw(value) ...
+                //   POP                  ...
+                //   <body.evaluation>    value/err ...
                 chunk.op(Insn::Pop);
                 self.block.compile(chunk, strict, text)
             }
@@ -7431,13 +7437,12 @@ impl Catch {
                 }
                 chunk.op(Insn::ExtractThrownValue);
                 let param_status = catch_parameter.compile_binding_initialization(chunk, strict, text)?;
-                if param_status.maybe_abrupt() {
-                    todo!();
-                    // I don't have identifier binding init putting anything back on the stack, but the
-                    // unimplemented binding patterns might. Without anything on the stack, we can't even
-                    // _check_ for errors. So until patterns are in, this is going to stay todo.
-                }
+                let fixup = if param_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                chunk.op(Insn::Pop);
                 let block_status = self.block.compile(chunk, strict, text)?;
+                if let Some(fixup) = fixup {
+                    chunk.fixup(fixup)?;
+                }
                 chunk.op(Insn::PopLexEnv);
 
                 Ok(AbruptResult::from(param_status.maybe_abrupt() || block_status.maybe_abrupt()))
@@ -7459,9 +7464,15 @@ impl CatchParameter {
         strict: bool,
         text: &str,
     ) -> anyhow::Result<AbruptResult> {
+        // Input Stack:  value
+        // Output Stack: [empty]/err
         match self {
             CatchParameter::Ident(node) => {
-                node.compile_binding_initialization(chunk, strict, EnvUsage::UseCurrentLexical).map(AbruptResult::from)
+                let status = node
+                    .compile_binding_initialization(chunk, strict, EnvUsage::UseCurrentLexical)
+                    .map(AbruptResult::from)?;
+                chunk.op(Insn::Empty);
+                Ok(status)
             }
             CatchParameter::Pattern(node) => node
                 .compile_binding_initialization(chunk, strict, text, EnvUsage::UseCurrentLexical)
@@ -8195,17 +8206,28 @@ impl UniqueFormalParameters {
 }
 
 fn compile_initialize_bound_name(chunk: &mut Chunk, strict: bool, env: EnvUsage, idx: u16) -> NeverAbruptRefResult {
+    // Input Stack: value ...
+    // Output Stack: ...
     match env {
         EnvUsage::UsePutValue => {
+            //  STRING idx               name value
+            //  RESOLVE/STRICT_RESOLVE   ref/err value
+            //  SWAP                     value ref/err
+            //  PUT_VALUE                [empty]/err
+            //  POP_OR_PANIC
+
             chunk.op_plus_arg(Insn::String, idx);
             chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
             chunk.op(Insn::Swap);
             chunk.op(Insn::PutValue);
             // The spec has this PutValue marked with '?'. But I can't figure out how to get there. If this panic
-            // happens, add a test!
+            // happens, add a test! (ChatGPT can't figure out how to get to this error, either.)
             chunk.op(Insn::PopOrPanic);
         }
-        EnvUsage::UseCurrentLexical => chunk.op_plus_arg(Insn::InitializeLexBinding, idx),
+        EnvUsage::UseCurrentLexical => {
+            //  ILB idx
+            chunk.op_plus_arg(Insn::InitializeLexBinding, idx);
+        }
     }
     NeverAbruptRefResult
 }
@@ -8217,7 +8239,8 @@ impl BindingIdentifier {
         strict: bool,
         env: EnvUsage,
     ) -> anyhow::Result<NeverAbruptRefResult> {
-        // Stack: val ...
+        // Input Stack:  val ...
+        // Output Stack: ...
         let binding_id = match self {
             BindingIdentifier::Identifier { identifier, .. } => identifier.string_value(),
             BindingIdentifier::Yield { .. } => JSString::from("yield"),
