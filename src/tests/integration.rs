@@ -1089,6 +1089,9 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 // BigInt.prototype.valueOf
 #[test_case("BigInt.prototype.valueOf.call()" => serr("Thrown: TypeError: Value is not a Big Int"); "BigInt.prototype.valueOf: ThisBigIntValue throws")]
 #[test_case("56n.valueOf()" => vok(Rc::new(BigInt::from(56))); "BigInt.prototype.valueOf normal")]
+// 2025/07/31 - destructuring broken in catch parameters
+#[test_case("try{throw[10];}catch([z]){z;}" => vok(10); "catch parameter destructuring")]
+#[test_case("try{throw 10;}catch([z]){}" => serr("Thrown: TypeError: object is not iterable"); "catch parameter bad destructuring")]
 pub fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
