@@ -281,6 +281,55 @@ impl UpdateExpression {
             _ => false,
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                UpdateExpression::LeftHandSideExpression(node) => node.body_containing_location(location),
+                UpdateExpression::PostIncrement { lhs, .. } | UpdateExpression::PostDecrement { lhs, .. } => {
+                    lhs.body_containing_location(location)
+                }
+                UpdateExpression::PreIncrement { ue, .. } | UpdateExpression::PreDecrement { ue, .. } => {
+                    ue.body_containing_location(location)
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // UpdateExpression :
+        //      LeftHandSideExpression
+        //  1. Return HasCallInTailPosition of LeftHandSideExpression with argument call.
+        // UpdateExpression :
+        //      LeftHandSideExpression  ++
+        //      LeftHandSideExpression  --
+        //      ++ UnaryExpression
+        //      -- UnaryExpression
+        //  1. Return false.
+        match self {
+            UpdateExpression::LeftHandSideExpression(left_hand_side_expression) => {
+                left_hand_side_expression.has_call_in_tail_position(location)
+            }
+            UpdateExpression::PostIncrement { .. }
+            | UpdateExpression::PostDecrement { .. }
+            | UpdateExpression::PreIncrement { .. }
+            | UpdateExpression::PreDecrement { .. } => false,
+        }
+    }
 }
 
 #[cfg(test)]

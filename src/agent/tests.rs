@@ -1070,11 +1070,27 @@ mod fcn_def {
         part.bound_name().to_string()
     }
 
-    #[test_case({ let src = "function red(){}"; (FcnDef::Function(Maker::new(src).function_declaration()), src.into()) } => sok("red"); "function decl")]
-    #[test_case({ let src = "function *blue(){}"; (FcnDef::Generator(Maker::new(src).generator_declaration()), src.into()) } => sok("blue"); "generator decl")]
-    #[test_case({ let src = "async function green(){}"; (FcnDef::AsyncFun(Maker::new(src).async_function_declaration()), src.into()) } => panics "not yet implemented"; "async function decl")]
-    #[test_case({ let src = "async function *orange(){}"; (FcnDef::AsyncGen(Maker::new(src).async_generator_declaration()), src.into()) } => panics "not yet implemented"; "async generator decl")]
-    fn instantiate_function_object(part: (FcnDef, String)) -> Result<String, String> {
+    #[test_case(
+        {
+            let (node, tree) = Maker::new("function red(){}").function_declaration_ast();
+            (FcnDef::Function(node), tree)
+        } => sok("red"); "function decl")]
+    #[test_case(
+        {
+            let (node, tree) = Maker::new("function *blue(){}").generator_declaration_ast();
+            (FcnDef::Generator(node), tree)
+        } => sok("blue"); "generator decl")]
+    #[test_case(
+        {
+            let (node, tree) = Maker::new("async function green(){}").async_function_declaration_ast();
+            (FcnDef::AsyncFun(node), tree)
+        } => panics "not yet implemented"; "async function decl")]
+    #[test_case(
+        {
+            let (node, tree) = Maker::new("async function *orange(){}").async_generator_declaration_ast();
+            (FcnDef::AsyncGen(node), tree)
+        } => panics "not yet implemented"; "async generator decl")]
+    fn instantiate_function_object(part: (FcnDef, SourceTree)) -> Result<String, String> {
         let (part, src) = part;
         setup_test_agent();
         let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
@@ -1152,7 +1168,7 @@ mod global_declaration_instantiation {
     #[test_case("async function *ag(){}" => panics "not yet implemented"; "async generators")]
     fn global_declaration_instantiation(src: &str) -> Result<(AHashSet<String>, AHashSet<String>), String> {
         setup_test_agent();
-        let script = Maker::new(src).script();
+        let (script, ast) = Maker::new(src).script_ast();
         let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         global_env.create_global_var_binding("already_var_declared".into(), false).unwrap();
         global_env.create_mutable_binding("existing_mutable".into(), false).unwrap();
@@ -1160,7 +1176,7 @@ mod global_declaration_instantiation {
         let prior_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
         let prior_lexdecl = global_env.lex_decls().into_iter().collect::<AHashSet<_>>();
 
-        let result = super::global_declaration_instantiation(&script, &global_env.clone(), false, src);
+        let result = super::global_declaration_instantiation(&script, &global_env.clone(), false, &ast);
 
         result.map_err(unwind_any_error).map(|()| {
             let after_vardecl = global_env.var_decls().into_iter().collect::<AHashSet<_>>();
@@ -1547,7 +1563,7 @@ mod begin_call_evaluation {
         setup_test_agent();
         let func = make_func();
         let reference = make_this();
-        begin_call_evaluation(&func, &reference, &[ECMAScriptValue::from("sentinel")])?;
+        begin_call_evaluation(&func, &reference, &[ECMAScriptValue::from("sentinel")], false)?;
 
         Ok(ec_pop().map(|v| v.map_err(unwind_any_error).map_or_else(|err| err, |nc| format!("{nc}"))))
     }
@@ -1740,7 +1756,7 @@ mod evaluate_initialized_class_field_definition {
         set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
 
         let src = "sum = 10+20";
-        let fd = Maker::new(src).field_definition();
+        let (fd, ast) = Maker::new(src).field_definition_ast();
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
         let home = ordinary_object_create(Some(proto));
         let name = Some(ClassName::from("class_name"));
@@ -1753,7 +1769,7 @@ mod evaluate_initialized_class_field_definition {
             this_mode: ThisLexicality::NonLexicalThis,
         };
 
-        let obj = evaluate_initialized_class_field_definition(&info, home.clone(), name, src).unwrap();
+        let obj = evaluate_initialized_class_field_definition(&info, home.clone(), name, &ast).unwrap();
 
         let fdata = obj.o.to_function_obj().unwrap().function_data().borrow();
         assert_eq!(fdata.class_field_initializer_name, Some(ClassName::from("class_name")));
@@ -1768,7 +1784,7 @@ mod evaluate_initialized_class_field_definition {
         set_lexical_environment(Some(lexenv as Rc<dyn EnvironmentRecord>));
 
         let src = "sum = @@# + 10+20";
-        let fd = Maker::new(src).field_definition();
+        let (fd, ast) = Maker::new(src).field_definition_ast();
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
         let home = ordinary_object_create(Some(proto));
         let name = Some(ClassName::from("class_name"));
@@ -1781,7 +1797,7 @@ mod evaluate_initialized_class_field_definition {
             this_mode: ThisLexicality::NonLexicalThis,
         };
 
-        let res = evaluate_initialized_class_field_definition(&info, home.clone(), name, src);
+        let res = evaluate_initialized_class_field_definition(&info, home.clone(), name, &ast);
         assert!(res.is_err());
     }
 }

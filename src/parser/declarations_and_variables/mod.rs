@@ -146,6 +146,11 @@ impl LexicalDeclaration {
 
         self.list.early_errors(errs, strict, self.is_constant_declaration());
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) { self.list.body_containing_location(location) } else { None }
+    }
 }
 
 // LetOrConst :
@@ -332,6 +337,20 @@ impl BindingList {
             }
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                BindingList::Item(node) => node.body_containing_location(location),
+                BindingList::List(lst, tail) => {
+                    lst.body_containing_location(location).or_else(|| tail.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
 }
 
 // LexicalBinding[In, Yield, Await] :
@@ -502,6 +521,23 @@ impl LexicalBinding {
             }
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                LexicalBinding::Identifier(idref, Some(izer)) => {
+                    idref.body_containing_location(location).or_else(|| izer.body_containing_location(location))
+                }
+                LexicalBinding::Identifier(idref, None) => idref.body_containing_location(location),
+                LexicalBinding::Pattern(pat, izer) => {
+                    pat.body_containing_location(location).or_else(|| izer.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
 }
 
 // VariableStatement[Yield, Await] :
@@ -596,6 +632,11 @@ impl VariableStatement {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.list.var_scoped_declarations()
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) { self.list.body_containing_location(location) } else { None }
+    }
 }
 
 // VariableDeclarationList[In, Yield, Await] :
@@ -604,6 +645,7 @@ impl VariableStatement {
 #[derive(Debug)]
 pub struct VariableDeclarationList {
     pub list: NonEmpty<Rc<VariableDeclaration>>,
+    location: Location,
 }
 
 impl fmt::Display for VariableDeclarationList {
@@ -668,7 +710,8 @@ impl VariableDeclarationList {
             items.push(next);
             current_scanner = after_next;
         }
-        Ok((Rc::new(VariableDeclarationList { list: items }), current_scanner))
+        let location = items.first().location().merge(&items.last().location());
+        Ok((Rc::new(VariableDeclarationList { list: items, location }), current_scanner))
     }
 
     pub fn parse(
@@ -732,6 +775,19 @@ impl VariableDeclarationList {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.list.iter().map(|item| VarScopeDecl::VariableDeclaration(item.clone())).collect()
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            self.list.iter().find_map(|item| item.body_containing_location(location))
+        } else {
+            None
+        }
     }
 }
 
@@ -886,6 +942,34 @@ impl VariableDeclaration {
             }
         }
     }
+
+    pub fn location(&self) -> Location {
+        match self {
+            VariableDeclaration::Identifier(binding_identifier, initializer) => {
+                let id_loc = binding_identifier.location();
+                if let Some(izer) = initializer { id_loc.merge(&izer.location()) } else { id_loc }
+            }
+            VariableDeclaration::Pattern(binding_pattern, initializer) => {
+                binding_pattern.location().merge(&initializer.location())
+            }
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                VariableDeclaration::Identifier(binding_identifier, initializer) => binding_identifier
+                    .body_containing_location(location)
+                    .or_else(|| initializer.as_ref().and_then(|izer| izer.body_containing_location(location))),
+                VariableDeclaration::Pattern(binding_pattern, initializer) => binding_pattern
+                    .body_containing_location(location)
+                    .or_else(|| initializer.body_containing_location(location)),
+            }
+        } else {
+            None
+        }
+    }
 }
 
 // BindingPattern[Yield, Await] :
@@ -1021,6 +1105,12 @@ impl BindingPattern {
             BindingPattern::Object(o) => o.contains_expression(),
             BindingPattern::Array(a) => a.contains_expression(),
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -1284,6 +1374,12 @@ impl ObjectBindingPattern {
                 bpl.contains_expression()
             }
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -1615,6 +1711,12 @@ impl ArrayBindingPattern {
             }
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // BindingRestProperty[Yield, Await] :
@@ -1686,6 +1788,12 @@ impl BindingRestProperty {
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         let BindingRestProperty::Id(node) = self;
         node.early_errors(errs, strict);
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -1824,6 +1932,12 @@ impl BindingPropertyList {
             BindingPropertyList::Item(node) => node.contains_expression(),
             BindingPropertyList::List(lst, item) => lst.contains_expression() || item.contains_expression(),
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -1969,6 +2083,12 @@ impl BindingElementList {
             BindingElementList::List(lst, item) => lst.contains_expression() || item.contains_expression(),
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // BindingElisionElement[Yield, Await] :
@@ -2079,6 +2199,12 @@ impl BindingElisionElement {
     pub fn contains_expression(&self) -> bool {
         let BindingElisionElement::Element(_, elem) = self;
         elem.contains_expression()
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -2214,6 +2340,12 @@ impl BindingProperty {
             BindingProperty::Single(single) => single.contains_expression(),
             BindingProperty::Property(name, elem) => name.is_computed_property_key() || elem.contains_expression(),
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -2406,6 +2538,21 @@ impl BindingElement {
             BindingElement::Pattern(pat, None) => pat.contains_expression(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                BindingElement::Single(sing) => sing.body_containing_location(location),
+                BindingElement::Pattern(pat, Some(izer)) => {
+                    pat.body_containing_location(location).or_else(|| izer.body_containing_location(location))
+                }
+                BindingElement::Pattern(pat, None) => pat.body_containing_location(location),
+            }
+        } else {
+            None
+        }
+    }
 }
 
 // SingleNameBinding[Yield, Await] :
@@ -2555,6 +2702,18 @@ impl SingleNameBinding {
     pub fn contains_expression(&self) -> bool {
         self.has_initializer()
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                SingleNameBinding::Id(_, Some(izer)) => izer.body_containing_location(location),
+                SingleNameBinding::Id(_, None) => None,
+            }
+        } else {
+            None
+        }
+    }
 }
 
 // BindingRestElement[Yield, Await] :
@@ -2698,6 +2857,12 @@ impl BindingRestElement {
             BindingRestElement::Identifier(..) => false,
             BindingRestElement::Pattern(node, ..) => node.contains_expression(),
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 

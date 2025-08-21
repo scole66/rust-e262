@@ -52,6 +52,11 @@ impl DebuggerStatement {
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
     }
+
+    pub fn body_containing_location(&self, _: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        None
+    }
 }
 
 #[cfg(test)]

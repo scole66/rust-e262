@@ -150,7 +150,8 @@ impl MethodDefinition {
                     scan_for_punct(after_open, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                 let (_, after_lb) =
                     scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
-                let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
+                let (body, after_body) =
+                    FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::FunctionBody);
                 let (rb_loc, after_rb) =
                     scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 let location = get_loc.merge(&rb_loc);
@@ -167,7 +168,8 @@ impl MethodDefinition {
                     scan_for_punct(after_args, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                 let (_, after_lb) =
                     scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
-                let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
+                let (body, after_body) =
+                    FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::FunctionBody);
                 let (rb_loc, after_rb) =
                     scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 let location = set_loc.merge(&rb_loc);
@@ -194,7 +196,8 @@ impl MethodDefinition {
                     scan_for_punct(after_ufp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
                 let (_, after_lb) =
                     scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
-                let (body, after_body) = FunctionBody::parse(parser, after_lb, false, false);
+                let (body, after_body) =
+                    FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::FunctionBody);
                 let (rb_loc, after_rb) =
                     scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 let location = name.location().merge(&rb_loc);
@@ -445,6 +448,30 @@ impl MethodDefinition {
     pub fn special_method(&self) -> bool {
         !matches!(self, MethodDefinition::NamedFunction(..))
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                MethodDefinition::NamedFunction(cn, params, body, _) => cn
+                    .body_containing_location(location)
+                    .or_else(|| params.body_containing_location(location))
+                    .or_else(|| body.body_containing_location(location)),
+                MethodDefinition::Getter(cen, body, _) => {
+                    cen.body_containing_location(location).or_else(|| body.body_containing_location(location))
+                }
+                MethodDefinition::Setter(cen, params, body, _) => cen
+                    .body_containing_location(location)
+                    .or_else(|| params.body_containing_location(location))
+                    .or_else(|| body.body_containing_location(location)),
+                MethodDefinition::Generator(node) => node.body_containing_location(location),
+                MethodDefinition::Async(node) => node.body_containing_location(location),
+                MethodDefinition::AsyncGenerator(node) => node.body_containing_location(location),
+            }
+        } else {
+            None
+        }
+    }
 }
 
 // PropertySetParameterList :
@@ -534,6 +561,12 @@ impl PropertySetParameterList {
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         self.node.contains_expression()
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 

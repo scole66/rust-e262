@@ -1009,10 +1009,9 @@ impl CallableObject for FunctionObject {
     }
 
     fn complete_call(&self) -> Completion<ECMAScriptValue> {
-        let empty = String::new();
         let fod = self.function_data.borrow();
-        let text = fod.script_or_module.as_ref().map_or(&empty, ScriptOrModule::source_text);
-        execute_synchronously(text)
+        let source = fod.script_or_module.as_ref().map_or_else(SourceTree::empty, ScriptOrModule::source_tree);
+        execute_synchronously(&source)
     }
 }
 
@@ -1805,12 +1804,11 @@ pub fn create_builtin_function(
 
 impl FunctionDeclaration {
     pub fn instantiate_function_object(
-        &self,
+        self: &Rc<Self>,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
-        text: &str,
-        self_as_rc: Rc<Self>,
+        source: &SourceTree,
     ) -> Completion<ECMAScriptValue> {
         // Runtime Semantics: InstantiateOrdinaryFunctionObject
         //
@@ -1843,7 +1841,7 @@ impl FunctionDeclaration {
         };
         let strict = strict || self.body.function_body_contains_use_strict();
         let span = self.location().span;
-        let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
+        let source_text = source.text[span.starting_index..(span.starting_index + span.length)].to_string();
         let params = ParamSource::from(Rc::clone(&self.params));
         let body = BodySource::from(Rc::clone(&self.body));
         let chunk_name = nameify(&source_text, 50);
@@ -1853,10 +1851,10 @@ impl FunctionDeclaration {
             params,
             body,
             strict,
-            to_compile: FunctionSource::from(self_as_rc),
+            to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::NonLexicalThis,
         };
-        let compilation_status = self.body.compile_body(&mut compiled, text, &function_data);
+        let compilation_status = self.body.compile_body(&mut compiled, source, &function_data);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
             return Err(typeerror);
@@ -1891,7 +1889,7 @@ impl GeneratorDeclaration {
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
-        text: &str,
+        source: &SourceTree,
     ) -> Completion<ECMAScriptValue> {
         // Runtime Semantics: InstantiateGeneratorFunctionObject
         // The syntax-directed operation InstantiateGeneratorFunctionObject takes arguments env (an Environment Record)
@@ -1929,7 +1927,7 @@ impl GeneratorDeclaration {
         let name = self.ident.as_ref().expect("export decls should not yet work").string_value();
         let strict = strict || self.body.function_body_contains_use_strict();
         let span = self.location().span;
-        let source_text = text[span.starting_index..(span.starting_index + span.length)].to_string();
+        let source_text = source.text[span.starting_index..(span.starting_index + span.length)].to_string();
         let params = ParamSource::from(Rc::clone(&self.params));
         let body = BodySource::from(Rc::clone(&self.body));
         let chunk_name = nameify(&source_text, 50);
@@ -1942,7 +1940,7 @@ impl GeneratorDeclaration {
             to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::NonLexicalThis,
         };
-        let compilation_status = self.body.evaluate_generator_body(&mut compiled, text, &function_data);
+        let compilation_status = self.body.evaluate_generator_body(&mut compiled, source, &function_data);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
             return Err(typeerror);
@@ -1982,13 +1980,11 @@ impl GeneratorDeclaration {
 impl AsyncFunctionDeclaration {
     #[expect(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
-        &self,
-
+        self: &Rc<Self>,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
-        text: &str,
-        self_as_rc: Rc<Self>,
+        source: &SourceTree,
     ) -> Completion<ECMAScriptValue> {
         todo!()
     }
@@ -1997,13 +1993,11 @@ impl AsyncFunctionDeclaration {
 impl AsyncGeneratorDeclaration {
     #[expect(unused_variables, clippy::needless_pass_by_value)]
     pub fn instantiate_function_object(
-        &self,
-
+        self: &Rc<Self>,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
-        text: &str,
-        self_as_rc: Rc<Self>,
+        source: &SourceTree,
     ) -> Completion<ECMAScriptValue> {
         todo!()
     }
@@ -2393,7 +2387,7 @@ pub fn create_dynamic_function(
         Ok(fp) => fp,
     };
     let body_parse_string = String::from(body_parse_string);
-    let body = parse_text(
+    let parsed_body = parse_text(
         &body_parse_string,
         match kind {
             FunctionKind::Normal => ParseGoal::FunctionBody(YieldAllowed::No, AwaitAllowed::No),
@@ -2404,7 +2398,7 @@ pub fn create_dynamic_function(
         false,
         false,
     );
-    let body: Result<ParsedBody, Vec<Object>> = body.try_into().expect("function body should be there");
+    let body: Result<ParsedBody, Vec<Object>> = parsed_body.clone().try_into().expect("function body should be there");
     let body = match body {
         Err(mut errs) => {
             return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
@@ -2451,9 +2445,10 @@ pub fn create_dynamic_function(
         this_mode: ThisLexicality::NonLexicalThis,
     };
     let body = ParsedBody::try_from(body).expect("body should be a function body");
+    let source_tree = SourceTree { text: source_text.clone(), ast: parsed_body };
     let compilation_status = match &body {
-        ParsedBody::FunctionBody(fb) => fb.compile_body(&mut compiled, &source_text, &function_data),
-        ParsedBody::GeneratorBody(gb) => gb.evaluate_generator_body(&mut compiled, &source_text, &function_data),
+        ParsedBody::FunctionBody(fb) => fb.compile_body(&mut compiled, &source_tree, &function_data),
+        ParsedBody::GeneratorBody(gb) => gb.evaluate_generator_body(&mut compiled, &source_tree, &function_data),
         ParsedBody::AsyncFunctionBody(_) | ParsedBody::AsyncGeneratorBody(_) => {
             compiled.op(Insn::ToDo);
             Ok(AbruptResult::Never)

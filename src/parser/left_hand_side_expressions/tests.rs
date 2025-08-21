@@ -901,7 +901,7 @@ fn argument_list_test_ae() {
 fn argument_list_test_dots_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("...aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(*al, ArgumentList::Dots(_)));
+    assert!(matches!(*al, ArgumentList::Dots(..)));
     assert_ne!(format!("{al:?}"), "");
     pretty_check(&*al, "ArgumentList: ... aba", &["AssignmentExpression: aba"]);
     concise_check(&*al, "ArgumentList: ... aba", &["Punctuator: ...", "IdentifierName: aba"]);

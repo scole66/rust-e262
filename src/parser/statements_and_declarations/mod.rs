@@ -433,6 +433,84 @@ impl Statement {
             Statement::Try(ts) => ts.var_scoped_declarations(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                Statement::Block(node) => node.body_containing_location(location),
+                Statement::Variable(node) => node.body_containing_location(location),
+                Statement::Empty(node) => node.body_containing_location(location),
+                Statement::Expression(node) => node.body_containing_location(location),
+                Statement::If(node) => node.body_containing_location(location),
+                Statement::Breakable(node) => node.body_containing_location(location),
+                Statement::Continue(node) => node.body_containing_location(location),
+                Statement::Break(node) => node.body_containing_location(location),
+                Statement::Return(node) => node.body_containing_location(location),
+                Statement::With(node) => node.body_containing_location(location),
+                Statement::Labelled(node) => node.body_containing_location(location),
+                Statement::Throw(node) => node.body_containing_location(location),
+                Statement::Try(node) => node.body_containing_location(location),
+                Statement::Debugger(node) => node.body_containing_location(location),
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // Statement :
+        //  VariableStatement
+        //  EmptyStatement
+        //  ExpressionStatement
+        //  ContinueStatement
+        //  BreakStatement
+        //  ThrowStatement
+        //  DebuggerStatement
+        //    1. Return false.
+        // Statement :
+        //  BlockStatement
+        //    1. Return HasCallInTailPosition of BlockStatement with argument call.
+        //  IfStatement
+        //    1. Return HasCallInTailPosition of IfStatement with argument call.
+        //  BreakableStatement
+        //    1. Return HasCallInTailPosition of BreakableStatement with argument call.
+        //  WithStatement
+        //    1. Return HasCallInTailPosition of WithStatement with argument call.
+        //  LabelledStatement
+        //    1. Return HasCallInTailPosition of LabelledStatement with argument call.
+        //  TryStatement
+        //    1. Return HasCallInTailPosition of TryStatement with argument call.
+        //  ReturnStatement
+        //    1. Return HasCallInTailPosition of ReturnStatement with argument call.
+        match self {
+            Statement::Block(node) => node.has_call_in_tail_position(location),
+            Statement::Variable(_)
+            | Statement::Empty(_)
+            | Statement::Expression(_)
+            | Statement::Continue(_)
+            | Statement::Break(_)
+            | Statement::Throw(_)
+            | Statement::Debugger(_) => false,
+            Statement::If(node) => node.has_call_in_tail_position(location),
+            Statement::Breakable(node) => node.has_call_in_tail_position(location),
+            Statement::Return(node) => node.has_call_in_tail_position(location),
+            Statement::With(node) => node.has_call_in_tail_position(location),
+            Statement::Labelled(node) => node.has_call_in_tail_position(location),
+            Statement::Try(node) => node.has_call_in_tail_position(location),
+        }
+    }
 }
 
 // Declaration[Yield, Await] :
@@ -677,6 +755,19 @@ impl Declaration {
             }
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                Declaration::Hoistable(node) => node.body_containing_location(location),
+                Declaration::Class(node) => node.body_containing_location(location),
+                Declaration::Lexical(node) => node.body_containing_location(location),
+            }
+        } else {
+            None
+        }
+    }
 }
 
 // HoistableDeclaration[Yield, Await, Default] :
@@ -822,6 +913,20 @@ impl HoistableDeclaration {
             HoistableDeclaration::Generator(gd) => HoistableDeclPart::GeneratorDeclaration(Rc::clone(gd)),
             HoistableDeclaration::AsyncFunction(afd) => HoistableDeclPart::AsyncFunctionDeclaration(Rc::clone(afd)),
             HoistableDeclaration::AsyncGenerator(agd) => HoistableDeclPart::AsyncGeneratorDeclaration(Rc::clone(agd)),
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                HoistableDeclaration::Function(node) => node.body_containing_location(location),
+                HoistableDeclaration::Generator(node) => node.body_containing_location(location),
+                HoistableDeclaration::AsyncFunction(node) => node.body_containing_location(location),
+                HoistableDeclaration::AsyncGenerator(node) => node.body_containing_location(location),
+            }
+        } else {
+            None
         }
     }
 }
@@ -980,6 +1085,40 @@ impl BreakableStatement {
         match self {
             BreakableStatement::Iteration(node) => node.var_scoped_declarations(),
             BreakableStatement::Switch(node) => node.var_scoped_declarations(),
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                BreakableStatement::Iteration(iteration_statement) => {
+                    iteration_statement.body_containing_location(location)
+                }
+                BreakableStatement::Switch(switch_statement) => switch_statement.body_containing_location(location),
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        match self {
+            BreakableStatement::Iteration(iteration_statement) => {
+                iteration_statement.has_call_in_tail_position(location)
+            }
+            BreakableStatement::Switch(switch_statement) => switch_statement.has_call_in_tail_position(location),
         }
     }
 }

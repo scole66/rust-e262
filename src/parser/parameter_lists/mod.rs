@@ -117,6 +117,11 @@ impl UniqueFormalParameters {
     pub fn contains_expression(&self) -> bool {
         self.formals.contains_expression()
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) { self.formals.body_containing_location(location) } else { None }
+    }
 }
 
 // FormalParameters[Yield, Await] :
@@ -406,6 +411,21 @@ impl FormalParameters {
             FormalParameters::ListRest(list, rest) => list.contains_expression() || rest.contains_expression(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                FormalParameters::Empty(_) => None,
+                FormalParameters::Rest(formals) => formals.body_containing_location(location),
+                FormalParameters::List(formals)
+                | FormalParameters::ListComma(formals, ..)
+                | FormalParameters::ListRest(formals, ..) => formals.body_containing_location(location),
+            }
+        } else {
+            None
+        }
+    }
 }
 
 // FormalParameterList[Yield, Await] :
@@ -606,6 +626,20 @@ impl FormalParameterList {
             FormalParameterList::List(list, item) => list.contains_expression() || item.contains_expression(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                FormalParameterList::Item(formal) => formal.body_containing_location(location),
+                FormalParameterList::List(formals, formal) => {
+                    formals.body_containing_location(location).or_else(|| formal.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
 }
 
 // FunctionRestParameter[Yield, Await] :
@@ -693,6 +727,12 @@ impl FunctionRestParameter {
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         self.element.contains_expression()
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -807,6 +847,11 @@ impl FormalParameter {
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
     pub fn contains_expression(&self) -> bool {
         self.element.contains_expression()
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) { self.element.body_containing_location(location) } else { None }
     }
 }
 

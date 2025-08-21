@@ -59,12 +59,12 @@ mod function_declaration {
         #[test_case("" => "default"; "unnamed")]
         fn typical(name: &str) -> String {
             let src = format!("function {name}(){{}}");
-            let fd = Maker::new(&src).function_declaration();
+            let (fd, ast) = Maker::new(&src).function_declaration_ast();
             setup_test_agent();
             let realm_rc = current_realm_record().unwrap();
             let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
-            let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, &src, fd.clone()).unwrap();
+            let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, &ast).unwrap();
             let fobj = Object::try_from(fvalue).unwrap();
 
             let result = String::from(JSString::try_from(fobj.get(&"name".into()).unwrap()).unwrap());
@@ -95,12 +95,12 @@ mod function_declaration {
         #[test]
         fn compile_error() {
             let src = "function a(){ if (true) { @@@; } return 3; }";
-            let fd = Maker::new(src).function_declaration();
+            let (fd, ast) = Maker::new(src).function_declaration_ast();
             setup_test_agent();
             let realm_rc = current_realm_record().unwrap();
             let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
-            let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, src, fd.clone()).unwrap_err();
+            let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, &ast).unwrap_err();
 
             let msg = unwind_any_error(fvalue);
             assert_eq!(msg, "TypeError: out of range integral type conversion attempted");
@@ -125,7 +125,7 @@ mod async_function_declaration {
     #[should_panic(expected = "not yet implemented")]
     fn instantiate_function_object() {
         let src = "async function a(){}";
-        let fd = Maker::new(src).async_function_declaration();
+        let (fd, ast) = Maker::new(src).async_function_declaration_ast();
         setup_test_agent();
         let global_env = {
             let realm_rc = current_realm_record().unwrap();
@@ -133,7 +133,7 @@ mod async_function_declaration {
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(global_env, None, false, src, fd.clone()).unwrap();
+        fd.instantiate_function_object(global_env, None, false, &ast).unwrap();
     }
 }
 
@@ -143,7 +143,7 @@ mod async_generator_declaration {
     #[should_panic(expected = "not yet implemented")]
     fn instantiate_function_object() {
         let src = "async function *a(){}";
-        let fd = Maker::new(src).async_generator_declaration();
+        let (fd, ast) = Maker::new(src).async_generator_declaration_ast();
         setup_test_agent();
         let global_env = {
             let realm_rc = current_realm_record().unwrap();
@@ -151,7 +151,7 @@ mod async_generator_declaration {
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(global_env, None, false, src, fd.clone()).unwrap();
+        fd.instantiate_function_object(global_env, None, false, &ast).unwrap();
     }
 }
 
@@ -457,12 +457,12 @@ mod function_object_data {
     fn fmt() {
         setup_test_agent();
         let src = "function test_sample(){{}}";
-        let fd = Maker::new(src).function_declaration();
+        let (fd, ast) = Maker::new(src).function_declaration_ast();
         setup_test_agent();
         let realm_rc = current_realm_record().unwrap();
         let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
-        let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, src, fd.clone()).unwrap();
+        let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, &ast).unwrap();
         let fobj = Object::try_from(fvalue).unwrap();
 
         let function = fobj.o.to_function_obj().unwrap().function_data().borrow();
@@ -484,11 +484,11 @@ mod make_method {
     fn call() {
         setup_test_agent();
         let src = "function a(){}";
-        let fd = Maker::new(src).function_declaration();
+        let (fd, ast) = Maker::new(src).function_declaration_ast();
         let realm_rc = current_realm_record().unwrap();
         let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
-        let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, src, fd.clone()).unwrap();
+        let fvalue = fd.instantiate_function_object(global_env.clone(), None, false, &ast).unwrap();
         let fobj = Object::try_from(fvalue).unwrap();
         let f_funobj = fobj.o.to_function_obj().unwrap();
 
@@ -1000,7 +1000,7 @@ fn make_working_function_object() -> Object {
     let function_name = "test_function";
     let source_text = format!("function {function_name}{params_src}{body_src}");
     let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
-    let function_declaration = Maker::new(&source_text).function_declaration();
+    let (function_declaration, ast) = Maker::new(&source_text).function_declaration_ast();
     let params = ParamSource::from(Rc::clone(&function_declaration.params));
     let body = BodySource::from(Rc::clone(&function_declaration.body));
     let realm = current_realm_record().unwrap();
@@ -1015,7 +1015,7 @@ fn make_working_function_object() -> Object {
         to_compile: FunctionSource::from(function_declaration.clone()),
         this_mode: ThisLexicality::NonLexicalThis,
     };
-    function_declaration.body.compile_body(&mut compiled, &source_text, &function_data).unwrap();
+    function_declaration.body.compile_body(&mut compiled, &ast, &function_data).unwrap();
     for line in compiled.disassemble() {
         println!("{line}");
     }
@@ -1054,7 +1054,7 @@ fn make_strict_function_object() -> Object {
     let function_name = "test_function";
     let source_text = format!("function {function_name}{params_src}{body_src}");
     let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
-    let function_declaration = Maker::new(&source_text).function_declaration();
+    let (function_declaration, ast) = Maker::new(&source_text).function_declaration_ast();
     let params = ParamSource::from(Rc::clone(&function_declaration.params));
     let body = BodySource::from(Rc::clone(&function_declaration.body));
     let realm = current_realm_record().unwrap();
@@ -1069,7 +1069,7 @@ fn make_strict_function_object() -> Object {
         to_compile: FunctionSource::from(function_declaration.clone()),
         this_mode: ThisLexicality::NonLexicalThis,
     };
-    function_declaration.body.compile_body(&mut compiled, &source_text, &function_data).unwrap();
+    function_declaration.body.compile_body(&mut compiled, &ast, &function_data).unwrap();
     for line in compiled.disassemble() {
         println!("{line}");
     }
@@ -1103,7 +1103,7 @@ fn make_arrow_function_object() -> Object {
     // x => x * 2
     let source_text = "x => x * 2".to_string();
     let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
-    let function_declaration = Maker::new(&source_text).arrow_function();
+    let (function_declaration, ast) = Maker::new(&source_text).arrow_function_ast();
     let params = ParamSource::from(Rc::clone(&function_declaration.parameters));
     let body = BodySource::from(Rc::clone(&function_declaration.body));
     let realm = current_realm_record().unwrap();
@@ -1118,7 +1118,7 @@ fn make_arrow_function_object() -> Object {
         to_compile: FunctionSource::from(function_declaration.clone()),
         this_mode: ThisLexicality::LexicalThis,
     };
-    function_declaration.body.compile_body(&mut compiled, &source_text, &function_data).unwrap();
+    function_declaration.body.compile_body(&mut compiled, &ast, &function_data).unwrap();
     for line in compiled.disassemble() {
         println!("{line}");
     }

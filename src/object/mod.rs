@@ -2032,7 +2032,16 @@ pub fn call(
     this_value: &ECMAScriptValue,
     args: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    if initiate_call(func, this_value, args) {
+    tailable_call(func, this_value, args, false)
+}
+
+pub fn tailable_call(
+    func: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
+    args: &[ECMAScriptValue],
+    tailcall: bool,
+) -> Completion<ECMAScriptValue> {
+    if initiate_call(func, this_value, args, tailcall) {
         complete_call(func)
     } else {
         Err(ec_pop()
@@ -2041,7 +2050,12 @@ pub fn call(
     }
 }
 
-pub fn initiate_call(func: &ECMAScriptValue, this_value: &ECMAScriptValue, args: &[ECMAScriptValue]) -> bool {
+pub fn initiate_call(
+    func: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
+    args: &[ECMAScriptValue],
+    tailcall: bool,
+) -> bool {
     let maybe_callable = to_callable(func);
     match maybe_callable {
         None => {
@@ -2050,6 +2064,9 @@ pub fn initiate_call(func: &ECMAScriptValue, this_value: &ECMAScriptValue, args:
             false
         }
         Some(callable) => {
+            if tailcall {
+                pop_execution_context();
+            }
             let self_obj = to_object(func.clone()).unwrap();
             callable.call(&self_obj, this_value, args);
             true

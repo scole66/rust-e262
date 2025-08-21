@@ -406,7 +406,8 @@ mod function_expression {
 // FUNCTION BODY
 #[test]
 fn function_body_test_01() {
-    let (node, scanner) = FunctionBody::parse(&mut newparser(""), Scanner::new(), false, false);
+    let (node, scanner) =
+        FunctionBody::parse(&mut newparser(""), Scanner::new(), false, false, FunctionBodyParent::FunctionBody);
     chk_scan(&scanner, 0);
     pretty_check(&*node, "FunctionBody: ", &["FunctionStatementList: "]);
     concise_check(&*node, "", &[]);
@@ -414,41 +415,49 @@ fn function_body_test_01() {
 }
 #[test]
 fn function_body_test_prettyerrors_1() {
-    let (item, _) = FunctionBody::parse(&mut newparser("a; b; c;"), Scanner::new(), false, false);
+    let (item, _) =
+        FunctionBody::parse(&mut newparser("a; b; c;"), Scanner::new(), false, false, FunctionBodyParent::FunctionBody);
     pretty_error_validate(&*item);
 }
 #[test]
 fn function_body_test_conciseeerrors_1() {
-    let (item, _) = FunctionBody::parse(&mut newparser("a; b; c;"), Scanner::new(), false, false);
+    let (item, _) =
+        FunctionBody::parse(&mut newparser("a; b; c;"), Scanner::new(), false, false, FunctionBodyParent::FunctionBody);
     concise_error_validate(&*item);
 }
 #[test]
 fn function_body_test_cache_01() {
     let mut parser = newparser("a; b; c;");
-    let (node, scanner) = FunctionBody::parse(&mut parser, Scanner::new(), false, false);
-    let (node2, scanner2) = FunctionBody::parse(&mut parser, Scanner::new(), false, false);
+    let (node, scanner) =
+        FunctionBody::parse(&mut parser, Scanner::new(), false, false, FunctionBodyParent::FunctionBody);
+    let (node2, scanner2) =
+        FunctionBody::parse(&mut parser, Scanner::new(), false, false, FunctionBodyParent::FunctionBody);
     assert!(scanner == scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
 fn function_body_test_contains_01() {
-    let (item, _) = FunctionBody::parse(&mut newparser("0;"), Scanner::new(), true, true);
+    let (item, _) =
+        FunctionBody::parse(&mut newparser("0;"), Scanner::new(), true, true, FunctionBodyParent::FunctionBody);
     assert_eq!(item.contains(ParseNodeKind::Literal), true);
 }
 #[test]
 fn function_body_test_contains_02() {
-    let (item, _) = FunctionBody::parse(&mut newparser("a;"), Scanner::new(), true, true);
+    let (item, _) =
+        FunctionBody::parse(&mut newparser("a;"), Scanner::new(), true, true, FunctionBodyParent::FunctionBody);
     assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("a.#valid;" => true; "Statement valid")]
 #[test_case("a.#invalid;" => false; "Statement invalid")]
 fn function_body_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
+    let (item, _) =
+        FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true, FunctionBodyParent::FunctionBody);
     item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test_case("'one'; 'two'; 'three'; blue;" => vec![JSString::from("one"), JSString::from("two"), JSString::from("three")]; "normal")]
 fn function_body_test_directive_prologue(src: &str) -> Vec<JSString> {
-    let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
+    let (item, _) =
+        FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true, FunctionBodyParent::FunctionBody);
     item.directive_prologue().into_iter().map(|tok| tok.value).collect()
 }
 #[test_case("'one'; 3;" => false; "directive no strict")]
@@ -456,12 +465,14 @@ fn function_body_test_directive_prologue(src: &str) -> Vec<JSString> {
 #[test_case("'a'; 'use strict';" => true; "good strict")]
 #[test_case("'use\\x20strict';" => false; "bad strict")]
 fn function_body_test_function_body_contains_use_strict(src: &str) -> bool {
-    let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
+    let (item, _) =
+        FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true, FunctionBodyParent::FunctionBody);
     item.function_body_contains_use_strict()
 }
 #[test_case("var a; setup(); let alpha=\"a\"; const BETA='β';" => vec![JSString::from("alpha"), JSString::from("BETA")]; "normal")]
 fn function_body_test_lexically_declared_names(src: &str) -> Vec<JSString> {
-    let (item, _) = FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true);
+    let (item, _) =
+        FunctionBody::parse(&mut newparser(src), Scanner::new(), true, true, FunctionBodyParent::FunctionBody);
     item.lexically_declared_names()
 }
 mod function_body {

@@ -131,6 +131,12 @@ impl ArrowFunction {
         self.parameters.early_errors(errs, strict_function);
         self.body.early_errors(errs, strict_function);
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // ArrowParameters[Yield, Await] :
@@ -292,6 +298,12 @@ impl ArrowParameters {
             ArrowParameters::Formals(f) => f.contains_expression(),
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // ArrowFormalParameters[Yield, Await] :
@@ -416,6 +428,12 @@ impl ArrowFormalParameters {
     pub fn contains_expression(&self) -> bool {
         self.params.contains_expression()
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // ConciseBody[In] :
@@ -473,18 +491,21 @@ impl ConciseBody {
             .otherwise(|| {
                 let (lb_loc, after_curly) =
                     scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
-                let (body, after_fb) = FunctionBody::parse(parser, after_curly, in_flag, false);
+                let (body, after_fb) =
+                    FunctionBody::parse(parser, after_curly, in_flag, false, FunctionBodyParent::FunctionBody);
                 let (rb_loc, after_rb) =
                     scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
                 let location = lb_loc.merge(&rb_loc);
-                Ok((Rc::new(ConciseBody::Function { body, location }), after_rb))
+                let concise_body = Rc::new(ConciseBody::Function { body, location });
+                Ok((concise_body, after_rb))
             })
             .otherwise(|| {
                 let r = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace);
                 match r {
                     Err(_) => {
                         let (exp, after_exp) = ExpressionBody::parse(parser, scanner, in_flag, false)?;
-                        Ok((Rc::new(ConciseBody::Expression(exp)), after_exp))
+                        let concise_body = Rc::new(ConciseBody::Expression(exp));
+                        Ok((concise_body, after_exp))
                     }
                     Ok(_) => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ExpressionBody), scanner)),
                 }
@@ -599,6 +620,21 @@ impl ConciseBody {
             ConciseBody::Function { body, .. } => body.lexically_scoped_declarations(),
         }
     }
+
+    pub fn parent_body(&self) -> Option<ParseNodeKind> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // ExpressionBody[In, Await] :
@@ -685,6 +721,12 @@ impl ExpressionBody {
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.expression.early_errors(errs, strict);
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 

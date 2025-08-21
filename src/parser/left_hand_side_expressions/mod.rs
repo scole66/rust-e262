@@ -491,6 +491,73 @@ impl MemberExpression {
             }
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                MemberExpression::PrimaryExpression(node) => node.body_containing_location(location),
+                MemberExpression::Expression(left, right, _) => {
+                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
+                }
+                MemberExpression::IdentifierName(node, ..) | MemberExpression::PrivateId(node, ..) => {
+                    node.body_containing_location(location)
+                }
+                MemberExpression::TemplateLiteral(left, right) => {
+                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
+                }
+                MemberExpression::SuperProperty(node) => node.body_containing_location(location),
+                MemberExpression::MetaProperty(node) => node.body_containing_location(location),
+                MemberExpression::NewArguments(left, right, _) => {
+                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    #[expect(unused_variables)]
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // MemberExpression[Yield, Await] :
+        //      MemberExpression[?Yield, ?Await] [ Expression[+In, ?Yield, ?Await] ]
+        //      MemberExpression[?Yield, ?Await] . IdentifierName
+        //      SuperProperty[?Yield, ?Await]
+        //      MetaProperty
+        //      new MemberExpression[?Yield, ?Await] Arguments[?Yield, ?Await]
+        //      MemberExpression[?Yield, ?Await] . PrivateIdentifier
+        //  1. Return false.
+        // MemberExpression[Yield, Await] :
+        //      PrimaryExpression[?Yield, ?Await]
+        //  1. Return HasCallInTailPosition of PrimaryExpression with argument call.
+        // MemberExpression[Yield, Await] :
+        //      MemberExpression[?Yield, ?Await] TemplateLiteral[?Yield, ?Await, +Tagged]
+        //  1. If this MemberExpression is call, return true.
+        //  2. Return false.
+        match self {
+            MemberExpression::PrimaryExpression(primary_expression) => {
+                primary_expression.has_call_in_tail_position(location)
+            }
+            MemberExpression::TemplateLiteral(member_expression, template_literal) => self.location() == *location,
+            MemberExpression::Expression(..)
+            | MemberExpression::IdentifierName(..)
+            | MemberExpression::SuperProperty(..)
+            | MemberExpression::MetaProperty(..)
+            | MemberExpression::NewArguments(..)
+            | MemberExpression::PrivateId(..) => false,
+        }
+    }
 }
 
 // SuperProperty[Yield, Await] :
@@ -621,6 +688,11 @@ impl SuperProperty {
             SuperProperty::IdentifierName { .. } => {}
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
+    }
 }
 
 // MetaProperty :
@@ -735,6 +807,11 @@ impl MetaProperty {
                 }
             }
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
     }
 }
 
@@ -894,6 +971,20 @@ impl Arguments {
             Arguments::ArgumentList(n, _) | Arguments::ArgumentListComma(n, _) => n.early_errors(errs, strict),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                Arguments::Empty { .. } => None,
+                Arguments::ArgumentList(n, _) | Arguments::ArgumentListComma(n, _) => {
+                    n.body_containing_location(location)
+                }
+            }
+        } else {
+            None
+        }
+    }
 }
 
 // ArgumentList[Yield, Await] :
@@ -904,7 +995,7 @@ impl Arguments {
 #[derive(Debug)]
 pub enum ArgumentList {
     FallThru(Rc<AssignmentExpression>),
-    Dots(Rc<AssignmentExpression>),
+    Dots(Rc<AssignmentExpression>, Location),
     ArgumentList(Rc<ArgumentList>, Rc<AssignmentExpression>),
     ArgumentListDots(Rc<ArgumentList>, Rc<AssignmentExpression>),
 }
@@ -947,10 +1038,11 @@ impl ArgumentList {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<(Self, Scanner), ParseError> {
-        let (_, after_ellipsis) =
+        let (loc, after_ellipsis) =
             scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
-        Ok((Self::Dots(ae), after_ae))
+        let location = loc.merge(&ae.location());
+        Ok((Self::Dots(ae, location), after_ae))
     }
 
     // Parse the production
@@ -992,7 +1084,7 @@ impl fmt::Display for ArgumentList {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ArgumentList::FallThru(boxed) => write!(f, "{boxed}"),
-            ArgumentList::Dots(boxed) => write!(f, "... {boxed}"),
+            ArgumentList::Dots(boxed, _) => write!(f, "... {boxed}"),
             ArgumentList::ArgumentList(list, exp) => write!(f, "{list} , {exp}"),
             ArgumentList::ArgumentListDots(list, exp) => {
                 write!(f, "{list} , ... {exp}")
@@ -1009,7 +1101,7 @@ impl PrettyPrint for ArgumentList {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}ArgumentList: {self}")?;
         match self {
-            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => {
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed, _) => {
                 boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
             }
             ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
@@ -1028,7 +1120,7 @@ impl PrettyPrint for ArgumentList {
         };
         match self {
             ArgumentList::FallThru(node) => node.concise_with_leftpad(writer, pad, state),
-            ArgumentList::Dots(node) => {
+            ArgumentList::Dots(node, _) => {
                 let successive = head(pad, state)?;
                 pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::Final)
@@ -1083,7 +1175,7 @@ impl ArgumentList {
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.contains(kind),
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed, _) => boxed.contains(kind),
             ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
                 list.contains(kind) || exp.contains(kind)
             }
@@ -1098,7 +1190,7 @@ impl ArgumentList {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         match self {
-            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.all_private_identifiers_valid(names),
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed, _) => boxed.all_private_identifiers_valid(names),
             ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
                 list.all_private_identifiers_valid(names) && exp.all_private_identifiers_valid(names)
             }
@@ -1117,7 +1209,7 @@ impl ArgumentList {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         match self {
-            ArgumentList::FallThru(ae) | ArgumentList::Dots(ae) => ae.contains_arguments(),
+            ArgumentList::FallThru(ae) | ArgumentList::Dots(ae, _) => ae.contains_arguments(),
             ArgumentList::ArgumentList(al, ae) | ArgumentList::ArgumentListDots(al, ae) => {
                 al.contains_arguments() || ae.contains_arguments()
             }
@@ -1127,10 +1219,36 @@ impl ArgumentList {
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
-            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed) => boxed.early_errors(errs, strict),
+            ArgumentList::FallThru(boxed) | ArgumentList::Dots(boxed, _) => boxed.early_errors(errs, strict),
             ArgumentList::ArgumentList(list, exp) | ArgumentList::ArgumentListDots(list, exp) => {
                 list.early_errors(errs, strict);
                 exp.early_errors(errs, strict);
+            }
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                ArgumentList::FallThru(n) | ArgumentList::Dots(n, _) => n.body_containing_location(location),
+                ArgumentList::ArgumentList(n, _) | ArgumentList::ArgumentListDots(n, _) => {
+                    n.body_containing_location(location)
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn location(&self) -> Location {
+        match self {
+            ArgumentList::FallThru(boxed) => boxed.location(),
+            ArgumentList::Dots(_, location) => *location,
+            ArgumentList::ArgumentList(al, ae) | ArgumentList::ArgumentListDots(al, ae) => {
+                let al_loc = al.location();
+                let ae_loc = ae.location();
+                al_loc.merge(&ae_loc)
             }
         }
     }
@@ -1329,6 +1447,43 @@ impl NewExpression {
             }
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                NewExpression::MemberExpression(n) => n.body_containing_location(location),
+                NewExpression::NewExpression(n, _) => n.body_containing_location(location),
+            }
+        } else {
+            None
+        }
+    }
+
+    #[expect(unused_variables)]
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // NewExpression[Yield, Await] :
+        //      MemberExpression[?Yield, ?Await]
+        //  1. Return HasCallInTailPosition of MemberExpression with argument call.
+        // NewExpression[Yield, Await] :
+        //      new NewExpression[?Yield, ?Await]
+        //  1. Return false.
+        match self {
+            NewExpression::MemberExpression(member_expression) => member_expression.has_call_in_tail_position(location),
+            NewExpression::NewExpression(new_expression, location) => false,
+        }
+    }
 }
 
 // CallMemberExpression[Yield, Await] :
@@ -1410,6 +1565,38 @@ impl CallMemberExpression {
         self.member_expression.early_errors(errs, strict);
         self.arguments.early_errors(errs, strict);
     }
+
+    pub fn is_in_tail_position(&self, top: &ParsedText, strict: bool) -> bool {
+        // Static Semantics: IsInTailPosition ( call )
+        //
+        // The abstract operation IsInTailPosition takes argument call (a CallExpression Parse Node, a MemberExpression
+        // Parse Node, or an OptionalChain Parse Node) and returns a Boolean. It performs the following steps when
+        // called:
+        //
+        //  1. If IsStrict(call) is false, return false.
+        //  2. If call is not contained within a FunctionBody, a ConciseBody, or an AsyncConciseBody, return false.
+        //  3. Let body be the FunctionBody, ConciseBody, or AsyncConciseBody that most closely contains call.
+        //  4. If body is the FunctionBody of a GeneratorBody, return false.
+        //  5. If body is the FunctionBody of an AsyncFunctionBody, return false.
+        //  6. If body is the FunctionBody of an AsyncGeneratorBody, return false.
+        //  7. If body is an AsyncConciseBody, return false.
+        //  8. Return the result of HasCallInTailPosition of body with argument call.
+        //
+        // Note: Tail Position calls are only defined in strict mode code because of a common non-standard language
+        //       extension (see 10.2.4) that enables observation of the chain of caller contexts.
+        is_in_tail_position(&self.location(), top, strict)
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            self.member_expression
+                .body_containing_location(location)
+                .or_else(|| self.arguments.body_containing_location(location))
+        } else {
+            None
+        }
+    }
 }
 
 // SuperCall[Yield, Await] :
@@ -1489,6 +1676,11 @@ impl SuperCall {
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.arguments.early_errors(errs, strict);
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
     }
 }
 
@@ -1575,6 +1767,11 @@ impl ImportCall {
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.assignment_expression.early_errors(errs, strict);
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
     }
 }
 
@@ -1908,6 +2105,71 @@ impl CallExpression {
             | CallExpression::CallExpressionPrivateId(..) => ATTKind::Simple,
         }
     }
+
+    pub fn is_in_tail_position(&self, top: &ParsedText, strict: bool) -> bool {
+        is_in_tail_position(&self.location(), top, strict)
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                CallExpression::CallMemberExpression(boxed) => boxed.body_containing_location(location),
+                CallExpression::SuperCall(boxed) => boxed.body_containing_location(location),
+                CallExpression::ImportCall(boxed) => boxed.body_containing_location(location),
+                CallExpression::CallExpressionArguments(ce, args) => {
+                    ce.body_containing_location(location).or_else(|| args.body_containing_location(location))
+                }
+                CallExpression::CallExpressionExpression(ce, exp, _) => {
+                    ce.body_containing_location(location).or_else(|| exp.body_containing_location(location))
+                }
+                CallExpression::CallExpressionIdentifierName(ce, _, _)
+                | CallExpression::CallExpressionPrivateId(ce, _, _) => ce.body_containing_location(location),
+                CallExpression::CallExpressionTemplateLiteral(ce, tl) => {
+                    ce.body_containing_location(location).or_else(|| tl.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // CallExpression :
+        //      CoverCallExpressionAndAsyncArrowHead
+        //      CallExpression Arguments
+        //      CallExpression TemplateLiteral
+        //  1. If this CallExpression is call, return true.
+        //  2. Return false.
+        // CallExpression :
+        //      SuperCall
+        //      ImportCall
+        //      CallExpression [ Expression ]
+        //      CallExpression . IdentifierName
+        //      CallExpression . PrivateIdentifier
+        //  1. Return false.
+        match self {
+            CallExpression::CallMemberExpression(_)
+            | CallExpression::CallExpressionArguments(..)
+            | CallExpression::CallExpressionTemplateLiteral(..) => self.location() == *location,
+            CallExpression::SuperCall(_)
+            | CallExpression::ImportCall(_)
+            | CallExpression::CallExpressionExpression(..)
+            | CallExpression::CallExpressionIdentifierName(..)
+            | CallExpression::CallExpressionPrivateId(..) => false,
+        }
+    }
 }
 
 // LeftHandSideExpression[Yield, Await] :
@@ -2125,6 +2387,44 @@ impl LeftHandSideExpression {
             }
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                LeftHandSideExpression::New(node) => node.body_containing_location(location),
+                LeftHandSideExpression::Call(node) => node.body_containing_location(location),
+                LeftHandSideExpression::Optional(node) => node.body_containing_location(location),
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // LeftHandSideExpression :
+        //      NewExpression
+        //      CallExpression
+        //      OptionalExpression
+        match self {
+            LeftHandSideExpression::New(new_expression) => new_expression.has_call_in_tail_position(location),
+            LeftHandSideExpression::Call(call_expression) => call_expression.has_call_in_tail_position(location),
+            LeftHandSideExpression::Optional(optional_expression) => {
+                optional_expression.has_call_in_tail_position(location)
+            }
+        }
+    }
 }
 
 // OptionalExpression[Yield, Await] :
@@ -2299,6 +2599,41 @@ impl OptionalExpression {
             | OptionalExpression::Call(_, chain)
             | OptionalExpression::Opt(_, chain) => chain.is_strictly_deletable(),
         }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                OptionalExpression::Member(me, oc) => {
+                    me.body_containing_location(location).or_else(|| oc.body_containing_location(location))
+                }
+                OptionalExpression::Call(ce, oc) => {
+                    ce.body_containing_location(location).or_else(|| oc.body_containing_location(location))
+                }
+                OptionalExpression::Opt(oe, oc) => {
+                    oe.body_containing_location(location).or_else(|| oc.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    #[expect(unused_variables)]
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        todo!()
     }
 }
 
@@ -2679,6 +3014,83 @@ impl OptionalChain {
 
     pub fn is_strictly_deletable(&self) -> bool {
         !matches!(self, OptionalChain::PrivateId(..) | OptionalChain::PlusPrivateId(..))
+    }
+
+    pub fn is_in_tail_position(&self, top: &ParsedText, strict: bool) -> bool {
+        is_in_tail_position(&self.location(), top, strict)
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                OptionalChain::Args(node, _) => node.body_containing_location(location),
+                OptionalChain::Exp(node, _) => node.body_containing_location(location),
+                OptionalChain::Ident(_, _) | OptionalChain::PrivateId(_, _) => None,
+                OptionalChain::Template(node, _) => node.body_containing_location(location),
+                OptionalChain::PlusArgs(lst, args) => {
+                    lst.body_containing_location(location).or_else(|| args.body_containing_location(location))
+                }
+                OptionalChain::PlusExp(lst, exp, _) => {
+                    lst.body_containing_location(location).or_else(|| exp.body_containing_location(location))
+                }
+                OptionalChain::PlusIdent(lst, _, _) | OptionalChain::PlusPrivateId(lst, _, _) => {
+                    lst.body_containing_location(location)
+                }
+                OptionalChain::PlusTemplate(lst, tl) => {
+                    lst.body_containing_location(location).or_else(|| tl.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
+}
+
+pub fn is_in_tail_position(location: &Location, top: &ParsedText, strict: bool) -> bool {
+    // Static Semantics: IsInTailPosition ( call )
+    //
+    // The abstract operation IsInTailPosition takes argument call (a CallExpression Parse Node, a MemberExpression
+    // Parse Node, or an OptionalChain Parse Node) and returns a Boolean. It performs the following steps when
+    // called:
+    //
+    //  1. If IsStrict(call) is false, return false.
+    //  2. If call is not contained within a FunctionBody, a ConciseBody, or an AsyncConciseBody, return false.
+    //  3. Let body be the FunctionBody, ConciseBody, or AsyncConciseBody that most closely contains call.
+    //  4. If body is the FunctionBody of a GeneratorBody, return false.
+    //  5. If body is the FunctionBody of an AsyncFunctionBody, return false.
+    //  6. If body is the FunctionBody of an AsyncGeneratorBody, return false.
+    //  7. If body is an AsyncConciseBody, return false.
+    //  8. Return the result of HasCallInTailPosition of body with argument call.
+    //
+    // Note: Tail Position calls are only defined in strict mode code because of a common non-standard language
+    //       extension (see 10.2.4) that enables observation of the chain of caller contexts.
+    if !strict {
+        return false;
+    }
+    let body = top.body_containing_location(location);
+    match &body {
+        None | Some(ContainingBody::AsyncConciseBody(_)) => false,
+        Some(ContainingBody::ConciseBody(body)) => {
+            // Otherwise, HasCallInTailPosition of body with argument call.
+            body.has_call_in_tail_position(location)
+        }
+        Some(ContainingBody::FunctionBody(body)) => {
+            // If body is the FunctionBody of a GeneratorBody, return false.
+            if body.is_generator_body() {
+                return false;
+            }
+            // If body is the FunctionBody of an AsyncFunctionBody, return false.
+            if body.is_async_function_body() {
+                return false;
+            }
+            // If body is the FunctionBody of an AsyncGeneratorBody, return false.
+            if body.is_async_generator_body() {
+                return false;
+            }
+            // Otherwise, HasCallInTailPosition of body with argument call.
+            body.has_call_in_tail_position(location)
+        }
     }
 }
 

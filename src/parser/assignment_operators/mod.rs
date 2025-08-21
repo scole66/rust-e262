@@ -503,6 +503,81 @@ impl AssignmentExpression {
             AssignmentExpression::FallThru(node) => node.is_named_function(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                AssignmentExpression::FallThru(node) => node.body_containing_location(location),
+                AssignmentExpression::Yield(node) => node.body_containing_location(location),
+                AssignmentExpression::Arrow(node) => node.body_containing_location(location),
+                AssignmentExpression::AsyncArrow(node) => node.body_containing_location(location),
+                AssignmentExpression::Assignment(lhs, ae) => {
+                    lhs.body_containing_location(location).or_else(|| ae.body_containing_location(location))
+                }
+                AssignmentExpression::OpAssignment(lhs, _, ae) => {
+                    lhs.body_containing_location(location).or_else(|| ae.body_containing_location(location))
+                }
+                AssignmentExpression::LandAssignment(lhs, ae) => {
+                    lhs.body_containing_location(location).or_else(|| ae.body_containing_location(location))
+                }
+                AssignmentExpression::LorAssignment(left_hand_side_expression, assignment_expression) => {
+                    left_hand_side_expression
+                        .body_containing_location(location)
+                        .or_else(|| assignment_expression.body_containing_location(location))
+                }
+                AssignmentExpression::CoalAssignment(left_hand_side_expression, assignment_expression) => {
+                    left_hand_side_expression
+                        .body_containing_location(location)
+                        .or_else(|| assignment_expression.body_containing_location(location))
+                }
+                AssignmentExpression::Destructuring(assignment_pattern, assignment_expression) => assignment_pattern
+                    .body_containing_location(location)
+                    .or_else(|| assignment_expression.body_containing_location(location)),
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // AssignmentExpression :
+        //      YieldExpression
+        //      ArrowFunction
+        //      AsyncArrowFunction
+        //      LeftHandSideExpression = AssignmentExpression
+        //      LeftHandSideExpression AssignmentOperator AssignmentExpression
+        //      LeftHandSideExpression &&= AssignmentExpression
+        //      LeftHandSideExpression ||= AssignmentExpression
+        //      LeftHandSideExpression ??= AssignmentExpression
+        //  1. Return false.
+        // AssignementExpression :
+        //      ConditionalExpression
+        //  1. Return HasCallInTailPosition of ConditionalExpression with argument call.
+        match self {
+            AssignmentExpression::FallThru(node) => node.has_call_in_tail_position(location),
+            AssignmentExpression::Yield(_)
+            | AssignmentExpression::Arrow(_)
+            | AssignmentExpression::AsyncArrow(_)
+            | AssignmentExpression::Assignment(_, _)
+            | AssignmentExpression::OpAssignment(_, _, _)
+            | AssignmentExpression::LandAssignment(_, _)
+            | AssignmentExpression::LorAssignment(_, _)
+            | AssignmentExpression::CoalAssignment(_, _)
+            | AssignmentExpression::Destructuring(_, _) => false,
+        }
+    }
 }
 
 // AssignmentOperator : one of
@@ -671,6 +746,12 @@ impl AssignmentPattern {
 
     pub fn is_destructuring(&self) -> bool {
         true
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -872,6 +953,12 @@ impl ObjectAssignmentPattern {
                 apr.early_errors(errs, strict);
             }
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -1124,6 +1211,12 @@ impl ArrayAssignmentPattern {
             }
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // AssignmentRestProperty[Yield, Await] :
@@ -1204,6 +1297,12 @@ impl AssignmentRestProperty {
             ));
         }
         self.0.early_errors(errs, strict);
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -1321,6 +1420,12 @@ impl AssignmentPropertyList {
                 item.early_errors(errs, strict);
             }
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -1440,6 +1545,12 @@ impl AssignmentElementList {
             }
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // AssignmentElisionElement[Yield, Await] :
@@ -1527,6 +1638,12 @@ impl AssignmentElisionElement {
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.element.early_errors(errs, strict);
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -1686,6 +1803,12 @@ impl AssignmentProperty {
             }
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // AssignmentElement[Yield, Await] :
@@ -1786,6 +1909,12 @@ impl AssignmentElement {
             izer.early_errors(errs, strict);
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // AssignmentRestElement[Yield, Await] :
@@ -1857,6 +1986,12 @@ impl AssignmentRestElement {
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.0.early_errors(errs, strict);
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -1978,6 +2113,12 @@ impl DestructuringAssignmentTarget {
             DestructuringAssignmentTarget::LeftHandSideExpression(lhse) => lhse.identifier_ref(),
             DestructuringAssignmentTarget::AssignmentPattern(_) => None,
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 

@@ -162,6 +162,19 @@ impl ClassDeclaration {
     pub fn is_constant_declaration(&self) -> bool {
         false
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                ClassDeclaration::Named { tail, .. } | ClassDeclaration::Unnamed { tail, .. } => {
+                    tail.body_containing_location(location)
+                }
+            }
+        } else {
+            None
+        }
+    }
 }
 
 // ClassExpression[Yield, Await] :
@@ -280,6 +293,11 @@ impl ClassExpression {
 
     pub fn is_named_function(&self) -> bool {
         self.ident.is_some()
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) { self.tail.body_containing_location(location) } else { None }
     }
 }
 
@@ -453,6 +471,15 @@ impl ClassTail {
             body.early_errors(errs, strict);
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location.contains(location) {
+            if let Some(body) = &self.body { body.body_containing_location(location) } else { None }
+        } else {
+            None
+        }
+    }
 }
 
 // ClassHeritage[Yield, Await] :
@@ -543,6 +570,12 @@ impl ClassHeritage {
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.exp.early_errors(errs, strict);
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -712,6 +745,11 @@ impl ClassBody {
         // The syntax-directed operation NonConstructorElements takes no arguments and returns a List of ClassElement
         // Parse Nodes.
         self.0.non_constructor_elements()
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        self.0.body_containing_location(location)
     }
 }
 
@@ -971,6 +1009,16 @@ impl ClassElementList {
                     list.push(item);
                 }
                 list
+            }
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            ClassElementList::Item(item) => item.body_containing_location(location),
+            ClassElementList::List(list, item) => {
+                list.body_containing_location(location).or_else(|| item.body_containing_location(location))
             }
         }
     }
@@ -1358,6 +1406,20 @@ impl ClassElement {
             ClassElement::Standard { method } | ClassElement::Static { method, .. } => method.has_direct_super(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            ClassElement::Standard { method } | ClassElement::Static { method, .. } => {
+                method.body_containing_location(location)
+            }
+            ClassElement::Field { field, .. } | ClassElement::StaticField { field, .. } => {
+                field.body_containing_location(location)
+            }
+            ClassElement::StaticBlock { block } => block.body_containing_location(location),
+            ClassElement::Empty { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -1505,6 +1567,13 @@ impl FieldDefinition {
     /// See [PropName](https://tc39.es/ecma262/#sec-static-semantics-propname) in ECMA-262.
     pub fn prop_name(&self) -> Option<JSString> {
         self.name.prop_name()
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        self.name
+            .body_containing_location(location)
+            .or_else(|| self.init.as_ref().and_then(|init| init.body_containing_location(location)))
     }
 }
 
@@ -1668,6 +1737,14 @@ impl ClassElementName {
             }
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            ClassElementName::PropertyName(pn) => pn.body_containing_location(location),
+            ClassElementName::PrivateIdentifier { .. } => None,
+        }
+    }
 }
 
 // ClassStaticBlock :
@@ -1768,6 +1845,12 @@ impl ClassStaticBlock {
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.block.early_errors(errs, strict);
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -1886,6 +1969,12 @@ impl ClassStaticBlockBody {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         self.0.contains_arguments()
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -2099,6 +2188,12 @@ impl ClassStaticBlockStatementList {
             ClassStaticBlockStatementList::Statements(sl) => kind == ParseNodeKind::StatementList || sl.contains(kind),
             ClassStaticBlockStatementList::Empty(_) => false,
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 

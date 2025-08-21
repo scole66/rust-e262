@@ -324,6 +324,65 @@ impl UnaryExpression {
             _ => false,
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                UnaryExpression::UpdateExpression(node) => node.body_containing_location(location),
+                UnaryExpression::Delete { ue, .. }
+                | UnaryExpression::Void { ue, .. }
+                | UnaryExpression::Typeof { ue, .. }
+                | UnaryExpression::NoOp { ue, .. }
+                | UnaryExpression::Negate { ue, .. }
+                | UnaryExpression::Complement { ue, .. }
+                | UnaryExpression::Not { ue, .. } => ue.body_containing_location(location),
+                UnaryExpression::Await(ae) => ae.body_containing_location(location),
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // UnaryExpression :
+        //      UpdateExpression
+        //  1. Return HasCallInTailPosition of UpdateExpression with argument call.
+        // UnaryExpression :
+        //      delete UnaryExpression
+        //      void UnaryExpression
+        //      typeof UnaryExpression
+        //      + UnaryExpression
+        //      - UnaryExpression
+        //      ~ UnaryExpression
+        //      ! UnaryExpression
+        //      AwaitExpression
+        //  1. Return false.
+        match self {
+            UnaryExpression::UpdateExpression(update_expression) => {
+                update_expression.has_call_in_tail_position(location)
+            }
+            UnaryExpression::Delete { .. }
+            | UnaryExpression::Void { .. }
+            | UnaryExpression::Typeof { .. }
+            | UnaryExpression::NoOp { .. }
+            | UnaryExpression::Negate { .. }
+            | UnaryExpression::Complement { .. }
+            | UnaryExpression::Not { .. }
+            | UnaryExpression::Await(_) => false,
+        }
+    }
 }
 
 #[cfg(test)]

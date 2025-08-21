@@ -4836,7 +4836,7 @@ fn initiate_call(
 ) -> (bool, String) {
     setup_test_agent();
     let (func, this_value, arguments) = make_items();
-    let res = super::initiate_call(&func, &this_value, arguments.as_slice());
+    let res = super::initiate_call(&func, &this_value, arguments.as_slice(), false);
     let tos = ec_pop().unwrap().map_or_else(unwind_any_error, |nc| format!("{nc:?}"));
     (res, tos)
 }

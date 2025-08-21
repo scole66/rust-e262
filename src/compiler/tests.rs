@@ -556,22 +556,23 @@ mod nameable_production {
     #[test_case("(x => x)", true => Ok((svec(&["<Arrow Instructions 1>"]), true, false)); "arrow function")]
     #[test_case("(async x => x)", true => panics "not yet implemented"; "async arrow function")]
     fn compile_named_evaluation(src: &str, strict: bool) -> Result<(Vec<String>, bool, bool), String> {
-        let node = NameableProduction::try_from(Maker::new(src).primary_expression()).unwrap();
+        let (node, ast) = Maker::new(src).primary_expression_ast();
+        let node = NameableProduction::try_from(node).unwrap();
         let mut outer = Chunk::new("x");
         let id = outer.add_to_string_pool("my_function_name".into()).unwrap();
 
         let status = node
-            .compile_named_evaluation(&mut outer, strict, src, Some(NameLoc::Index(id)))
+            .compile_named_evaluation(&mut outer, strict, &ast, Some(NameLoc::Index(id)))
             .map_err(|e| e.to_string())?;
         let mut inner = Chunk::new("inner");
         let innerid = inner.add_to_string_pool("my_function_name".into()).unwrap();
         match &node {
             NameableProduction::Function(fd) => {
-                fd.compile_named_evaluation(&mut inner, strict, src, Some(NameLoc::Index(innerid))).unwrap();
+                fd.compile_named_evaluation(&mut inner, strict, &ast, Some(NameLoc::Index(innerid))).unwrap();
                 inner.set_name("Function");
             }
             NameableProduction::Generator(fe) => {
-                fe.named_evaluation(&mut inner, strict, src, Some(NameLoc::Index(innerid))).unwrap();
+                fe.named_evaluation(&mut inner, strict, &ast, Some(NameLoc::Index(innerid))).unwrap();
                 inner.set_name("Generator");
             }
             NameableProduction::AsyncFunction(_)
@@ -580,11 +581,11 @@ mod nameable_production {
                 unreachable!();
             }
             NameableProduction::Class(ce) => {
-                ce.named_evaluation(&mut inner, src, NameLoc::Index(innerid)).unwrap();
+                ce.named_evaluation(&mut inner, &ast, NameLoc::Index(innerid)).unwrap();
                 inner.set_name("Class");
             }
             NameableProduction::Arrow(af) => {
-                af.compile_named_evaluation(&mut inner, strict, src, Some(NameLoc::Index(innerid))).unwrap();
+                af.compile_named_evaluation(&mut inner, strict, &ast, Some(NameLoc::Index(innerid))).unwrap();
                 inner.set_name("Arrow");
             }
         }
@@ -789,9 +790,9 @@ mod primary_expression {
         #[test_case("async function *(){}", true => panics "not yet implemented"; "async generator expression")]
         #[test_case("/abcd/", true => Ok(svec(&["REGEXP /abcd/"])); "regular expression")]
         fn normal(src: &str, strict: bool) -> Result<Vec<String>, String> {
-            let node = Maker::new(src).primary_expression();
+            let (node, ast) = Maker::new(src).primary_expression_ast();
             let mut c = Chunk::new("pe");
-            node.compile(&mut c, strict, src).map_err(|e| e.to_string())?;
+            node.compile(&mut c, strict, &ast).map_err(|e| e.to_string())?;
 
             let mut inner = Chunk::new("inner");
             match node.as_ref() {
@@ -805,31 +806,31 @@ mod primary_expression {
                     inner.set_name("Literal");
                 }
                 PrimaryExpression::ArrayLiteral { node: arr } => {
-                    arr.compile(&mut inner, strict, src).unwrap();
+                    arr.compile(&mut inner, strict, &ast).unwrap();
                     inner.set_name("ArrayLiteral");
                 }
                 PrimaryExpression::ObjectLiteral { node: obj } => {
-                    obj.compile(&mut inner, strict, src).unwrap();
+                    obj.compile(&mut inner, strict, &ast).unwrap();
                     inner.set_name("ObjectLiteral");
                 }
                 PrimaryExpression::Parenthesized { node: paren } => {
-                    paren.compile(&mut inner, strict, src).unwrap();
+                    paren.compile(&mut inner, strict, &ast).unwrap();
                     inner.set_name("Parenthesized");
                 }
                 PrimaryExpression::TemplateLiteral { node: tmpl } => {
-                    tmpl.compile(&mut inner, strict, src).unwrap();
+                    tmpl.compile(&mut inner, strict, &ast).unwrap();
                     inner.set_name("TemplateLiteral");
                 }
                 PrimaryExpression::Function { node: func } => {
-                    func.compile(&mut inner, strict, src).unwrap();
+                    func.compile(&mut inner, strict, &ast).unwrap();
                     inner.set_name("Function");
                 }
                 PrimaryExpression::Class { node: class } => {
-                    class.compile(&mut inner, src).unwrap();
+                    class.compile(&mut inner, &ast).unwrap();
                     inner.set_name("Class");
                 }
                 PrimaryExpression::Generator { node: gener } => {
-                    gener.compile(&mut inner, strict, src).unwrap();
+                    gener.compile(&mut inner, strict, &ast).unwrap();
                     inner.set_name("Generator");
                 }
                 PrimaryExpression::AsyncFunction { .. } | PrimaryExpression::AsyncGenerator { .. } => {
@@ -936,9 +937,9 @@ mod parenthesized_expression {
     #[test_case("(id)", true => svec(&["STRING 0 (id)", "STRICT_RESOLVE"]); "strict")]
     #[test_case("(id)", false => svec(&["STRING 0 (id)", "RESOLVE"]); "non-strict")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
-        let node = Maker::new(src).parenthesized_expression();
+        let (node, ast) = Maker::new(src).parenthesized_expression_ast();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, &ast).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -952,19 +953,19 @@ mod object_literal {
     #[test_case("{a,}", false => Ok(svec(&["OBJECT", "<TrailingComma Instructions 1>"])); "non-strict elements")]
     #[test_case("{a:@@~}", false => serr("@@~ token detected. aborting compilation."); "error returned")]
     fn compile(src: &str, strict: bool) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).object_literal();
+        let (node, ast) = Maker::new(src).object_literal_ast();
         let mut c = Chunk::new("outer");
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string())?;
+        node.compile(&mut c, strict, &ast).map_err(|e| e.to_string())?;
 
         let mut inner = Chunk::new("inner");
         match node.as_ref() {
             ObjectLiteral::Empty { .. } => {}
             ObjectLiteral::Normal { pdl: obj, .. } => {
-                obj.property_definition_evaluation(&mut inner, strict, src).unwrap();
+                obj.property_definition_evaluation(&mut inner, strict, &ast).unwrap();
                 inner.set_name("Normal");
             }
             ObjectLiteral::TrailingComma { pdl: obj, .. } => {
-                obj.property_definition_evaluation(&mut inner, strict, src).unwrap();
+                obj.property_definition_evaluation(&mut inner, strict, &ast).unwrap();
                 inner.set_name("TrailingComma");
             }
         }
@@ -988,21 +989,21 @@ mod property_definition_list {
     #[test_case("a,b:@@@", false => serr("out of range integral type conversion attempted"); "jump fails")]
     #[test_case("[@@!]:0,a,b", false => serr("Out of room for strings in this compilation unit"); "filled string table")]
     fn compile(src: &str, strict: bool) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).property_definition_list();
+        let (node, ast) = Maker::new(src).property_definition_list_ast();
         let mut c = Chunk::new("x");
-        let status = node.property_definition_evaluation(&mut c, strict, src).map_err(|e| e.to_string())?;
+        let status = node.property_definition_evaluation(&mut c, strict, &ast).map_err(|e| e.to_string())?;
         let mut first = Chunk::dup_without_code(&c, "first");
         let dump = match node.as_ref() {
             PropertyDefinitionList::OneDef(pd) => {
-                pd.property_definition_evaluation(&mut first, strict, src).unwrap();
+                pd.property_definition_evaluation(&mut first, strict, &ast).unwrap();
                 first.set_name("Item");
                 chunk_dump(&c, &[&first])
             }
             PropertyDefinitionList::ManyDefs(pdl, pd) => {
-                pdl.property_definition_evaluation(&mut first, strict, src).unwrap();
+                pdl.property_definition_evaluation(&mut first, strict, &ast).unwrap();
                 first.set_name("List");
                 let mut second: Chunk = Chunk::dup_without_code(&first, "second");
-                pd.property_definition_evaluation(&mut second, strict, src).unwrap();
+                pd.property_definition_evaluation(&mut second, strict, &ast).unwrap();
                 second.set_name("Item");
                 chunk_dump(&c, &[&first, &second])
             }
@@ -1287,9 +1288,9 @@ mod property_definition {
         "rest object, not reference"
     )]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, Strictness), String> {
-        let node = Maker::new(src).property_definition();
+        let (node, ast) = Maker::new(src).property_definition_ast();
         let mut c = complex_filled_chunk("x", what);
-        let status = node.property_definition_evaluation(&mut c, strict, src).map_err(|e| e.to_string())?;
+        let status = node.property_definition_evaluation(&mut c, strict, &ast).map_err(|e| e.to_string())?;
         let strictness = c.analyze_strictness();
 
         let dump = match node.as_ref() {
@@ -1300,23 +1301,23 @@ mod property_definition {
             }
             PropertyDefinition::AssignmentExpression(ae, _) => {
                 let mut expression = Chunk::dup_without_code(&c, "AssignmentExpression");
-                ae.compile(&mut expression, strict, src).unwrap();
+                ae.compile(&mut expression, strict, &ast).unwrap();
                 chunk_dump(&c, &[&expression])
             }
             PropertyDefinition::CoverInitializedName(_) => unreachable!(),
             PropertyDefinition::MethodDefinition(md) => {
                 let mut method_def = Chunk::dup_without_code(&c, "MethodDefinition");
-                md.method_definition_evaluation(true, &mut method_def, strict, src).unwrap();
+                md.method_definition_evaluation(true, &mut method_def, strict, &ast).unwrap();
                 chunk_dump(&c, &[&method_def])
             }
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
                 let mut name = Chunk::dup_without_code(&c, "PropertyName");
-                pn.compile(&mut name, strict, src).unwrap();
+                pn.compile(&mut name, strict, &ast).unwrap();
                 let mut expression = Chunk::dup_without_code(&c, "AssignmentExpression");
                 if let (false, Some(np)) = (pn.is_literal_proto(), ae.anonymous_function_definition()) {
-                    np.compile_named_evaluation(&mut expression, strict, src, Some(NameLoc::OnStack)).unwrap();
+                    np.compile_named_evaluation(&mut expression, strict, &ast, Some(NameLoc::OnStack)).unwrap();
                 } else {
-                    ae.compile(&mut expression, strict, src).unwrap();
+                    ae.compile(&mut expression, strict, &ast).unwrap();
                 }
                 chunk_dump(&c, &[&name, &expression])
             }
@@ -1334,10 +1335,10 @@ mod property_name {
     #[test_case("[a]", true, None => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "TO_KEY"]), true)); "computed property name; strict")]
     #[test_case("[a]", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "TO_KEY"]), true)); "computed property name; non-strict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).property_name();
+        let (node, ast) = Maker::new(src).property_name_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1393,10 +1394,10 @@ mod computed_property_name {
     #[test_case("[a]", true, Some(0) => serr("Out of room for strings in this compilation unit"); "err in expr")]
     #[test_case("[1]", true, None => Ok((svec(&["FLOAT 0 (1)", "TO_KEY"]), true, false)); "error-free expr")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).computed_property_name();
+        let (node, ast) = Maker::new(src).computed_property_name_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1503,10 +1504,10 @@ mod member_expression {
         "private"
     )]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).member_expression();
+        let (node, ast) = Maker::new(src).member_expression_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1542,9 +1543,9 @@ mod new_expression {
         "CONSTRUCT"
     ]); "new exp")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
-        let node = Maker::new(src).new_expression();
+        let (node, ast) = Maker::new(src).new_expression_ast();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, &ast).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1706,9 +1707,9 @@ mod call_expression {
     #[test_case("a()`${b}`", true, &[] => panics "not yet implemented"; "template-on-call")]
     #[test_case("a().#pid", true, &[] => panics "not yet implemented"; "private-on-call")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).call_expression();
+        let (node, ast) = Maker::new(src).call_expression_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1733,10 +1734,10 @@ mod call_member_expression {
     #[test_case("a(c)", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "DUP", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 15", "STRING 1 (c)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CALL"]), true, false)); "args can error; non-strict")]
     #[test_case("a(@@@)", true, None => serr("out of range integral type conversion attempted"); "bad jump (args too complex)")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).call_member_expression();
+        let (node, ast) = Maker::new(src).call_member_expression_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -1795,9 +1796,9 @@ mod left_hand_side_expression {
         "UNWIND 1"
     ]); "optional")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
-        let node = Maker::new(src).left_hand_side_expression();
+        let (node, ast) = Maker::new(src).left_hand_side_expression_ast();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, &ast).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -1855,9 +1856,9 @@ mod arguments {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).arguments();
+        let (node, ast) = Maker::new(src).arguments_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.argument_list_evaluation(&mut c, strict, src)
+        node.argument_list_evaluation(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2029,9 +2030,9 @@ mod argument_list {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, u16, bool, bool), String> {
-        let node = Maker::new(src).argument_list();
+        let (node, ast) = Maker::new(src).argument_list_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.argument_list_evaluation(&mut c, strict, src)
+        node.argument_list_evaluation(&mut c, strict, &ast)
             .map(|(ArgListSizeHint { fixed_len: count, has_variable }, status)| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2133,10 +2134,10 @@ mod update_expression {
     #[test_case("++a", true, Some(0) => serr("Out of room for strings in this compilation unit"); "pre-op, err in subexpr")]
     #[test_case("a++", true, Some(0) => serr("Out of room for strings in this compilation unit"); "post-op, err in subexpr")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).update_expression();
+        let (node, ast) = Maker::new(src).update_expression_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2178,10 +2179,10 @@ mod unary_expression {
     #[test_case("await a", true, None => panics "not yet implemented"; "await; strict")]
     #[test_case("await a", false, None => panics "not yet implemented"; "await; non-strict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).unary_expression();
+        let (node, ast) = Maker::new(src).unary_expression_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2237,9 +2238,9 @@ mod exponentiation_expression {
         "right compilation fails"
     )]
     fn compile(src: &str, strict: bool, slots_left: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).exponentiation_expression();
+        let (node, ast) = Maker::new(src).exponentiation_expression_ast();
         let mut c = complex_filled_chunk("x", slots_left);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .as_ref()
             .map(|flags| {
                 (
@@ -2314,9 +2315,9 @@ mod multiplicative_expression {
         "right compile fails"
     )]
     fn compile(src: &str, strict: bool, slots_left: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).multiplicative_expression();
+        let (node, ast) = Maker::new(src).multiplicative_expression_ast();
         let mut c = complex_filled_chunk("x", slots_left);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .as_ref()
             .map(|flags| {
                 (
@@ -2341,9 +2342,9 @@ mod additive_expression {
     #[test_case("8n+a", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "left compile fails")]
     #[test_case("a+8n", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "right compile fails")]
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).additive_expression();
+        let (node, ast) = Maker::new(src).additive_expression_ast();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .as_ref()
             .map(|flags| {
                 (
@@ -2426,9 +2427,9 @@ mod shift_expression {
         "SRSH"
     ]), true, false)); "can throw from right")]
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).shift_expression();
+        let (node, ast) = Maker::new(src).shift_expression_ast();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .as_ref()
             .map(|status| {
                 (
@@ -2509,9 +2510,9 @@ mod relational_expression {
         "INSTANCEOF"
     ]), true, false)); "instanceof/non-strict")]
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).relational_expression();
+        let (node, ast) = Maker::new(src).relational_expression_ast();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .as_ref()
             .map(|status| {
                 (
@@ -2628,9 +2629,9 @@ mod equality_expression {
         "right compile fails"
     )]
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).equality_expression();
+        let (node, ast) = Maker::new(src).equality_expression_ast();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .as_ref()
             .map(|status| {
                 (
@@ -2687,9 +2688,9 @@ mod bitwise_and_expression {
         "right compile fails"
     )]
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).bitwise_and_expression();
+        let (node, ast) = Maker::new(src).bitwise_and_expression_ast();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .as_ref()
             .map(|status| {
                 (
@@ -2746,9 +2747,9 @@ mod bitwise_xor_expression {
         "right compile fails"
     )]
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).bitwise_xor_expression();
+        let (node, ast) = Maker::new(src).bitwise_xor_expression_ast();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .as_ref()
             .map(|status| {
                 (
@@ -2805,9 +2806,9 @@ mod bitwise_or_expression {
         "right compile fails"
     )]
     fn compile(src: &str, strict: bool, slot_data: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).bitwise_or_expression();
+        let (node, ast) = Maker::new(src).bitwise_or_expression_ast();
         let mut c = complex_filled_chunk("x", slot_data);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .as_ref()
             .map(|status| {
                 (
@@ -2854,10 +2855,10 @@ mod logical_and_expression {
     #[test_case("a&&@@@", true, None => serr("out of range integral type conversion attempted"); "jump-if-abrupt too far")]
     #[test_case("true&&@@@", true, None => serr("out of range integral type conversion attempted"); "jump-if-false too far")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).logical_and_expression();
+        let (node, ast) = Maker::new(src).logical_and_expression_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2903,10 +2904,10 @@ mod logical_or_expression {
     #[test_case("a||@@@", true, None => serr("out of range integral type conversion attempted"); "jump-if-abrupt too far")]
     #[test_case("true||@@@", true, None => serr("out of range integral type conversion attempted"); "jump-if-true too far")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).logical_or_expression();
+        let (node, ast) = Maker::new(src).logical_or_expression_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2950,10 +2951,10 @@ mod coalesce_expression {
     #[test_case("a??@@@", true, None => serr("out of range integral type conversion attempted"); "jump-if-abrupt too far")]
     #[test_case("true??@@@", true, None => serr("out of range integral type conversion attempted"); "jump-not-nullish too far")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).coalesce_expression();
+        let (node, ast) = Maker::new(src).coalesce_expression_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -2994,10 +2995,10 @@ mod coalesce_expression_head {
         "GET_VALUE"
     ]), true, false)); "coalesce/non-strict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).coalesce_expression_head();
+        let (node, ast) = Maker::new(src).coalesce_expression_head_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3038,10 +3039,10 @@ mod short_circuit_expression {
         "GET_VALUE"
     ]), true, false)); "coal expr/non-strict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).short_circuit_expression();
+        let (node, ast) = Maker::new(src).short_circuit_expression_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3099,10 +3100,10 @@ mod conditional_expression {
     #[test_case("true?0:@@@", true, None => serr("out of range integral type conversion attempted"); "falsey too big")]
     #[test_case("a?0:@@@", true, None => serr("out of range integral type conversion attempted"); "err jump too far")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).conditional_expression();
+        let (node, ast) = Maker::new(src).conditional_expression_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3633,9 +3634,9 @@ mod assignment_expression {
     #[test_case("{a=3n}=b", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "destructuring - bad pattern")]
     #[test_case("{a=@@(38)}=b", true, &[] => serr("out of range integral type conversion attempted"); "destructuring - jump too far")]
     fn compile(src: &str, strict: bool, slots_left: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).assignment_expression();
+        let (node, ast) = Maker::new(src).assignment_expression_ast();
         let mut c = complex_filled_chunk("x", slots_left);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3661,10 +3662,10 @@ mod expression {
     #[test_case("a,@@@", true, None => serr("out of range integral type conversion attempted"); "jump too far")]
     #[test_case("a,b", false, None => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 5", "POP", "STRING 1 (b)", "RESOLVE", "GET_VALUE"]), true, false)); "not strict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).expression();
+        let (node, ast) = Maker::new(src).expression_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3687,17 +3688,17 @@ mod expression_statement {
         #[test_case("id;", false => svec(&["STRING 0 (id)", "RESOLVE", "GET_VALUE"]); "non strict")]
         #[test_case("3;", false => svec(&["FLOAT 0 (3)"]); "literal")]
         fn normal(src: &str, strict: bool) -> Vec<String> {
-            let node = Maker::new(src).expression_statement();
+            let (node, ast) = Maker::new(src).expression_statement_ast();
             let mut c = Chunk::new("x");
-            node.compile(&mut c, strict, src).unwrap();
+            node.compile(&mut c, strict, &ast).unwrap();
             c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
         }
 
         #[test_case("a;" => "Out of room for strings in this compilation unit"; "no room")]
         fn error(src: &str) -> String {
-            let node = Maker::new(src).expression_statement();
+            let (node, ast) = Maker::new(src).expression_statement_ast();
             let mut c = full_chunk("x");
-            node.compile(&mut c, true, src).unwrap_err().to_string()
+            node.compile(&mut c, true, &ast).unwrap_err().to_string()
         }
     }
 }
@@ -3739,10 +3740,10 @@ mod statement_list {
         "UPDATE_EMPTY"
     ]), true)); "list can't return abruptly")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).statement_list();
+        let (node, ast) = Maker::new(src).statement_list_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3786,9 +3787,9 @@ mod statement_list_item {
         "EMPTY",
     ]); "non-strict decl")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
-        let node = Maker::new(src).statement_list_item();
+        let (node, ast) = Maker::new(src).statement_list_item_ast();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, &ast).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -3872,9 +3873,9 @@ mod statement {
     #[test_case("try {} catch {}", true => svec(&["UNDEFINED", "EMPTY", "UPDATE_EMPTY"]); "try statement")]
     #[test_case("debugger;", true => panics "not yet implemented"; "debugger")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
-        let node = Maker::new(src).statement();
+        let (node, ast) = Maker::new(src).statement_ast();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, &ast).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 
@@ -3910,11 +3911,11 @@ mod statement {
         strict: bool,
         spots_avail: Option<usize>,
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).statement();
+        let (node, ast) = Maker::new(src).statement_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.labelled_compile(&mut c, strict, src, &label_set)
+        node.labelled_compile(&mut c, strict, &ast, &label_set)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -3985,9 +3986,9 @@ mod declaration {
         "EMPTY",
     ]); "non-strict lexical")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
-        let node = Maker::new(src).declaration();
+        let (node, ast) = Maker::new(src).declaration_ast();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, strict, src).unwrap();
+        node.compile(&mut c, strict, &ast).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -4016,10 +4017,10 @@ mod lexical_declaration {
     ]), true)); "non-strict; typical")]
     #[test_case("let a;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "full string table")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).lexical_declaration();
+        let (node, ast) = Maker::new(src).lexical_declaration_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4074,10 +4075,10 @@ mod binding_list {
     #[test_case("a,b", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no room on item")]
     #[test_case("a,b=@@@", true, None => serr("out of range integral type conversion attempted"); "branch too far")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).binding_list();
+        let (node, ast) = Maker::new(src).binding_list_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4196,9 +4197,9 @@ mod lexical_binding {
         "pattern binding"
     )]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).lexical_binding();
+        let (node, ast) = Maker::new(src).lexical_binding_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4217,10 +4218,10 @@ mod block_statement {
     #[test_case("{ a; }", true, None => Ok((svec(&["PNLE", "STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE", "PLE"]), true, false)); "no decl/strict")]
     #[test_case("{ a; }", false, None => Ok((svec(&["PNLE", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "PLE"]), true, false)); "no decl/non-strict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).block_statement();
+        let (node, ast) = Maker::new(src).block_statement_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4287,9 +4288,9 @@ mod block {
     #[test_case("{ function a() {} }", true, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "function table full")]
     #[test_case("{ a; }", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "error in statement compilation")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).block();
+        let (node, ast) = Maker::new(src).block_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4336,10 +4337,10 @@ mod initializer {
         "UPDATE_EMPTY"
     ]), true, false)); "assignment expression as initializer; non-strict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).initializer();
+        let (node, ast) = Maker::new(src).initializer_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src, CompileMod::Unmodified)
+        node.compile(&mut c, strict, &ast, CompileMod::Unmodified)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4383,10 +4384,10 @@ mod variable_statement {
         "PUT_VALUE"
     ]), true, false)); "something complex")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).variable_statement();
+        let (node, ast) = Maker::new(src).variable_statement_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4432,10 +4433,10 @@ mod variable_declaration_list {
     ]), true, false)); "list with refs")]
     #[test_case("a=c, b=@@3", true, None => serr("out of range integral type conversion attempted"); "second item too large")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).variable_declaration_list();
+        let (node, ast) = Maker::new(src).variable_declaration_list_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4555,9 +4556,9 @@ mod variable_declaration {
     #[test_case("{a=8n}=b", true, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "pattern compile fails")]
     #[test_case("{a=@@(37)}=b", true, &[] => serr("out of range integral type conversion attempted"); "pattern: exit fixup too large")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).variable_declaration();
+        let (node, ast) = Maker::new(src).variable_declaration_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4593,10 +4594,10 @@ mod throw_statement {
     ]), true, false)); "Throw ref/non-strict")]
     #[test_case("throw a;", true, Some(0) => serr("Out of room for strings in this compilation unit"); "exp compile fail")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).throw_statement();
+        let (node, ast) = Maker::new(src).throw_statement_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4619,9 +4620,9 @@ mod script {
     ]); "stmt")]
     #[test_case("" => svec(&[]); "empty")]
     fn compile(src: &str) -> Vec<String> {
-        let node = Maker::new(src).script();
+        let (node, ast) = Maker::new(src).script_ast();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, false, src).unwrap();
+        node.compile(&mut c, false, &ast).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -4643,9 +4644,9 @@ mod script_body {
         "UPDATE_EMPTY",
     ]); "use-strict added")]
     fn compile(src: &str) -> Vec<String> {
-        let node = Maker::new(src).script_body();
+        let (node, ast) = Maker::new(src).script_body_ast();
         let mut c = Chunk::new("x");
-        node.compile(&mut c, false, src).unwrap();
+        node.compile(&mut c, false, &ast).unwrap();
         c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>()
     }
 }
@@ -4654,21 +4655,25 @@ mod fcn_def {
     use super::*;
     use test_case::test_case;
 
-    fn fcndecl() -> (FcnDef, String) {
+    fn fcndecl() -> (FcnDef, SourceTree) {
         let src = "function a() {}";
-        (FcnDef::Function(Maker::new(src).function_declaration()), src.to_string())
+        let (node, ast) = Maker::new(src).function_declaration_ast();
+        (FcnDef::Function(node), ast)
     }
-    fn gendecl() -> (FcnDef, String) {
+    fn gendecl() -> (FcnDef, SourceTree) {
         let src = "function *a() {}";
-        (FcnDef::Generator(Maker::new(src).generator_declaration()), src.to_string())
+        let (node, ast) = Maker::new(src).generator_declaration_ast();
+        (FcnDef::Generator(node), ast)
     }
-    fn afcndecl() -> (FcnDef, String) {
+    fn afcndecl() -> (FcnDef, SourceTree) {
         let src = "async function a() {}";
-        (FcnDef::AsyncFun(Maker::new(src).async_function_declaration()), src.to_string())
+        let (node, ast) = Maker::new(src).async_function_declaration_ast();
+        (FcnDef::AsyncFun(node), ast)
     }
-    fn agendecl() -> (FcnDef, String) {
+    fn agendecl() -> (FcnDef, SourceTree) {
         let src = "async function *a() {}";
-        (FcnDef::AsyncGen(Maker::new(src).async_generator_declaration()), src.to_string())
+        let (node, ast) = Maker::new(src).async_generator_declaration_ast();
+        (FcnDef::AsyncGen(node), ast)
     }
 
     #[test_case(fcndecl, true => Ok((svec(&["FUNC_OBJ 0 a"]), true, false)); "function decl")]
@@ -4676,13 +4681,13 @@ mod fcn_def {
     #[test_case(afcndecl, true => panics "not yet implemented"; "async function decl")]
     #[test_case(agendecl, true => panics "not yet implemented"; "async generator decl")]
     fn compile_fo_instantiation(
-        maker: fn() -> (FcnDef, String),
+        maker: fn() -> (FcnDef, SourceTree),
         strict: bool,
     ) -> Result<(Vec<String>, bool, bool), String> {
-        let (part, src) = maker();
+        let (part, ast) = maker();
         let mut c = Chunk::new("x");
 
-        part.compile_fo_instantiation(&mut c, strict, &src)
+        part.compile_fo_instantiation(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4748,10 +4753,10 @@ mod if_statement {
     #[test_case("if (a) false; else @@3;", true, None => serr("out of range integral type conversion attempted"); "expr err exit jump too far")]
     #[test_case("if (true) a; else @@3;", true, None => serr("out of range integral type conversion attempted"); "s1 err exit jump too far")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).if_statement();
+        let (node, ast) = Maker::new(src).if_statement_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4793,10 +4798,10 @@ mod breakable_statement {
         "HEB",
     ]), true)); "dowhile/non-strict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).breakable_statement();
+        let (node, ast) = Maker::new(src).breakable_statement_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4882,11 +4887,11 @@ mod breakable_statement {
         strict: bool,
         spots_avail: Option<usize>,
     ) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).breakable_statement();
+        let (node, ast) = Maker::new(src).breakable_statement_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.labelled_compile(&mut c, strict, src, &label_set)
+        node.labelled_compile(&mut c, strict, &ast, &label_set)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -4991,11 +4996,11 @@ mod iteration_statement {
         strict: bool,
         spots_avail: Option<usize>,
     ) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).iteration_statement();
+        let (node, ast) = Maker::new(src).iteration_statement_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.loop_compile(&mut c, strict, src, &label_set)
+        node.loop_compile(&mut c, strict, &ast, &label_set)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5075,11 +5080,11 @@ mod do_while_statement {
         strict: bool,
         spots_avail: Option<usize>,
     ) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).do_while_statement();
+        let (node, ast) = Maker::new(src).do_while_statement_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.do_while_loop_compile(&mut c, strict, src, &label_set)
+        node.do_while_loop_compile(&mut c, strict, &ast, &label_set)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5108,10 +5113,10 @@ mod while_statement {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).while_statement();
+        let (node, ast) = Maker::new(src).while_statement_ast();
         let mut c = complex_filled_chunk("x", what);
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.while_loop_compile(&mut c, strict, src, &label_set)
+        node.while_loop_compile(&mut c, strict, &ast, &label_set)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5444,10 +5449,10 @@ mod for_statement {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).for_statement();
+        let (node, ast) = Maker::new(src).for_statement_ast();
         let mut c = complex_filled_chunk("x", what);
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.compile_for_loop(&mut c, strict, src, &label_set)
+        node.compile_for_loop(&mut c, strict, &ast, &label_set)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5550,9 +5555,9 @@ mod switch_statement {
         "typical"
     )]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).switch_statement();
+        let (node, ast) = Maker::new(src).switch_statement_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5584,9 +5589,9 @@ mod function_declaration {
         strict: bool,
         slots_left: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).function_declaration();
+        let (node, ast) = Maker::new(src).function_declaration_ast();
         let mut c = complex_filled_chunk("x", slots_left);
-        node.compile_fo_instantiation(&mut c, strict, src)
+        node.compile_fo_instantiation(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5604,9 +5609,9 @@ mod function_expression {
 
     #[test_case("function foo(){}", true, &[] => Ok((svec(&["STRING 0 (foo)", "FUNC_IOFE 0"]), true)); "typical")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).function_expression();
+        let (node, ast) = Maker::new(src).function_expression_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5622,9 +5627,9 @@ mod function_expression {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).function_expression();
+        let (node, ast) = Maker::new(src).function_expression_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_named_evaluation(&mut c, strict, src, Some(NameLoc::OnStack))
+        node.compile_named_evaluation(&mut c, strict, &ast, Some(NameLoc::OnStack))
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5654,14 +5659,14 @@ mod function_expression {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).function_expression();
+        let (node, ast) = Maker::new(src).function_expression_ast();
         let mut c = complex_filled_chunk("x", what);
         let name = match name {
             TestLoc::None => None,
             TestLoc::Stack => Some(NameLoc::OnStack),
             TestLoc::Index => Some(NameLoc::Index(c.add_to_string_pool("myname".into()).unwrap())),
         };
-        node.instantiate_ordinary_function_expression(&mut c, strict, name, src)
+        node.instantiate_ordinary_function_expression(&mut c, strict, name, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5711,11 +5716,11 @@ mod labelled_item {
         strict: bool,
         spots_avail: Option<usize>,
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).labelled_item();
+        let (node, ast) = Maker::new(src).labelled_item_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.labelled_compile(&mut c, strict, src, &label_set)
+        node.labelled_compile(&mut c, strict, &ast, &label_set)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5769,11 +5774,11 @@ mod labelled_statement {
         strict: bool,
         spots_avail: Option<usize>,
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).labelled_statement();
+        let (node, ast) = Maker::new(src).labelled_statement_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
         let label_set = labels.iter().copied().map(JSString::from).collect::<Vec<JSString>>();
-        node.labelled_compile(&mut c, strict, src, &label_set)
+        node.labelled_compile(&mut c, strict, &ast, &label_set)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5814,10 +5819,10 @@ mod labelled_statement {
         "HTB 1 (a)"
     ]), true)); "stmt/nonstrict")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).labelled_statement();
+        let (node, ast) = Maker::new(src).labelled_statement_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -5998,10 +6003,10 @@ mod binding_element {
         env: EnvUsage,
         spots_avail: Option<usize>,
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).binding_element();
+        let (node, ast) = Maker::new(src).binding_element_ast();
         let mut c =
             if let Some(spot_count) = spots_avail { almost_full_chunk("x", spot_count) } else { Chunk::new("x") };
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, &ast, env)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6210,9 +6215,9 @@ mod binding_element {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).binding_element();
+        let (node, ast) = Maker::new(src).binding_element_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, &ast, env)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -6314,9 +6319,9 @@ mod binding_element {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).binding_element();
+        let (node, ast) = Maker::new(src).binding_element_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.keyed_binding_initialization(&mut c, strict, src, env)
+        node.keyed_binding_initialization(&mut c, strict, &ast, env)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -6399,9 +6404,9 @@ mod binding_property {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).binding_property();
+        let (node, ast) = Maker::new(src).binding_property_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.property_binding_initialization(&mut c, strict, src, env)
+        node.property_binding_initialization(&mut c, strict, &ast, env)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -6460,19 +6465,19 @@ mod binding_pattern {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).binding_pattern();
+        let (node, ast) = Maker::new(src).binding_pattern_ast();
         let mut outer = complex_filled_chunk("outer", what);
 
-        node.compile_binding_initialization(&mut outer, strict, src, env).map_err(|e| e.to_string())?;
+        node.compile_binding_initialization(&mut outer, strict, &ast, env).map_err(|e| e.to_string())?;
 
         let mut inner = Chunk::new("interior");
         match node.as_ref() {
             BindingPattern::Object(o) => {
-                o.compile_binding_initialization(&mut inner, strict, src, env).unwrap();
+                o.compile_binding_initialization(&mut inner, strict, &ast, env).unwrap();
                 inner.set_name("Object");
             }
             BindingPattern::Array(a) => {
-                a.iterator_binding_initialization(&mut inner, strict, src, env).unwrap();
+                a.iterator_binding_initialization(&mut inner, strict, &ast, env).unwrap();
                 inner.set_name("Array");
             }
         }
@@ -6490,9 +6495,9 @@ mod return_statement {
     #[test_case("return a;", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 1", "RETURN"]), true)); "exp return; non-strict")]
     #[test_case("return a;", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "expr compilation fails")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).return_statement();
+        let (node, ast) = Maker::new(src).return_statement_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6507,8 +6512,8 @@ mod compile_fdi {
     use super::*;
     use test_case::test_case;
 
-    fn function(src: &str, strict: bool) -> (StashedFunctionData, String) {
-        let fd = Maker::new(src).function_declaration();
+    fn function(src: &str, strict: bool) -> (StashedFunctionData, SourceTree) {
+        let (fd, ast) = Maker::new(src).function_declaration_ast();
         let span = fd.location().span;
         let source_text = src[span.starting_index..(span.starting_index + span.length)].to_string();
 
@@ -6520,10 +6525,10 @@ mod compile_fdi {
             strict,
             this_mode: ThisLexicality::NonLexicalThis,
         };
-        (stash, src.into())
+        (stash, ast)
     }
 
-    fn insane(strict: bool) -> (StashedFunctionData, String) {
+    fn insane(strict: bool) -> (StashedFunctionData, SourceTree) {
         // lots of variables in one statement, to overflow jumps
         let header = "function insane(a=b){var v0";
         let trailer = ";}";
@@ -6658,13 +6663,13 @@ mod compile_fdi {
     #[test_case(|s| function("function a(){function b(){}}", s), false, &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "function table full (function initialization)")]
     #[test_case(insane, false, &[] => serr("out of range integral type conversion attempted"); "branch too far")]
     fn compile_fdi(
-        make_function: impl FnOnce(bool) -> (StashedFunctionData, String),
+        make_function: impl FnOnce(bool) -> (StashedFunctionData, SourceTree),
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let (info, text) = make_function(strict);
+        let (info, ast) = make_function(strict);
         let mut c = complex_filled_chunk("compile-fdi-test", what);
-        super::compile_fdi(&mut c, &text, &info)
+        super::compile_fdi(&mut c, &ast, &info)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6696,14 +6701,14 @@ mod arrow_function {
     ) -> Result<(Vec<String>, bool), String> {
         let src = "x=>x";
         let strict = true;
-        let node = Maker::new(src).arrow_function();
+        let (node, ast) = Maker::new(src).arrow_function_ast();
         let mut c = complex_filled_chunk("x", what);
         let name = match name {
             TestLoc::None => None,
             TestLoc::Stack => Some(NameLoc::OnStack),
             TestLoc::Index => Some(NameLoc::Index(c.add_to_string_pool("myname".into()).unwrap())),
         };
-        node.instantiate_arrow_function_expression(&mut c, strict, src, name)
+        node.instantiate_arrow_function_expression(&mut c, strict, &ast, name)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6715,9 +6720,9 @@ mod arrow_function {
 
     #[test_case("x => x", &[] => Ok((svec(&["STRING 0 ()", "FUNC_IAE 0"]), true)); "typical")]
     fn compile(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).arrow_function();
+        let (node, ast) = Maker::new(src).arrow_function_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, true, src)
+        node.compile(&mut c, true, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6729,9 +6734,9 @@ mod arrow_function {
 
     #[test_case("x => x", &[] => Ok((svec(&["FUNC_IAE 0"]), true)); "typical")]
     fn compile_named_evaluation(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).arrow_function();
+        let (node, ast) = Maker::new(src).arrow_function_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_named_evaluation(&mut c, true, src, Some(NameLoc::OnStack))
+        node.compile_named_evaluation(&mut c, true, &ast, Some(NameLoc::OnStack))
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6819,7 +6824,7 @@ mod concise_body {
     #[test_case("x=>b", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "expr compile fails")]
     #[test_case("(x=a)=>@@@", true, &[] => serr("out of range integral type conversion attempted"); "expr too big")]
     fn compile_body(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).arrow_function();
+        let (node, ast) = Maker::new(src).arrow_function_ast();
         let mut c = complex_filled_chunk("x", what);
         let data = StashedFunctionData {
             source_text: src.to_string(),
@@ -6831,7 +6836,7 @@ mod concise_body {
         };
 
         node.body
-            .compile_body(&mut c, src, &data)
+            .compile_body(&mut c, &ast, &data)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6869,9 +6874,9 @@ mod expression_body {
         "expr compile fails"
     )]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).expression_body();
+        let (node, ast) = Maker::new(src).expression_body_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6912,15 +6917,30 @@ mod param_source {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = match which {
-            Kind::Formal => ParamSource::FormalParameters(Maker::new(src).formal_parameters()),
-            Kind::Arrow => ParamSource::ArrowParameters(Maker::new(src).arrow_parameters()),
-            Kind::AsyncArrowBinding => ParamSource::AsyncArrowBinding(Maker::new(src).async_arrow_binding_identifier()),
-            Kind::ArrowFormals => ParamSource::ArrowFormals(Maker::new(src).arrow_formal_parameters()),
-            Kind::UniqueFormals => ParamSource::UniqueFormalParameters(Maker::new(src).unique_formal_parameters()),
+        let (node, ast) = match which {
+            Kind::Formal => {
+                let (node, ast) = Maker::new(src).formal_parameters_ast();
+                (ParamSource::FormalParameters(node), ast)
+            }
+            Kind::Arrow => {
+                let (node, ast) = Maker::new(src).arrow_parameters_ast();
+                (ParamSource::ArrowParameters(node), ast)
+            }
+            Kind::AsyncArrowBinding => {
+                let (node, ast) = Maker::new(src).async_arrow_binding_identifier_ast();
+                (ParamSource::AsyncArrowBinding(node), ast)
+            }
+            Kind::ArrowFormals => {
+                let (node, ast) = Maker::new(src).arrow_formal_parameters_ast();
+                (ParamSource::ArrowFormals(node), ast)
+            }
+            Kind::UniqueFormals => {
+                let (node, ast) = Maker::new(src).unique_formal_parameters_ast();
+                (ParamSource::UniqueFormalParameters(node), ast)
+            }
         };
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, &ast, env)
             .as_ref()
             .map(|status| {
                 (
@@ -6951,9 +6971,9 @@ mod formal_parameters {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).formal_parameters();
+        let (node, ast) = Maker::new(src).formal_parameters_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, &ast, env)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -6982,9 +7002,9 @@ mod arrow_parameters {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).arrow_parameters();
+        let (node, ast) = Maker::new(src).arrow_parameters_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, &ast, env)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7009,9 +7029,9 @@ mod arrow_formal_parameters {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).arrow_formal_parameters();
+        let (node, ast) = Maker::new(src).arrow_formal_parameters_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, &ast, env)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7036,9 +7056,9 @@ mod unique_formal_parameters {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).unique_formal_parameters();
+        let (node, ast) = Maker::new(src).unique_formal_parameters_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, &ast, env)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7083,9 +7103,9 @@ mod formal_parameter_list {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).formal_parameter_list();
+        let (node, ast) = Maker::new(src).formal_parameter_list_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, &ast, env)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7110,9 +7130,9 @@ mod formal_parameter {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).formal_parameter();
+        let (node, ast) = Maker::new(src).formal_parameter_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, &ast, env)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7144,9 +7164,9 @@ mod single_name_binding {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).single_name_binding();
+        let (node, ast) = Maker::new(src).single_name_binding_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, &ast, env)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7265,9 +7285,9 @@ mod single_name_binding {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).single_name_binding();
+        let (node, ast) = Maker::new(src).single_name_binding_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.keyed_binding_initialization(&mut c, strict, src, env)
+        node.keyed_binding_initialization(&mut c, strict, &ast, env)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -7404,9 +7424,9 @@ mod single_name_binding {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).single_name_binding();
+        let (node, ast) = Maker::new(src).single_name_binding_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, &ast, env)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -7423,9 +7443,9 @@ mod function_rest_parameter {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).function_rest_parameter();
+        let (node, ast) = Maker::new(src).function_rest_parameter_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, &ast, env)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7527,7 +7547,7 @@ mod function_body {
     #[test_case("function a(){b;}", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "statements fail")]
     #[test_case("function a(q=b){@@@;}", true, &[] => serr("out of range integral type conversion attempted"); "function too large")]
     fn compile_body(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).function_declaration();
+        let (node, ast) = Maker::new(src).function_declaration_ast();
         let mut c = complex_filled_chunk("x", what);
         let data = StashedFunctionData {
             source_text: src.to_string(),
@@ -7539,7 +7559,7 @@ mod function_body {
         };
 
         node.body
-            .compile_body(&mut c, src, &data)
+            .compile_body(&mut c, &ast, &data)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7558,9 +7578,9 @@ mod function_statement_list {
     #[test_case("a;", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE", "GET_VALUE"]), true)); "fallible statement list/strict")]
     #[test_case("a;", false, &[] => Ok((svec(&["STRING 0 (a)", "RESOLVE", "GET_VALUE"]), true)); "fallible statement list/non-strict")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).function_statement_list();
+        let (node, ast) = Maker::new(src).function_statement_list_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7597,7 +7617,16 @@ mod construct_expr {
         assert_ne!(format!("{:?}", ConstructExpr::New(Maker::new("new Boolean").new_expression())), "");
     }
 
-    #[test_case("new Boolean", |s| ConstructExpr::New(Maker::new(s).new_expression()), true, &[] => Ok((svec(&[
+    fn new_style(src: &str) -> (ConstructExpr, SourceTree) {
+        let (node, ast) = Maker::new(src).new_expression_ast();
+        (ConstructExpr::New(node), ast)
+    }
+    fn member_style(src: &str) -> (ConstructExpr, SourceTree) {
+        let (node, ast) = Maker::new(src).member_expression_ast();
+        (ConstructExpr::Member(node), ast)
+    }
+
+    #[test_case("new Boolean", new_style, true, &[] => Ok((svec(&[
         "STRING 0 (Boolean)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -7614,7 +7643,7 @@ mod construct_expr {
         "POP",
         "CONSTRUCT"
     ]), true, false)); "new expr")]
-    #[test_case("new Boolean()", |s| ConstructExpr::Member(Maker::new(s).member_expression()), true, &[] => Ok((svec(&[
+    #[test_case("new Boolean()", member_style, true, &[] => Ok((svec(&[
         "STRING 0 (Boolean)",
         "STRICT_RESOLVE",
         "GET_VALUE",
@@ -7633,13 +7662,13 @@ mod construct_expr {
     ]), true, false)); "member expression")]
     fn compile(
         src: &str,
-        make_node: impl FnOnce(&str) -> ConstructExpr,
+        make_node: impl FnOnce(&str) -> (ConstructExpr, SourceTree),
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool, bool), String> {
-        let node = make_node(src);
+        let (node, ast) = make_node(src);
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7757,7 +7786,7 @@ fn compile_new_evaluator(
     strict: bool,
     what: &[(Fillable, usize)],
 ) -> Result<(Vec<String>, bool, bool), String> {
-    let node = Maker::new(src).new_expression();
+    let (node, ast) = Maker::new(src).new_expression_ast();
     let (constructor_expression, potential_arguments) = match &*node {
         NewExpression::MemberExpression(me) => match &**me {
             MemberExpression::NewArguments(me, args, _) => (ConstructExpr::Member(me.clone()), Some(args.clone())),
@@ -7767,7 +7796,7 @@ fn compile_new_evaluator(
     };
     let mut c = complex_filled_chunk("x", what);
 
-    super::compile_new_evaluator(&mut c, strict, src, &constructor_expression, potential_arguments)
+    super::compile_new_evaluator(&mut c, strict, &ast, &constructor_expression, potential_arguments)
         .map(|status| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7811,9 +7840,9 @@ mod catch_parameter {
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
         let mut c = complex_filled_chunk("x", what);
-        let node = Maker::new(src).catch_parameter();
+        let (node, ast) = Maker::new(src).catch_parameter_ast();
 
-        node.compile_binding_initialization(&mut c, strict, src)
+        node.compile_binding_initialization(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7961,9 +7990,9 @@ mod try_statement {
     #[test_case("try{a;}catch{@@@;}finally{}", true, &[] => serr("out of range integral type conversion attempted"); "try-full catch too big")]
     #[test_case("try{a;}catch{b;}finally{0;}", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "try-full finally fails")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).try_statement();
+        let (node, ast) = Maker::new(src).try_statement_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -7982,9 +8011,9 @@ mod finally {
     #[test_case("finally{a;}", false, &[] => Ok((svec(&["PNLE", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "PLE"]), true)); "fallible/non-strict")]
     #[test_case("finally{}", true, &[] => Ok((svec(&["EMPTY"]), false)); "minimal")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).finally();
+        let (node, ast) = Maker::new(src).finally_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8014,9 +8043,9 @@ mod catch {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).catch();
+        let (node, ast) = Maker::new(src).catch_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_catch_clause_evaluation(&mut c, strict, src)
+        node.compile_catch_clause_evaluation(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8097,9 +8126,9 @@ mod element_list {
     #[test_case("0,,...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list+elision+spread; elision fails")]
     #[test_case("0,...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "list+spread; spread fails")]
     fn array_accumulation(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).element_list();
+        let (node, ast) = Maker::new(src).element_list_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.array_accumulation(&mut c, strict, src)
+        node.array_accumulation(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8118,9 +8147,9 @@ mod spread_element {
     #[test_case("...a", false, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "expression; fails")]
     #[test_case("...0", false, &[] => Ok((svec(&["FLOAT 0 (0)", "ITERATOR_ACCUM"]), true)); "expression; infallible")]
     fn array_accumulation(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).spread_element();
+        let (node, ast) = Maker::new(src).spread_element_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.array_accumulation(&mut c, strict, src)
+        node.array_accumulation(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8147,9 +8176,9 @@ mod array_literal {
     #[test_case("[0,]", false, &[] => Ok((svec(&["ARRAY", "ZERO", "POP2_PUSH3", "TO_KEY", "FLOAT 0 (0)", "CR_PROP", "SWAP", "INCREMENT", "POP"]), false)); "list-elision, without elision")]
     #[test_case("[a,]", false, &[] => Ok((svec(&["ARRAY", "ZERO", "POP2_PUSH3", "TO_KEY", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 3", "JUMP 3", "CR_PROP", "SWAP", "INCREMENT", "JUMP_IF_ABRUPT 1", "POP"]), true)); "list-elision, fallible")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).array_literal();
+        let (node, ast) = Maker::new(src).array_literal_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8232,9 +8261,9 @@ mod template_middle_list {
     ]), true)); "list-tm-exp; exp is ref")]
     #[test_case("}${a}${@@@", false, &[] => serr("out of range integral type conversion attempted"); "list-tm-exp; exp too large")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).template_middle_list();
+        let (node, ast) = Maker::new(src).template_middle_list_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8266,9 +8295,9 @@ mod template_spans {
     #[test_case("}${0}`", false, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "list-tail; compile fail in list")]
     #[test_case("}aa${0}bb`", false, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "list-tail; no room for tail string")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).template_spans();
+        let (node, ast) = Maker::new(src).template_spans_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8340,9 +8369,9 @@ mod substitution_template {
     ]), true)); "spans fallible")]
     #[test_case("`head ${a} middle ${@@@} tail`", false, &[] => serr("out of range integral type conversion attempted"); "jump too far")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).substitution_template();
+        let (node, ast) = Maker::new(src).substitution_template_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8371,9 +8400,9 @@ mod template_literal {
         "UNWIND 1"
     ]), true)); "subsitution templ")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).template_literal();
+        let (node, ast) = Maker::new(src).template_literal_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8497,9 +8526,9 @@ mod binding_property_list {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).binding_property_list();
+        let (node, ast) = Maker::new(src).binding_property_list_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.property_binding_initialization(&mut c, strict, src, env)
+        node.property_binding_initialization(&mut c, strict, &ast, env)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -8716,9 +8745,9 @@ mod array_binding_pattern {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).array_binding_pattern();
+        let (node, ast) = Maker::new(src).array_binding_pattern_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, &ast, env)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -8784,9 +8813,9 @@ mod binding_rest_element {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).binding_rest_element();
+        let (node, ast) = Maker::new(src).binding_rest_element_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, &ast, env)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -8835,16 +8864,16 @@ mod binding_rest_element {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, Strictness), String> {
-        let node = Maker::new(src).binding_rest_element();
+        let (node, ast) = Maker::new(src).binding_rest_element_ast();
         let mut c = complex_filled_chunk("x", what);
-        let _status = node.compile_binding_initialization(&mut c, strict, src, env).map_err(|e| e.to_string())?;
+        let _status = node.compile_binding_initialization(&mut c, strict, &ast, env).map_err(|e| e.to_string())?;
         let strictness = c.analyze_strictness();
 
         let inners = match node.as_ref() {
             BindingRestElement::Identifier(..) => Vec::new(),
             BindingRestElement::Pattern(binding_pattern, _) => {
                 let mut inner = Chunk::dup_without_code(&c, "BindingPattern");
-                binding_pattern.compile_binding_initialization(&mut inner, strict, src, env).unwrap();
+                binding_pattern.compile_binding_initialization(&mut inner, strict, &ast, env).unwrap();
                 vec![inner]
             }
         };
@@ -8898,9 +8927,9 @@ mod binding_elision_element {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).binding_elision_element();
+        let (node, ast) = Maker::new(src).binding_elision_element_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, &ast, env)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -8963,9 +8992,9 @@ mod binding_element_list {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).binding_element_list();
+        let (node, ast) = Maker::new(src).binding_element_list_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_binding_initialization(&mut c, strict, src, env)
+        node.iterator_binding_initialization(&mut c, strict, &ast, env)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9077,9 +9106,9 @@ mod object_binding_pattern {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).object_binding_pattern();
+        let (node, ast) = Maker::new(src).object_binding_pattern_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile_binding_initialization(&mut c, strict, src, env)
+        node.compile_binding_initialization(&mut c, strict, &ast, env)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9108,9 +9137,9 @@ mod for_declaration {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).for_declaration();
+        let (node, ast) = Maker::new(src).for_declaration_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.for_declaration_binding_initialization(&mut c, strict, src, EnvUsage::UseCurrentLexical)
+        node.for_declaration_binding_initialization(&mut c, strict, &ast, EnvUsage::UseCurrentLexical)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -9211,9 +9240,9 @@ mod for_binding {
         env: EnvUsage,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).for_binding();
+        let (node, ast) = Maker::new(src).for_binding_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.binding_initialization(&mut c, strict, src, env)
+        node.binding_initialization(&mut c, strict, &ast, env)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -9284,27 +9313,40 @@ mod for_in_of_expr {
         }
     }
 
-    #[test_case("90", &Maker::new("90").assignment_expression(), true, &[]
+    fn assignment_expression(src: &str) -> (Option<Rc<AssignmentExpression>>, Option<Rc<Expression>>, SourceTree) {
+        let (node, ast) = Maker::new(src).assignment_expression_ast();
+        (Some(node), None, ast)
+    }
+    fn expression(src: &str) -> (Option<Rc<AssignmentExpression>>, Option<Rc<Expression>>, SourceTree) {
+        let (node, ast) = Maker::new(src).expression_ast();
+        (None, Some(node), ast)
+    }
+    #[test_case("90", assignment_expression, true, &[]
             => Ok((svec(&["FLOAT 0 (90)"]), false, false))
             ; "strict, non-fallible assignment expression")]
-    #[test_case("a", &Maker::new("a").expression(), true, &[]
+    #[test_case("a", expression, true, &[]
             => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE"]), true, true))
             ; "strict, fallible expression")]
-    #[test_case("90", &Maker::new("90").assignment_expression(), true, &[(Fillable::Float, 0)]
+    #[test_case("90", assignment_expression, true, &[(Fillable::Float, 0)]
             => serr("Out of room for floats in this compilation unit")
             ; "ae compile fails")]
-    #[test_case("a", &Maker::new("a").expression(), true, &[(Fillable::String, 0)]
+    #[test_case("a", expression, true, &[(Fillable::String, 0)]
             => serr("Out of room for strings in this compilation unit")
             ; "expression compile fails")]
-    fn compile<'a>(
+    fn compile(
         src: &str,
-        item: impl Into<ForInOfExpr<'a>>,
+        make_items: impl FnOnce(&str) -> (Option<Rc<AssignmentExpression>>, Option<Rc<Expression>>, SourceTree),
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool, bool), String> {
-        let node = item.into();
+        let (opt_assign, opt_expression, ast) = make_items(src);
+        let node = match (&opt_assign, &opt_expression) {
+            (Some(ae), None) => ForInOfExpr::AssignmentExpression(ae),
+            (None, Some(exp)) => ForInOfExpr::Expression(exp),
+            _ => panic!("Invalid ForInOfExpr construction"),
+        };
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -9452,9 +9494,9 @@ mod assignment_pattern {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).assignment_pattern();
+        let (node, ast) = Maker::new(src).assignment_pattern_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.destructuring_assignment_evaluation(&mut c, strict, src)
+        node.destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9641,9 +9683,9 @@ mod assignment_property {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).assignment_property();
+        let (node, ast) = Maker::new(src).assignment_property_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.property_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.property_destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -9722,9 +9764,9 @@ mod assignment_property_list {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).assignment_property_list();
+        let (node, ast) = Maker::new(src).assignment_property_list_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.property_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.property_destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9773,9 +9815,9 @@ mod assignment_rest_property {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).assignment_rest_property();
+        let (node, ast) = Maker::new(src).assignment_rest_property_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.rest_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.rest_destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -9927,9 +9969,9 @@ mod assignment_element {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).assignment_element();
+        let (node, ast) = Maker::new(src).assignment_element_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.keyed_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.keyed_destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -10094,9 +10136,9 @@ mod assignment_element {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).assignment_element();
+        let (node, ast) = Maker::new(src).assignment_element_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.iterator_destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -10145,9 +10187,9 @@ mod assignment_elision_element {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).assignment_elision_element();
+        let (node, ast) = Maker::new(src).assignment_elision_element_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.iterator_destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -10206,9 +10248,9 @@ mod assignment_element_list {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).assignment_element_list();
+        let (node, ast) = Maker::new(src).assignment_element_list_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.iterator_destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -10280,9 +10322,9 @@ mod assignment_rest_element {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).assignment_rest_element();
+        let (node, ast) = Maker::new(src).assignment_rest_element_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.iterator_destructuring_assignment_evaluation(&mut c, strict, src)
+        node.iterator_destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -10542,9 +10584,9 @@ mod array_assignment_pattern {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).array_assignment_pattern();
+        let (node, ast) = Maker::new(src).array_assignment_pattern_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.destructuring_assignment_evaluation(&mut c, strict, src)
+        node.destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -10583,9 +10625,9 @@ mod destructuring_assignment_target {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).destructuring_assignment_target();
+        let (node, ast) = Maker::new(src).destructuring_assignment_target_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.destructuring_assignment_evaluation(&mut c, strict, src)
+        node.destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -10593,9 +10635,9 @@ mod destructuring_assignment_target {
     #[test_case("a", true, &[] => Ok((svec(&["STRING 0 (a)", "STRICT_RESOLVE"]), true, true)); "lhse")]
     #[test_case("[a]", true, &[] => panics "internal error: entered unreachable code"; "pattern")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).destructuring_assignment_target();
+        let (node, ast) = Maker::new(src).destructuring_assignment_target_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, strict, src)
+        node.compile(&mut c, strict, &ast)
             .map(|flags| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -10674,10 +10716,14 @@ mod for_in_of_statement {
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
         let maker = Maker::new(src);
-        let binding = match exp {
-            ForInOfExprKind::Expression => ForInOfExprBinding::Expression(maker.expression()),
+        let (binding, ast) = match exp {
+            ForInOfExprKind::Expression => {
+                let (expression, ast) = maker.expression_ast();
+                (ForInOfExprBinding::Expression(expression), ast)
+            }
             ForInOfExprKind::AssignmentExpression => {
-                ForInOfExprBinding::AssignmentExpression(maker.assignment_expression())
+                let (ae, ast) = maker.assignment_expression_ast();
+                (ForInOfExprBinding::AssignmentExpression(ae), ast)
             }
         };
         let node = match &binding {
@@ -10686,7 +10732,7 @@ mod for_in_of_statement {
         };
         let mut c = complex_filled_chunk("x", what);
         let uninitialized_bound_names = names.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
-        ForInOfStatement::for_in_of_head_evaluation(&mut c, strict, src, &uninitialized_bound_names, node, iter)
+        ForInOfStatement::for_in_of_head_evaluation(&mut c, strict, &ast, &uninitialized_bound_names, node, iter)
             .map(|status| {
                 (
                     c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
@@ -11177,10 +11223,10 @@ mod for_in_of_statement {
         labels: &[&str],
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).for_in_of_statement();
+        let (node, ast) = Maker::new(src).for_in_of_statement_ast();
         let mut c = complex_filled_chunk("x", what);
         let label_set = labels.iter().map(|&s| JSString::from(s)).collect::<Vec<_>>();
-        node.for_in_of_evaluation(&mut c, strict, src, &label_set)
+        node.for_in_of_evaluation(&mut c, strict, &ast, &label_set)
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
             .map_err(|e| e.to_string())
     }
@@ -11596,11 +11642,23 @@ mod for_in_of_statement {
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
         let lhs_maker = Maker::new(lhs_src);
-        let binding = match lhs_kind {
-            LHSKind::Assignment => LHSBinding::Assignment(lhs_maker.left_hand_side_expression()),
-            LHSKind::Destructuring => LHSBinding::Destructuring(lhs_maker.assignment_pattern()),
-            LHSKind::VarBinding => LHSBinding::VarBinding(lhs_maker.for_binding()),
-            LHSKind::LexicalBinding => LHSBinding::LexicalBinding(lhs_maker.for_declaration()),
+        let (binding, ast) = match lhs_kind {
+            LHSKind::Assignment => {
+                let (lhse, ast) = lhs_maker.left_hand_side_expression_ast();
+                (LHSBinding::Assignment(lhse), ast)
+            }
+            LHSKind::Destructuring => {
+                let (ap, ast) = lhs_maker.assignment_pattern_ast();
+                (LHSBinding::Destructuring(ap), ast)
+            }
+            LHSKind::VarBinding => {
+                let (for_binding, ast) = lhs_maker.for_binding_ast();
+                (LHSBinding::VarBinding(for_binding), ast)
+            }
+            LHSKind::LexicalBinding => {
+                let (for_decl, ast) = lhs_maker.for_declaration_ast();
+                (LHSBinding::LexicalBinding(for_decl), ast)
+            }
         };
         let node = match &binding {
             LHSBinding::Assignment(item) => ForInOfLHSExpr::from(item),
@@ -11615,7 +11673,7 @@ mod for_in_of_statement {
         ForInOfStatement::for_in_of_body_evaluation(
             &mut c,
             strict,
-            "",
+            &ast,
             node,
             &stmt,
             iteration_kind,
@@ -11794,10 +11852,10 @@ mod object_assignment_pattern {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).object_assignment_pattern();
+        let (node, ast) = Maker::new(src).object_assignment_pattern_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.destructuring_assignment_evaluation(&mut c, strict, src)
+        node.destructuring_assignment_evaluation(&mut c, strict, &ast)
             .map_err(|e| e.to_string())
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }
@@ -11811,10 +11869,10 @@ mod class_element_name {
     #[test_case("#name", &[] => Ok((svec(&["PRIV_ID_LOOKUP 0 (#name)"]), false)); "private name")]
     #[test_case("#name", &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "private name fail")]
     fn compile(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).class_element_name();
+        let (node, ast) = Maker::new(src).class_element_name_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, &ast).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11841,10 +11899,10 @@ mod field_definition {
     #[test_case("[9n]", &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "name fail")]
     #[test_case("a=23", &[(Fillable::FunctionStash, 0)] => serr("Out of room for more functions!"); "init fail")]
     fn class_field_definition_evaluation(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).field_definition();
+        let (node, ast) = Maker::new(src).field_definition_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.class_field_definition_evaluation(&mut c, src, Static::No).map_err(|e| e.to_string()).map(|flags| {
+        node.class_field_definition_evaluation(&mut c, &ast, Static::No).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11870,10 +11928,10 @@ mod class_static_block_statement_list {
         "UPDATE_EMPTY"
     ]), true)); "slist")]
     fn compile(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).class_static_block_statement_list();
+        let (node, ast) = Maker::new(src).class_static_block_statement_list_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, &ast).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -11901,10 +11959,10 @@ mod class_static_block_body {
         "END_FUNCTION"
     ]), true)); "slist")]
     fn compile(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).class_static_block_body();
+        let (node, ast) = Maker::new(src).class_static_block_body_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, &ast).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -12076,10 +12134,10 @@ mod optional_expression {
         "oc: oe oc; oe compile fails"
     )]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).optional_expression();
+        let (node, ast) = Maker::new(src).optional_expression_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, strict, &ast).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -12243,10 +12301,10 @@ mod optional_chain {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool, bool), String> {
-        let node = Maker::new(src).optional_chain();
+        let (node, ast) = Maker::new(src).optional_chain_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.chain_evaluation(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.chain_evaluation(&mut c, strict, &ast).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -12263,10 +12321,10 @@ mod default_clause {
     #[test_case("default:", true, &[] => Ok((svec(&["EMPTY"]), false)); "empty")]
     #[test_case("default:null;", true, &[] => Ok((svec(&["NULL"]), false)); "statement")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).default_clause();
+        let (node, ast) = Maker::new(src).default_clause_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, strict, &ast).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -12302,10 +12360,10 @@ mod case_clause {
         "statements"
     )]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).case_clause();
+        let (node, ast) = Maker::new(src).case_clause_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.compile(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.compile(&mut c, strict, &ast).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -12341,10 +12399,10 @@ mod case_clause {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).case_clause();
+        let (node, ast) = Maker::new(src).case_clause_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.case_clause_is_selected(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.case_clause_is_selected(&mut c, strict, &ast).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -12789,10 +12847,10 @@ mod case_block {
         strict: bool,
         what: &[(Fillable, usize)],
     ) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).case_block();
+        let (node, ast) = Maker::new(src).case_block_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.case_block_evaluation(&mut c, strict, src).map_err(|e| e.to_string()).map(|flags| {
+        node.case_block_evaluation(&mut c, strict, &ast).map_err(|e| e.to_string()).map(|flags| {
             (
                 c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
                 flags.maybe_abrupt(),
@@ -12823,10 +12881,10 @@ mod method_definition {
     )]
     #[test_case("get a(){}", true, &[] => panics "entered unreachable code"; "not plain method")]
     fn define_method(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).method_definition();
+        let (node, ast) = Maker::new(src).method_definition_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.define_method(&mut c, strict, src)
+        node.define_method(&mut c, strict, &ast)
             .map_err(|e| e.to_string())
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }
@@ -12921,10 +12979,10 @@ mod method_definition {
         what: &[(Fillable, usize)],
         enumerable: bool,
     ) -> Result<Vec<String>, String> {
-        let node = Maker::new(src).method_definition();
+        let (node, ast) = Maker::new(src).method_definition_ast();
         let mut c = complex_filled_chunk("x", what);
 
-        node.method_definition_evaluation(enumerable, &mut c, strict, src)
+        node.method_definition_evaluation(enumerable, &mut c, strict, &ast)
             .map_err(|e| e.to_string())
             .map(|_| c.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>())
     }
@@ -12974,9 +13032,9 @@ mod class_declaration {
         "empty named class"
     )]
     fn compile(src: &str, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool), String> {
-        let node = Maker::new(src).class_declaration();
+        let (node, ast) = Maker::new(src).class_declaration_ast();
         let mut c = complex_filled_chunk("x", what);
-        node.compile(&mut c, src)
+        node.compile(&mut c, &ast)
             .as_ref()
             .map(|flags| {
                 (

@@ -492,6 +492,68 @@ impl PrimaryExpression {
             _ => false,
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            PrimaryExpression::This { .. }
+            | PrimaryExpression::IdentifierReference { .. }
+            | PrimaryExpression::Literal { .. }
+            | PrimaryExpression::RegularExpression { .. } => None,
+            PrimaryExpression::ArrayLiteral { node } => node.body_containing_location(location),
+            PrimaryExpression::ObjectLiteral { node } => node.body_containing_location(location),
+            PrimaryExpression::Parenthesized { node } => node.body_containing_location(location),
+            PrimaryExpression::TemplateLiteral { node } => node.body_containing_location(location),
+            PrimaryExpression::Function { node } => node.body_containing_location(location),
+            PrimaryExpression::Class { node } => node.body_containing_location(location),
+            PrimaryExpression::Generator { node } => node.body_containing_location(location),
+            PrimaryExpression::AsyncFunction { node } => node.body_containing_location(location),
+            PrimaryExpression::AsyncGenerator { node } => node.body_containing_location(location),
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // PrimaryExpression[Yield, Await] :
+        //      this
+        //      IdentifierReference[?Yield, ?Await]
+        //      Literal
+        //      ArrayLiteral[?Yield, ?Await]
+        //      ObjectLiteral[?Yield, ?Await]
+        //      FunctionExpression
+        //      ClassExpression[?Yield, ?Await]
+        //      GeneratorExpression
+        //      AsyncFunctionExpression
+        //      AsyncGeneratorExpression
+        //      RegularExpressionLiteral
+        //      TemplateLiteral[?Yield, ?Await, ~Tagged]
+        //      CoverParenthesizedExpressionAndArrowParameterList[?Yield, ?Await]
+        match self {
+            PrimaryExpression::This { .. }
+            | PrimaryExpression::IdentifierReference { .. }
+            | PrimaryExpression::Literal { .. }
+            | PrimaryExpression::ArrayLiteral { .. }
+            | PrimaryExpression::ObjectLiteral { .. }
+            | PrimaryExpression::TemplateLiteral { .. }
+            | PrimaryExpression::Function { .. }
+            | PrimaryExpression::Class { .. }
+            | PrimaryExpression::Generator { .. }
+            | PrimaryExpression::AsyncFunction { .. }
+            | PrimaryExpression::AsyncGenerator { .. }
+            | PrimaryExpression::RegularExpression { .. } => false,
+            PrimaryExpression::Parenthesized { node } => node.has_call_in_tail_position(location),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -571,6 +633,12 @@ impl Elisions {
 
     pub fn contains(&self, _kind: ParseNodeKind) -> bool {
         false
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -656,6 +724,11 @@ impl SpreadElement {
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.ae.early_errors(errs, strict);
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
     }
 }
 
@@ -958,6 +1031,12 @@ impl ElementList {
             }
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // ArrayLiteral[Yield, Await] :
@@ -1164,6 +1243,12 @@ impl ArrayLiteral {
             }
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // Initializer[In, Yield, Await] :
@@ -1284,6 +1369,11 @@ impl Initializer {
     pub fn anonymous_function_definition(&self) -> Option<NameableProduction> {
         self.ae.anonymous_function_definition()
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        self.ae.body_containing_location(location)
+    }
 }
 
 // CoverInitializedName[Yield, Await] :
@@ -1362,6 +1452,12 @@ impl CoverInitializedName {
         // The syntax-directed operation PropName takes no arguments and returns a String or empty.
         let CoverInitializedName::InitializedName(idref, _) = self;
         idref.string_value()
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -1451,6 +1547,11 @@ impl ComputedPropertyName {
     /// See [IsComputedPropertyKey](https://tc39.es/ecma262/#sec-static-semantics-iscomputedpropertykey) in ECMA-262.
     pub fn is_computed_property_key(&self) -> bool {
         true
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location.contains(location) { self.ae.body_containing_location(location) } else { None }
     }
 }
 
@@ -1573,6 +1674,11 @@ impl LiteralPropertyName {
     /// See [IsComputedPropertyKey](https://tc39.es/ecma262/#sec-static-semantics-iscomputedpropertykey) in ECMA-262.
     pub fn is_computed_property_key(&self) -> bool {
         false
+    }
+
+    pub fn body_containing_location(&self, _: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        None
     }
 }
 
@@ -1716,6 +1822,14 @@ impl PropertyName {
         match self {
             PropertyName::LiteralPropertyName(lpn) => lpn.is_computed_property_key(),
             PropertyName::ComputedPropertyName(cpn) => cpn.is_computed_property_key(),
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            PropertyName::LiteralPropertyName(lpn) => lpn.body_containing_location(location),
+            PropertyName::ComputedPropertyName(cpn) => cpn.body_containing_location(location),
         }
     }
 }
@@ -1987,6 +2101,22 @@ impl PropertyDefinition {
             _ => 0,
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if !self.location().contains(location) {
+            return None;
+        }
+        match self {
+            PropertyDefinition::IdentifierReference(_) => None,
+            PropertyDefinition::CoverInitializedName(cin) => cin.body_containing_location(location),
+            PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
+                pn.body_containing_location(location).or_else(|| ae.body_containing_location(location))
+            }
+            PropertyDefinition::MethodDefinition(md) => md.body_containing_location(location),
+            PropertyDefinition::AssignmentExpression(ae, _) => ae.body_containing_location(location),
+        }
+    }
 }
 
 // PropertyDefinitionList[Yield, Await] :
@@ -2117,6 +2247,16 @@ impl PropertyDefinitionList {
         match self {
             PropertyDefinitionList::OneDef(pd) => pd.special_proto_count(),
             PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.special_proto_count() + pd.special_proto_count(),
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            PropertyDefinitionList::OneDef(pd) => pd.body_containing_location(location),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => {
+                pdl.body_containing_location(location).or_else(|| pd.body_containing_location(location))
+            }
         }
     }
 }
@@ -2285,6 +2425,16 @@ impl ObjectLiteral {
                     ));
                 }
                 pdl.early_errors(errs, strict);
+            }
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            ObjectLiteral::Empty { .. } => None,
+            ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => {
+                pdl.body_containing_location(location)
             }
         }
     }
@@ -2460,6 +2610,12 @@ impl Literal {
         //        }
         //    }
         //}
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -2654,6 +2810,12 @@ impl TemplateLiteral {
             }
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // SubstitutionTemplate[Yield, Await, Tagged] :
@@ -2793,6 +2955,12 @@ impl SubstitutionTemplate {
         let tail = self.template_spans.template_strings(raw);
         head.extend(tail);
         head
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -2986,6 +3154,12 @@ impl TemplateSpans {
                 middle
             }
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 
@@ -3196,6 +3370,12 @@ impl TemplateMiddleList {
             }
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // ParenthesizedExpression[Yield, Await] :
@@ -3299,6 +3479,26 @@ impl ParenthesizedExpression {
 
     pub fn is_named_function(&self) -> bool {
         self.exp.is_named_function()
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) { self.exp.body_containing_location(location) } else { None }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        self.exp.has_call_in_tail_position(location)
     }
 }
 
@@ -3628,6 +3828,12 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                 pat.early_errors(errs, strict);
             }
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 

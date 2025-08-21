@@ -225,6 +225,42 @@ impl IfStatement {
             IfStatement::WithoutElse(_, s1, ..) => s1.var_scoped_declarations(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        if self.location().contains(location) {
+            match self {
+                IfStatement::WithElse(expression, statement, statement1, location) => expression
+                    .body_containing_location(location)
+                    .or_else(|| statement.body_containing_location(location))
+                    .or_else(|| statement1.body_containing_location(location)),
+                IfStatement::WithoutElse(expression, statement, location) => expression
+                    .body_containing_location(location)
+                    .or_else(|| statement.body_containing_location(location)),
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        match self {
+            IfStatement::WithElse(_, statement, statement1, _) => {
+                statement.has_call_in_tail_position(location) || statement1.has_call_in_tail_position(location)
+            }
+            IfStatement::WithoutElse(_, statement, _) => statement.has_call_in_tail_position(location),
+        }
+    }
 }
 
 #[cfg(test)]

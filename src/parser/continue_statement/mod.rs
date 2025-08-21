@@ -104,6 +104,12 @@ impl ContinueStatement {
             label.early_errors(errs, strict);
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 #[cfg(test)]
