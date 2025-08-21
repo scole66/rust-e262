@@ -422,11 +422,11 @@ mod abrupt_completion {
         let first = AbruptCompletion::Break { value, target };
         let second = first.clone();
         assert!(matches!(second, AbruptCompletion::Break { .. }));
-        if let AbruptCompletion::Break { value: second_value, target: second_target } = second {
-            if let AbruptCompletion::Break { value: orig_value, target: orig_target } = first {
-                assert_eq!(second_value, orig_value);
-                assert_eq!(second_target, orig_target);
-            }
+        if let AbruptCompletion::Break { value: second_value, target: second_target } = second
+            && let AbruptCompletion::Break { value: orig_value, target: orig_target } = first
+        {
+            assert_eq!(second_value, orig_value);
+            assert_eq!(second_target, orig_target);
         }
     }
 

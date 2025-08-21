@@ -946,15 +946,16 @@ fn get_substitution(
             (reference, reference_replacement)
         } else if template_remainder.starts_with(&JSString::from("$<")) {
             let gt_pos = template_remainder.index_of(&JSString::from(">"), 0);
-            if gt_pos < 0 || named_captures.is_none() {
-                (JSString::from("$<"), JSString::from("$<"))
-            } else {
+            if gt_pos >= 0
+                && let Some(named_captures) = named_captures
+            {
                 let pos = usize::try_from(gt_pos).expect("gt_pos should be positive and smallish");
-                let named_captures = named_captures.expect("nc should not be none");
                 let group_name = JSString::from(&template_remainder.as_slice()[2..pos]);
                 let capture = named_captures.get(&PropertyKey::from(group_name))?;
                 let replacement = if capture.is_undefined() { JSString::from("") } else { to_string(capture)? };
                 (JSString::from(&template_remainder.as_slice()[0..=pos]), replacement)
+            } else {
+                (JSString::from("$<"), JSString::from("$<"))
             }
         } else {
             let reference = JSString::from(&template_remainder.as_slice()[0..1]);

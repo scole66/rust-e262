@@ -192,10 +192,10 @@ struct ClassSetSyntaxCharacter(char);
 impl ClassSetSyntaxCharacter {
     pub fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let ch = scanner.peek();
-        if let Some(ch) = ch {
-            if ['(', ')', '[', ']', '{', '}', '/', '-', '\\', '|'].contains(&ch) {
-                return Some((Self(ch), 1));
-            }
+        if let Some(ch) = ch
+            && ['(', ')', '[', ']', '{', '}', '/', '-', '\\', '|'].contains(&ch)
+        {
+            return Some((Self(ch), 1));
         }
         None
     }
@@ -210,13 +210,12 @@ impl ClassSetReservedDoublePunctuator {
     pub fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let och_left = scanner.peek();
         let och_right = scanner.lookahead(1);
-        if let (Some(ch_left), Some(ch_right)) = (och_left, och_right) {
-            if ['&', '!', '#', '$', '%', '*', '+', ',', '.', ':', ';', '<', '=', '>', '?', '@', '^', '`', '~']
+        if let (Some(ch_left), Some(ch_right)) = (och_left, och_right)
+            && ['&', '!', '#', '$', '%', '*', '+', ',', '.', ':', ';', '<', '=', '>', '?', '@', '^', '`', '~']
                 .contains(&ch_left)
-                && ch_left == ch_right
-            {
-                return Some((Self {}, 2));
-            }
+            && ch_left == ch_right
+        {
+            return Some((Self {}, 2));
         }
         None
     }
@@ -425,10 +424,10 @@ struct AsciiLetter(char);
 impl AsciiLetter {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let ch = scanner.peek();
-        if let Some(ch) = ch {
-            if ch.is_ascii_alphabetic() {
-                return Some((Self(ch), 1));
-            }
+        if let Some(ch) = ch
+            && ch.is_ascii_alphabetic()
+        {
+            return Some((Self(ch), 1));
         }
         None
     }

@@ -1154,11 +1154,11 @@ mod iterator_record {
     ) -> Completion<ECMAScriptValue> {
         iterator_next(this_value, bad_next)
     }
-    fn silly_iterator_method_object(kind: IRKind) -> ECMAScriptValue {
+    fn silly_iterator_method_object(kind: IRNextKind) -> ECMAScriptValue {
         let func = match kind {
-            IRKind::NextNotFunction => silly_iterator,
-            IRKind::NextReturnsNonObject => iterator_bad_next,
-            IRKind::NextReturnsObject => iterator_ok_next,
+            IRNextKind::NotFunction => silly_iterator,
+            IRNextKind::ReturnsNonObject => iterator_bad_next,
+            IRNextKind::ReturnsObject => iterator_ok_next,
         };
         let obj = create_builtin_function(Box::new(func), None, 0.0, "silly_iterator".into(), &[], None, None, None);
         define_property_or_throw(
@@ -1170,12 +1170,12 @@ mod iterator_record {
         ECMAScriptValue::from(obj)
     }
     #[derive(Copy, Clone)]
-    enum IRKind {
-        NextNotFunction,
-        NextReturnsNonObject,
-        NextReturnsObject,
+    enum IRNextKind {
+        NotFunction,
+        ReturnsNonObject,
+        ReturnsObject,
     }
-    fn silly_this(kind: IRKind) -> ECMAScriptValue {
+    fn silly_this(kind: IRNextKind) -> ECMAScriptValue {
         let obj = ordinary_object_create(None);
         define_property_or_throw(
             &obj,
@@ -1195,15 +1195,15 @@ mod iterator_record {
         ECMAScriptValue::from(obj)
     }
     fn silly_ir() -> IteratorRecord {
-        let obj = silly_this(IRKind::NextNotFunction);
+        let obj = silly_this(IRNextKind::NotFunction);
         super::get_iterator(&obj, IteratorKind::Sync).unwrap()
     }
     fn makes_bad_next() -> IteratorRecord {
-        let obj = silly_this(IRKind::NextReturnsNonObject);
+        let obj = silly_this(IRNextKind::ReturnsNonObject);
         super::get_iterator(&obj, IteratorKind::Sync).unwrap()
     }
     pub fn makes_good_ir() -> IteratorRecord {
-        let obj = silly_this(IRKind::NextReturnsObject);
+        let obj = silly_this(IRNextKind::ReturnsObject);
         super::get_iterator(&obj, IteratorKind::Sync).unwrap()
     }
     fn no_value() -> Option<ECMAScriptValue> {

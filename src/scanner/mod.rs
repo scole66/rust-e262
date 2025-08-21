@@ -669,24 +669,24 @@ fn code_point(scanner: &Scanner, source: &str) -> Option<Scanner> {
     let mut count: usize = 0;
     loop {
         let opt_ch = iter.next();
-        if let Some(ch) = opt_ch {
-            if is_hex_digit(ch) {
-                count += 1;
-                continue;
-            }
+        if let Some(ch) = opt_ch
+            && is_hex_digit(ch)
+        {
+            count += 1;
+            continue;
         }
         break;
     }
     if count > 0 {
         let parse_result = u32::from_str_radix(&source[scanner.start_idx..scanner.start_idx + count], 16);
-        if let Ok(mv) = parse_result {
-            if mv <= 0x0010_FFFF {
-                return Some(Scanner {
-                    line: scanner.line,
-                    column: u32::try_from(scanner.column as usize + count).expect("column should fit in 32 bits"),
-                    start_idx: scanner.start_idx + count,
-                });
-            }
+        if let Ok(mv) = parse_result
+            && mv <= 0x0010_FFFF
+        {
+            return Some(Scanner {
+                line: scanner.line,
+                column: u32::try_from(scanner.column as usize + count).expect("column should fit in 32 bits"),
+                start_idx: scanner.start_idx + count,
+            });
         }
     }
     None
@@ -761,18 +761,16 @@ where
 {
     let mut idx = scanner.start_idx;
     let mut iter = source[idx..].chars();
-    let ch = match iter.next() {
-        None => return Ok(None),
-        Some(c) => c,
+    let Some(ch) = iter.next() else {
+        return Ok(None);
     };
     idx += ch.len_utf8();
     if validate(ch) {
         Ok(Some(Scanner { line: scanner.line, column: scanner.column + 1, start_idx: idx }))
     } else if ch == '\\' {
         let ues_scanner = Scanner { line: scanner.line, column: scanner.column + 1, start_idx: idx };
-        let after_scanner = match unicode_escape_sequence(&ues_scanner, source) {
-            None => return Ok(None),
-            Some(scanner) => scanner,
+        let Some(after_scanner) = unicode_escape_sequence(&ues_scanner, source) else {
+            return Ok(None);
         };
         let ch_value = ues_char_value(&source[ues_scanner.start_idx..after_scanner.start_idx]);
         if !validate(ch_value) {
@@ -845,9 +843,8 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
     let mut result: Vec<u16> = vec![];
     let mut iter = id_text.chars();
     loop {
-        let ch = match iter.next() {
-            None => break,
-            Some(c) => c,
+        let Some(ch) = iter.next() else {
+            break;
         };
         if ch == '\\' {
             // We know the strings are valid constructions, so we don't need to
@@ -1033,11 +1030,8 @@ fn identifier_internal(
     // (I.e.: An IdentifierStart followed by any number of IdentifierParts)
 
     let is_result = identifier_start(scanner, source).map_err(|errmsg| (errmsg, *scanner))?;
-    let mut scanner_1 = match is_result {
-        None => {
-            return Ok(None);
-        }
-        Some(scanner) => scanner,
+    let Some(mut scanner_1) = is_result else {
+        return Ok(None);
     };
 
     loop {
@@ -1484,10 +1478,10 @@ fn numeric_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> 
         })?;
 
     // Numbers can't be followed immediately by digits or identifiers. "3in" is a syntax error.
-    if let Some(ch) = source[after.start_idx..].chars().next() {
-        if ch.is_ascii_digit() || is_unicode_id_start(ch) || ch == '$' || ch == '_' {
-            return None;
-        }
+    if let Some(ch) = source[after.start_idx..].chars().next()
+        && (ch.is_ascii_digit() || is_unicode_id_start(ch) || ch == '$' || ch == '_')
+    {
+        return None;
     }
 
     match number_style {
