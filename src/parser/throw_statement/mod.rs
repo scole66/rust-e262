@@ -84,6 +84,12 @@ impl ThrowStatement {
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.exp.early_errors(errs, strict);
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 #[cfg(test)]

@@ -614,6 +614,11 @@ impl BindingIdentifier {
             Await { .. } => JSString::from("await"),
         }
     }
+
+    pub fn body_containing_location(&self, _: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        None
+    }
 }
 
 // LabelIdentifier[Yield, Await] :

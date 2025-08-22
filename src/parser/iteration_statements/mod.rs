@@ -192,6 +192,44 @@ impl IterationStatement {
             IterationStatement::ForInOf(node) => node.var_scoped_declarations(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                IterationStatement::DoWhile(do_while_statement) => {
+                    do_while_statement.body_containing_location(location)
+                }
+                IterationStatement::While(while_statement) => while_statement.body_containing_location(location),
+                IterationStatement::For(for_statement) => for_statement.body_containing_location(location),
+                IterationStatement::ForInOf(for_in_of_statement) => {
+                    for_in_of_statement.body_containing_location(location)
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        match self {
+            IterationStatement::DoWhile(node) => node.has_call_in_tail_position(location),
+            IterationStatement::While(node) => node.has_call_in_tail_position(location),
+            IterationStatement::For(node) => node.has_call_in_tail_position(location),
+            IterationStatement::ForInOf(node) => node.has_call_in_tail_position(location),
+        }
+    }
 }
 
 // DoWhileStatement[Yield, Await, Return] :
@@ -318,6 +356,30 @@ impl DoWhileStatement {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.stmt.var_scoped_declarations()
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            self.exp.body_containing_location(location).or_else(|| self.stmt.body_containing_location(location))
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        self.stmt.has_call_in_tail_position(location)
+    }
 }
 
 // WhileStatement[Yield, Await, Return] :
@@ -437,6 +499,30 @@ impl WhileStatement {
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.stmt.var_scoped_declarations()
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            self.exp.body_containing_location(location).or_else(|| self.stmt.body_containing_location(location))
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        self.stmt.has_call_in_tail_position(location)
     }
 }
 
@@ -849,6 +935,53 @@ impl ForStatement {
                 list.extend(s.var_scoped_declarations());
                 list
             }
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                ForStatement::For(expression, expression1, expression2, statement, _) => expression
+                    .as_ref()
+                    .and_then(|item| item.body_containing_location(location))
+                    .or_else(|| expression1.as_ref().and_then(|item| item.body_containing_location(location)))
+                    .or_else(|| expression2.as_ref().and_then(|item| item.body_containing_location(location)))
+                    .or_else(|| statement.body_containing_location(location)),
+                ForStatement::ForVar(variable_declaration_list, expression, expression1, statement, _) => {
+                    variable_declaration_list
+                        .body_containing_location(location)
+                        .or_else(|| expression.as_ref().and_then(|item| item.body_containing_location(location)))
+                        .or_else(|| expression1.as_ref().and_then(|item| item.body_containing_location(location)))
+                        .or_else(|| statement.body_containing_location(location))
+                }
+                ForStatement::ForLex(lexical_declaration, expression, expression1, statement, _) => lexical_declaration
+                    .body_containing_location(location)
+                    .or_else(|| expression.as_ref().and_then(|item| item.body_containing_location(location)))
+                    .or_else(|| expression1.as_ref().and_then(|item| item.body_containing_location(location)))
+                    .or_else(|| statement.body_containing_location(location)),
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        match self {
+            ForStatement::For(_, _, _, statement, _)
+            | ForStatement::ForVar(_, _, _, statement, _)
+            | ForStatement::ForLex(_, _, _, statement, _) => statement.has_call_in_tail_position(location),
         }
     }
 }
@@ -1528,6 +1661,40 @@ impl ForInOfStatement {
             }
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        match self {
+            ForInOfStatement::In(_, _, statement, _)
+            | ForInOfStatement::DestructuringIn(_, _, statement, _)
+            | ForInOfStatement::VarIn(_, _, statement, _)
+            | ForInOfStatement::LexIn(_, _, statement, _)
+            | ForInOfStatement::Of(_, _, statement, _)
+            | ForInOfStatement::DestructuringOf(_, _, statement, _)
+            | ForInOfStatement::VarOf(_, _, statement, _)
+            | ForInOfStatement::LexOf(_, _, statement, _)
+            | ForInOfStatement::AwaitOf(_, _, statement, _)
+            | ForInOfStatement::DestructuringAwaitOf(_, _, statement, _)
+            | ForInOfStatement::AwaitVarOf(_, _, statement, _)
+            | ForInOfStatement::AwaitLexOf(_, _, statement, _) => statement.has_call_in_tail_position(location),
+        }
+    }
 }
 
 fn pp_two<T, U, UU, V, VV>(writer: &mut T, pad: &str, n1: &U, n2: &V) -> IoResult<()>
@@ -1674,6 +1841,12 @@ impl ForDeclaration {
         //  1. Return IsDestructuring of ForBinding.
         self.binding.is_destructuring()
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // ForBinding[Yield, Await] :
@@ -1817,6 +1990,12 @@ impl ForBinding {
                 true
             }
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 

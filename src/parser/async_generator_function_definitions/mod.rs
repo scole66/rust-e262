@@ -183,6 +183,12 @@ impl AsyncGeneratorMethod {
         //  1. Return PropName of ClassElementName.
         self.name.prop_name()
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // AsyncGeneratorDeclaration[Yield, Await, Default] :
@@ -373,6 +379,12 @@ impl AsyncGeneratorDeclaration {
     pub fn is_constant_declaration(&self) -> bool {
         false
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // AsyncGeneratorExpression :
@@ -536,6 +548,10 @@ impl AsyncGeneratorExpression {
     pub fn is_named_function(&self) -> bool {
         self.ident.is_some()
     }
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
+    }
 }
 
 // AsyncGeneratorBody :
@@ -569,7 +585,8 @@ impl PrettyPrint for AsyncGeneratorBody {
 
 impl AsyncGeneratorBody {
     fn parse_core(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
-        let (body, after_body) = FunctionBody::parse(parser, scanner, true, true);
+        let (body, after_body) =
+            FunctionBody::parse(parser, scanner, true, true, FunctionBodyParent::AsyncGeneratorBody);
         (Rc::new(AsyncGeneratorBody(body)), after_body)
     }
 
@@ -639,6 +656,10 @@ impl AsyncGeneratorBody {
 
     pub fn function_body_contains_use_strict(&self) -> bool {
         self.0.function_body_contains_use_strict()
+    }
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
     }
 }
 

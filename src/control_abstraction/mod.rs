@@ -664,12 +664,12 @@ pub fn generator_validate(generator: &ECMAScriptValue, generator_brand: &str) ->
     .map_err(|e| create_type_error(e.to_string()))
 }
 
-pub fn generator_start_from_function_body(generator: &Object, func: &dyn FunctionInterface, text: &str) {
+pub fn generator_start_from_function_body(generator: &Object, func: &dyn FunctionInterface, source: &SourceTree) {
     // This is like generator_start_from_closure, except that our "closure" performs:
     //    i. Let result be Completion(Evaluation of generatorBody).
     // where that evaluation is an asynchronous routine that might relinquish control during its execution.
     let fd = func.function_data();
-    let closure = fd.borrow().into_async_closure(text);
+    let closure = fd.borrow().into_async_closure(source);
     let generator_in_closure = generator.clone();
     let gen_closure = Box::new(Gen::new(|co| gen_caller(generator_in_closure, co, closure)));
     generator_start_from_closure(generator, gen_closure);
@@ -677,9 +677,9 @@ pub fn generator_start_from_function_body(generator: &Object, func: &dyn Functio
 }
 
 impl FunctionObjectData {
-    pub fn into_async_closure(&self, text: &str) -> AsyncFnPtr {
-        let text = text.to_owned();
-        let closure = move |co| execute(co, text);
+    pub fn into_async_closure(&self, source: &SourceTree) -> AsyncFnPtr {
+        let source = source.clone();
+        let closure = move |co| execute(co, source);
         asyncfn_wrap(closure)
     }
 }

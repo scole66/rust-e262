@@ -186,6 +186,49 @@ impl ConditionalExpression {
             ConditionalExpression::FallThru(node) => node.is_named_function(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                ConditionalExpression::FallThru(node) => node.body_containing_location(location),
+                ConditionalExpression::Conditional(cond, thenish, elseish) => cond
+                    .body_containing_location(location)
+                    .or_else(|| thenish.body_containing_location(location))
+                    .or_else(|| elseish.body_containing_location(location)),
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // ConditionalExpression :
+        //      ShortCircuitExpression
+        //  1. Return HasCallInTailPosition of ShortCircuitExpression with argument call.
+        // ConditionalExpression :
+        //      ShortCircuitExpression ? AssignmentExpression : AssignmentExpression
+        //  1. Let has be HasCallInTailPosition of the first AssignmentExpression with argument call.
+        //  2. If has is true, return true.
+        //  3. Return HasCallInTailPosition of the second AssignmentExpression with argument call.
+        match self {
+            ConditionalExpression::FallThru(sce) => sce.has_call_in_tail_position(location),
+            ConditionalExpression::Conditional(_, ae1, ae2) => {
+                ae1.has_call_in_tail_position(location) || ae2.has_call_in_tail_position(location)
+            }
+        }
+    }
 }
 
 #[cfg(test)]

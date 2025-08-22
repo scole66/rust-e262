@@ -204,6 +204,20 @@ impl Script {
             Some(sb) => sb.lexically_scoped_declarations(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match &self.body {
+            None => None,
+            Some(body) => {
+                if self.location().contains(location) {
+                    body.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+        }
+    }
 }
 
 // ScriptBody :
@@ -357,6 +371,11 @@ impl ScriptBody {
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
         self.statement_list.all_private_identifiers_valid(names)
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) { self.statement_list.body_containing_location(location) } else { None }
     }
 }
 

@@ -876,6 +876,7 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                 call_state == EvalCallStatus::DirectWithStrictCaller,
                 call_state != EvalCallStatus::NotDirect,
             );
+            let source_tree = SourceTree { ast: script.clone(), text: source_text.clone() };
             match script {
                 ParsedText::Errors(errs) => {
                     Err(create_syntax_error(errs.iter().map(unwind_any_error_object).join("; "), None))
@@ -932,15 +933,15 @@ pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completio
                                 &lex_env,
                                 private_env.as_ref(),
                                 strict_eval,
-                                &source_text,
+                                &source_tree,
                             ) {
                                 Ok(()) => {
                                     let mut chunk = Chunk::new("eval code");
-                                    script.compile(&mut chunk, strict_eval, &source_text).unwrap();
+                                    script.compile(&mut chunk, strict_eval, &source_tree).unwrap();
                                     for line in chunk.disassemble() {
                                         println!("{line}");
                                     }
-                                    evaluate(Rc::new(chunk), &source_text)
+                                    evaluate(Rc::new(chunk), &source_tree)
                                 }
                                 Err(e) => Err(e),
                             };
@@ -963,7 +964,7 @@ fn eval_declaration_instantiation(
     lex_env: &Rc<dyn EnvironmentRecord>,
     private_env: Option<&Rc<RefCell<PrivateEnvironmentRecord>>>,
     strict: bool,
-    source_text: &str,
+    source_tree: &SourceTree,
 ) -> Completion<()> {
     let var_names = body.var_declared_names();
     let var_declarations = body.var_scoped_declarations();
@@ -1062,7 +1063,7 @@ fn eval_declaration_instantiation(
     for vsd in functions_to_initialize {
         let f = FcnDef::try_from(vsd.clone()).unwrap();
         let fname = f.bound_name();
-        let fo = f.instantiate_function_object(lex_env.clone(), private_env.cloned(), strict, source_text).unwrap();
+        let fo = f.instantiate_function_object(lex_env.clone(), private_env.cloned(), strict, source_tree).unwrap();
         if let Some(ger) = var_env.as_global_environment_record() {
             ger.create_global_function_binding(fname, fo, true)?;
         } else if !var_env.has_binding(&fname).unwrap() {

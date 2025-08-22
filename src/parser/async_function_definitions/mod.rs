@@ -239,6 +239,12 @@ impl AsyncFunctionDeclaration {
     pub fn is_constant_declaration(&self) -> bool {
         false
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // AsyncFunctionExpression :
@@ -455,6 +461,10 @@ impl AsyncFunctionExpression {
     pub fn is_named_function(&self) -> bool {
         self.ident.is_some()
     }
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
+    }
 }
 
 // AsyncMethod[Yield, Await] :
@@ -637,6 +647,12 @@ impl AsyncMethod {
         //  1. Return PropName of ClassElementName.
         self.ident.prop_name()
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // AsyncFunctionBody :
@@ -670,7 +686,7 @@ impl PrettyPrint for AsyncFunctionBody {
 
 impl AsyncFunctionBody {
     fn parse_core(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
-        let (fb, after_fb) = FunctionBody::parse(parser, scanner, false, true);
+        let (fb, after_fb) = FunctionBody::parse(parser, scanner, false, true, FunctionBodyParent::AsyncBody);
         (Rc::new(AsyncFunctionBody(fb)), after_fb)
     }
 
@@ -755,6 +771,11 @@ impl AsyncFunctionBody {
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.0.lexically_scoped_declarations()
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
+    }
 }
 
 // AwaitExpression[Yield] :
@@ -836,6 +857,12 @@ impl AwaitExpression {
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
         self.exp.contains_arguments()
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 

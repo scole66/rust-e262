@@ -89,7 +89,7 @@ impl FunctionDeclaration {
         let (params, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
         let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
-        let (body, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
+        let (body, after_fb) = FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::FunctionBody);
         let (rb_loc, after_rb) =
             scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         let location = func_loc.merge(&rb_loc);
@@ -149,6 +149,15 @@ impl FunctionDeclaration {
 
     pub fn is_constant_declaration(&self) -> bool {
         false
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            self.params.body_containing_location(location).or_else(|| self.body.body_containing_location(location))
+        } else {
+            None
+        }
     }
 }
 
@@ -300,7 +309,7 @@ impl FunctionExpression {
         let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
         let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
         let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
-        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false);
+        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::FunctionBody);
         let (rb_loc, after_rb) =
             scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
         Ok((
@@ -334,6 +343,22 @@ impl FunctionExpression {
     pub fn is_named_function(&self) -> bool {
         self.ident.is_some()
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        if self.location().contains(location) {
+            self.params.body_containing_location(location).or_else(|| self.body.body_containing_location(location))
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum FunctionBodyParent {
+    GeneratorBody,
+    AsyncBody,
+    AsyncGeneratorBody,
+    FunctionBody,
 }
 
 // FunctionBody[Yield, Await] :
@@ -341,6 +366,7 @@ impl FunctionExpression {
 #[derive(Debug)]
 pub struct FunctionBody {
     pub statements: Rc<FunctionStatementList>,
+    pub parent: FunctionBodyParent,
 }
 
 impl fmt::Display for FunctionBody {
@@ -368,18 +394,30 @@ impl PrettyPrint for FunctionBody {
 }
 
 impl FunctionBody {
-    fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
+    fn parse_core(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        parent: FunctionBodyParent,
+    ) -> (Rc<Self>, Scanner) {
         // Can never return an error
         let (fsl, after_fsl) = FunctionStatementList::parse(parser, scanner, yield_flag, await_flag);
-        (Rc::new(FunctionBody { statements: fsl }), after_fsl)
+        (Rc::new(FunctionBody { statements: fsl, parent }), after_fsl)
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
+    pub fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+        parent: FunctionBodyParent,
+    ) -> (Rc<Self>, Scanner) {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.function_body_cache.get(&key) {
             Some(result) => result.clone(),
             None => {
-                let result = Self::parse_core(parser, scanner, yield_flag, await_flag);
+                let result = Self::parse_core(parser, scanner, yield_flag, await_flag, parent);
                 parser.function_body_cache.insert(key, result.clone());
                 result
             }
@@ -499,6 +537,45 @@ impl FunctionBody {
 
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.statements.lexically_scoped_declarations()
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        //  FunctionBody : FunctionStatementList
+        //  1. Return HasCallInTailPosition of FunctionStatementList with argument call
+        self.statements.has_call_in_tail_position(location)
+    }
+
+    pub fn body_containing_location(self: &Rc<Self>, location: &Location) -> Option<ContainingBody> {
+        if self.location().contains(location) {
+            self.statements
+                .body_containing_location(location)
+                .or_else(|| Some(ContainingBody::FunctionBody(Rc::clone(self))))
+        } else {
+            None
+        }
+    }
+
+    pub fn is_generator_body(&self) -> bool {
+        matches!(self.parent, FunctionBodyParent::GeneratorBody)
+    }
+
+    pub fn is_async_function_body(&self) -> bool {
+        matches!(self.parent, FunctionBodyParent::AsyncBody)
+    }
+
+    pub fn is_async_generator_body(&self) -> bool {
+        matches!(self.parent, FunctionBodyParent::AsyncGeneratorBody)
     }
 }
 
@@ -677,6 +754,39 @@ impl FunctionStatementList {
         match self {
             FunctionStatementList::Statements(s) => s.top_level_lexically_scoped_declarations(),
             FunctionStatementList::Empty(_) => vec![],
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        if self.location().contains(location) {
+            match self {
+                FunctionStatementList::Statements(s) => s.body_containing_location(location),
+                FunctionStatementList::Empty(_) => None,
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // FunctionStatementList : StatementList
+        //  1. Return HasCallInTailPosition of StatementList with argument call
+        // FunctionStatementList : [empty]
+        //  1. Return false.
+        match self {
+            FunctionStatementList::Statements(s) => s.has_call_in_tail_position(location),
+            FunctionStatementList::Empty(_) => false,
         }
     }
 }

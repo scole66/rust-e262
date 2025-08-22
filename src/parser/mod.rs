@@ -46,6 +46,8 @@ pub enum ParseNodeKind {
     AssignmentPattern,
     AsyncArrowFunction,
     AsyncConciseBody,
+    AsyncFunctionBody,
+    AsyncGeneratorBody,
     AwaitExpression,
     BindingElement,
     BindingPattern,
@@ -71,6 +73,7 @@ pub enum ParseNodeKind {
     ExpressionBody,
     ExpressionStatement,
     ForBinding,
+    GeneratorBody,
     HoistableDeclaration,
     IdentifierName,
     IfStatement,
@@ -123,6 +126,8 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::AssignmentPattern => "AssignmentPattern",
             ParseNodeKind::AsyncArrowFunction => "AsyncArrowFunction",
             ParseNodeKind::AsyncConciseBody => "AsyncConciseBody",
+            ParseNodeKind::AsyncFunctionBody => "AsyncFunctionBody",
+            ParseNodeKind::AsyncGeneratorBody => "AsyncGeneratorBody",
             ParseNodeKind::AwaitExpression => "AwaitExpression",
             ParseNodeKind::BindingElement => "BindingElement",
             ParseNodeKind::BindingPattern => "BindingPattern",
@@ -148,6 +153,7 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::ExpressionBody => "ExpressionBody",
             ParseNodeKind::ExpressionStatement => "ExpressionStatement",
             ParseNodeKind::ForBinding => "ForBinding",
+            ParseNodeKind::GeneratorBody => "GeneratorBody",
             ParseNodeKind::HoistableDeclaration => "HoistableDeclaration",
             ParseNodeKind::IdentifierName => "IdentifierName",
             ParseNodeKind::IfStatement => "IfStatement",
@@ -384,6 +390,11 @@ impl Location {
                 length: other.span.starting_index + other.span.length - self.span.starting_index,
             },
         }
+    }
+
+    pub fn contains(&self, other: &Self) -> bool {
+        self.span.starting_index <= other.span.starting_index
+            && (self.span.starting_index + self.span.length) >= (other.span.starting_index + other.span.length)
     }
 }
 
@@ -655,19 +666,172 @@ pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError>
 //    If more than one parsing error or early error is present, the number and ordering of error objects in the list is
 //    implementation-defined, but at least one must be present.
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ParsedText {
     Errors(Vec<Object>),
-    Script(Rc<Script>),
-    FormalParameters(Rc<FormalParameters>),
-    FunctionBody(Rc<FunctionBody>),
-    GeneratorBody(Rc<GeneratorBody>),
+    Empty,
+    AdditiveExpression(Rc<AdditiveExpression>),
+    ArgumentList(Rc<ArgumentList>),
+    Arguments(Rc<Arguments>),
+    ArrayAssignmentPattern(Rc<ArrayAssignmentPattern>),
+    ArrayBindingPattern(Rc<ArrayBindingPattern>),
+    ArrayLiteral(Rc<ArrayLiteral>),
+    ArrowFormalParameters(Rc<ArrowFormalParameters>),
+    ArrowFunction(Rc<ArrowFunction>),
+    ArrowParameters(Rc<ArrowParameters>),
+    AssignmentElement(Rc<AssignmentElement>),
+    AssignmentElementList(Rc<AssignmentElementList>),
+    AssignmentElisionElement(Rc<AssignmentElisionElement>),
+    AssignmentExpression(Rc<AssignmentExpression>),
+    AssignmentPattern(Rc<AssignmentPattern>),
+    AssignmentProperty(Rc<AssignmentProperty>),
+    AssignmentPropertyList(Rc<AssignmentPropertyList>),
+    AssignmentRestElement(Rc<AssignmentRestElement>),
+    AssignmentRestProperty(Rc<AssignmentRestProperty>),
+    AsyncArrowBindingIdentifier(Rc<AsyncArrowBindingIdentifier>),
+    AsyncArrowFunction(Rc<AsyncArrowFunction>),
+    AsyncArrowHead(Rc<AsyncArrowHead>),
+    AsyncConciseBody(Rc<AsyncConciseBody>),
     AsyncFunctionBody(Rc<AsyncFunctionBody>),
-    AsyncGeneratorBody(Rc<AsyncGeneratorBody>),
-    FunctionExpression(Rc<FunctionExpression>),
-    GeneratorExpression(Rc<GeneratorExpression>),
+    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
     AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
+    AsyncGeneratorBody(Rc<AsyncGeneratorBody>),
+    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
     AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
+    AsyncGeneratorMethod(Rc<AsyncGeneratorMethod>),
+    AsyncMethod(Rc<AsyncMethod>),
+    AwaitExpression(Rc<AwaitExpression>),
+    BindingElement(Rc<BindingElement>),
+    BindingElementList(Rc<BindingElementList>),
+    BindingElisionElement(Rc<BindingElisionElement>),
+    BindingIdentifier(Rc<BindingIdentifier>),
+    BindingList(Rc<BindingList>),
+    BindingPattern(Rc<BindingPattern>),
+    BindingProperty(Rc<BindingProperty>),
+    BindingPropertyList(Rc<BindingPropertyList>),
+    BindingRestElement(Rc<BindingRestElement>),
+    BindingRestProperty(Rc<BindingRestProperty>),
+    BitwiseANDExpression(Rc<BitwiseANDExpression>),
+    BitwiseORExpression(Rc<BitwiseORExpression>),
+    BitwiseXORExpression(Rc<BitwiseXORExpression>),
+    Block(Rc<Block>),
+    BlockStatement(Rc<BlockStatement>),
+    BreakableStatement(Rc<BreakableStatement>),
+    BreakStatement(Rc<BreakStatement>),
+    CallExpression(Rc<CallExpression>),
+    CallMemberExpression(Rc<CallMemberExpression>),
+    CaseBlock(Rc<CaseBlock>),
+    CaseClause(Rc<CaseClause>),
+    CaseClauses(Rc<CaseClauses>),
+    Catch(Rc<Catch>),
+    CatchParameter(Rc<CatchParameter>),
+    ClassBody(Rc<ClassBody>),
+    ClassDeclaration(Rc<ClassDeclaration>),
+    ClassElement(Rc<ClassElement>),
+    ClassElementList(Rc<ClassElementList>),
+    ClassElementName(Rc<ClassElementName>),
+    ClassExpression(Rc<ClassExpression>),
+    ClassHeritage(Rc<ClassHeritage>),
+    ClassStaticBlock(Rc<ClassStaticBlock>),
+    ClassStaticBlockBody(Rc<ClassStaticBlockBody>),
+    ClassStaticBlockStatementList(Rc<ClassStaticBlockStatementList>),
+    ClassTail(Rc<ClassTail>),
+    CoalesceExpression(Rc<CoalesceExpression>),
+    CoalesceExpressionHead(Rc<CoalesceExpressionHead>),
+    ComputedPropertyName(Rc<ComputedPropertyName>),
+    ConciseBody(Rc<ConciseBody>),
+    ConditionalExpression(Rc<ConditionalExpression>),
+    ContinueStatement(Rc<ContinueStatement>),
+    CoverInitializedName(Rc<CoverInitializedName>),
+    CoverParenthesizedExpressionAndArrowParameterList(Rc<CoverParenthesizedExpressionAndArrowParameterList>),
+    DebuggerStatement(Rc<DebuggerStatement>),
+    Declaration(Rc<Declaration>),
+    DefaultClause(Rc<DefaultClause>),
+    DestructuringAssignmentTarget(Rc<DestructuringAssignmentTarget>),
+    DoWhileStatement(Rc<DoWhileStatement>),
+    ElementList(Rc<ElementList>),
+    Elisions(Rc<Elisions>),
+    EmptyStatement(Rc<EmptyStatement>),
+    EqualityExpression(Rc<EqualityExpression>),
+    ExponentiationExpression(Rc<ExponentiationExpression>),
+    Expression(Rc<Expression>),
+    ExpressionBody(Rc<ExpressionBody>),
+    ExpressionStatement(Rc<ExpressionStatement>),
+    FieldDefinition(Rc<FieldDefinition>),
+    Finally(Rc<Finally>),
+    ForBinding(Rc<ForBinding>),
+    ForDeclaration(Rc<ForDeclaration>),
+    ForInOfStatement(Rc<ForInOfStatement>),
+    FormalParameter(Rc<FormalParameter>),
+    FormalParameterList(Rc<FormalParameterList>),
+    FormalParameters(Rc<FormalParameters>),
+    ForStatement(Rc<ForStatement>),
+    FunctionBody(Rc<FunctionBody>),
+    FunctionDeclaration(Rc<FunctionDeclaration>),
+    FunctionExpression(Rc<FunctionExpression>),
+    FunctionRestParameter(Rc<FunctionRestParameter>),
+    FunctionStatementList(Rc<FunctionStatementList>),
+    GeneratorBody(Rc<GeneratorBody>),
+    GeneratorDeclaration(Rc<GeneratorDeclaration>),
+    GeneratorExpression(Rc<GeneratorExpression>),
+    GeneratorMethod(Rc<GeneratorMethod>),
+    IfStatement(Rc<IfStatement>),
+    Initializer(Rc<Initializer>),
+    IterationStatement(Rc<IterationStatement>),
+    LabelledItem(Rc<LabelledItem>),
+    LabelledStatement(Rc<LabelledStatement>),
+    LeftHandSideExpression(Rc<LeftHandSideExpression>),
+    LexicalBinding(Rc<LexicalBinding>),
+    LexicalDeclaration(Rc<LexicalDeclaration>),
+    Literal(Rc<Literal>),
+    LiteralPropertyName(Rc<LiteralPropertyName>),
+    LogicalANDExpression(Rc<LogicalANDExpression>),
+    LogicalORExpression(Rc<LogicalORExpression>),
+    MemberExpression(Rc<MemberExpression>),
+    MetaProperty(Rc<MetaProperty>),
+    MethodDefinition(Rc<MethodDefinition>),
+    MultiplicativeExpression(Rc<MultiplicativeExpression>),
+    NewExpression(Rc<NewExpression>),
+    ObjectAssignmentPattern(Rc<ObjectAssignmentPattern>),
+    ObjectBindingPattern(Rc<ObjectBindingPattern>),
+    ObjectLiteral(Rc<ObjectLiteral>),
+    OptionalChain(Rc<OptionalChain>),
+    OptionalExpression(Rc<OptionalExpression>),
+    ParenthesizedExpression(Rc<ParenthesizedExpression>),
+    PrimaryExpression(Rc<PrimaryExpression>),
+    PropertyDefinition(Rc<PropertyDefinition>),
+    PropertyDefinitionList(Rc<PropertyDefinitionList>),
+    PropertyName(Rc<PropertyName>),
+    PropertySetParameterList(Rc<PropertySetParameterList>),
+    RelationalExpression(Rc<RelationalExpression>),
+    ReturnStatement(Rc<ReturnStatement>),
+    Script(Rc<Script>),
+    ScriptBody(Rc<ScriptBody>),
+    ShiftExpression(Rc<ShiftExpression>),
+    ShortCircuitExpression(Rc<ShortCircuitExpression>),
+    SingleNameBinding(Rc<SingleNameBinding>),
+    SpreadElement(Rc<SpreadElement>),
+    Statement(Rc<Statement>),
+    StatementList(Rc<StatementList>),
+    StatementListItem(Rc<StatementListItem>),
+    SubstitutionTemplate(Rc<SubstitutionTemplate>),
+    SuperCall(Rc<SuperCall>),
+    SuperProperty(Rc<SuperProperty>),
+    SwitchStatement(Rc<SwitchStatement>),
+    TemplateLiteral(Rc<TemplateLiteral>),
+    TemplateMiddleList(Rc<TemplateMiddleList>),
+    TemplateSpans(Rc<TemplateSpans>),
+    ThrowStatement(Rc<ThrowStatement>),
+    TryStatement(Rc<TryStatement>),
+    UnaryExpression(Rc<UnaryExpression>),
+    UniqueFormalParameters(Rc<UniqueFormalParameters>),
+    UpdateExpression(Rc<UpdateExpression>),
+    VariableDeclaration(Rc<VariableDeclaration>),
+    VariableDeclarationList(Rc<VariableDeclarationList>),
+    VariableStatement(Rc<VariableStatement>),
+    WhileStatement(Rc<WhileStatement>),
+    WithStatement(Rc<WithStatement>),
+    YieldExpression(Rc<YieldExpression>),
     // ... more to come
 }
 
@@ -750,6 +914,321 @@ impl TryFrom<ParsedText> for Result<ParsedFunctionExpression, Vec<Object>> {
                 Ok(Ok(ParsedFunctionExpression::AsyncGeneratorExpression(node)))
             }
             _ => Err(anyhow!("Expected Some kind of function expression or Syntax Errors")),
+        }
+    }
+}
+
+impl ParsedText {
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            ParsedText::Errors(_) | ParsedText::Empty => None,
+            ParsedText::Script(script) => script.body_containing_location(location),
+            ParsedText::FormalParameters(formal_parameters) => formal_parameters.body_containing_location(location),
+            ParsedText::FunctionBody(function_body) => function_body.body_containing_location(location),
+            ParsedText::GeneratorBody(generator_body) => generator_body.body_containing_location(location),
+            ParsedText::AsyncFunctionBody(async_function_body) => {
+                async_function_body.body_containing_location(location)
+            }
+            ParsedText::AsyncGeneratorBody(async_generator_body) => {
+                async_generator_body.body_containing_location(location)
+            }
+            ParsedText::FunctionExpression(function_expression) => {
+                function_expression.body_containing_location(location)
+            }
+            ParsedText::GeneratorExpression(generator_expression) => {
+                generator_expression.body_containing_location(location)
+            }
+            ParsedText::AsyncFunctionExpression(async_function_expression) => {
+                async_function_expression.body_containing_location(location)
+            }
+            ParsedText::AsyncGeneratorExpression(async_generator_expression) => {
+                async_generator_expression.body_containing_location(location)
+            }
+            ParsedText::FunctionDeclaration(function_declaration) => {
+                function_declaration.body_containing_location(location)
+            }
+            ParsedText::AsyncFunctionDeclaration(async_function_declaration) => {
+                async_function_declaration.body_containing_location(location)
+            }
+            ParsedText::AsyncGeneratorDeclaration(async_generator_declaration) => {
+                async_generator_declaration.body_containing_location(location)
+            }
+            ParsedText::GeneratorDeclaration(generator_declaration) => {
+                generator_declaration.body_containing_location(location)
+            }
+            ParsedText::PrimaryExpression(primary_expression) => primary_expression.body_containing_location(location),
+            ParsedText::FieldDefinition(field_definition) => field_definition.body_containing_location(location),
+            ParsedText::ParenthesizedExpression(parenthesized_expression) => {
+                parenthesized_expression.body_containing_location(location)
+            }
+            ParsedText::ObjectLiteral(object_literal) => object_literal.body_containing_location(location),
+            ParsedText::PropertyDefinitionList(property_definition_list) => {
+                property_definition_list.body_containing_location(location)
+            }
+            ParsedText::PropertyDefinition(property_definition) => {
+                property_definition.body_containing_location(location)
+            }
+            ParsedText::ArrowFunction(arrow_function) => arrow_function.body_containing_location(location),
+            ParsedText::PropertyName(property_name) => property_name.body_containing_location(location),
+            ParsedText::ComputedPropertyName(computed_property_name) => {
+                computed_property_name.body_containing_location(location)
+            }
+            ParsedText::MemberExpression(member_expression) => member_expression.body_containing_location(location),
+            ParsedText::NewExpression(new_expression) => new_expression.body_containing_location(location),
+            ParsedText::CallExpression(call_expression) => call_expression.body_containing_location(location),
+            ParsedText::CallMemberExpression(call_member_expression) => {
+                call_member_expression.body_containing_location(location)
+            }
+            ParsedText::LeftHandSideExpression(left_hand_side_expression) => {
+                left_hand_side_expression.body_containing_location(location)
+            }
+            ParsedText::Arguments(arguments) => arguments.body_containing_location(location),
+            ParsedText::ArgumentList(argument_list) => argument_list.body_containing_location(location),
+            ParsedText::AdditiveExpression(additive_expression) => {
+                additive_expression.body_containing_location(location)
+            }
+            ParsedText::ArrayAssignmentPattern(array_assignment_pattern) => {
+                array_assignment_pattern.body_containing_location(location)
+            }
+            ParsedText::ArrayBindingPattern(array_binding_pattern) => {
+                array_binding_pattern.body_containing_location(location)
+            }
+            ParsedText::ArrayLiteral(array_literal) => array_literal.body_containing_location(location),
+            ParsedText::ArrowFormalParameters(arrow_formal_parameters) => {
+                arrow_formal_parameters.body_containing_location(location)
+            }
+            ParsedText::ArrowParameters(arrow_parameters) => arrow_parameters.body_containing_location(location),
+            ParsedText::AssignmentElement(assignment_element) => assignment_element.body_containing_location(location),
+            ParsedText::AssignmentElementList(assignment_element_list) => {
+                assignment_element_list.body_containing_location(location)
+            }
+            ParsedText::AssignmentElisionElement(assignment_elision_element) => {
+                assignment_elision_element.body_containing_location(location)
+            }
+            ParsedText::AssignmentExpression(assignment_expression) => {
+                assignment_expression.body_containing_location(location)
+            }
+            ParsedText::AssignmentPattern(assignment_pattern) => assignment_pattern.body_containing_location(location),
+            ParsedText::AssignmentProperty(assignment_property) => {
+                assignment_property.body_containing_location(location)
+            }
+            ParsedText::AssignmentPropertyList(assignment_property_list) => {
+                assignment_property_list.body_containing_location(location)
+            }
+            ParsedText::AssignmentRestElement(assignment_rest_element) => {
+                assignment_rest_element.body_containing_location(location)
+            }
+            ParsedText::AssignmentRestProperty(assignment_rest_property) => {
+                assignment_rest_property.body_containing_location(location)
+            }
+            ParsedText::AsyncArrowBindingIdentifier(async_arrow_binding_identifier) => {
+                async_arrow_binding_identifier.body_containing_location(location)
+            }
+            ParsedText::AsyncArrowFunction(async_arrow_function) => {
+                async_arrow_function.body_containing_location(location)
+            }
+            ParsedText::AsyncArrowHead(async_arrow_head) => async_arrow_head.body_containing_location(location),
+            ParsedText::AsyncConciseBody(async_concise_body) => async_concise_body.body_containing_location(location),
+            ParsedText::AsyncGeneratorMethod(async_generator_method) => {
+                async_generator_method.body_containing_location(location)
+            }
+            ParsedText::AsyncMethod(async_method) => async_method.body_containing_location(location),
+            ParsedText::AwaitExpression(await_expression) => await_expression.body_containing_location(location),
+            ParsedText::BindingElement(binding_element) => binding_element.body_containing_location(location),
+            ParsedText::BindingElementList(binding_element_list) => {
+                binding_element_list.body_containing_location(location)
+            }
+            ParsedText::BindingElisionElement(binding_elision_element) => {
+                binding_elision_element.body_containing_location(location)
+            }
+            ParsedText::BindingIdentifier(binding_identifier) => binding_identifier.body_containing_location(location),
+            ParsedText::BindingList(binding_list) => binding_list.body_containing_location(location),
+            ParsedText::BindingPattern(binding_pattern) => binding_pattern.body_containing_location(location),
+            ParsedText::BindingProperty(binding_property) => binding_property.body_containing_location(location),
+            ParsedText::BindingPropertyList(binding_property_list) => {
+                binding_property_list.body_containing_location(location)
+            }
+            ParsedText::BindingRestElement(binding_rest_element) => {
+                binding_rest_element.body_containing_location(location)
+            }
+            ParsedText::BindingRestProperty(binding_rest_property) => {
+                binding_rest_property.body_containing_location(location)
+            }
+            ParsedText::BitwiseANDExpression(bitwise_andexpression) => {
+                bitwise_andexpression.body_containing_location(location)
+            }
+            ParsedText::BitwiseORExpression(bitwise_orexpression) => {
+                bitwise_orexpression.body_containing_location(location)
+            }
+            ParsedText::BitwiseXORExpression(bitwise_xorexpression) => {
+                bitwise_xorexpression.body_containing_location(location)
+            }
+            ParsedText::Block(block) => block.body_containing_location(location),
+            ParsedText::BlockStatement(block_statement) => block_statement.body_containing_location(location),
+            ParsedText::BreakableStatement(breakable_statement) => {
+                breakable_statement.body_containing_location(location)
+            }
+            ParsedText::BreakStatement(break_statement) => break_statement.body_containing_location(location),
+            ParsedText::CaseBlock(case_block) => case_block.body_containing_location(location),
+            ParsedText::CaseClause(case_clause) => case_clause.body_containing_location(location),
+            ParsedText::CaseClauses(case_clauses) => case_clauses.body_containing_location(location),
+            ParsedText::Catch(catch) => catch.body_containing_location(location),
+            ParsedText::CatchParameter(catch_parameter) => catch_parameter.body_containing_location(location),
+            ParsedText::ClassBody(class_body) => class_body.body_containing_location(location),
+            ParsedText::ClassDeclaration(class_declaration) => class_declaration.body_containing_location(location),
+            ParsedText::ClassElement(class_element) => class_element.body_containing_location(location),
+            ParsedText::ClassElementList(class_element_list) => class_element_list.body_containing_location(location),
+            ParsedText::ClassElementName(class_element_name) => class_element_name.body_containing_location(location),
+            ParsedText::ClassExpression(class_expression) => class_expression.body_containing_location(location),
+            ParsedText::ClassHeritage(class_heritage) => class_heritage.body_containing_location(location),
+            ParsedText::ClassStaticBlock(class_static_block) => class_static_block.body_containing_location(location),
+            ParsedText::ClassStaticBlockBody(class_static_block_body) => {
+                class_static_block_body.body_containing_location(location)
+            }
+            ParsedText::ClassStaticBlockStatementList(class_static_block_statement_list) => {
+                class_static_block_statement_list.body_containing_location(location)
+            }
+            ParsedText::ClassTail(class_tail) => class_tail.body_containing_location(location),
+            ParsedText::CoalesceExpression(coalesce_expression) => {
+                coalesce_expression.body_containing_location(location)
+            }
+            ParsedText::CoalesceExpressionHead(coalesce_expression_head) => {
+                coalesce_expression_head.body_containing_location(location)
+            }
+            ParsedText::ConciseBody(concise_body) => concise_body.body_containing_location(location),
+            ParsedText::ConditionalExpression(conditional_expression) => {
+                conditional_expression.body_containing_location(location)
+            }
+            ParsedText::ContinueStatement(continue_statement) => continue_statement.body_containing_location(location),
+            ParsedText::CoverInitializedName(cover_initialized_name) => {
+                cover_initialized_name.body_containing_location(location)
+            }
+            ParsedText::CoverParenthesizedExpressionAndArrowParameterList(
+                cover_parenthesized_expression_and_arrow_parameter_list,
+            ) => cover_parenthesized_expression_and_arrow_parameter_list.body_containing_location(location),
+            ParsedText::DebuggerStatement(debugger_statement) => debugger_statement.body_containing_location(location),
+            ParsedText::Declaration(declaration) => declaration.body_containing_location(location),
+            ParsedText::DefaultClause(default_clause) => default_clause.body_containing_location(location),
+            ParsedText::DestructuringAssignmentTarget(destructuring_assignment_target) => {
+                destructuring_assignment_target.body_containing_location(location)
+            }
+            ParsedText::DoWhileStatement(do_while_statement) => do_while_statement.body_containing_location(location),
+            ParsedText::ElementList(element_list) => element_list.body_containing_location(location),
+            ParsedText::Elisions(elisions) => elisions.body_containing_location(location),
+            ParsedText::EmptyStatement(empty_statement) => empty_statement.body_containing_location(location),
+            ParsedText::EqualityExpression(equality_expression) => {
+                equality_expression.body_containing_location(location)
+            }
+            ParsedText::ExponentiationExpression(exponentiation_expression) => {
+                exponentiation_expression.body_containing_location(location)
+            }
+            ParsedText::Expression(expression) => expression.body_containing_location(location),
+            ParsedText::ExpressionBody(expression_body) => expression_body.body_containing_location(location),
+            ParsedText::ExpressionStatement(expression_statement) => {
+                expression_statement.body_containing_location(location)
+            }
+            ParsedText::Finally(finally) => finally.body_containing_location(location),
+            ParsedText::ForBinding(for_binding) => for_binding.body_containing_location(location),
+            ParsedText::ForDeclaration(for_declaration) => for_declaration.body_containing_location(location),
+            ParsedText::ForInOfStatement(for_in_of_statement) => for_in_of_statement.body_containing_location(location),
+            ParsedText::FormalParameter(formal_parameter) => formal_parameter.body_containing_location(location),
+            ParsedText::FormalParameterList(formal_parameter_list) => {
+                formal_parameter_list.body_containing_location(location)
+            }
+            ParsedText::ForStatement(for_statement) => for_statement.body_containing_location(location),
+            ParsedText::FunctionRestParameter(function_rest_parameter) => {
+                function_rest_parameter.body_containing_location(location)
+            }
+            ParsedText::FunctionStatementList(function_statement_list) => {
+                function_statement_list.body_containing_location(location)
+            }
+            ParsedText::GeneratorMethod(generator_method) => generator_method.body_containing_location(location),
+            ParsedText::IfStatement(if_statement) => if_statement.body_containing_location(location),
+            ParsedText::Initializer(initializer) => initializer.body_containing_location(location),
+            ParsedText::IterationStatement(iteration_statement) => {
+                iteration_statement.body_containing_location(location)
+            }
+            ParsedText::LabelledItem(labelled_item) => labelled_item.body_containing_location(location),
+            ParsedText::LabelledStatement(labelled_statement) => labelled_statement.body_containing_location(location),
+            ParsedText::LexicalBinding(lexical_binding) => lexical_binding.body_containing_location(location),
+            ParsedText::LexicalDeclaration(lexical_declaration) => {
+                lexical_declaration.body_containing_location(location)
+            }
+            ParsedText::Literal(literal) => literal.body_containing_location(location),
+            ParsedText::LiteralPropertyName(literal_property_name) => {
+                literal_property_name.body_containing_location(location)
+            }
+            ParsedText::LogicalANDExpression(logical_andexpression) => {
+                logical_andexpression.body_containing_location(location)
+            }
+            ParsedText::LogicalORExpression(logical_orexpression) => {
+                logical_orexpression.body_containing_location(location)
+            }
+            ParsedText::MetaProperty(meta_property) => meta_property.body_containing_location(location),
+            ParsedText::MethodDefinition(method_definition) => method_definition.body_containing_location(location),
+            ParsedText::MultiplicativeExpression(multiplicative_expression) => {
+                multiplicative_expression.body_containing_location(location)
+            }
+            ParsedText::ObjectAssignmentPattern(object_assignment_pattern) => {
+                object_assignment_pattern.body_containing_location(location)
+            }
+            ParsedText::ObjectBindingPattern(object_binding_pattern) => {
+                object_binding_pattern.body_containing_location(location)
+            }
+            ParsedText::OptionalChain(optional_chain) => optional_chain.body_containing_location(location),
+            ParsedText::OptionalExpression(optional_expression) => {
+                optional_expression.body_containing_location(location)
+            }
+            ParsedText::PropertySetParameterList(property_set_parameter_list) => {
+                property_set_parameter_list.body_containing_location(location)
+            }
+            ParsedText::RelationalExpression(relational_expression) => {
+                relational_expression.body_containing_location(location)
+            }
+            ParsedText::ReturnStatement(return_statement) => return_statement.body_containing_location(location),
+            ParsedText::ScriptBody(script_body) => script_body.body_containing_location(location),
+            ParsedText::ShiftExpression(shift_expression) => shift_expression.body_containing_location(location),
+            ParsedText::ShortCircuitExpression(short_circuit_expression) => {
+                short_circuit_expression.body_containing_location(location)
+            }
+            ParsedText::SingleNameBinding(single_name_binding) => {
+                single_name_binding.body_containing_location(location)
+            }
+            ParsedText::SpreadElement(spread_element) => spread_element.body_containing_location(location),
+            ParsedText::Statement(statement) => statement.body_containing_location(location),
+            ParsedText::StatementList(statement_list) => statement_list.body_containing_location(location),
+            ParsedText::StatementListItem(statement_list_item) => {
+                statement_list_item.body_containing_location(location)
+            }
+            ParsedText::SubstitutionTemplate(substitution_template) => {
+                substitution_template.body_containing_location(location)
+            }
+            ParsedText::SuperCall(super_call) => super_call.body_containing_location(location),
+            ParsedText::SuperProperty(super_property) => super_property.body_containing_location(location),
+            ParsedText::SwitchStatement(switch_statement) => switch_statement.body_containing_location(location),
+            ParsedText::TemplateLiteral(template_literal) => template_literal.body_containing_location(location),
+            ParsedText::TemplateMiddleList(template_middle_list) => {
+                template_middle_list.body_containing_location(location)
+            }
+            ParsedText::TemplateSpans(template_spans) => template_spans.body_containing_location(location),
+            ParsedText::ThrowStatement(throw_statement) => throw_statement.body_containing_location(location),
+            ParsedText::TryStatement(try_statement) => try_statement.body_containing_location(location),
+            ParsedText::UnaryExpression(unary_expression) => unary_expression.body_containing_location(location),
+            ParsedText::UniqueFormalParameters(unique_formal_parameters) => {
+                unique_formal_parameters.body_containing_location(location)
+            }
+            ParsedText::UpdateExpression(update_expression) => update_expression.body_containing_location(location),
+            ParsedText::VariableDeclaration(variable_declaration) => {
+                variable_declaration.body_containing_location(location)
+            }
+            ParsedText::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.body_containing_location(location)
+            }
+            ParsedText::VariableStatement(variable_statement) => variable_statement.body_containing_location(location),
+            ParsedText::WhileStatement(while_statement) => while_statement.body_containing_location(location),
+            ParsedText::WithStatement(with_statement) => with_statement.body_containing_location(location),
+            ParsedText::YieldExpression(yield_expression) => yield_expression.body_containing_location(location),
         }
     }
 }
@@ -861,6 +1340,7 @@ pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool)
                     Scanner::new(),
                     yield_state == YieldAllowed::Yes,
                     await_state == AwaitAllowed::Yes,
+                    FunctionBodyParent::FunctionBody,
                 );
                 Ok((ParsedItem::FunctionBody(body), scanner))
             }),
@@ -941,6 +1421,13 @@ pub fn duplicates(idents: &[JSString]) -> Vec<&JSString> {
     duplicates.sort_unstable_by_key(|&(_, n)| n);
 
     duplicates.into_iter().map(|(s, _)| s).collect::<Vec<_>>()
+}
+
+#[derive(Debug, Clone)]
+pub enum ContainingBody {
+    FunctionBody(Rc<FunctionBody>),
+    ConciseBody(Rc<ConciseBody>),
+    AsyncConciseBody(Rc<AsyncConciseBody>),
 }
 
 pub mod additive_operators;

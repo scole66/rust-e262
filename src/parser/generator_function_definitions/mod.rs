@@ -179,6 +179,11 @@ impl GeneratorMethod {
         //  1. Return PropName of ClassElementName.
         self.name.prop_name()
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
+    }
 }
 
 // GeneratorDeclaration[Yield, Await, Default] :
@@ -345,6 +350,12 @@ impl GeneratorDeclaration {
     pub fn is_constant_declaration(&self) -> bool {
         false
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // GeneratorExpression :
@@ -492,6 +503,10 @@ impl GeneratorExpression {
     pub fn is_named_function(&self) -> bool {
         self.ident.is_some()
     }
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
+    }
 }
 
 // GeneratorBody :
@@ -525,7 +540,7 @@ impl PrettyPrint for GeneratorBody {
 
 impl GeneratorBody {
     fn parse_core(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
-        let (fb, after_fb) = FunctionBody::parse(parser, scanner, true, false);
+        let (fb, after_fb) = FunctionBody::parse(parser, scanner, true, false, FunctionBodyParent::GeneratorBody);
         (Rc::new(GeneratorBody(fb)), after_fb)
     }
 
@@ -599,6 +614,10 @@ impl GeneratorBody {
 
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.0.lexically_scoped_declarations()
+    }
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        todo!()
     }
 }
 
@@ -758,6 +777,12 @@ impl YieldExpression {
             }
             YieldExpression::Simple { .. } => (),
         }
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 

@@ -176,6 +176,43 @@ impl LogicalANDExpression {
             LogicalANDExpression::BitwiseORExpression(node) => node.is_named_function(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                LogicalANDExpression::BitwiseORExpression(node) => node.body_containing_location(location),
+                LogicalANDExpression::LogicalAND(left, right) => {
+                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // LogicalANDExpression :
+        //      BitwiseORExpression
+        //      LogicalANDExpression && BitwiseORExpression
+        //  1. Return HasCallInTailPosition of BitwiseORExpression with argument call.
+        match self {
+            LogicalANDExpression::BitwiseORExpression(boe) | LogicalANDExpression::LogicalAND(_, boe) => {
+                boe.has_call_in_tail_position(location)
+            }
+        }
+    }
 }
 
 // LogicalORExpression[In, Yield, Await] :
@@ -352,6 +389,42 @@ impl LogicalORExpression {
             LogicalORExpression::LogicalANDExpression(node) => node.is_named_function(),
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                LogicalORExpression::LogicalANDExpression(node) => node.body_containing_location(location),
+                LogicalORExpression::LogicalOR(left, right) => {
+                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // LogicalORExpression : LogicalANDExpression
+        // LogicalORExpression : LogicalORExpression || LogicalANDExpression
+        //  1. Return HasCallInTailPosition of LogicalANDExpression with argument call.
+        match self {
+            LogicalORExpression::LogicalANDExpression(lae) | LogicalORExpression::LogicalOR(_, lae) => {
+                lae.has_call_in_tail_position(location)
+            }
+        }
+    }
 }
 
 // CoalesceExpression[In, Yield, Await] :
@@ -477,6 +550,30 @@ impl CoalesceExpression {
         self.head.early_errors(errs, strict);
         self.tail.early_errors(errs, strict);
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            self.head.body_containing_location(location).or_else(|| self.tail.body_containing_location(location))
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        self.tail.has_call_in_tail_position(location)
+    }
 }
 
 // CoalesceExpressionHead[In, Yield, Await] :
@@ -578,6 +675,18 @@ impl CoalesceExpressionHead {
         match self {
             CoalesceExpressionHead::CoalesceExpression(n) => n.early_errors(errs, strict),
             CoalesceExpressionHead::BitwiseORExpression(n) => n.early_errors(errs, strict),
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                CoalesceExpressionHead::CoalesceExpression(node) => node.body_containing_location(location),
+                CoalesceExpressionHead::BitwiseORExpression(node) => node.body_containing_location(location),
+            }
+        } else {
+            None
         }
     }
 }
@@ -735,6 +844,42 @@ impl ShortCircuitExpression {
         match self {
             ShortCircuitExpression::CoalesceExpression(_) => false,
             ShortCircuitExpression::LogicalORExpression(node) => node.is_named_function(),
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                ShortCircuitExpression::LogicalORExpression(node) => node.body_containing_location(location),
+                ShortCircuitExpression::CoalesceExpression(node) => node.body_containing_location(location),
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // ShortCircuitExpression :
+        //      LogicalORExpression
+        //  1. Return HasCallInTailPosition of LogicalORExpression with argument call.
+        // ShortCircuitExpression :
+        //      CoalesceExpression
+        //  1. Return HasCallInTailPosition of CoalesceExpression with argument call.
+        match self {
+            ShortCircuitExpression::LogicalORExpression(node) => node.has_call_in_tail_position(location),
+            ShortCircuitExpression::CoalesceExpression(node) => node.has_call_in_tail_position(location),
         }
     }
 }

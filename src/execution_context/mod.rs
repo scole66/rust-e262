@@ -54,6 +54,14 @@ impl ScriptOrModule {
             ScriptOrModule::Module(_) => todo!(),
         }
     }
+    pub fn source_tree(&self) -> SourceTree {
+        match self {
+            ScriptOrModule::Script(som) => {
+                SourceTree { text: som.text.clone(), ast: ParsedText::Script(som.ecmascript_code.clone()) }
+            }
+            ScriptOrModule::Module(_) => todo!(),
+        }
+    }
 }
 
 pub struct ExecutionContext {

@@ -174,6 +174,12 @@ impl AsyncArrowFunction {
     pub fn early_errors(&self, _errs: &mut Vec<Object>, _strict: bool) {
         todo!()
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // AsyncArrowHead :
@@ -256,6 +262,12 @@ impl AsyncArrowHead {
 
     #[expect(clippy::ptr_arg)]
     pub fn early_errors(&self, _errs: &mut Vec<Object>, _strict: bool) {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }
 }
@@ -416,6 +428,12 @@ impl AsyncConciseBody {
             AsyncConciseBody::Function(node, _) => node.function_body_contains_use_strict(),
         }
     }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
+    }
 }
 
 // AsyncArrowBindingIdentifier[Yield] :
@@ -477,6 +495,12 @@ impl AsyncArrowBindingIdentifier {
 
     pub fn contains_expression(&self) -> bool {
         false
+    }
+
+    #[expect(unused_variables)]
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        todo!()
     }
 }
 

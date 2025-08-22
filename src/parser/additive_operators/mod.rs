@@ -192,6 +192,47 @@ impl AdditiveExpression {
             _ => false,
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                AdditiveExpression::MultiplicativeExpression(node) => node.body_containing_location(location),
+                AdditiveExpression::Add(left, right) | AdditiveExpression::Subtract(left, right) => {
+                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // AdditiveExpression :
+        //      MultiplicativeExpression
+        //  1. Return HasCallInTailPosition of MultiplicativeExpression with argument call.
+        // AdditiveExpression :
+        //      AdditiveExpression + MultiplicativeExpression
+        //      AdditiveExpression - MultiplicativeExpression
+        //  1. Return false.
+        match self {
+            AdditiveExpression::MultiplicativeExpression(multiplicative_expression) => {
+                multiplicative_expression.has_call_in_tail_position(location)
+            }
+            AdditiveExpression::Add(..) | AdditiveExpression::Subtract(..) => false,
+        }
+    }
 }
 
 #[cfg(test)]

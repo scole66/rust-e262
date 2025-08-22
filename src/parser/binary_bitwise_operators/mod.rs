@@ -172,6 +172,42 @@ impl BitwiseANDExpression {
             BitwiseANDExpression::BitwiseAND(..) => false,
         }
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                BitwiseANDExpression::EqualityExpression(node) => node.body_containing_location(location),
+                BitwiseANDExpression::BitwiseAND(band, ee) => {
+                    band.body_containing_location(location).or_else(|| ee.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // BitwiseANDExpression : EqualityExpression
+        //  1. Return HasCallInTailPosition of EqualityExpression with argument call.
+        // BitwiseANDExpression : BitwiseANDExpression & EqualityExpression
+        //  1. Return false.
+        match self {
+            BitwiseANDExpression::EqualityExpression(ee) => ee.has_call_in_tail_position(location),
+            BitwiseANDExpression::BitwiseAND(..) => false,
+        }
+    }
 }
 
 // BitwiseXORExpression[In, Yield, Await] :
@@ -345,6 +381,43 @@ impl BitwiseXORExpression {
         match self {
             BitwiseXORExpression::BitwiseXOR(..) => false,
             BitwiseXORExpression::BitwiseANDExpression(node) => node.is_named_function(),
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                BitwiseXORExpression::BitwiseANDExpression(node) => node.body_containing_location(location),
+                BitwiseXORExpression::BitwiseXOR(bxe, bae) => {
+                    bxe.body_containing_location(location).or_else(|| bae.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // BitwiseXORExpression :
+        //      BitwiseANDExpression
+        //  1. Return HasCallInTailPosition of BitwiseANDExpression with argument call.
+        //      BitwiseXORExpression ^ BitwiseANDExpression
+        //  1. Return false.
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(band) => band.has_call_in_tail_position(location),
+            BitwiseXORExpression::BitwiseXOR(..) => false,
         }
     }
 }
@@ -537,6 +610,42 @@ impl BitwiseORExpression {
         match self {
             BitwiseORExpression::BitwiseOR(..) => false,
             BitwiseORExpression::BitwiseXORExpression(node) => node.is_named_function(),
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.body_containing_location(location),
+                BitwiseORExpression::BitwiseOR(boe, bxe) => {
+                    boe.body_containing_location(location).or_else(|| bxe.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        // BitwiseORExpression : BitwiseXORExpression
+        //  1. Return HasCallInTailPosition of BitwiseXORExpression with argument call.
+        // BitwiseORExpression : BitwiseORExpression | BitwiseXORExpression
+        //  1. Return false.
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.has_call_in_tail_position(location),
+            BitwiseORExpression::BitwiseOR(..) => false,
         }
     }
 }

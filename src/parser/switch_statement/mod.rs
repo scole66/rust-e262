@@ -142,6 +142,32 @@ impl SwitchStatement {
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.case_block.var_scoped_declarations()
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            self.expression
+                .body_containing_location(location)
+                .or_else(|| self.case_block.body_containing_location(location))
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        self.case_block.has_call_in_tail_position(location)
+    }
 }
 
 // CaseBlock[Yield, Await, Return] :
@@ -463,6 +489,48 @@ impl CaseBlock {
         }
         list
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                CaseBlock::NoDefault(case_clauses, ..) => {
+                    case_clauses.as_ref().and_then(|cc| cc.body_containing_location(location))
+                }
+                CaseBlock::HasDefault(case_clauses, default_clause, case_clauses1, ..) => case_clauses
+                    .as_ref()
+                    .and_then(|cc| cc.body_containing_location(location))
+                    .or_else(|| default_clause.body_containing_location(location))
+                    .or_else(|| case_clauses1.as_ref().and_then(|cc| cc.body_containing_location(location))),
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        match self {
+            CaseBlock::NoDefault(case_clauses, ..) => {
+                case_clauses.as_ref().is_some_and(|cc| cc.has_call_in_tail_position(location))
+            }
+            CaseBlock::HasDefault(case_clauses, default_clause, case_clauses1, ..) => {
+                case_clauses.as_ref().is_some_and(|cc| cc.has_call_in_tail_position(location))
+                    || default_clause.has_call_in_tail_position(location)
+                    || case_clauses1.as_ref().is_some_and(|cc| cc.has_call_in_tail_position(location))
+            }
+        }
+    }
 }
 
 // CaseClauses[Yield, Await, Return] :
@@ -669,6 +737,47 @@ impl CaseClauses {
             }
         }
     }
+
+    pub fn location(&self) -> Location {
+        match self {
+            CaseClauses::Item(case_clause) => case_clause.location(),
+            CaseClauses::List(case_clauses, case_clause) => case_clauses.location().merge(&case_clause.location()),
+        }
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            match self {
+                CaseClauses::Item(case_clause) => case_clause.body_containing_location(location),
+                CaseClauses::List(case_clauses, case_clause) => case_clauses
+                    .body_containing_location(location)
+                    .or_else(|| case_clause.body_containing_location(location)),
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        match self {
+            CaseClauses::Item(case_clause) => case_clause.has_call_in_tail_position(location),
+            CaseClauses::List(case_clauses, case_clause) => {
+                case_clauses.has_call_in_tail_position(location) || case_clause.has_call_in_tail_position(location)
+            }
+        }
+    }
 }
 
 // CaseClause[Yield, Await, Return] :
@@ -677,6 +786,7 @@ impl CaseClauses {
 pub struct CaseClause {
     pub expression: Rc<Expression>,
     pub statements: Option<Rc<StatementList>>,
+    pub location: Location,
 }
 
 impl fmt::Display for CaseClause {
@@ -730,14 +840,18 @@ impl CaseClause {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (_, after_case) = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Case)?;
+        let (loc_start, after_case) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Case)?;
         let (exp, after_exp) = Expression::parse(parser, after_case, true, yield_flag, await_flag)?;
-        let (_, after_colon) = scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+        let (loc_colon, after_colon) =
+            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (stmt, after_stmt) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_colon),
             Ok((stmt, s)) => (Some(stmt), s),
         };
-        Ok((Rc::new(CaseClause { expression: exp, statements: stmt }), after_stmt))
+        let after_loc = stmt.as_ref().map_or(loc_colon, |s| s.location());
+        let location = loc_start.merge(&after_loc);
+        Ok((Rc::new(CaseClause { expression: exp, statements: stmt, location }), after_stmt))
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
@@ -824,18 +938,49 @@ impl CaseClause {
             None => vec![],
         }
     }
+
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            if let Some(statements) = &self.statements { statements.body_containing_location(location) } else { None }
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        self.statements.as_ref().is_some_and(|sl| sl.has_call_in_tail_position(location))
+    }
 }
 
 // DefaultClause[Yield, Await, Return] :
 //      default : StatementList[?Yield, ?Await, ?Return]opt
 #[derive(Debug)]
-pub struct DefaultClause(pub Option<Rc<StatementList>>);
+pub struct DefaultClause {
+    pub list: Option<Rc<StatementList>>,
+    location: Location,
+}
 
 impl fmt::Display for DefaultClause {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DefaultClause(None) => write!(f, "default :"),
-            DefaultClause(Some(sl)) => write!(f, "default : {sl}"),
+            DefaultClause { list: None, .. } => write!(f, "default :"),
+            DefaultClause { list: Some(sl), .. } => write!(f, "default : {sl}"),
         }
     }
 }
@@ -848,8 +993,8 @@ impl PrettyPrint for DefaultClause {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}DefaultClause: {self}")?;
         match self {
-            DefaultClause(None) => Ok(()),
-            DefaultClause(Some(sl)) => sl.pprint_with_leftpad(writer, &successive, Spot::Final),
+            DefaultClause { list: None, .. } => Ok(()),
+            DefaultClause { list: Some(sl), .. } => sl.pprint_with_leftpad(writer, &successive, Spot::Final),
         }
     }
 
@@ -861,8 +1006,10 @@ impl PrettyPrint for DefaultClause {
         writeln!(writer, "{first}DefaultClause: {self}")?;
         pprint_token(writer, "default", TokenType::Keyword, &successive, Spot::NotFinal)?;
         match self {
-            DefaultClause(None) => pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::Final),
-            DefaultClause(Some(sl)) => {
+            DefaultClause { list: None, .. } => {
+                pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::Final)
+            }
+            DefaultClause { list: Some(sl), .. } => {
                 pprint_token(writer, ":", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 sl.concise_with_leftpad(writer, &successive, Spot::Final)
             }
@@ -878,24 +1025,27 @@ impl DefaultClause {
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (_, after_def) = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Default)?;
-        let (_, after_colon) = scan_for_punct(after_def, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+        let (start_loc, after_def) =
+            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Default)?;
+        let (colon_loc, after_colon) =
+            scan_for_punct(after_def, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
         let (sl, after_sl) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_colon),
             Ok((lst, scan)) => (Some(lst), scan),
         };
-        Ok((Rc::new(DefaultClause(sl)), after_sl))
+        let location = start_loc.merge(&sl.as_ref().map_or(colon_loc, |sl| sl.location()));
+        Ok((Rc::new(DefaultClause { list: sl, location }), after_sl))
     }
 
     pub fn var_declared_names(&self) -> Vec<JSString> {
         match self {
-            DefaultClause(None) => vec![],
-            DefaultClause(Some(sl)) => sl.var_declared_names(),
+            DefaultClause { list: None, .. } => vec![],
+            DefaultClause { list: Some(sl), .. } => sl.var_declared_names(),
         }
     }
 
     pub fn lexically_declared_names(&self) -> Vec<JSString> {
-        match &self.0 {
+        match &self.list {
             None => vec![],
             Some(stmt) => stmt.lexically_declared_names(),
         }
@@ -903,27 +1053,26 @@ impl DefaultClause {
 
     pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
-            DefaultClause(None) => false,
-            DefaultClause(Some(sl)) => sl.contains_undefined_break_target(label_set),
+            DefaultClause { list: None, .. } => false,
+            DefaultClause { list: Some(sl), .. } => sl.contains_undefined_break_target(label_set),
         }
     }
 
     pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let DefaultClause(opt) = self;
-        opt.as_ref().is_some_and(|n| n.contains(kind))
+        self.list.as_ref().is_some_and(|n| n.contains(kind))
     }
 
     pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
-            DefaultClause(None) => false,
-            DefaultClause(Some(sl)) => sl.contains_duplicate_labels(label_set),
+            DefaultClause { list: None, .. } => false,
+            DefaultClause { list: Some(sl), .. } => sl.contains_duplicate_labels(label_set),
         }
     }
 
     pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
-            DefaultClause(None) => false,
-            DefaultClause(Some(sl)) => sl.contains_undefined_continue_target(iteration_set, &[]),
+            DefaultClause { list: None, .. } => false,
+            DefaultClause { list: Some(sl), .. } => sl.contains_undefined_continue_target(iteration_set, &[]),
         }
     }
 
@@ -934,7 +1083,7 @@ impl DefaultClause {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        if let Some(node) = &self.0 { node.all_private_identifiers_valid(names) } else { true }
+        if let Some(node) = &self.list { node.all_private_identifiers_valid(names) } else { true }
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -948,11 +1097,11 @@ impl DefaultClause {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.0.as_ref().is_some_and(|sl| sl.contains_arguments())
+        self.list.as_ref().is_some_and(|sl| sl.contains_arguments())
     }
 
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
-        if let Some(stmt) = &self.0 {
+        if let Some(stmt) = &self.list {
             stmt.early_errors(errs, strict, within_iteration, true);
         }
     }
@@ -961,14 +1110,42 @@ impl DefaultClause {
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
     pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
-        if let Some(stmt) = &self.0 { stmt.var_scoped_declarations() } else { vec![] }
+        if let Some(stmt) = &self.list { stmt.var_scoped_declarations() } else { vec![] }
     }
 
     pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
-        match &self.0 {
+        match &self.list {
             Some(stmt) => stmt.lexically_scoped_declarations(),
             None => vec![],
         }
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
+    }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            self.list.as_ref().and_then(|item| item.body_containing_location(location))
+        } else {
+            None
+        }
+    }
+
+    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        self.list.as_ref().is_some_and(|sl| sl.has_call_in_tail_position(location))
     }
 }
 

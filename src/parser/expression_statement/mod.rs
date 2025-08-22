@@ -108,6 +108,11 @@ impl ExpressionStatement {
     pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.exp.early_errors(errs, strict);
     }
+
+    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) { self.exp.body_containing_location(location) } else { None }
+    }
 }
 
 #[cfg(test)]
