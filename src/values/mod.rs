@@ -1581,10 +1581,10 @@ pub fn is_constructor(value: &ECMAScriptValue) -> bool {
 
 impl ECMAScriptValue {
     pub fn as_constructor(&self) -> Option<&Object> {
-        if let Self::Object(o) = self {
-            if o.is_constructor() {
-                return Some(o);
-            }
+        if let Self::Object(o) = self
+            && o.is_constructor()
+        {
+            return Some(o);
         }
         None
     }

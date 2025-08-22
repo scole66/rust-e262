@@ -254,18 +254,18 @@ impl AssignmentExpression {
                     .map(|(ce, after_ce)| (Rc::new(AssignmentExpression::FallThru(ce)), after_ce, Scanner::new()))
             })?;
 
-        if let AssignmentExpression::Assignment(lhs, ae) = &*result.0 {
-            if lhs.is_object_or_array_literal() {
-                // Re-parse the LHS as an AssignmentPattern.
-                let (ap, after_ap) = AssignmentPattern::parse(parser, scanner, yield_flag, await_flag)?;
-                // Note: because the object/array literals require proper nested brackets/braces, and so do the
-                // assignment patterns, we're guaranteed the the text we just parsed as an AssignmentPattern was the
-                // same text that was parsed as a literal. There won't ever be an error where this new parse didn't
-                // consume all the characters. (No need to write a test to cover this won't-ever-happen error
-                // condition.)
-                assert_eq!(after_ap, result.2);
-                return Ok((Rc::new(AssignmentExpression::Destructuring(ap, ae.clone())), result.1));
-            }
+        if let AssignmentExpression::Assignment(lhs, ae) = &*result.0
+            && lhs.is_object_or_array_literal()
+        {
+            // Re-parse the LHS as an AssignmentPattern.
+            let (ap, after_ap) = AssignmentPattern::parse(parser, scanner, yield_flag, await_flag)?;
+            // Note: because the object/array literals require proper nested brackets/braces, and so do the
+            // assignment patterns, we're guaranteed the the text we just parsed as an AssignmentPattern was the
+            // same text that was parsed as a literal. There won't ever be an error where this new parse didn't
+            // consume all the characters. (No need to write a test to cover this won't-ever-happen error
+            // condition.)
+            assert_eq!(after_ap, result.2);
+            return Ok((Rc::new(AssignmentExpression::Destructuring(ap, ae.clone())), result.1));
         }
         Ok((result.0, result.1))
     }

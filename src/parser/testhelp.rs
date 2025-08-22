@@ -25,7 +25,7 @@ pub fn sv(strings: &[&str]) -> Vec<String> {
 pub fn chk_scan(scanner: &Scanner, count: u32) {
     assert_eq!(*scanner, expected_scan(count));
 }
-pub fn newparser(text: &str) -> Parser {
+pub fn newparser(text: &str) -> Parser<'_> {
     Parser::new(text, false, ParseGoal::Script)
 }
 pub fn check_parse_error<T, U>(result: ParseResult<T>, msg: U, token_len: usize)

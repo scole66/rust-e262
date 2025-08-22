@@ -269,7 +269,7 @@ mod script_body {
         ScriptBody::parse(&mut newparser(src), Scanner::new()).unwrap().0.contains_use_strict()
     }
 
-    fn directparser(src: &str, direct: bool) -> Parser {
+    fn directparser(src: &str, direct: bool) -> Parser<'_> {
         let mut p = newparser(src);
         p.direct = direct;
         p

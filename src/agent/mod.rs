@@ -1954,30 +1954,27 @@ mod insn_impl {
         let ref_nc = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
 
         let mut was_direct_eval = false;
-        if let NormalCompletion::Reference(evalref) = &ref_nc {
-            if !evalref.is_property_reference() {
-                if let ReferencedName::Value(ECMAScriptValue::String(name)) = &evalref.referenced_name {
-                    if name == &JSString::from("eval")
-                        && super::to_object(func_val.clone()).unwrap() == intrinsic(IntrinsicId::Eval)
-                    {
-                        // A direct eval
-                        if arg_count == 0 {
-                            push_value(ECMAScriptValue::Undefined).expect(PUSHABLE);
-                        } else {
-                            let result = perform_eval(
-                                arguments[0].clone(),
-                                if strict {
-                                    EvalCallStatus::DirectWithStrictCaller
-                                } else {
-                                    EvalCallStatus::DirectWithNonStrictCaller
-                                },
-                            );
-                            push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
-                        }
-                        was_direct_eval = true;
-                    }
-                }
+        if let NormalCompletion::Reference(evalref) = &ref_nc
+            && !evalref.is_property_reference()
+            && let ReferencedName::Value(ECMAScriptValue::String(name)) = &evalref.referenced_name
+            && name == &JSString::from("eval")
+            && super::to_object(func_val.clone()).unwrap() == intrinsic(IntrinsicId::Eval)
+        {
+            // A direct eval
+            if arg_count == 0 {
+                push_value(ECMAScriptValue::Undefined).expect(PUSHABLE);
+            } else {
+                let result = perform_eval(
+                    arguments[0].clone(),
+                    if strict {
+                        EvalCallStatus::DirectWithStrictCaller
+                    } else {
+                        EvalCallStatus::DirectWithNonStrictCaller
+                    },
+                );
+                push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
             }
+            was_direct_eval = true;
         }
 
         if !was_direct_eval {
@@ -4215,10 +4212,10 @@ fn void_operator(expr: FullCompletion) -> FullCompletion {
 }
 
 fn typeof_operator(expr: FullCompletion) -> FullCompletion {
-    if let Ok(NormalCompletion::Reference(r)) = &expr {
-        if r.is_unresolvable_reference() {
-            return Ok(NormalCompletion::from("undefined"));
-        }
+    if let Ok(NormalCompletion::Reference(r)) = &expr
+        && r.is_unresolvable_reference()
+    {
+        return Ok(NormalCompletion::from("undefined"));
     }
 
     let val = get_value(expr)?;
@@ -5240,12 +5237,12 @@ fn for_in_iterator_prototype_next(
             internals.object_was_visited = true;
         }
         while let Some(r) = internals.remaining_keys.pop() {
-            if !internals.visited_keys.contains(&r) {
-                if let Some(desc) = object.o.get_own_property(&r)? {
-                    internals.visited_keys.push(r.clone());
-                    if desc.enumerable {
-                        return Ok(create_iter_result_object(r.into(), false).into());
-                    }
+            if !internals.visited_keys.contains(&r)
+                && let Some(desc) = object.o.get_own_property(&r)?
+            {
+                internals.visited_keys.push(r.clone());
+                if desc.enumerable {
+                    return Ok(create_iter_result_object(r.into(), false).into());
                 }
             }
         }
