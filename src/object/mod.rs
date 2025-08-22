@@ -391,16 +391,18 @@ pub fn to_property_descriptor(obj: &ECMAScriptValue) -> Completion<PotentialProp
             let value = get_pd_prop(obj, "value")?;
             let writable = get_pd_bool(obj, "writable")?;
             let get = get_pd_prop(obj, "get")?;
-            if let Some(getter) = &get {
-                if !getter.is_undefined() && !is_callable(getter) {
-                    return Err(create_type_error("Getter must be callable (or undefined)"));
-                }
+            if let Some(getter) = &get
+                && !getter.is_undefined()
+                && !is_callable(getter)
+            {
+                return Err(create_type_error("Getter must be callable (or undefined)"));
             }
             let set = get_pd_prop(obj, "set")?;
-            if let Some(setter) = &set {
-                if !setter.is_undefined() && !is_callable(setter) {
-                    return Err(create_type_error("Setter must be callable (or undefined)"));
-                }
+            if let Some(setter) = &set
+                && !setter.is_undefined()
+                && !is_callable(setter)
+            {
+                return Err(create_type_error("Setter must be callable (or undefined)"));
             }
             Ok(PotentialPropertyDescriptor { value, writable, get, set, enumerable, configurable })
         }
@@ -692,25 +694,25 @@ fn internal_validate_and_apply_property_descriptor(
                                 if desc.writable.unwrap_or(false) {
                                     return false;
                                 }
-                                if let Some(val) = desc.value.as_ref() {
-                                    if *val != data_fields.value {
-                                        return false;
-                                    }
+                                if let Some(val) = desc.value.as_ref()
+                                    && *val != data_fields.value
+                                {
+                                    return false;
                                 }
                                 return true;
                             }
                         }
                         PropertyKind::Accessor(acc_fields) => {
                             // Step 8
-                            if let Some(getter) = desc.get.as_ref() {
-                                if *getter != acc_fields.get {
-                                    return false;
-                                }
+                            if let Some(getter) = desc.get.as_ref()
+                                && *getter != acc_fields.get
+                            {
+                                return false;
                             }
-                            if let Some(setter) = desc.set.as_ref() {
-                                if *setter != acc_fields.set {
-                                    return false;
-                                }
+                            if let Some(setter) = desc.set.as_ref()
+                                && *setter != acc_fields.set
+                            {
+                                return false;
                             }
                             return true;
                         }
@@ -2191,14 +2193,13 @@ pub fn test_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<boo
     let keys = o.o.own_property_keys()?;
     for k in keys {
         let current_desc = o.o.get_own_property(&k)?;
-        if let Some(current_desc) = current_desc {
-            if current_desc.configurable
+        if let Some(current_desc) = current_desc
+            && (current_desc.configurable
                 || level == IntegrityLevel::Frozen
                     && current_desc.is_data_descriptor()
-                    && current_desc.is_writable().expect("data descriptors should have the writable flag")
-            {
-                return Ok(false);
-            }
+                    && current_desc.is_writable().expect("data descriptors should have the writable flag"))
+        {
+            return Ok(false);
         }
     }
     Ok(true)
@@ -2388,20 +2389,19 @@ pub fn enumerable_own_properties(obj: &Object, kind: KeyValueKind) -> Completion
     let own_keys = obj.o.own_property_keys()?;
     let mut properties: Vec<ECMAScriptValue> = vec![];
     for key in own_keys {
-        if matches!(key, PropertyKey::String(_)) {
-            if let Some(desc) = obj.o.get_own_property(&key)? {
-                if desc.enumerable {
-                    if kind == KeyValueKind::Key {
-                        properties.push(ECMAScriptValue::from(key));
-                    } else {
-                        let value = obj.get(&key)?;
-                        if kind == KeyValueKind::Value {
-                            properties.push(value);
-                        } else {
-                            let entry = create_array_from_list(&[key.into(), value]);
-                            properties.push(entry.into());
-                        }
-                    }
+        if matches!(key, PropertyKey::String(_))
+            && let Some(desc) = obj.o.get_own_property(&key)?
+            && desc.enumerable
+        {
+            if kind == KeyValueKind::Key {
+                properties.push(ECMAScriptValue::from(key));
+            } else {
+                let value = obj.get(&key)?;
+                if kind == KeyValueKind::Value {
+                    properties.push(value);
+                } else {
+                    let entry = create_array_from_list(&[key.into(), value]);
+                    properties.push(entry.into());
                 }
             }
         }
@@ -2957,12 +2957,12 @@ impl Object {
             let keys = from.o.own_property_keys()?;
             for next_key in keys.iter().filter(|&k| !excluded.contains(k)) {
                 let desc = from.o.get_own_property(next_key)?;
-                if let Some(desc) = desc {
-                    if desc.enumerable {
-                        let prop_value = from.get(next_key)?;
-                        self.create_data_property_or_throw(next_key.clone(), prop_value)
-                            .expect("data property creation should work fine for newly created objects");
-                    }
+                if let Some(desc) = desc
+                    && desc.enumerable
+                {
+                    let prop_value = from.get(next_key)?;
+                    self.create_data_property_or_throw(next_key.clone(), prop_value)
+                        .expect("data property creation should work fine for newly created objects");
                 }
             }
         }

@@ -451,17 +451,15 @@ impl ClassTail {
         //      1. Let constructor be ConstructorMethod of ClassBody.
         //      2. If constructor is empty, return false.
         //      3. Return HasDirectSuper of constructor.
-        if self.heritage.is_none() {
-            if let Some(body) = &self.body {
-                if let Some(constructor) = body.constructor_method() {
-                    if constructor.has_direct_super() {
-                        errs.push(create_syntax_error_object(
-                            "Cannot use super in a constructor with no parent class",
-                            Some(constructor.location()),
-                        ));
-                    }
-                }
-            }
+        if self.heritage.is_none()
+            && let Some(body) = &self.body
+            && let Some(constructor) = body.constructor_method()
+            && constructor.has_direct_super()
+        {
+            errs.push(create_syntax_error_object(
+                "Cannot use super in a constructor with no parent class",
+                Some(constructor.location()),
+            ));
         }
 
         if let Some(heritage) = &self.heritage {
@@ -963,19 +961,19 @@ impl ClassElementList {
     pub fn prototype_property_name_list(&self) -> Vec<JSString> {
         match self {
             ClassElementList::Item(ce) => {
-                if !ce.is_static() {
-                    if let Some(pn) = ce.prop_name() {
-                        return vec![pn];
-                    }
+                if !ce.is_static()
+                    && let Some(pn) = ce.prop_name()
+                {
+                    return vec![pn];
                 }
                 vec![]
             }
             ClassElementList::List(cel, ce) => {
                 let mut list = cel.prototype_property_name_list();
-                if !ce.is_static() {
-                    if let Some(pn) = ce.prop_name() {
-                        list.push(pn);
-                    }
+                if !ce.is_static()
+                    && let Some(pn) = ce.prop_name()
+                {
+                    list.push(pn);
                 }
                 list
             }

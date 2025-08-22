@@ -232,14 +232,13 @@ fn object_constructor_function(
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    if let Some(nt) = new_target {
-        if let Some(afo) = active_function_object() {
-            if *nt != afo {
-                return nt
-                    .ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, ordinary_object_create)
-                    .map(ECMAScriptValue::from);
-            }
-        }
+    if let Some(nt) = new_target
+        && let Some(afo) = active_function_object()
+        && *nt != afo
+    {
+        return nt
+            .ordinary_create_from_constructor(IntrinsicId::ObjectPrototype, ordinary_object_create)
+            .map(ECMAScriptValue::from);
     }
     let mut args = FuncArgs::from(arguments);
     let value = args.next_arg();
@@ -284,11 +283,11 @@ fn object_assign(
             let keys = from.o.own_property_keys()?;
             for next_key in keys {
                 let option_desc = from.o.get_own_property(&next_key)?;
-                if let Some(desc) = option_desc {
-                    if desc.enumerable {
-                        let prop_value = from.get(&next_key)?;
-                        to.set(next_key, prop_value, true)?;
-                    }
+                if let Some(desc) = option_desc
+                    && desc.enumerable
+                {
+                    let prop_value = from.get(&next_key)?;
+                    to.set(next_key, prop_value, true)?;
                 }
             }
         }
@@ -354,12 +353,12 @@ fn object_define_properties_helper(o: Object, properties: ECMAScriptValue) -> Co
     let mut descriptors = Vec::new();
     for next_key in keys {
         let prop_desc = props.o.get_own_property(&next_key)?;
-        if let Some(pd) = prop_desc {
-            if pd.enumerable {
-                let desc_obj = props.get(&next_key)?;
-                let desc = to_property_descriptor(&desc_obj)?;
-                descriptors.push((next_key, desc));
-            }
+        if let Some(pd) = prop_desc
+            && pd.enumerable
+        {
+            let desc_obj = props.get(&next_key)?;
+            let desc = to_property_descriptor(&desc_obj)?;
+            descriptors.push((next_key, desc));
         }
     }
     for (p, desc) in descriptors {

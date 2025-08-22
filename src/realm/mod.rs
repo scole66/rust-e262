@@ -1018,10 +1018,10 @@ fn eval_declaration_instantiation(
         if let Ok(fd) = FcnDef::try_from(d.clone()) {
             let fname = fd.bound_name();
             if !declared_function_names.contains(&fname) {
-                if let Some(ger) = var_env.as_global_environment_record() {
-                    if !ger.can_declare_global_function(&fname)? {
-                        return Err(create_type_error(format!("Cannot create global function {fname}")));
-                    }
+                if let Some(ger) = var_env.as_global_environment_record()
+                    && !ger.can_declare_global_function(&fname)?
+                {
+                    return Err(create_type_error(format!("Cannot create global function {fname}")));
                 }
                 declared_function_names.push(fname);
                 functions_to_initialize.insert(0, d);
@@ -1035,10 +1035,10 @@ fn eval_declaration_instantiation(
         if matches!(d, VarScopeDecl::ForBinding(_) | VarScopeDecl::VariableDeclaration(_)) {
             for vn in d.bound_names() {
                 if !declared_function_names.contains(&vn) {
-                    if let Some(ger) = var_env.as_global_environment_record() {
-                        if !ger.can_declare_global_var(&vn)? {
-                            return Err(create_type_error(format!("Cannot create global var {vn}")));
-                        }
+                    if let Some(ger) = var_env.as_global_environment_record()
+                        && !ger.can_declare_global_var(&vn)?
+                    {
+                        return Err(create_type_error(format!("Cannot create global var {vn}")));
                     }
                     if !declared_var_names.contains(&vn) {
                         declared_var_names.push(vn);

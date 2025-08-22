@@ -27,10 +27,10 @@ impl ParameterMap {
     }
 
     fn idx_from_key(key: &PropertyKey) -> Option<usize> {
-        if let Ok(s) = JSString::try_from(key) {
-            if let Ok(idx) = String::from(s).parse::<usize>() {
-                return Some(idx);
-            }
+        if let Ok(s) = JSString::try_from(key)
+            && let Ok(idx) = String::from(s).parse::<usize>()
+        {
+            return Some(idx);
         }
         None
     }
@@ -188,10 +188,12 @@ impl ObjectInterface for ArgumentsObject {
                 {
                     let map = map.borrow();
                     let maybe_index = map.to_index(&key);
-                    if let Some(idx) = maybe_index {
-                        if desc.is_data_descriptor() && desc.value.is_none() && desc.writable == Some(false) {
-                            new_arg_desc.value = Some(map.get(idx).expect("Property must exist, as we just checked"));
-                        }
+                    if let Some(idx) = maybe_index
+                        && desc.is_data_descriptor()
+                        && desc.value.is_none()
+                        && desc.writable == Some(false)
+                    {
+                        new_arg_desc.value = Some(map.get(idx).expect("Property must exist, as we just checked"));
                     }
                 }
                 let allowed = ordinary_define_own_property(self, key.clone(), new_arg_desc).expect("Simple Object");
