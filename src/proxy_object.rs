@@ -2,14 +2,14 @@ use super::*;
 use counter::Counter;
 
 #[derive(Debug)]
-pub struct ProxyItems {
-    pub proxy_handler: Object,
-    pub proxy_target: Object,
+pub(crate) struct ProxyItems {
+    pub(crate) proxy_handler: Object,
+    pub(crate) proxy_target: Object,
 }
 #[derive(Debug)]
-pub struct ProxyObject {
+pub(crate) struct ProxyObject {
     common: RefCell<CommonObjectData>,
-    pub proxy_items: RefCell<Option<ProxyItems>>,
+    pub(crate) proxy_items: RefCell<Option<ProxyItems>>,
 }
 
 impl ObjectInterface for ProxyObject {
@@ -25,6 +25,7 @@ impl ObjectInterface for ProxyObject {
     fn to_proxy_object(&self) -> Option<&ProxyObject> {
         Some(self)
     }
+    #[cfg(test)]
     fn is_proxy_object(&self) -> bool {
         true
     }
@@ -875,7 +876,7 @@ impl CallableObject for ProxyObject {
 }
 
 impl ProxyObject {
-    pub fn new(target_and_handler: Option<(Object, Object)>) -> Self {
+    pub(crate) fn new(target_and_handler: Option<(Object, Object)>) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
             proxy_items: RefCell::new(
@@ -884,7 +885,7 @@ impl ProxyObject {
         }
     }
 
-    pub fn validate_non_revoked(&self) -> Completion<(Object, Object)> {
+    pub(crate) fn validate_non_revoked(&self) -> Completion<(Object, Object)> {
         // ValidateNonRevokedProxy ( proxy )
         // The abstract operation ValidateNonRevokedProxy takes argument proxy (a Proxy exotic object) and
         // returns either a normal completion containing UNUSED or a throw completion. It throws a TypeError
@@ -899,11 +900,11 @@ impl ProxyObject {
         }
     }
 
-    pub fn object(target_and_handler: Option<(Object, Object)>) -> Object {
+    pub(crate) fn object(target_and_handler: Option<(Object, Object)>) -> Object {
         Object { o: Rc::new(Self::new(target_and_handler)) }
     }
 
-    pub fn revoke(&self) {
+    pub(crate) fn revoke(&self) {
         *self.proxy_items.borrow_mut() = None;
     }
 
@@ -995,7 +996,7 @@ impl ProxyObject {
     }
 }
 
-pub fn proxy_create(target: ECMAScriptValue, handler: ECMAScriptValue) -> Completion<ECMAScriptValue> {
+pub(crate) fn proxy_create(target: ECMAScriptValue, handler: ECMAScriptValue) -> Completion<ECMAScriptValue> {
     match (target, handler) {
         (ECMAScriptValue::Object(tgt), ECMAScriptValue::Object(hand)) => {
             Ok(ProxyObject::object(Some((tgt, hand))).into())
@@ -1006,7 +1007,7 @@ pub fn proxy_create(target: ECMAScriptValue, handler: ECMAScriptValue) -> Comple
     }
 }
 
-pub fn provision_proxy_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_proxy_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
     // The Proxy constructor:
@@ -1140,21 +1141,21 @@ fn proxy_revocable(
 }
 
 #[derive(Debug)]
-pub struct BuiltinFunctionWithRevokableProxySlot {
+pub(crate) struct BuiltinFunctionWithRevokableProxySlot {
     func: BuiltInFunctionObject,
     revokable_proxy: RefCell<Option<Object>>,
 }
 
 impl BuiltinFunctionWithRevokableProxySlot {
-    pub fn revokable_proxy_get(&self) -> Option<Object> {
+    pub(crate) fn revokable_proxy_get(&self) -> Option<Object> {
         self.revokable_proxy.borrow().clone()
     }
 
-    pub fn revokable_proxy_set(&self, item: Option<Object>) {
+    pub(crate) fn revokable_proxy_set(&self, item: Option<Object>) {
         *self.revokable_proxy.borrow_mut() = item;
     }
 
-    pub fn new(
+    pub(crate) fn new(
         prototype: Option<Object>,
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
@@ -1169,7 +1170,7 @@ impl BuiltinFunctionWithRevokableProxySlot {
         }
     }
 
-    pub fn object(
+    pub(crate) fn object(
         prototype: Option<Object>,
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
@@ -1183,7 +1184,7 @@ impl BuiltinFunctionWithRevokableProxySlot {
         }
     }
 
-    pub fn create(behavior: BuiltInFcn, length: f64, name: PropertyKey, proxy: Object) -> Object {
+    pub(crate) fn create(behavior: BuiltInFcn, length: f64, name: PropertyKey, proxy: Object) -> Object {
         let realm_to_use = current_realm_record().unwrap();
         let prototype_to_use = realm_to_use.borrow().intrinsics.function_prototype.clone();
         let func = Self::object(Some(prototype_to_use), true, realm_to_use, None, behavior, None, Some(proxy));

@@ -7,19 +7,19 @@ use std::fmt::{self, Debug};
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone, Default)]
-pub struct DataProperty {
-    pub value: ECMAScriptValue,
-    pub writable: bool,
+pub(crate) struct DataProperty {
+    pub(crate) value: ECMAScriptValue,
+    pub(crate) writable: bool,
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
-pub struct AccessorProperty {
-    pub get: ECMAScriptValue,
-    pub set: ECMAScriptValue,
+pub(crate) struct AccessorProperty {
+    pub(crate) get: ECMAScriptValue,
+    pub(crate) set: ECMAScriptValue,
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum PropertyKind {
+pub(crate) enum PropertyKind {
     Data(DataProperty),
     Accessor(AccessorProperty),
 }
@@ -31,14 +31,14 @@ impl Default for PropertyKind {
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
-pub struct PropertyDescriptor {
-    pub property: PropertyKind,
-    pub enumerable: bool,
-    pub configurable: bool,
-    pub spot: usize,
+pub(crate) struct PropertyDescriptor {
+    pub(crate) property: PropertyKind,
+    pub(crate) enumerable: bool,
+    pub(crate) configurable: bool,
+    pub(crate) spot: usize,
 }
 
-pub struct ConcisePropertyDescriptor<'a>(&'a PropertyDescriptor);
+pub(crate) struct ConcisePropertyDescriptor<'a>(&'a PropertyDescriptor);
 impl fmt::Debug for ConcisePropertyDescriptor<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{{ ")?;
@@ -65,11 +65,11 @@ impl<'a> From<&'a PropertyDescriptor> for ConcisePropertyDescriptor<'a> {
     }
 }
 
-pub struct DataDescriptor {
-    pub value: ECMAScriptValue,
-    pub writable: bool,
-    pub enumerable: bool,
-    pub configurable: bool,
+pub(crate) struct DataDescriptor {
+    pub(crate) value: ECMAScriptValue,
+    pub(crate) writable: bool,
+    pub(crate) enumerable: bool,
+    pub(crate) configurable: bool,
 }
 
 impl TryFrom<PropertyDescriptor> for DataDescriptor {
@@ -87,7 +87,7 @@ impl TryFrom<PropertyDescriptor> for DataDescriptor {
     }
 }
 
-pub trait DescriptorKind {
+pub(crate) trait DescriptorKind {
     fn is_data_descriptor(&self) -> bool;
     fn is_accessor_descriptor(&self) -> bool;
     fn is_generic_descriptor(&self) -> bool;
@@ -119,57 +119,57 @@ impl DescriptorKind for PropertyDescriptor {
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct PotentialPropertyDescriptor {
-    pub value: Option<ECMAScriptValue>,
-    pub writable: Option<bool>,
-    pub get: Option<ECMAScriptValue>,
-    pub set: Option<ECMAScriptValue>,
-    pub enumerable: Option<bool>,
-    pub configurable: Option<bool>,
+pub(crate) struct PotentialPropertyDescriptor {
+    pub(crate) value: Option<ECMAScriptValue>,
+    pub(crate) writable: Option<bool>,
+    pub(crate) get: Option<ECMAScriptValue>,
+    pub(crate) set: Option<ECMAScriptValue>,
+    pub(crate) enumerable: Option<bool>,
+    pub(crate) configurable: Option<bool>,
 }
 
 impl PotentialPropertyDescriptor {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         PotentialPropertyDescriptor::default()
     }
 
     #[must_use]
-    pub fn value(mut self, value: impl Into<ECMAScriptValue>) -> Self {
+    pub(crate) fn value(mut self, value: impl Into<ECMAScriptValue>) -> Self {
         self.value = Some(value.into());
         self
     }
 
     #[must_use]
-    pub fn writable(mut self, writable: bool) -> Self {
+    pub(crate) fn writable(mut self, writable: bool) -> Self {
         self.writable = Some(writable);
         self
     }
 
     #[must_use]
-    pub fn enumerable(mut self, enumerable: bool) -> Self {
+    pub(crate) fn enumerable(mut self, enumerable: bool) -> Self {
         self.enumerable = Some(enumerable);
         self
     }
 
     #[must_use]
-    pub fn configurable(mut self, configurable: bool) -> Self {
+    pub(crate) fn configurable(mut self, configurable: bool) -> Self {
         self.configurable = Some(configurable);
         self
     }
 
     #[must_use]
-    pub fn get(mut self, get: impl Into<ECMAScriptValue>) -> Self {
+    pub(crate) fn get(mut self, get: impl Into<ECMAScriptValue>) -> Self {
         self.get = Some(get.into());
         self
     }
 
     #[must_use]
-    pub fn set(mut self, set: impl Into<ECMAScriptValue>) -> Self {
+    pub(crate) fn set(mut self, set: impl Into<ECMAScriptValue>) -> Self {
         self.set = Some(set.into());
         self
     }
 
-    pub fn complete(self) -> PropertyDescriptor {
+    pub(crate) fn complete(self) -> PropertyDescriptor {
         PropertyDescriptor {
             property: if self.is_accessor_descriptor() {
                 PropertyKind::Accessor(AccessorProperty {
@@ -332,7 +332,7 @@ fn fpd(d: PotentialPropertyDescriptor) -> Object {
     }
     obj
 }
-pub fn from_property_descriptor<T>(desc: Option<T>) -> Option<Object>
+pub(crate) fn from_property_descriptor<T>(desc: Option<T>) -> Option<Object>
 where
     T: Into<PotentialPropertyDescriptor>,
 {
@@ -383,7 +383,7 @@ fn get_pd_prop(obj: &Object, key: impl Into<PropertyKey>) -> Completion<Option<E
 fn get_pd_bool(obj: &Object, key: &str) -> Completion<Option<bool>> {
     Ok(get_pd_prop(obj, key)?.map(to_boolean))
 }
-pub fn to_property_descriptor(obj: &ECMAScriptValue) -> Completion<PotentialPropertyDescriptor> {
+pub(crate) fn to_property_descriptor(obj: &ECMAScriptValue) -> Completion<PotentialPropertyDescriptor> {
     match obj {
         ECMAScriptValue::Object(obj) => {
             let enumerable = get_pd_bool(obj, "enumerable")?;
@@ -416,7 +416,7 @@ pub fn to_property_descriptor(obj: &ECMAScriptValue) -> Completion<PotentialProp
 // called:
 //
 //  1. Return O.[[Prototype]].
-pub fn ordinary_get_prototype_of<'a, T>(o: T) -> Option<Object>
+pub(crate) fn ordinary_get_prototype_of<'a, T>(o: T) -> Option<Object>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -448,7 +448,7 @@ where
 //
 // NOTE     The loop in step 8 guarantees that there will be no circularities in any prototype chain that only includes
 //          objects that use the ordinary object definitions for [[GetPrototypeOf]] and [[SetPrototypeOf]].
-pub fn ordinary_set_prototype_of<'a, T>(o: T, val: Option<Object>) -> bool
+pub(crate) fn ordinary_set_prototype_of<'a, T>(o: T, val: Option<Object>) -> bool
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -485,7 +485,7 @@ fn ospo_internal(obj: &dyn ObjectInterface, val: Option<Object>) -> bool {
 // called:
 //
 //  1. Return O.[[Extensible]].
-pub fn ordinary_is_extensible<'a, T>(o: T) -> bool
+pub(crate) fn ordinary_is_extensible<'a, T>(o: T) -> bool
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -501,7 +501,7 @@ where
 //
 //  1. Set O.[[Extensible]] to false.
 //  2. Return true.
-pub fn ordinary_prevent_extensions<'a, T>(o: T) -> bool
+pub(crate) fn ordinary_prevent_extensions<'a, T>(o: T) -> bool
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -530,7 +530,7 @@ where
 //  7. Set D.[[Enumerable]] to the value of X's [[Enumerable]] attribute.
 //  8. Set D.[[Configurable]] to the value of X's [[Configurable]] attribute.
 //  9. Return D.
-pub fn ordinary_get_own_property<'a, T>(o: T, key: &PropertyKey) -> Option<PropertyDescriptor>
+pub(crate) fn ordinary_get_own_property<'a, T>(o: T, key: &PropertyKey) -> Option<PropertyDescriptor>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -547,7 +547,7 @@ where
 //  1. Let current be ? O.[[GetOwnProperty]](P).
 //  2. Let extensible be ? IsExtensible(O).
 //  3. Return ValidateAndApplyPropertyDescriptor(O, P, extensible, Desc, current).
-pub fn ordinary_define_own_property<'a, T>(
+pub(crate) fn ordinary_define_own_property<'a, T>(
     o: T,
     p: impl Into<PropertyKey>,
     desc: impl Into<PotentialPropertyDescriptor>,
@@ -772,7 +772,7 @@ fn internal_validate_and_apply_property_descriptor(
 ///
 /// See [IsCompatiblePropertyDescriptor](https://tc39.es/ecma262/#sec-iscompatiblepropertydescriptor) in
 /// ECMA-262.
-pub fn is_compatible_property_descriptor(
+pub(crate) fn is_compatible_property_descriptor(
     extensible: bool,
     desc: PotentialPropertyDescriptor,
     current: Option<&PropertyDescriptor>,
@@ -793,7 +793,7 @@ pub fn is_compatible_property_descriptor(
 //  5. If parent is not null, then
 //      a. Return ? parent.[[HasProperty]](P).
 //  6. Return false.
-pub fn ordinary_has_property<'a, T>(o: T, p: &PropertyKey) -> Completion<bool>
+pub(crate) fn ordinary_has_property<'a, T>(o: T, p: &PropertyKey) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -829,7 +829,7 @@ fn ohp_internal(obj: &dyn ObjectInterface, p: &PropertyKey) -> Completion<bool> 
 //  6. Let getter be desc.[[Get]].
 //  7. If getter is undefined, return undefined.
 //  8. Return ? Call(getter, Receiver).
-pub fn ordinary_get<'a, T>(o: T, p: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue>
+pub(crate) fn ordinary_get<'a, T>(o: T, p: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -866,7 +866,7 @@ fn og_internal(obj: &dyn ObjectInterface, p: &PropertyKey, receiver: &ECMAScript
 ///
 /// See [OrdinarySet](https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html#sec-ordinaryset) in
 /// ECMA-262.
-pub fn ordinary_set<'a, T>(
+pub(crate) fn ordinary_set<'a, T>(
     o: T,
     p: impl Into<PropertyKey>,
     v: impl Into<ECMAScriptValue>,
@@ -926,7 +926,7 @@ fn os_internal(
 //  6. If setter is undefined, return false.
 //  7. Perform ? Call(setter, Receiver, « V »).
 //  8. Return true.
-pub fn ordinary_set_with_own_descriptor<'a, T>(
+pub(crate) fn ordinary_set_with_own_descriptor<'a, T>(
     o: T,
     p: impl Into<PropertyKey>,
     v: impl Into<ECMAScriptValue>,
@@ -1015,7 +1015,7 @@ fn ordinary_set_with_own_descriptor_internal(
 //      a. Remove the own property with name P from O.
 //      b. Return true.
 //  5. Return false.
-pub fn ordinary_delete<'a, T>(o: T, p: &PropertyKey) -> Completion<bool>
+pub(crate) fn ordinary_delete<'a, T>(o: T, p: &PropertyKey) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -1046,7 +1046,7 @@ fn ordinary_delete_internal(obj: &dyn ObjectInterface, p: &PropertyKey) -> Compl
 //  4. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order of property creation, do
 //      a. Add P as the last element of keys.
 //  5. Return keys.
-pub fn ordinary_own_property_keys<'a, T>(o: T) -> Vec<PropertyKey>
+pub(crate) fn ordinary_own_property_keys<'a, T>(o: T) -> Vec<PropertyKey>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -1083,27 +1083,27 @@ fn ordinary_own_property_keys_internal(obj: &dyn ObjectInterface) -> Vec<Propert
     }
     keys
 }
-pub fn array_index_key(item: &PropertyKey) -> u32 {
+pub(crate) fn array_index_key(item: &PropertyKey) -> u32 {
     match item {
         PropertyKey::String(s) => String::from_utf16_lossy(s.as_slice()).parse::<u32>().unwrap(),
         PropertyKey::Symbol(_) => unreachable!(),
     }
 }
 
-pub const ARRAY_TAG: &str = "Array";
-pub const OBJECT_TAG: &str = "Object";
-pub const NUMBER_TAG: &str = "Number";
-pub const BOOLEAN_TAG: &str = "Boolean";
-pub const STRING_TAG: &str = "String";
-pub const ARGUMENTS_TAG: &str = "Arguments";
-pub const DATE_TAG: &str = "Date";
-pub const REGEXP_TAG: &str = "RegExp";
-pub const FUNCTION_TAG: &str = "Function";
-pub const ERROR_TAG: &str = "Error";
-pub const MAP_TAG: &str = "Map";
+pub(crate) const ARRAY_TAG: &str = "Array";
+pub(crate) const OBJECT_TAG: &str = "Object";
+pub(crate) const NUMBER_TAG: &str = "Number";
+pub(crate) const BOOLEAN_TAG: &str = "Boolean";
+pub(crate) const STRING_TAG: &str = "String";
+pub(crate) const ARGUMENTS_TAG: &str = "Arguments";
+pub(crate) const DATE_TAG: &str = "Date";
+pub(crate) const REGEXP_TAG: &str = "RegExp";
+pub(crate) const FUNCTION_TAG: &str = "Function";
+pub(crate) const ERROR_TAG: &str = "Error";
+pub(crate) const MAP_TAG: &str = "Map";
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ObjectTag {
+pub(crate) enum ObjectTag {
     Array,
     Object,
     Number,
@@ -1138,7 +1138,7 @@ impl fmt::Display for ObjectTag {
     }
 }
 
-pub trait ObjectInterface: Debug {
+pub(crate) trait ObjectInterface: Debug {
     fn common_object_data(&self) -> &RefCell<CommonObjectData>;
     fn uses_ordinary_get_prototype_of(&self) -> bool; // True if implements ordinary defintion of GetPrototypeOf
     fn id(&self) -> usize {
@@ -1190,6 +1190,7 @@ pub trait ObjectInterface: Debug {
         None
     }
     /// True if this object has no special behavior and no additional slots
+    #[cfg(test)]
     fn is_plain_object(&self) -> bool {
         false
     }
@@ -1202,9 +1203,11 @@ pub trait ObjectInterface: Debug {
     fn is_string_object(&self) -> bool {
         false
     }
+    #[cfg(test)]
     fn is_date_object(&self) -> bool {
         false
     }
+    #[cfg(test)]
     fn is_regexp_object(&self) -> bool {
         false
     }
@@ -1214,15 +1217,19 @@ pub trait ObjectInterface: Debug {
     fn is_array_object(&self) -> bool {
         false
     }
+    #[cfg(test)]
     fn to_array_object(&self) -> Option<&ArrayObject> {
         None
     }
+    #[cfg(test)]
     fn is_proxy_object(&self) -> bool {
         false
     }
+    #[cfg(test)]
     fn is_symbol_object(&self) -> bool {
         false
     }
+    #[cfg(test)]
     fn is_generator_object(&self) -> bool {
         false
     }
@@ -1232,6 +1239,7 @@ pub trait ObjectInterface: Debug {
     fn to_bigint_object(&self) -> Option<&BigIntObject> {
         None
     }
+    #[cfg(test)]
     fn is_bigint_object(&self) -> bool {
         false
     }
@@ -1252,22 +1260,22 @@ pub trait ObjectInterface: Debug {
     fn own_property_keys(&self) -> Completion<Vec<PropertyKey>>;
 }
 
-pub trait FunctionInterface: CallableObject {
+pub(crate) trait FunctionInterface: CallableObject {
     fn function_data(&self) -> &RefCell<FunctionObjectData>;
 }
 
-pub struct CommonObjectData {
-    pub properties: AHashMap<PropertyKey, PropertyDescriptor>,
-    pub prototype: Option<Object>,
-    pub extensible: bool,
-    pub next_spot: usize,
-    pub objid: usize,
-    pub slots: Vec<InternalSlotName>,
-    pub private_elements: Vec<Rc<PrivateElement>>,
+pub(crate) struct CommonObjectData {
+    pub(crate) properties: AHashMap<PropertyKey, PropertyDescriptor>,
+    pub(crate) prototype: Option<Object>,
+    pub(crate) extensible: bool,
+    pub(crate) next_spot: usize,
+    pub(crate) objid: usize,
+    pub(crate) slots: Vec<InternalSlotName>,
+    pub(crate) private_elements: Vec<Rc<PrivateElement>>,
 }
 
 impl CommonObjectData {
-    pub fn new(prototype: Option<Object>, extensible: bool, slots: &[InternalSlotName]) -> Self {
+    pub(crate) fn new(prototype: Option<Object>, extensible: bool, slots: &[InternalSlotName]) -> Self {
         Self {
             properties: AHashMap::default(),
             prototype,
@@ -1294,7 +1302,7 @@ impl fmt::Debug for CommonObjectData {
     }
 }
 
-pub struct ConciseObject<'a>(&'a Object);
+pub(crate) struct ConciseObject<'a>(&'a Object);
 impl fmt::Debug for ConciseObject<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.0.concise(f)
@@ -1305,7 +1313,7 @@ impl<'a> From<&'a Object> for ConciseObject<'a> {
         Self(source)
     }
 }
-pub struct ConciseOptionalObject<'a>(&'a Option<Object>);
+pub(crate) struct ConciseOptionalObject<'a>(&'a Option<Object>);
 impl fmt::Debug for ConciseOptionalObject<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0.as_ref() {
@@ -1355,6 +1363,7 @@ impl ObjectInterface for OrdinaryObject {
     fn uses_ordinary_get_prototype_of(&self) -> bool {
         true
     }
+    #[cfg(test)]
     fn is_plain_object(&self) -> bool {
         true
     }
@@ -1474,8 +1483,8 @@ impl ObjectInterface for OrdinaryObject {
 }
 
 #[derive(Clone, Debug)]
-pub struct Object {
-    pub o: Rc<dyn ObjectInterface>,
+pub(crate) struct Object {
+    pub(crate) o: Rc<dyn ObjectInterface>,
 }
 
 impl PartialEq for Object {
@@ -1530,10 +1539,10 @@ impl fmt::Display for Object {
 }
 
 impl OrdinaryObject {
-    pub fn new(prototype: Option<Object>, extensible: bool) -> Self {
+    pub(crate) fn new(prototype: Option<Object>, extensible: bool) -> Self {
         Self { data: RefCell::new(CommonObjectData::new(prototype, extensible, ORDINARY_OBJECT_SLOTS)) }
     }
-    pub fn object(prototype: Option<Object>, extensible: bool) -> Object {
+    pub(crate) fn object(prototype: Option<Object>, extensible: bool) -> Object {
         Object { o: Rc::new(Self::new(prototype, extensible)) }
     }
 }
@@ -1542,14 +1551,14 @@ impl Object {
     fn new(prototype: Option<Object>, extensible: bool) -> Self {
         OrdinaryObject::object(prototype, extensible)
     }
-    pub fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    pub(crate) fn concise(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.which_intrinsic() {
             None => write!(f, "<Object {}>", self.o.id()),
             Some(int) => write!(f, "<%{int:?}%>"),
         }
     }
 
-    pub fn which_intrinsic(&self) -> Option<IntrinsicId> {
+    pub(crate) fn which_intrinsic(&self) -> Option<IntrinsicId> {
         let realm_ref = current_realm_record()?;
         let realm = realm_ref.borrow();
         realm.intrinsics.which(self)
@@ -1566,7 +1575,7 @@ impl Object {
     //      b. Let target be argument.[[ProxyTarget]].
     //      c. Return ? IsArray(target).
     //  4. Return false.
-    pub fn is_array(&self) -> Completion<bool> {
+    pub(crate) fn is_array(&self) -> Completion<bool> {
         if self.o.is_array_object() {
             Ok(true)
         } else {
@@ -1580,7 +1589,8 @@ impl Object {
         }
     }
 
-    pub fn is_typed_array(&self) -> bool {
+    #[expect(clippy::unused_self)]
+    pub(crate) fn is_typed_array(&self) -> bool {
         false
     }
 
@@ -1592,7 +1602,11 @@ impl Object {
     ///
     /// See [CreateDataProperty](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-createdataproperty) in
     /// ECMA-262.
-    pub fn create_data_property(&self, p: impl Into<PropertyKey>, v: impl Into<ECMAScriptValue>) -> Completion<bool> {
+    pub(crate) fn create_data_property(
+        &self,
+        p: impl Into<PropertyKey>,
+        v: impl Into<ECMAScriptValue>,
+    ) -> Completion<bool> {
         // Implementation in an internal function, to separate type conversion from the logic, for easier coverage
         // testing.
         self.internal_cdp(p.into(), v.into())
@@ -1627,7 +1641,7 @@ impl Object {
     /// See
     /// [CreateDataPropertyOrThrow](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-createdatapropertyorthrow)
     /// in ECMA-262.
-    pub fn create_data_property_or_throw(
+    pub(crate) fn create_data_property_or_throw(
         &self,
         p: impl Into<PropertyKey>,
         v: impl Into<ECMAScriptValue>,
@@ -1658,7 +1672,7 @@ impl Object {
     /// This uses all of the object's prototype chain, and calls accessor functions, unlike GetOwnProperty.
     ///
     /// See [Get](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-get-o-p) in ECMA-262.
-    pub fn get(&self, key: &PropertyKey) -> Completion<ECMAScriptValue> {
+    pub(crate) fn get(&self, key: &PropertyKey) -> Completion<ECMAScriptValue> {
         // Get ( O, P )
         //
         // The abstract operation Get takes arguments O (an Object) and P (a property key). It is used to retrieve the value of
@@ -1671,16 +1685,12 @@ impl Object {
         self.o.get(key, &receiver)
     }
 
-    pub fn is_constructor(&self) -> bool {
+    pub(crate) fn is_constructor(&self) -> bool {
         self.o.to_constructable().is_some()
     }
 
-    pub fn is_error_object(&self) -> bool {
+    pub(crate) fn is_error_object(&self) -> bool {
         self.o.kind() == ObjectTag::Error
-    }
-
-    pub fn date_value(&self) -> Option<f64> {
-        self.o.to_date_obj().map(DateObject::date_value)
     }
 }
 
@@ -1703,7 +1713,7 @@ impl Object {
 //          overriding some or all of that object's internal methods. In order to encapsulate exotic object creation,
 //          the object's essential internal methods are never modified outside those operations.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
-pub enum InternalSlotName {
+pub(crate) enum InternalSlotName {
     Prototype,
     Extensible,
     BooleanData,
@@ -1753,21 +1763,21 @@ pub enum InternalSlotName {
     OriginalFlags,
     RegExpRecord,
     RegExpMatcher,
-
-    Nonsense, // For testing purposes, for the time being.
+    //Nonsense, // For testing purposes, for the time being.
 }
-pub const ORDINARY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::Prototype, InternalSlotName::Extensible];
-pub const BOOLEAN_OBJECT_SLOTS: &[InternalSlotName] =
+pub(crate) const ORDINARY_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::Prototype, InternalSlotName::Extensible];
+pub(crate) const BOOLEAN_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BooleanData];
-pub const ERROR_OBJECT_SLOTS: &[InternalSlotName] =
+pub(crate) const ERROR_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ErrorData];
-pub const BUILTIN_FUNCTION_SLOTS: &[InternalSlotName] = &[
+pub(crate) const BUILTIN_FUNCTION_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::Prototype,
     InternalSlotName::Extensible,
     InternalSlotName::InitialName,
     InternalSlotName::Realm,
 ];
-pub const FUNCTION_OBJECT_SLOTS: &[InternalSlotName] = &[
+pub(crate) const FUNCTION_OBJECT_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::Prototype,
     InternalSlotName::Extensible,
     InternalSlotName::Realm,
@@ -1786,37 +1796,38 @@ pub const FUNCTION_OBJECT_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::ClassFieldInitializerName,
     InternalSlotName::IsClassConstructor,
 ];
-pub const BOUND_FUNCTION_OBJECT_SLOTS: &[InternalSlotName] =
+pub(crate) const BOUND_FUNCTION_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::BoundTargetFunction, InternalSlotName::BoundThis, InternalSlotName::BoundArguments];
-pub const NUMBER_OBJECT_SLOTS: &[InternalSlotName] =
+pub(crate) const NUMBER_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::NumberData];
-pub const BIGINT_OBJECT_SLOTS: &[InternalSlotName] =
+pub(crate) const BIGINT_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::BigIntData];
-pub const ARRAY_OBJECT_SLOTS: &[InternalSlotName] =
+pub(crate) const ARRAY_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ArrayMarker];
-pub const SYMBOL_OBJECT_SLOTS: &[InternalSlotName] =
+pub(crate) const SYMBOL_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::SymbolData];
-pub const ARGUMENTS_OBJECT_SLOTS: &[InternalSlotName] =
+pub(crate) const ARGUMENTS_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::ParameterMap];
-pub const STRING_OBJECT_SLOTS: &[InternalSlotName] =
+pub(crate) const STRING_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::StringData];
-pub const GENERATOR_OBJECT_SLOTS: &[InternalSlotName] = &[
+pub(crate) const GENERATOR_OBJECT_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::Prototype,
     InternalSlotName::Extensible,
     InternalSlotName::GeneratorState,
     InternalSlotName::GeneratorContext,
     InternalSlotName::GeneratorBrand,
 ];
-pub const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
+pub(crate) const FOR_IN_ITERATOR_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::Object,
     InternalSlotName::ObjectWasVisited,
     InternalSlotName::VisitedKeys,
     InternalSlotName::RemainingKeys,
 ];
-pub const PROXY_OBJECT_SLOTS: &[InternalSlotName] = &[InternalSlotName::ProxyTarget, InternalSlotName::ProxyHandler];
-pub const DATE_OBJECT_SLOTS: &[InternalSlotName] =
+pub(crate) const PROXY_OBJECT_SLOTS: &[InternalSlotName] =
+    &[InternalSlotName::ProxyTarget, InternalSlotName::ProxyHandler];
+pub(crate) const DATE_OBJECT_SLOTS: &[InternalSlotName] =
     &[InternalSlotName::Prototype, InternalSlotName::Extensible, InternalSlotName::DateValue];
-pub const REGEXP_OBJECT_SLOTS: &[InternalSlotName] = &[
+pub(crate) const REGEXP_OBJECT_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::Prototype,
     InternalSlotName::Extensible,
     InternalSlotName::OriginalSource,
@@ -1833,7 +1844,7 @@ impl ECMAScriptValue {
     /// without needing to do the to-object conversion.
     ///
     /// See [GetV](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-get) from ECMA-262.
-    pub fn get(&self, p: &PropertyKey) -> Completion<ECMAScriptValue> {
+    pub(crate) fn get(&self, p: &PropertyKey) -> Completion<ECMAScriptValue> {
         // GetV ( V, P )
         //
         // The abstract operation GetV takes arguments V (an ECMAScript language value) and P (a property key). It is
@@ -1853,7 +1864,7 @@ impl Object {
     /// Set the value of a specific property for an object
     ///
     /// See [Set](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-set-o-p-v-throw) in ECMA-262.
-    pub fn set(
+    pub(crate) fn set(
         &self,
         propkey: impl Into<PropertyKey>,
         value: impl Into<ECMAScriptValue>,
@@ -1892,7 +1903,7 @@ impl Object {
 ///
 /// See [DefinePropertyOrThrow](https://tc39.es/ecma262/multipage/abstract-operations.html#sec-definepropertyorthrow)
 /// from the ECMA-262 spec.
-pub fn define_property_or_throw(
+pub(crate) fn define_property_or_throw(
     obj: &Object,
     p: impl Into<PropertyKey>,
     desc: PotentialPropertyDescriptor,
@@ -1924,7 +1935,7 @@ fn internal_define_property_or_throw(
 }
 
 impl Object {
-    pub fn delete_property_or_throw(&self, p: &PropertyKey) -> Completion<()> {
+    pub(crate) fn delete_property_or_throw(&self, p: &PropertyKey) -> Completion<()> {
         // DeletePropertyOrThrow ( O, P )
         // The abstract operation DeletePropertyOrThrow takes arguments O (an Object) and P (a property key) and
         // returns either a normal completion containing unused or a throw completion. It is used to remove a
@@ -1951,7 +1962,7 @@ impl Object {
 //  4. If IsCallable(func) is false, throw a TypeError exception.
 //  5. Return func.
 impl ECMAScriptValue {
-    pub fn get_method(&self, key: &PropertyKey) -> Completion<ECMAScriptValue> {
+    pub(crate) fn get_method(&self, key: &PropertyKey) -> Completion<ECMAScriptValue> {
         let func = self.get(key)?;
         if func.is_undefined() || func.is_null() {
             Ok(ECMAScriptValue::Undefined)
@@ -1963,7 +1974,7 @@ impl ECMAScriptValue {
     }
 }
 impl Object {
-    pub fn get_method(&self, key: &PropertyKey) -> Completion<ECMAScriptValue> {
+    pub(crate) fn get_method(&self, key: &PropertyKey) -> Completion<ECMAScriptValue> {
         let func = self.get(key)?;
         if func.is_undefined() || func.is_null() {
             Ok(ECMAScriptValue::Undefined)
@@ -1985,11 +1996,11 @@ impl Object {
 //  1. Assert: Type(O) is Object.
 //  2. Assert: IsPropertyKey(P) is true.
 //  3. Return ? O.[[HasProperty]](P).
-pub fn has_property(obj: &Object, p: &PropertyKey) -> Completion<bool> {
+pub(crate) fn has_property(obj: &Object, p: &PropertyKey) -> Completion<bool> {
     obj.has_property(p)
 }
 impl Object {
-    pub fn has_property(&self, p: &PropertyKey) -> Completion<bool> {
+    pub(crate) fn has_property(&self, p: &PropertyKey) -> Completion<bool> {
         self.o.has_property(p)
     }
 }
@@ -2006,7 +2017,7 @@ impl Object {
 //  4. If desc is undefined, return false.
 //  5. Return true.
 impl Object {
-    pub fn has_own_property(&self, p: &PropertyKey) -> Completion<bool> {
+    pub(crate) fn has_own_property(&self, p: &PropertyKey) -> Completion<bool> {
         Ok(self.o.get_own_property(p)?.is_some())
     }
 }
@@ -2022,14 +2033,14 @@ impl Object {
 //  1. If argumentsList is not present, set argumentsList to a new empty List.
 //  2. If IsCallable(F) is false, throw a TypeError exception.
 //  3. Return ? F.[[Call]](V, argumentsList).
-pub fn to_callable(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
+pub(crate) fn to_callable(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
     match val {
         ECMAScriptValue::Object(obj) => obj.o.to_callable_obj(),
         _ => None,
     }
 }
 
-pub fn call(
+pub(crate) fn call(
     func: &ECMAScriptValue,
     this_value: &ECMAScriptValue,
     args: &[ECMAScriptValue],
@@ -2037,7 +2048,7 @@ pub fn call(
     tailable_call(func, this_value, args, false)
 }
 
-pub fn tailable_call(
+pub(crate) fn tailable_call(
     func: &ECMAScriptValue,
     this_value: &ECMAScriptValue,
     args: &[ECMAScriptValue],
@@ -2052,7 +2063,7 @@ pub fn tailable_call(
     }
 }
 
-pub fn initiate_call(
+pub(crate) fn initiate_call(
     func: &ECMAScriptValue,
     this_value: &ECMAScriptValue,
     args: &[ECMAScriptValue],
@@ -2076,7 +2087,7 @@ pub fn initiate_call(
     }
 }
 
-pub fn complete_call(func: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
+pub(crate) fn complete_call(func: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
     let callable = to_callable(func).unwrap();
     callable.complete_call()
 }
@@ -2096,22 +2107,19 @@ pub fn complete_call(func: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
 //    5. Return ? F.[[Construct]](argumentsList, newTarget).
 //
 // NOTE     If newTarget is not present, this operation is equivalent to: new F(...argumentsList)
-pub fn construct(func: &Object, args: &[ECMAScriptValue], new_target: Option<&Object>) -> Completion<ECMAScriptValue> {
+pub(crate) fn construct(
+    func: &Object,
+    args: &[ECMAScriptValue],
+    new_target: Option<&Object>,
+) -> Completion<ECMAScriptValue> {
     initiate_construct(func, args, new_target);
     complete_call(&ECMAScriptValue::from(func))
 }
 
-pub fn initiate_construct(func: &Object, args: &[ECMAScriptValue], new_target: Option<&Object>) {
+pub(crate) fn initiate_construct(func: &Object, args: &[ECMAScriptValue], new_target: Option<&Object>) {
     let nt = new_target.unwrap_or(func);
     let cstr = func.o.to_constructable().unwrap();
     cstr.construct(func, args, nt);
-}
-
-pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
-    match val {
-        ECMAScriptValue::Object(obj) => obj.o.to_constructable(),
-        _ => None,
-    }
 }
 
 // SetIntegrityLevel ( O, level )
@@ -2139,11 +2147,11 @@ pub fn to_constructor(val: &ECMAScriptValue) -> Option<&dyn CallableObject> {
 //
 // https://tc39.es/ecma262/#sec-setintegritylevel
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
-pub enum IntegrityLevel {
+pub(crate) enum IntegrityLevel {
     Sealed,
     Frozen,
 }
-pub fn set_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<bool> {
+pub(crate) fn set_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<bool> {
     let status = o.o.prevent_extensions()?;
     if !status {
         return Ok(false);
@@ -2168,7 +2176,7 @@ pub fn set_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<bool
     Ok(true)
 }
 
-pub fn test_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<bool> {
+pub(crate) fn test_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<bool> {
     // TestIntegrityLevel ( O, level )
     // The abstract operation TestIntegrityLevel takes arguments O (an Object) and level (sealed or frozen)
     // and returns either a normal completion containing a Boolean or a throw completion. It is used to
@@ -2216,7 +2224,7 @@ pub fn test_integrity_level(o: &Object, level: IntegrityLevel) -> Completion<boo
 //      a. Perform ! CreateDataPropertyOrThrow(array, ! ToString(𝔽(n)), e).
 //      b. Set n to n + 1.
 //  4. Return array.
-pub fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
+pub(crate) fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
     let array = array_create(0.0, None).unwrap();
     for (n, e) in elements.iter().enumerate() {
         let key = PropertyKey::from(u64::try_from(n).unwrap());
@@ -2229,7 +2237,7 @@ pub fn create_array_from_list(elements: &[ECMAScriptValue]) -> Object {
 ///
 /// See [LengthOfArrayLike](https://tc39.es/ecma262/#sec-lengthofarraylike) from ECMA-262.
 impl Object {
-    pub fn length_of_array_like(&self) -> Completion<f64> {
+    pub(crate) fn length_of_array_like(&self) -> Completion<f64> {
         // LengthOfArrayLike ( obj )
         //
         // The abstract operation LengthOfArrayLike takes argument obj (an Object) and returns either a normal
@@ -2243,7 +2251,7 @@ impl Object {
     }
 }
 
-pub fn create_list_from_array_like(
+pub(crate) fn create_list_from_array_like(
     obj: ECMAScriptValue,
     element_types: Option<&[ValueKind]>,
 ) -> Completion<Vec<ECMAScriptValue>> {
@@ -2305,13 +2313,13 @@ pub fn create_list_from_array_like(
 //  3. Let func be ? GetV(V, P).
 //  4. Return ? Call(func, V, argumentsList).
 impl ECMAScriptValue {
-    pub fn invoke(&self, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+    pub(crate) fn invoke(&self, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
         let func = self.get(p)?;
         call(&func, self, arguments_list)
     }
 }
 
-pub fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Completion<bool> {
+pub(crate) fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Completion<bool> {
     // OrdinaryHasInstance ( C, O )
     //
     // The abstract operation OrdinaryHasInstance takes arguments C (an ECMAScript language value) and O and returns
@@ -2385,7 +2393,7 @@ pub fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Comple
 //  4. Return properties.
 //
 // https://tc39.es/ecma262/#sec-enumerableownpropertynames
-pub fn enumerable_own_properties(obj: &Object, kind: KeyValueKind) -> Completion<Vec<ECMAScriptValue>> {
+pub(crate) fn enumerable_own_properties(obj: &Object, kind: KeyValueKind) -> Completion<Vec<ECMAScriptValue>> {
     let own_keys = obj.o.own_property_keys()?;
     let mut properties: Vec<ECMAScriptValue> = vec![];
     for key in own_keys {
@@ -2427,7 +2435,7 @@ pub fn enumerable_own_properties(obj: &Object, kind: KeyValueKind) -> Completion
 //          to create an ordinary object, and not an exotic one. Thus, within this specification, it is not called by
 //          any algorithm that subsequently modifies the internal methods of the object in ways that would make the
 //          result non-ordinary. Operations that create exotic objects invoke MakeBasicObject directly.
-pub fn ordinary_object_create(proto: Option<Object>) -> Object {
+pub(crate) fn ordinary_object_create(proto: Option<Object>) -> Object {
     Object::new(proto, true)
 }
 
@@ -2445,7 +2453,7 @@ pub fn ordinary_object_create(proto: Option<Object>) -> Object {
 //  2. Let proto be ? GetPrototypeFromConstructor(constructor, intrinsicDefaultProto).
 //  3. Return ! OrdinaryObjectCreate(proto, internalSlotsList).
 impl Object {
-    pub fn ordinary_create_from_constructor(
+    pub(crate) fn ordinary_create_from_constructor(
         &self,
         intrinsic_default_proto: IntrinsicId,
         factory: impl FnOnce(Option<Object>) -> Object,
@@ -2474,7 +2482,7 @@ impl Object {
 // NOTE     If constructor does not supply a [[Prototype]] value, the default value that is used is obtained from the
 //          realm of the constructor function rather than from the running execution context.
 impl Object {
-    pub fn get_prototype_from_constructor(&self, intrinsic_default_proto: IntrinsicId) -> Completion<Object> {
+    pub(crate) fn get_prototype_from_constructor(&self, intrinsic_default_proto: IntrinsicId) -> Completion<Object> {
         let proto = self.get(&PropertyKey::from("prototype"))?;
         match proto {
             ECMAScriptValue::Object(obj) => Ok(obj),
@@ -2488,7 +2496,7 @@ impl Object {
 }
 
 #[derive(Debug)]
-pub struct DeadObject {
+pub(crate) struct DeadObject {
     objid: usize,
 }
 impl ObjectInterface for DeadObject {
@@ -2538,7 +2546,7 @@ impl ObjectInterface for DeadObject {
 }
 
 impl DeadObject {
-    pub fn object() -> Object {
+    pub(crate) fn object() -> Object {
         Object { o: Rc::new(Self { objid: next_object_id() }) }
     }
 }
@@ -2552,7 +2560,7 @@ impl DeadObject {
 //  2. Let current be ? O.[[GetPrototypeOf]]().
 //  3. If SameValue(V, current) is true, return true.
 //  4. Return false.
-pub fn set_immutable_prototype<'a, T>(o: T, val: Option<&Object>) -> Completion<bool>
+pub(crate) fn set_immutable_prototype<'a, T>(o: T, val: Option<&Object>) -> Completion<bool>
 where
     T: Into<&'a dyn ObjectInterface>,
 {
@@ -2564,7 +2572,7 @@ fn set_immutable_prototype_internal(obj: &dyn ObjectInterface, val: Option<&Obje
 }
 
 #[derive(Debug)]
-pub struct ImmutablePrototypeExoticObject {
+pub(crate) struct ImmutablePrototypeExoticObject {
     data: RefCell<CommonObjectData>,
 }
 
@@ -2697,16 +2705,16 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
 }
 
 impl ImmutablePrototypeExoticObject {
-    pub fn new(prototype: Option<Object>) -> Self {
+    pub(crate) fn new(prototype: Option<Object>) -> Self {
         Self { data: RefCell::new(CommonObjectData::new(prototype, true, ORDINARY_OBJECT_SLOTS)) }
     }
 
-    pub fn object(prototype: Option<Object>) -> Object {
+    pub(crate) fn object(prototype: Option<Object>) -> Object {
         Object { o: Rc::new(ImmutablePrototypeExoticObject::new(prototype)) }
     }
 }
 
-pub fn immutable_prototype_exotic_object_create(proto: Option<&Object>) -> Object {
+pub(crate) fn immutable_prototype_exotic_object_create(proto: Option<&Object>) -> Object {
     ImmutablePrototypeExoticObject::object(proto.cloned())
 }
 
@@ -2729,7 +2737,7 @@ pub fn immutable_prototype_exotic_object_create(proto: Option<&Object>) -> Objec
 // NOTE     Step 5 will only be reached if obj is a non-standard function exotic object that does not have a [[Realm]]
 //          internal slot.
 impl Object {
-    pub fn get_function_realm(&self) -> Completion<Rc<RefCell<Realm>>> {
+    pub(crate) fn get_function_realm(&self) -> Completion<Rc<RefCell<Realm>>> {
         match self.o.to_function_obj() {
             Some(f) => Ok(f.function_data().borrow().realm.clone()),
             _ => {
@@ -2779,7 +2787,7 @@ impl Object {
 //      a. Let entry be that PrivateElement.
 //      b. Return entry.
 //  2. Return empty.
-pub fn private_element_find(o: &Object, p: &PrivateName) -> Option<Rc<PrivateElement>> {
+pub(crate) fn private_element_find(o: &Object, p: &PrivateName) -> Option<Rc<PrivateElement>> {
     let cod = o.o.common_object_data().borrow();
     let item = cod.private_elements.iter().find(|&item| item.key == *p);
     item.cloned()
@@ -2793,7 +2801,7 @@ pub fn private_element_find(o: &Object, p: &PrivateName) -> Option<Rc<PrivateEle
 //  1. Let entry be ! PrivateElementFind(O, P).
 //  2. If entry is not empty, throw a TypeError exception.
 //  3. Append PrivateElement { [[Key]]: P, [[Kind]]: field, [[Value]]: value } to O.[[PrivateElements]].
-pub fn private_field_add(obj: &Object, p: PrivateName, value: ECMAScriptValue) -> Completion<()> {
+pub(crate) fn private_field_add(obj: &Object, p: PrivateName, value: ECMAScriptValue) -> Completion<()> {
     let entry = private_element_find(obj, &p);
     match entry {
         Some(_) => Err(create_type_error("PrivateName already defined")),
@@ -2820,7 +2828,7 @@ pub fn private_field_add(obj: &Object, p: PrivateName, value: ECMAScriptValue) -
 //
 // NOTE: The values for private methods and accessors are shared across instances. This step does not create a new copy
 // of the method or accessor.
-pub fn private_method_or_accessor_add(obj: &Object, method: PrivateElement) -> Completion<()> {
+pub(crate) fn private_method_or_accessor_add(obj: &Object, method: PrivateElement) -> Completion<()> {
     if private_element_find(obj, &method.key).is_some() {
         Err(create_type_error("PrivateName already defined"))
     } else {
@@ -2829,7 +2837,7 @@ pub fn private_method_or_accessor_add(obj: &Object, method: PrivateElement) -> C
     }
 }
 
-pub fn define_field(obj: &Object, field: &ClassFieldDefinitionRecord) -> Completion<()> {
+pub(crate) fn define_field(obj: &Object, field: &ClassFieldDefinitionRecord) -> Completion<()> {
     // DefineField ( receiver, fieldRecord )
     // The abstract operation DefineField takes arguments receiver (an Object) and fieldRecord (a ClassFieldDefinition
     // Record) and returns either a normal completion containing unused or a throw completion. It performs the following
@@ -2876,7 +2884,7 @@ pub fn define_field(obj: &Object, field: &ClassFieldDefinitionRecord) -> Complet
 //  5. If entry.[[Get]] is undefined, throw a TypeError exception.
 //  6. Let getter be entry.[[Get]].
 //  7. Return ? Call(getter, O).
-pub fn private_get(obj: &Object, pn: &PrivateName) -> Completion<ECMAScriptValue> {
+pub(crate) fn private_get(obj: &Object, pn: &PrivateName) -> Completion<ECMAScriptValue> {
     match private_element_find(obj, pn) {
         None => Err(create_type_error("PrivateName not defined")),
         Some(pe) => match &pe.kind {
@@ -2906,7 +2914,7 @@ pub fn private_get(obj: &Object, pn: &PrivateName) -> Completion<ECMAScriptValue
 //      b. If entry.[[Set]] is undefined, throw a TypeError exception.
 //      c. Let setter be entry.[[Set]].
 //      d. Perform ? Call(setter, O, « value »).
-pub fn private_set(obj: &Object, pn: &PrivateName, v: ECMAScriptValue) -> Completion<()> {
+pub(crate) fn private_set(obj: &Object, pn: &PrivateName, v: ECMAScriptValue) -> Completion<()> {
     match private_element_find(obj, pn) {
         None => Err(create_type_error("PrivateName not defined")),
         Some(pe) => match &pe.kind {
@@ -2928,7 +2936,7 @@ impl Object {
     /// Copy enumerable data properties from a source to a target, potentially excluding some
     ///
     /// See [CopyDataProperties](https://tc39.es/ecma262/#sec-copydataproperties) in ECMA-262.
-    pub fn copy_data_properties(&self, source: ECMAScriptValue, excluded: &[PropertyKey]) -> Completion<()> {
+    pub(crate) fn copy_data_properties(&self, source: ECMAScriptValue, excluded: &[PropertyKey]) -> Completion<()> {
         // CopyDataProperties ( target, source, excludedItems )
         // The abstract operation CopyDataProperties takes arguments target (an Object), source (an ECMAScript language
         // value), and excludedItems (a List of property keys) and returns either a normal completion containing UNUSED

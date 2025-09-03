@@ -18,7 +18,6 @@ mod additive_expression {
         pretty_check(&*ae, "AdditiveExpression: a", &["MultiplicativeExpression: a"]);
         concise_check(&*ae, "IdentifierName: a", &[]);
         assert_ne!(format!("{ae:?}"), "");
-        assert_eq!(ae.is_function_definition(), false);
     }
     #[test]
     fn parse_02() {
@@ -28,7 +27,6 @@ mod additive_expression {
         pretty_check(&*ae, "AdditiveExpression: a + b", &["AdditiveExpression: a", "MultiplicativeExpression: b"]);
         concise_check(&*ae, "AdditiveExpression: a + b", &["IdentifierName: a", "Punctuator: +", "IdentifierName: b"]);
         assert_ne!(format!("{ae:?}"), "");
-        assert_eq!(ae.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
@@ -38,7 +36,6 @@ mod additive_expression {
         pretty_check(&*ae, "AdditiveExpression: a - b", &["AdditiveExpression: a", "MultiplicativeExpression: b"]);
         concise_check(&*ae, "AdditiveExpression: a - b", &["IdentifierName: a", "Punctuator: -", "IdentifierName: b"]);
         assert_ne!(format!("{ae:?}"), "");
-        assert_eq!(ae.is_function_definition(), false);
     }
     #[test]
     fn parse_04() {
@@ -48,7 +45,6 @@ mod additive_expression {
         pretty_check(&*ae, "AdditiveExpression: a", &["MultiplicativeExpression: a"]);
         concise_check(&*ae, "IdentifierName: a", &[]);
         assert_ne!(format!("{ae:?}"), "");
-        assert_eq!(ae.is_function_definition(), false);
     }
     #[test]
     fn parse_05() {
@@ -182,12 +178,12 @@ mod additive_expression {
         Maker::new(src).additive_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a+b" => false; "additive")]
-    #[test_case("13" => false; "fall-thru, not named func")]
-    #[test_case("function bob(){}" => true; "fall-thru, named")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).additive_expression().is_named_function()
-    }
+    //#[test_case("a+b" => false; "additive")]
+    //#[test_case("13" => false; "fall-thru, not named func")]
+    //#[test_case("function bob(){}" => true; "fall-thru, named")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).additive_expression().is_named_function()
+    //}
 
     #[test_case("\nblue" => Location { starting_line: 2, starting_column: 1, span: Span{ starting_index: 1, length: 4 } }; "fall-thru")]
     #[test_case("/* x */ a   +\n(p-l)" => Location { starting_line: 1, starting_column: 9, span: Span{ starting_index: 8, length: 11 } }; "add")]

@@ -6,8 +6,8 @@ use std::io::Write;
 // UniqueFormalParameters[Yield, Await] :
 //      FormalParameters[?Yield, ?Await]
 #[derive(Debug)]
-pub struct UniqueFormalParameters {
-    pub formals: Rc<FormalParameters>,
+pub(crate) struct UniqueFormalParameters {
+    pub(crate) formals: Rc<FormalParameters>,
 }
 
 impl fmt::Display for UniqueFormalParameters {
@@ -40,7 +40,12 @@ impl UniqueFormalParameters {
         (Rc::new(UniqueFormalParameters { formals: fp }), after_fp)
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> (Rc<Self>, Scanner) {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.unique_formal_parameters_cache.get(&key) {
             Some(result) => result.clone(),
@@ -52,15 +57,15 @@ impl UniqueFormalParameters {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.formals.location()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.formals.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -74,7 +79,7 @@ impl UniqueFormalParameters {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -84,7 +89,7 @@ impl UniqueFormalParameters {
         self.formals.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  UniqueFormalParameters : FormalParameters
         //  * It is a Syntax Error if BoundNames of FormalParameters contains any duplicate elements.
@@ -95,11 +100,11 @@ impl UniqueFormalParameters {
         self.formals.early_errors(errs, strict, true);
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         self.formals.bound_names()
     }
 
-    pub fn is_simple_parameter_list(&self) -> bool {
+    pub(crate) fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
         // The syntax-directed operation IsSimpleParameterList takes no arguments and returns a Boolean.
         //  UniqueFormalParameters : FormalParameters
@@ -107,18 +112,18 @@ impl UniqueFormalParameters {
         self.formals.is_simple_parameter_list()
     }
 
-    pub fn expected_argument_count(&self) -> f64 {
+    pub(crate) fn expected_argument_count(&self) -> f64 {
         self.formals.expected_argument_count()
     }
 
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         self.formals.contains_expression()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) { self.formals.body_containing_location(location) } else { None }
     }
@@ -131,7 +136,7 @@ impl UniqueFormalParameters {
 //      FormalParameterList[?Yield, ?Await] ,
 //      FormalParameterList[?Yield, ?Await] , FunctionRestParameter[?Yield, ?Await]
 #[derive(Debug)]
-pub enum FormalParameters {
+pub(crate) enum FormalParameters {
     Empty(Location),
     Rest(Rc<FunctionRestParameter>),
     List(Rc<FormalParameterList>),
@@ -207,7 +212,7 @@ impl FormalParameters {
             Err(_) => (None, scanner),
             Ok((f, s)) => (Some(f), s),
         };
-        let (pot_comma, pot_loc, after_pot) = scan_token(&after_fpl, parser.source, ScanGoal::InputElementDiv);
+        let (pot_comma, pot_loc, after_pot) = scan_token(&after_fpl, parser.source, InputElementGoal::Div);
         let (has_comma, after_comma) = match pot_comma {
             Token::Punctuator(Punctuator::Comma) => (true, after_pot),
             _ => (false, after_fpl),
@@ -231,7 +236,12 @@ impl FormalParameters {
         }
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> (Rc<Self>, Scanner) {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.formal_parameters_cache.get(&key) {
             Some(result) => result.clone(),
@@ -243,7 +253,7 @@ impl FormalParameters {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             FormalParameters::ListComma(_, location) | FormalParameters::Empty(location) => *location,
             FormalParameters::Rest(rest) => rest.location(),
@@ -252,7 +262,7 @@ impl FormalParameters {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             FormalParameters::Empty(_) => false,
             FormalParameters::Rest(node) => node.contains(kind),
@@ -261,7 +271,7 @@ impl FormalParameters {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -284,7 +294,7 @@ impl FormalParameters {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -299,7 +309,7 @@ impl FormalParameters {
         }
     }
 
-    pub fn is_simple_parameter_list(&self) -> bool {
+    pub(crate) fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
         match self {
             FormalParameters::Empty(_) => {
@@ -324,7 +334,7 @@ impl FormalParameters {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         // Static Semantics: BoundNames
         match self {
             FormalParameters::Empty(_) => {
@@ -357,7 +367,7 @@ impl FormalParameters {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, dups_already_checked: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, dups_already_checked: bool) {
         // Static Semantics: Early Errors
         //  FormalParameters : FormalParameterList
         //    If BoundNames of FormalParameterList contains any duplicate elements, it is a Syntax Error:
@@ -391,7 +401,7 @@ impl FormalParameters {
     /// undefined as their default value.
     ///
     /// See [ExpectedArgumentCount](https://tc39.es/ecma262/#sec-static-semantics-expectedargumentcount) from ECMA-262.
-    pub fn expected_argument_count(&self) -> f64 {
+    pub(crate) fn expected_argument_count(&self) -> f64 {
         match self {
             FormalParameters::Empty(_) | FormalParameters::Rest(_) => 0.0,
             FormalParameters::List(list)
@@ -403,7 +413,7 @@ impl FormalParameters {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         match self {
             FormalParameters::Empty(..) => false,
             FormalParameters::Rest(rest) => rest.contains_expression(),
@@ -412,7 +422,7 @@ impl FormalParameters {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -432,7 +442,7 @@ impl FormalParameters {
 //      FormalParameter[?Yield, ?Await]
 //      FormalParameterList[?Yield, ?Await] , FormalParameter[?Yield, ?Await]
 #[derive(Debug)]
-pub enum FormalParameterList {
+pub(crate) enum FormalParameterList {
     Item(Rc<FormalParameter>),
     List(Rc<FormalParameterList>, Rc<FormalParameter>),
 }
@@ -480,12 +490,17 @@ impl PrettyPrint for FormalParameterList {
 }
 
 impl FormalParameterList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (fp, after_fp) = FormalParameter::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(FormalParameterList::Item(fp));
         let mut current_scanner = after_fp;
         while let Ok((next, after_next)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Comma)
                 .and_then(|(_, after_comma)| FormalParameter::parse(parser, after_comma, yield_flag, await_flag))
         {
             current = Rc::new(FormalParameterList::List(current, next));
@@ -494,21 +509,21 @@ impl FormalParameterList {
         Ok((current, current_scanner))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             FormalParameterList::Item(item) => item.location(),
             FormalParameterList::List(list, item) => list.location().merge(&item.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             FormalParameterList::Item(node) => node.contains(kind),
             FormalParameterList::List(lst, item) => lst.contains(kind) || item.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -527,7 +542,7 @@ impl FormalParameterList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -540,7 +555,7 @@ impl FormalParameterList {
         }
     }
 
-    pub fn is_simple_parameter_list(&self) -> bool {
+    pub(crate) fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
         match self {
             FormalParameterList::Item(formal_parameter) => {
@@ -557,7 +572,7 @@ impl FormalParameterList {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         // Static Semantics: BoundNames
         match self {
             FormalParameterList::Item(formal_parameter) => {
@@ -578,7 +593,7 @@ impl FormalParameterList {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             FormalParameterList::Item(fp) => fp.early_errors(errs, strict),
             FormalParameterList::List(fpl, fp) => {
@@ -627,7 +642,7 @@ impl FormalParameterList {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -645,8 +660,8 @@ impl FormalParameterList {
 // FunctionRestParameter[Yield, Await] :
 //      BindingRestElement[?Yield, ?Await]
 #[derive(Debug)]
-pub struct FunctionRestParameter {
-    pub element: Rc<BindingRestElement>,
+pub(crate) struct FunctionRestParameter {
+    pub(crate) element: Rc<BindingRestElement>,
 }
 
 impl fmt::Display for FunctionRestParameter {
@@ -674,20 +689,25 @@ impl PrettyPrint for FunctionRestParameter {
 }
 
 impl FunctionRestParameter {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (element, after_bre) = BindingRestElement::parse(parser, scanner, yield_flag, await_flag)?;
         Ok((Rc::new(FunctionRestParameter { element }), after_bre))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.element.location()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.element.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -701,7 +721,7 @@ impl FunctionRestParameter {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -711,26 +731,26 @@ impl FunctionRestParameter {
         self.element.contains_arguments()
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         // Static Semantics: BoundNames
         // FunctionRestParameter : BindingRestElement
         //  1. Return BoundNames of BindingRestElement.
         self.element.bound_names()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.element.early_errors(errs, strict);
     }
 
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         self.element.contains_expression()
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }
@@ -739,8 +759,8 @@ impl FunctionRestParameter {
 // FormalParameter[Yield, Await] :
 //      BindingElement[?Yield, ?Await]
 #[derive(Debug)]
-pub struct FormalParameter {
-    pub element: Rc<BindingElement>,
+pub(crate) struct FormalParameter {
+    pub(crate) element: Rc<BindingElement>,
 }
 
 impl fmt::Display for FormalParameter {
@@ -773,7 +793,12 @@ impl FormalParameter {
         Ok((Rc::new(FormalParameter { element }), after_be))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.formal_parameter_cache.get(&key) {
             Some(result) => result.clone(),
@@ -785,15 +810,15 @@ impl FormalParameter {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.element.location()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.element.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -807,7 +832,7 @@ impl FormalParameter {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -817,39 +842,39 @@ impl FormalParameter {
         self.element.contains_arguments()
     }
 
-    pub fn is_simple_parameter_list(&self) -> bool {
+    pub(crate) fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
         // FormalParameter : BindingElement
         //  1. Return IsSimpleParameterList of BindingElement.
         self.element.is_simple_parameter_list()
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         // Static Semantics: BoundNames
         // FormalParameter : BindingElement
         //  1. Return BoundNames of BindingElement.
         self.element.bound_names()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.element.early_errors(errs, strict);
     }
 
     /// Report whether this parameter contains an intializer
     ///
     /// See [HasInitializer](https://tc39.es/ecma262/#sec-static-semantics-hasinitializer) from ECMA-262.
-    pub fn has_initializer(&self) -> bool {
+    pub(crate) fn has_initializer(&self) -> bool {
         self.element.has_initializer()
     }
 
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         self.element.contains_expression()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) { self.element.body_containing_location(location) } else { None }
     }

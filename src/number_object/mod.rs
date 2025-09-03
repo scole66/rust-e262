@@ -3,12 +3,12 @@ use num::ToPrimitive;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub trait NumberObjectInterface: ObjectInterface {
+pub(crate) trait NumberObjectInterface: ObjectInterface {
     fn number_data(&self) -> &f64;
 }
 
 #[derive(Debug)]
-pub struct NumberObject {
+pub(crate) struct NumberObject {
     common: RefCell<CommonObjectData>,
     number_data: f64,
 }
@@ -148,15 +148,15 @@ impl NumberObjectInterface for NumberObject {
 }
 
 impl NumberObject {
-    pub fn new(prototype: Option<Object>, number: f64) -> Self {
+    pub(crate) fn new(prototype: Option<Object>, number: f64) -> Self {
         Self { common: RefCell::new(CommonObjectData::new(prototype, true, NUMBER_OBJECT_SLOTS)), number_data: number }
     }
-    pub fn object(prototype: Option<Object>, number: f64) -> Object {
+    pub(crate) fn object(prototype: Option<Object>, number: f64) -> Object {
         Object { o: Rc::new(Self::new(prototype, number)) }
     }
 }
 
-pub fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_number_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -901,7 +901,7 @@ fn number_prototype_to_precision(
     ))
 }
 
-pub fn next_double(dbl: f64) -> f64 {
+pub(crate) fn next_double(dbl: f64) -> f64 {
     // Copied from the V8 source
     // Returns the next greater double. Returns +infinity on input +infinity.
     // double NextDouble() const {
@@ -954,7 +954,7 @@ fn double_exponent(dbl: f64) -> i32 {
 #[expect(clippy::float_cmp)]
 #[expect(unused_assignments)] // Remove this when the Condition B panic is removed
 #[expect(unreachable_code)] // Remove this when the Condition B panic is removed
-pub fn double_to_radix_string(val: f64, radix: u32) -> String {
+pub(crate) fn double_to_radix_string(val: f64, radix: u32) -> String {
     const KBUFFERSIZE: usize = 2200;
 
     // This code is pretty blatantly grabbed from v8 source, and rewritten in rust.

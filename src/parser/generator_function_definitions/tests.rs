@@ -369,13 +369,6 @@ fn generator_declaration_test_bound_names_02() {
         GeneratorDeclaration::parse(&mut newparser("function * () {}"), Scanner::new(), true, true, true).unwrap();
     assert_eq!(item.bound_names(), &["*default*"]);
 }
-#[test]
-fn generator_declaration_test_contains_01() {
-    let (item, _) =
-        GeneratorDeclaration::parse(&mut newparser("function * a(x=0) {0;}"), Scanner::new(), true, true, true)
-            .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
 #[test_case("function *a(b=c.#valid){}" => true; "params valid")]
 #[test_case("function *a(){b.#valid;}" => true; "body valid")]
 #[test_case("function *a(b=c.#invalid){}" => false; "params invalid")]
@@ -430,11 +423,6 @@ mod generator_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).generator_declaration().bound_name().into()
     }
-
-    #[test_case("function *x() {}" => false; "typical")]
-    fn is_constant_declaration(src: &str) -> bool {
-        Maker::new(src).generator_declaration().is_constant_declaration()
-    }
 }
 
 // GENERATOR EXPRESSION
@@ -461,7 +449,6 @@ fn generator_expression_test_01() {
         ],
     );
     assert_ne!(format!("{node:?}"), "");
-    assert!(node.is_function_definition());
 }
 #[test]
 fn generator_expression_test_02() {
@@ -474,7 +461,6 @@ fn generator_expression_test_02() {
         &["Keyword: function", "Punctuator: *", "Punctuator: (", "Punctuator: )", "Punctuator: {", "Punctuator: }"],
     );
     assert_ne!(format!("{node:?}"), "");
-    assert!(node.is_function_definition());
 }
 #[test]
 fn generator_expression_test_03() {
@@ -557,11 +543,6 @@ fn generator_expression_test_conciseerrors_2() {
     )
     .unwrap();
     concise_error_validate(&*item);
-}
-#[test]
-fn generator_expression_test_contains_01() {
-    let (item, _) = GeneratorExpression::parse(&mut newparser("function * a(x=0) {0;}"), Scanner::new()).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("function *a(b=c.#valid){}" => true; "params valid")]
 #[test_case("function *a(){b.#valid;}" => true; "body valid")]

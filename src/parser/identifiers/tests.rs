@@ -1,4 +1,3 @@
-#![expect(clippy::bool_assert_comparison)]
 use super::testhelp::*;
 use super::*;
 use crate::prettyprint::pp_testhelp::*;
@@ -395,7 +394,6 @@ fn identifier_reference_test_simple_success() {
     let idref = idref_create("identifier");
     assert!(matches!(*idref, IdentifierReference::Identifier { .. }));
     assert_eq!(idref.string_value(), "identifier");
-    assert_eq!(idref.contains(ParseNodeKind::Super), false);
     pretty_check(&*idref, "IdentifierReference: identifier", &["Identifier: identifier"]);
     concise_check(&*idref, "IdentifierName: identifier", &[]);
 }
@@ -404,7 +402,6 @@ fn identifier_reference_test_yield() {
     let idref = idref_create("yield");
     assert!(matches!(*idref, IdentifierReference::Yield { .. }));
     assert_eq!(idref.string_value(), "yield");
-    assert_eq!(idref.contains(ParseNodeKind::Super), false);
     pretty_check(&*idref, "IdentifierReference: yield", &[]);
     concise_check(&*idref, "Keyword: yield", &[]);
 }
@@ -418,7 +415,6 @@ fn identifier_reference_test_await() {
     let idref = idref_create("await");
     assert!(matches!(*idref, IdentifierReference::Await { .. }));
     assert_eq!(idref.string_value(), "await");
-    assert_eq!(idref.contains(ParseNodeKind::Super), false);
     pretty_check(&*idref, "IdentifierReference: await", &[]);
     concise_check(&*idref, "Keyword: await", &[]);
 }
@@ -623,7 +619,6 @@ fn bid_allflags(text: &str) {
             };
             assert!((yield_flag && yflag) || (!yield_flag && !yflag));
             assert!((await_flag && aflag) || (!await_flag && !aflag));
-            assert_eq!(bid.contains(ParseNodeKind::Super), false);
         }
     }
 }
@@ -886,7 +881,6 @@ fn label_identifier_test_normal_noyield_noawait() {
     chk_scan(&scanner, 2);
     assert!(matches!(*lid, LabelIdentifier::Identifier { .. }));
     assert_eq!(lid.string_value(), "id");
-    assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: id", &["Identifier: id"]);
     concise_check(&*lid, "IdentifierName: id", &[]);
     assert_ne!(format!("{lid:?}"), "");
@@ -897,7 +891,6 @@ fn label_identifier_test_normal_yield_noawait() {
     chk_scan(&scanner, 2);
     assert!(matches!(*lid, LabelIdentifier::Identifier { .. }));
     assert_eq!(lid.string_value(), "id");
-    assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: id", &["Identifier: id"]);
     concise_check(&*lid, "IdentifierName: id", &[]);
     assert_ne!(format!("{lid:?}"), "");
@@ -908,7 +901,6 @@ fn label_identifier_test_normal_noyield_await() {
     chk_scan(&scanner, 2);
     assert!(matches!(*lid, LabelIdentifier::Identifier { .. }));
     assert_eq!(lid.string_value(), "id");
-    assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: id", &["Identifier: id"]);
     concise_check(&*lid, "IdentifierName: id", &[]);
     assert_ne!(format!("{lid:?}"), "");
@@ -919,7 +911,6 @@ fn label_identifier_test_normal_yield_await() {
     chk_scan(&scanner, 2);
     assert!(matches!(*lid, LabelIdentifier::Identifier { .. }));
     assert_eq!(lid.string_value(), "id");
-    assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: id", &["Identifier: id"]);
     concise_check(&*lid, "IdentifierName: id", &[]);
     assert_ne!(format!("{lid:?}"), "");
@@ -930,7 +921,6 @@ fn label_identifier_test_yield_noyield_noawait() {
     chk_scan(&scanner, 5);
     assert!(matches!(*lid, LabelIdentifier::Yield { .. }));
     assert_eq!(lid.string_value(), "yield");
-    assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: yield", &[]);
     concise_check(&*lid, "Keyword: yield", &[]);
     assert_ne!(format!("{lid:?}"), "");
@@ -949,7 +939,6 @@ fn label_identifier_test_yield_noyield_await() {
     chk_scan(&scanner, 5);
     assert!(matches!(*lid, LabelIdentifier::Yield { .. }));
     assert_eq!(lid.string_value(), "yield");
-    assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: yield", &[]);
     concise_check(&*lid, "Keyword: yield", &[]);
     assert_ne!(format!("{lid:?}"), "");
@@ -968,7 +957,6 @@ fn label_identifier_test_await_noyield_noawait() {
     chk_scan(&scanner, 5);
     assert!(matches!(*lid, LabelIdentifier::Await { .. }));
     assert_eq!(lid.string_value(), "await");
-    assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: await", &[]);
     concise_check(&*lid, "Keyword: await", &[]);
     assert_ne!(format!("{lid:?}"), "");
@@ -979,7 +967,6 @@ fn label_identifier_test_await_yield_noawait() {
     chk_scan(&scanner, 5);
     assert!(matches!(*lid, LabelIdentifier::Await { .. }));
     assert_eq!(lid.string_value(), "await");
-    assert_eq!(lid.contains(ParseNodeKind::Super), false);
     pretty_check(&*lid, "LabelIdentifier: await", &[]);
     concise_check(&*lid, "Keyword: await", &[]);
     assert_ne!(format!("{lid:?}"), "");

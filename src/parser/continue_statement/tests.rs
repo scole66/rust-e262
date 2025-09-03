@@ -1,4 +1,3 @@
-#![expect(clippy::bool_assert_comparison)]
 use super::testhelp::*;
 use super::*;
 use crate::prettyprint::pp_testhelp::*;
@@ -98,16 +97,6 @@ fn continue_statement_test_conciseerrors_1() {
 fn continue_statement_test_conciseerrors_2() {
     let (item, _) = ContinueStatement::parse(&mut newparser("continue label;"), Scanner::new(), false, false).unwrap();
     concise_error_validate(&*item);
-}
-#[test]
-fn continue_statement_test_contains_01() {
-    let (item, _) = ContinueStatement::parse(&mut newparser("continue label;"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn continue_statement_test_contains_02() {
-    let (item, _) = ContinueStatement::parse(&mut newparser("continue;"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("continue x;" => (false, true); "continue x;")]
 #[test_case("continue;" => (false, false); "continue;")]

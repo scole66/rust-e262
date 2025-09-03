@@ -1,6 +1,6 @@
 use super::*;
 
-pub struct ParameterMap {
+pub(crate) struct ParameterMap {
     env: Rc<dyn EnvironmentRecord>,
     properties: Vec<Option<JSString>>,
 }
@@ -15,11 +15,11 @@ impl std::fmt::Debug for ParameterMap {
 }
 
 impl ParameterMap {
-    pub fn new(env: Rc<dyn EnvironmentRecord>) -> Self {
+    pub(crate) fn new(env: Rc<dyn EnvironmentRecord>) -> Self {
         ParameterMap { env, properties: Vec::new() }
     }
 
-    pub fn add_mapped_name(&mut self, name: JSString, loc: usize) {
+    pub(crate) fn add_mapped_name(&mut self, name: JSString, loc: usize) {
         if self.properties.len() <= loc {
             self.properties.resize_with(loc + 1, Default::default);
         }
@@ -35,29 +35,29 @@ impl ParameterMap {
         None
     }
 
-    pub fn to_index(&self, key: &PropertyKey) -> Option<usize> {
+    pub(crate) fn to_index(&self, key: &PropertyKey) -> Option<usize> {
         ParameterMap::idx_from_key(key).filter(|&idx| idx < self.properties.len() && self.properties[idx].is_some())
     }
 
-    pub fn delete(&mut self, idx: usize) {
+    pub(crate) fn delete(&mut self, idx: usize) {
         self.properties[idx] = None;
     }
 
-    pub fn get(&self, idx: usize) -> Completion<ECMAScriptValue> {
+    pub(crate) fn get(&self, idx: usize) -> Completion<ECMAScriptValue> {
         let name = self.properties[idx].as_ref().expect("Get only used on existing values");
         self.env.get_binding_value(name, false)
     }
 
-    pub fn set(&self, idx: usize, value: ECMAScriptValue) -> Completion<()> {
+    pub(crate) fn set(&self, idx: usize, value: ECMAScriptValue) -> Completion<()> {
         let name = self.properties[idx].as_ref().expect("Set only used on existing values").clone();
         self.env.set_mutable_binding(name, value, false)
     }
 }
 
 #[derive(Debug)]
-pub struct ArgumentsObject {
+pub(crate) struct ArgumentsObject {
     common: RefCell<CommonObjectData>,
-    pub parameter_map: Option<RefCell<ParameterMap>>,
+    pub(crate) parameter_map: Option<RefCell<ParameterMap>>,
 }
 
 impl<'a> From<&'a ArgumentsObject> for &'a dyn ObjectInterface {
@@ -332,12 +332,12 @@ impl ObjectInterface for ArgumentsObject {
 }
 
 impl ArgumentsObject {
-    pub fn object(parameter_map: Option<ParameterMap>) -> Object {
+    pub(crate) fn object(parameter_map: Option<ParameterMap>) -> Object {
         let prototype = Some(intrinsic(IntrinsicId::ObjectPrototype));
         Object { o: Rc::new(Self::new(prototype, parameter_map)) }
     }
 
-    pub fn new(prototype: Option<Object>, parameter_map: Option<ParameterMap>) -> Self {
+    pub(crate) fn new(prototype: Option<Object>, parameter_map: Option<ParameterMap>) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(prototype, true, ARGUMENTS_OBJECT_SLOTS)),
             parameter_map: parameter_map.map(RefCell::new),

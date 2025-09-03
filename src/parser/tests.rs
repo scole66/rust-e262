@@ -54,7 +54,7 @@ impl From<(u32, u32, u32)> for Location {
 }
 
 impl ParseError {
-    pub fn unpack(&self, loc: impl Into<Location>) -> (PECode, i32) {
+    pub(crate) fn unpack(&self, loc: impl Into<Location>) -> (PECode, i32) {
         let expected_loc = loc.into();
         let spot = i32::try_from(self.location.starting_column).expect("columns should be smaller than 2 billion")
             - i32::try_from(expected_loc.starting_column).expect("columns should be smaller than 2 billion");
@@ -224,17 +224,6 @@ fn in_yield_await_key_01() {
     assert_ne!(format!("{left:?}"), "");
 }
 #[test]
-fn in_key_01() {
-    let left = InKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true };
-    let right = left.clone();
-    let third = InKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, in_flag: true };
-    assert_eq!(left.eq(&right), true);
-    assert_eq!(left.ne(&third), true);
-    assert_ne!(calculate_hash(&left), calculate_hash(&third));
-    assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    assert_ne!(format!("{left:?}"), "");
-}
-#[test]
 fn in_await_key_01() {
     let left =
         InAwaitKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, in_flag: true, await_flag: false };
@@ -262,17 +251,6 @@ fn yield_await_return_key_01() {
         await_flag: false,
         return_flag: true,
     };
-    assert_eq!(left.eq(&right), true);
-    assert_eq!(left.ne(&third), true);
-    assert_ne!(calculate_hash(&left), calculate_hash(&third));
-    assert_eq!(calculate_hash(&left), calculate_hash(&right));
-    assert_ne!(format!("{left:?}"), "");
-}
-#[test]
-fn yield_key_01() {
-    let left = YieldKey { scanner: Scanner { line: 10, column: 12, start_idx: 11 }, yield_flag: true };
-    let right = left.clone();
-    let third = YieldKey { scanner: Scanner { line: 10, column: 22, start_idx: 11 }, yield_flag: true };
     assert_eq!(left.eq(&right), true);
     assert_eq!(left.ne(&third), true);
     assert_ne!(calculate_hash(&left), calculate_hash(&third));
@@ -340,9 +318,7 @@ fn parser_01() {
     assert!(p.label_identifier_cache.is_empty());
     assert!(p.lexical_declaration_cache.is_empty());
     assert!(p.lhs_cache.is_empty());
-    assert!(p.lpn_cache.is_empty());
     assert!(p.member_expression_cache.is_empty());
-    assert!(p.meta_property_cache.is_empty());
     assert!(p.method_definition_cache.is_empty());
     assert!(p.property_name_cache.is_empty());
     assert!(p.single_name_binding_cache.is_empty());
@@ -411,7 +387,7 @@ fn attkind_01() {
 
 #[test]
 fn scan_for_punct_01() {
-    let res = scan_for_punct(Scanner::new(), ";;;;;", ScanGoal::InputElementDiv, Punctuator::Semicolon);
+    let res = scan_for_punct(Scanner::new(), ";;;;;", InputElementGoal::Div, Punctuator::Semicolon);
     assert!(res.is_ok());
     if let Ok((location, scanner)) = res {
         assert_eq!(scanner, Scanner { line: 1, column: 2, start_idx: 1 });
@@ -423,7 +399,7 @@ fn scan_for_punct_01() {
 }
 #[test]
 fn scan_for_punct_02() {
-    let res = scan_for_punct(Scanner::new(), ";;;;;", ScanGoal::InputElementDiv, Punctuator::LeftParen);
+    let res = scan_for_punct(Scanner::new(), ";;;;;", InputElementGoal::Div, Punctuator::LeftParen);
     assert!(res.is_err());
     if let Err(pe) = res {
         assert_eq!(pe, ParseError::new(PECode::PunctuatorExpected(Punctuator::LeftParen), ";"));
@@ -436,7 +412,7 @@ fn scan_for_punct_set_01() {
     let res = scan_for_punct_set(
         Scanner::new(),
         ";;;;;",
-        ScanGoal::InputElementDiv,
+        InputElementGoal::Div,
         &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon],
     );
     assert!(res.is_ok());
@@ -455,7 +431,7 @@ fn scan_for_punct_set_02() {
     let res = scan_for_punct_set(
         Scanner::new(),
         ":::::",
-        ScanGoal::InputElementDiv,
+        InputElementGoal::Div,
         &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon],
     );
     assert!(res.is_ok());
@@ -474,7 +450,7 @@ fn scan_for_punct_set_03() {
     let res = scan_for_punct_set(
         Scanner::new(),
         "[[[[[",
-        ScanGoal::InputElementDiv,
+        InputElementGoal::Div,
         &[Punctuator::Colon, Punctuator::LeftBracket, Punctuator::Semicolon],
     );
     assert!(res.is_ok());
@@ -493,7 +469,7 @@ fn scan_for_punct_set_04() {
     let pe = scan_for_punct_set(
         Scanner::new(),
         "&&&&&",
-        ScanGoal::InputElementDiv,
+        InputElementGoal::Div,
         &[Punctuator::Colon, Punctuator::Eq, Punctuator::Semicolon],
     )
     .unwrap_err();
@@ -508,7 +484,7 @@ fn scan_for_punct_set_04() {
 
 #[test]
 fn scan_for_auto_semi_01() {
-    let (location, res) = scan_for_auto_semi(Scanner::new(), "", ScanGoal::InputElementDiv).unwrap();
+    let (location, res) = scan_for_auto_semi(Scanner::new(), "", InputElementGoal::Div).unwrap();
     assert_eq!(res, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(
         location,
@@ -517,7 +493,7 @@ fn scan_for_auto_semi_01() {
 }
 #[test]
 fn scan_for_auto_semi_02() {
-    let (location, res) = scan_for_auto_semi(Scanner::new(), ";", ScanGoal::InputElementDiv).unwrap();
+    let (location, res) = scan_for_auto_semi(Scanner::new(), ";", InputElementGoal::Div).unwrap();
     assert_eq!(res, Scanner { line: 1, column: 2, start_idx: 1 });
     assert_eq!(
         location,
@@ -526,7 +502,7 @@ fn scan_for_auto_semi_02() {
 }
 #[test]
 fn scan_for_auto_semi_03() {
-    let (location, res) = scan_for_auto_semi(Scanner::new(), "}", ScanGoal::InputElementDiv).unwrap();
+    let (location, res) = scan_for_auto_semi(Scanner::new(), "}", InputElementGoal::Div).unwrap();
     assert_eq!(res, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(
         location,
@@ -535,7 +511,7 @@ fn scan_for_auto_semi_03() {
 }
 #[test]
 fn scan_for_auto_semi_04() {
-    let (location, res) = scan_for_auto_semi(Scanner::new(), "\n0", ScanGoal::InputElementDiv).unwrap();
+    let (location, res) = scan_for_auto_semi(Scanner::new(), "\n0", InputElementGoal::Div).unwrap();
     assert_eq!(res, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(
         location,
@@ -545,20 +521,20 @@ fn scan_for_auto_semi_04() {
 #[test]
 fn scan_for_auto_semi_05() {
     let probe = "0";
-    let err = scan_for_auto_semi(Scanner::new(), probe, ScanGoal::InputElementDiv).unwrap_err();
+    let err = scan_for_auto_semi(Scanner::new(), probe, InputElementGoal::Div).unwrap_err();
     assert_eq!(err, ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), probe));
 }
 #[test]
 fn scan_for_auto_semi_06() {
     let probe = "'\\\n0'";
-    let err = scan_for_auto_semi(Scanner::new(), probe, ScanGoal::InputElementDiv).unwrap_err();
+    let err = scan_for_auto_semi(Scanner::new(), probe, InputElementGoal::Div).unwrap_err();
     assert_eq!(err, ParseError::new(PECode::PunctuatorExpected(Punctuator::Semicolon), probe));
 }
 
 #[test]
 fn scan_for_keyword_01() {
     let (location, scanner) =
-        scan_for_keyword(Scanner::new(), "class bob", ScanGoal::InputElementDiv, Keyword::Class).unwrap();
+        scan_for_keyword(Scanner::new(), "class bob", InputElementGoal::Div, Keyword::Class).unwrap();
     assert_eq!(scanner, Scanner { line: 1, column: 6, start_idx: 5 });
     assert_eq!(
         location,
@@ -567,7 +543,7 @@ fn scan_for_keyword_01() {
 }
 #[test]
 fn scan_for_keyword_02() {
-    let res = scan_for_keyword(Scanner::new(), "class bob", ScanGoal::InputElementDiv, Keyword::For).unwrap_err();
+    let res = scan_for_keyword(Scanner::new(), "class bob", InputElementGoal::Div, Keyword::For).unwrap_err();
     assert_eq!(res, ParseError::new(PECode::KeywordExpected(Keyword::For), "class"));
 }
 
@@ -577,7 +553,7 @@ fn scan_for_keywords_01() {
     let (kwd, location, scan) = scan_for_keywords(
         Scanner::new(),
         "for (;;)",
-        ScanGoal::InputElementDiv,
+        InputElementGoal::Div,
         &[Keyword::For, Keyword::Class, Keyword::Break],
     )
     .unwrap();
@@ -594,7 +570,7 @@ fn scan_for_keywords_02() {
     let res = scan_for_keywords(
         Scanner::new(),
         "break;",
-        ScanGoal::InputElementDiv,
+        InputElementGoal::Div,
         &[Keyword::For, Keyword::Class, Keyword::Break],
     );
     assert!(res.is_ok());
@@ -613,7 +589,7 @@ fn scan_for_keywords_03() {
     let res = scan_for_keywords(
         Scanner::new(),
         "class Transcendant",
-        ScanGoal::InputElementDiv,
+        InputElementGoal::Div,
         &[Keyword::For, Keyword::Class, Keyword::Break],
     );
     assert!(res.is_ok());
@@ -632,7 +608,7 @@ fn scan_for_keywords_04() {
     let res = scan_for_keywords(
         Scanner::new(),
         "import food",
-        ScanGoal::InputElementDiv,
+        InputElementGoal::Div,
         &[Keyword::For, Keyword::Class, Keyword::Break],
     )
     .unwrap_err();
@@ -647,7 +623,7 @@ fn scan_for_keywords_04() {
 
 #[test]
 fn scan_for_identifiername_01() {
-    let (id, location, after) = scan_for_identifiername(Scanner::new(), "rust", ScanGoal::InputElementDiv).unwrap();
+    let (id, location, after) = scan_for_identifiername(Scanner::new(), "rust", InputElementGoal::Div).unwrap();
     assert_eq!(after, Scanner { line: 1, column: 5, start_idx: 4 });
     assert_eq!(id, IdentifierData { string_value: JSString::from("rust"), keyword_id: None });
     assert_eq!(
@@ -657,14 +633,13 @@ fn scan_for_identifiername_01() {
 }
 #[test]
 fn scan_for_identifiername_02() {
-    let pe = scan_for_identifiername(Scanner::new(), "!!!!", ScanGoal::InputElementDiv).unwrap_err();
-    assert_eq!(pe, ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IdentifierName), "!"));
+    let pe = scan_for_identifiername(Scanner::new(), "!!!!", InputElementGoal::Div).unwrap_err();
+    assert_eq!(pe, ParseError::new(PECode::IdentifierNameExpected, "!"));
 }
 
 #[test]
 fn scan_for_private_identifier_01() {
-    let (id, location, after) =
-        scan_for_private_identifier(Scanner::new(), "#rust", ScanGoal::InputElementDiv).unwrap();
+    let (id, location, after) = scan_for_private_identifier(Scanner::new(), "#rust", InputElementGoal::Div).unwrap();
     assert_eq!(after, Scanner { line: 1, column: 6, start_idx: 5 });
     assert_eq!(id, IdentifierData { string_value: JSString::from("#rust"), keyword_id: None });
     assert_eq!(
@@ -674,7 +649,7 @@ fn scan_for_private_identifier_01() {
 }
 #[test]
 fn scan_for_private_identifier_02() {
-    let pe = scan_for_private_identifier(Scanner::new(), "!!!!", ScanGoal::InputElementDiv).unwrap_err();
+    let pe = scan_for_private_identifier(Scanner::new(), "!!!!", InputElementGoal::Div).unwrap_err();
     assert_eq!(pe, ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrivateIdentifier), "!"));
 }
 
@@ -770,7 +745,6 @@ mod parse_node_kind {
     #[test_case(ParseNodeKind::ExpressionStatement => "ExpressionStatement"; "ExpressionStatement")]
     #[test_case(ParseNodeKind::ForBinding => "ForBinding"; "ForBinding")]
     #[test_case(ParseNodeKind::HoistableDeclaration => "HoistableDeclaration"; "HoistableDeclaration")]
-    #[test_case(ParseNodeKind::IdentifierName => "IdentifierName"; "IdentifierName")]
     #[test_case(ParseNodeKind::IfStatement => "IfStatement"; "IfStatement")]
     #[test_case(ParseNodeKind::IterationStatement => "IterationStatement"; "IterationStatement")]
     #[test_case(ParseNodeKind::LabelledItem => "LabelledItem"; "LabelledItem")]
@@ -1245,71 +1219,71 @@ mod parsed_text {
             ParsedText::AssignmentRestElement(node) => format!("AssignmentRestElement({node})"),
             ParsedText::AssignmentRestProperty(node) => format!("AssignmentRestProperty({node})"),
             ParsedText::AsyncArrowBindingIdentifier(node) => format!("AsyncArrowBindingIdentifier({node})"),
-            ParsedText::AsyncArrowFunction(node) => format!("AsyncArrowFunction({node})"),
-            ParsedText::AsyncArrowHead(node) => format!("AsyncArrowHead({node})"),
-            ParsedText::AsyncConciseBody(node) => format!("AsyncConciseBody({node})"),
+            //ParsedText::AsyncArrowFunction(node) => format!("AsyncArrowFunction({node})"),
+            //ParsedText::AsyncArrowHead(node) => format!("AsyncArrowHead({node})"),
+            //ParsedText::AsyncConciseBody(node) => format!("AsyncConciseBody({node})"),
             ParsedText::AsyncFunctionBody(node) => format!("AsyncFunctionBody({node})"),
             ParsedText::AsyncFunctionDeclaration(node) => format!("AsyncFunctionDeclaration({node})"),
             ParsedText::AsyncFunctionExpression(node) => format!("AsyncFunctionExpression({node})"),
             ParsedText::AsyncGeneratorBody(node) => format!("AsyncGeneratorBody({node})"),
             ParsedText::AsyncGeneratorDeclaration(node) => format!("AsyncGeneratorDeclaration({node})"),
             ParsedText::AsyncGeneratorExpression(node) => format!("AsyncGeneratorExpression({node})"),
-            ParsedText::AsyncGeneratorMethod(node) => format!("AsyncGeneratorMethod({node})"),
-            ParsedText::AsyncMethod(node) => format!("AsyncMethod({node})"),
-            ParsedText::AwaitExpression(node) => format!("AwaitExpression({node})"),
+            //ParsedText::AsyncGeneratorMethod(node) => format!("AsyncGeneratorMethod({node})"),
+            //ParsedText::AsyncMethod(node) => format!("AsyncMethod({node})"),
+            //ParsedText::AwaitExpression(node) => format!("AwaitExpression({node})"),
             ParsedText::BindingElement(node) => format!("BindingElement({node})"),
             ParsedText::BindingElementList(node) => format!("BindingElementList({node})"),
             ParsedText::BindingElisionElement(node) => format!("BindingElisionElement({node})"),
-            ParsedText::BindingIdentifier(node) => format!("BindingIdentifier({node})"),
+            //ParsedText::BindingIdentifier(node) => format!("BindingIdentifier({node})"),
             ParsedText::BindingList(node) => format!("BindingList({node})"),
             ParsedText::BindingPattern(node) => format!("BindingPattern({node})"),
             ParsedText::BindingProperty(node) => format!("BindingProperty({node})"),
             ParsedText::BindingPropertyList(node) => format!("BindingPropertyList({node})"),
             ParsedText::BindingRestElement(node) => format!("BindingRestElement({node})"),
-            ParsedText::BindingRestProperty(node) => format!("BindingRestProperty({node})"),
+            //ParsedText::BindingRestProperty(node) => format!("BindingRestProperty({node})"),
             ParsedText::BitwiseANDExpression(node) => format!("BitwiseANDExpression({node})"),
             ParsedText::BitwiseORExpression(node) => format!("BitwiseORExpression({node})"),
             ParsedText::BitwiseXORExpression(node) => format!("BitwiseXORExpression({node})"),
             ParsedText::Block(node) => format!("Block({node})"),
             ParsedText::BlockStatement(node) => format!("BlockStatement({node})"),
             ParsedText::BreakableStatement(node) => format!("BreakableStatement({node})"),
-            ParsedText::BreakStatement(node) => format!("BreakStatement({node})"),
+            //ParsedText::BreakStatement(node) => format!("BreakStatement({node})"),
             ParsedText::CallExpression(node) => format!("CallExpression({node})"),
             ParsedText::CallMemberExpression(node) => format!("CallMemberExpression({node})"),
             ParsedText::CaseBlock(node) => format!("CaseBlock({node})"),
             ParsedText::CaseClause(node) => format!("CaseClause({node})"),
-            ParsedText::CaseClauses(node) => format!("CaseClauses({node})"),
+            //ParsedText::CaseClauses(node) => format!("CaseClauses({node})"),
             ParsedText::Catch(node) => format!("Catch({node})"),
             ParsedText::CatchParameter(node) => format!("CatchParameter({node})"),
-            ParsedText::ClassBody(node) => format!("ClassBody({node})"),
+            //ParsedText::ClassBody(node) => format!("ClassBody({node})"),
             ParsedText::ClassDeclaration(node) => format!("ClassDeclaration({node})"),
-            ParsedText::ClassElement(node) => format!("ClassElement({node})"),
-            ParsedText::ClassElementList(node) => format!("ClassElementList({node})"),
+            //ParsedText::ClassElement(node) => format!("ClassElement({node})"),
+            //ParsedText::ClassElementList(node) => format!("ClassElementList({node})"),
             ParsedText::ClassElementName(node) => format!("ClassElementName({node})"),
-            ParsedText::ClassExpression(node) => format!("ClassExpression({node})"),
-            ParsedText::ClassHeritage(node) => format!("ClassHeritage({node})"),
-            ParsedText::ClassStaticBlock(node) => format!("ClassStaticBlock({node})"),
+            //ParsedText::ClassExpression(node) => format!("ClassExpression({node})"),
+            //ParsedText::ClassHeritage(node) => format!("ClassHeritage({node})"),
+            //ParsedText::ClassStaticBlock(node) => format!("ClassStaticBlock({node})"),
             ParsedText::ClassStaticBlockBody(node) => format!("ClassStaticBlockBody({node})"),
             ParsedText::ClassStaticBlockStatementList(node) => format!("ClassStaticBlockStatementList({node})"),
-            ParsedText::ClassTail(node) => format!("ClassTail({node})"),
+            //ParsedText::ClassTail(node) => format!("ClassTail({node})"),
             ParsedText::CoalesceExpression(node) => format!("CoalesceExpression({node})"),
             ParsedText::CoalesceExpressionHead(node) => format!("CoalesceExpressionHead({node})"),
             ParsedText::ComputedPropertyName(node) => format!("ComputedPropertyName({node})"),
-            ParsedText::ConciseBody(node) => format!("ConciseBody({node})"),
+            //ParsedText::ConciseBody(node) => format!("ConciseBody({node})"),
             ParsedText::ConditionalExpression(node) => format!("ConditionalExpression({node})"),
-            ParsedText::ContinueStatement(node) => format!("ContinueStatement({node})"),
-            ParsedText::CoverInitializedName(node) => format!("CoverInitializedName({node})"),
-            ParsedText::CoverParenthesizedExpressionAndArrowParameterList(node) => {
-                format!("CoverParenthesizedExpressionAndArrowParameterList({node})")
-            }
-            ParsedText::DebuggerStatement(node) => format!("DebuggerStatement({node})"),
+            //ParsedText::ContinueStatement(node) => format!("ContinueStatement({node})"),
+            //ParsedText::CoverInitializedName(node) => format!("CoverInitializedName({node})"),
+            //ParsedText::CoverParenthesizedExpressionAndArrowParameterList(node) => {
+            //    format!("CoverParenthesizedExpressionAndArrowParameterList({node})")
+            //}
+            //ParsedText::DebuggerStatement(node) => format!("DebuggerStatement({node})"),
             ParsedText::Declaration(node) => format!("Declaration({node})"),
             ParsedText::DefaultClause(node) => format!("DefaultClause({node})"),
             ParsedText::DestructuringAssignmentTarget(node) => format!("DestructuringAssignmentTarget({node})"),
             ParsedText::DoWhileStatement(node) => format!("DoWhileStatement({node})"),
             ParsedText::ElementList(node) => format!("ElementList({node})"),
-            ParsedText::Elisions(node) => format!("Elisions({node})"),
-            ParsedText::EmptyStatement(node) => format!("EmptyStatement({node})"),
+            //ParsedText::Elisions(node) => format!("Elisions({node})"),
+            //ParsedText::EmptyStatement(node) => format!("EmptyStatement({node})"),
             ParsedText::EqualityExpression(node) => format!("EqualityExpression({node})"),
             ParsedText::ExponentiationExpression(node) => format!("ExponentiationExpression({node})"),
             ParsedText::Expression(node) => format!("Expression({node})"),
@@ -1332,7 +1306,7 @@ mod parsed_text {
             ParsedText::GeneratorBody(node) => format!("GeneratorBody({node})"),
             ParsedText::GeneratorDeclaration(node) => format!("GeneratorDeclaration({node})"),
             ParsedText::GeneratorExpression(node) => format!("GeneratorExpression({node})"),
-            ParsedText::GeneratorMethod(node) => format!("GeneratorMethod({node})"),
+            //ParsedText::GeneratorMethod(node) => format!("GeneratorMethod({node})"),
             ParsedText::IfStatement(node) => format!("IfStatement({node})"),
             ParsedText::Initializer(node) => format!("Initializer({node})"),
             ParsedText::IterationStatement(node) => format!("IterationStatement({node})"),
@@ -1341,12 +1315,12 @@ mod parsed_text {
             ParsedText::LeftHandSideExpression(node) => format!("LeftHandSideExpression({node})"),
             ParsedText::LexicalBinding(node) => format!("LexicalBinding({node})"),
             ParsedText::LexicalDeclaration(node) => format!("LexicalDeclaration({node})"),
-            ParsedText::Literal(node) => format!("Literal({node})"),
-            ParsedText::LiteralPropertyName(node) => format!("LiteralPropertyName({node})"),
+            //ParsedText::Literal(node) => format!("Literal({node})"),
+            //ParsedText::LiteralPropertyName(node) => format!("LiteralPropertyName({node})"),
             ParsedText::LogicalANDExpression(node) => format!("LogicalANDExpression({node})"),
             ParsedText::LogicalORExpression(node) => format!("LogicalORExpression({node})"),
             ParsedText::MemberExpression(node) => format!("MemberExpression({node})"),
-            ParsedText::MetaProperty(node) => format!("MetaProperty({node})"),
+            //ParsedText::MetaProperty(node) => format!("MetaProperty({node})"),
             ParsedText::MethodDefinition(node) => format!("MethodDefinition({node})"),
             ParsedText::MultiplicativeExpression(node) => format!("MultiplicativeExpression({node})"),
             ParsedText::NewExpression(node) => format!("NewExpression({node})"),
@@ -1360,7 +1334,7 @@ mod parsed_text {
             ParsedText::PropertyDefinition(node) => format!("PropertyDefinition({node})"),
             ParsedText::PropertyDefinitionList(node) => format!("PropertyDefinitionList({node})"),
             ParsedText::PropertyName(node) => format!("PropertyName({node})"),
-            ParsedText::PropertySetParameterList(node) => format!("PropertySetParameterList({node})"),
+            //ParsedText::PropertySetParameterList(node) => format!("PropertySetParameterList({node})"),
             ParsedText::RelationalExpression(node) => format!("RelationalExpression({node})"),
             ParsedText::ReturnStatement(node) => format!("ReturnStatement({node})"),
             ParsedText::Script(node) => format!("Script({node})"),
@@ -1373,8 +1347,8 @@ mod parsed_text {
             ParsedText::StatementList(node) => format!("StatementList({node})"),
             ParsedText::StatementListItem(node) => format!("StatementListItem({node})"),
             ParsedText::SubstitutionTemplate(node) => format!("SubstitutionTemplate({node})"),
-            ParsedText::SuperCall(node) => format!("SuperCall({node})"),
-            ParsedText::SuperProperty(node) => format!("SuperProperty({node})"),
+            //ParsedText::SuperCall(node) => format!("SuperCall({node})"),
+            //ParsedText::SuperProperty(node) => format!("SuperProperty({node})"),
             ParsedText::SwitchStatement(node) => format!("SwitchStatement({node})"),
             ParsedText::TemplateLiteral(node) => format!("TemplateLiteral({node})"),
             ParsedText::TemplateMiddleList(node) => format!("TemplateMiddleList({node})"),
@@ -1388,8 +1362,8 @@ mod parsed_text {
             ParsedText::VariableDeclarationList(node) => format!("VariableDeclarationList({node})"),
             ParsedText::VariableStatement(node) => format!("VariableStatement({node})"),
             ParsedText::WhileStatement(node) => format!("WhileStatement({node})"),
-            ParsedText::WithStatement(node) => format!("WithStatement({node})"),
-            ParsedText::YieldExpression(node) => format!("YieldExpression({node})"),
+            //ParsedText::WithStatement(node) => format!("WithStatement({node})"),
+            //ParsedText::YieldExpression(node) => format!("YieldExpression({node})"),
         }
     }
 }

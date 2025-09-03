@@ -6,7 +6,7 @@ use std::io::Write;
 // AsyncGeneratorMethod[Yield, Await] :
 //      async [no LineTerminator here] * ClassElementName[?Yield, ?Await] ( UniqueFormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
-pub struct AsyncGeneratorMethod {
+pub(crate) struct AsyncGeneratorMethod {
     name: Rc<ClassElementName>,
     params: Rc<UniqueFormalParameters>,
     body: Rc<AsyncGeneratorBody>,
@@ -59,44 +59,48 @@ impl PrettyPrint for AsyncGeneratorMethod {
 
 impl AsyncGeneratorMethod {
     // AsyncGeneratorMethod: No caching needed. Parent: MethodDefinition
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (async_loc, after_async) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
-        let (_, after_star) = scan_for_punct(after_async, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Async)?;
+        let (_, after_star) = scan_for_punct(after_async, parser.source, InputElementGoal::Div, Punctuator::Star)?;
         let (name, after_name) = ClassElementName::parse(parser, after_star, yield_flag, await_flag)?;
-        let (_, after_lp) =
-            scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_name, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, true, true);
-        let (_, after_rp) =
-            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_params, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
-            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+            scan_for_punct(after_body, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
         let location = async_loc.merge(&rb_loc);
         Ok((Rc::new(AsyncGeneratorMethod { name, params, body, location }), after_rb))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    #[cfg(test)]
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.name.contains(kind) || self.params.contains(kind) || self.body.contains(kind)
     }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         self.name.computed_property_contains(kind)
     }
 
-    pub fn private_bound_identifier(&self) -> Option<JSString> {
+    pub(crate) fn private_bound_identifier(&self) -> Option<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
         // AsyncGeneratorMethod : async ClassElementName ( UniqueFormalParameters ) { AsyncGeneratorBody }
         //  1. Return PrivateBoundIdentifiers of ClassElementName.
         self.name.private_bound_identifier()
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -112,14 +116,14 @@ impl AsyncGeneratorMethod {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. Return ContainsArguments of ClassElementName.
         self.name.contains_arguments()
     }
 
-    pub fn has_direct_super(&self) -> bool {
+    pub(crate) fn has_direct_super(&self) -> bool {
         // Static Semantics: HasDirectSuper
         //      The syntax-directed operation HasDirectSuper takes no arguments.
         // AsyncGeneratorMethod : async * ClassElementName ( UniqueFormalParameters ) { AsyncGeneratorBody }
@@ -138,7 +142,7 @@ impl AsyncGeneratorMethod {
     /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  AsyncGeneratorMethod : async * ClassElementName ( UniqueFormalParameters ) { AsyncGeneratorBody }
         //  * It is a Syntax Error if HasDirectSuper of AsyncGeneratorMethod is true.
@@ -176,7 +180,7 @@ impl AsyncGeneratorMethod {
         self.body.early_errors(errs, strict_func);
     }
 
-    pub fn prop_name(&self) -> Option<JSString> {
+    pub(crate) fn prop_name(&self) -> Option<JSString> {
         // Static Semantics: PropName
         // The syntax-directed operation PropName takes no arguments and returns a String or empty.
         //      AsyncGeneratorMethod : async * ClassElementName ( UniqueFormalParameters ) { AsyncGeneratorBody }
@@ -185,7 +189,7 @@ impl AsyncGeneratorMethod {
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }
@@ -195,7 +199,7 @@ impl AsyncGeneratorMethod {
 //      async [no LineTerminator here] function * BindingIdentifier[?Yield, ?Await] ( FormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 //      [+Default] async [no LineTerminator here] function * ( FormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
-pub struct AsyncGeneratorDeclaration {
+pub(crate) struct AsyncGeneratorDeclaration {
     ident: Option<Rc<BindingIdentifier>>,
     params: Rc<FormalParameters>,
     body: Rc<AsyncGeneratorBody>,
@@ -255,15 +259,9 @@ impl PrettyPrint for AsyncGeneratorDeclaration {
     }
 }
 
-impl IsFunctionDefinition for AsyncGeneratorDeclaration {
-    fn is_function_definition(&self) -> bool {
-        true
-    }
-}
-
 impl AsyncGeneratorDeclaration {
     // No caching needed. Parent: HoistableDeclaration
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -271,11 +269,11 @@ impl AsyncGeneratorDeclaration {
         default_flag: bool,
     ) -> ParseResult<Self> {
         let (async_loc, after_async) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
         let (_, after_func) =
-            scan_for_keyword(after_async, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let (_, after_star) = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+            scan_for_keyword(after_async, parser.source, InputElementGoal::RegExp, Keyword::Function)?;
+        let (_, after_star) = scan_for_punct(after_func, parser.source, InputElementGoal::Div, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, yield_flag, await_flag) {
             Err(err) => {
                 if default_flag {
@@ -286,37 +284,33 @@ impl AsyncGeneratorDeclaration {
             }
             Ok((node, scan)) => Ok((Some(node), scan)),
         }?;
-        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, true);
-        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
-            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+            scan_for_punct(after_body, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
         let location = async_loc.merge(&rb_loc);
         Ok((Rc::new(AsyncGeneratorDeclaration { ident, params, body, location }), after_rb))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         vec![self.bound_name()]
     }
 
-    pub fn bound_name(&self) -> JSString {
+    pub(crate) fn bound_name(&self) -> JSString {
         match &self.ident {
             None => JSString::from("*default*"),
             Some(node) => node.bound_name(),
         }
     }
 
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
-
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -336,7 +330,7 @@ impl AsyncGeneratorDeclaration {
     /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  AsyncGeneratorDeclaration :
         //      async function * BindingIdentifier ( FormalParameters ) { AsyncGeneratorBody }
@@ -376,12 +370,8 @@ impl AsyncGeneratorDeclaration {
         self.body.early_errors(errs, strict_function);
     }
 
-    pub fn is_constant_declaration(&self) -> bool {
-        false
-    }
-
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }
@@ -390,10 +380,10 @@ impl AsyncGeneratorDeclaration {
 // AsyncGeneratorExpression :
 //      async [no LineTerminator here] function * BindingIdentifier[+Yield, +Await]opt ( FormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
-pub struct AsyncGeneratorExpression {
-    pub ident: Option<Rc<BindingIdentifier>>,
-    pub params: Rc<FormalParameters>,
-    pub body: Rc<AsyncGeneratorBody>,
+pub(crate) struct AsyncGeneratorExpression {
+    pub(crate) ident: Option<Rc<BindingIdentifier>>,
+    pub(crate) params: Rc<FormalParameters>,
+    pub(crate) body: Rc<AsyncGeneratorBody>,
     location: Location,
 }
 
@@ -450,47 +440,34 @@ impl PrettyPrint for AsyncGeneratorExpression {
     }
 }
 
-impl IsFunctionDefinition for AsyncGeneratorExpression {
-    fn is_function_definition(&self) -> bool {
-        true
-    }
-}
-
 impl AsyncGeneratorExpression {
     // No caching needed. Parent: PrimaryExpression.
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (async_loc, after_async) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Async)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Async)?;
         no_line_terminator(after_async, parser.source)?;
-        let (_, after_func) =
-            scan_for_keyword(after_async, parser.source, ScanGoal::InputElementDiv, Keyword::Function)?;
-        let (_, after_star) = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+        let (_, after_func) = scan_for_keyword(after_async, parser.source, InputElementGoal::Div, Keyword::Function)?;
+        let (_, after_star) = scan_for_punct(after_func, parser.source, InputElementGoal::Div, Punctuator::Star)?;
         let (ident, after_ident) = match BindingIdentifier::parse(parser, after_star, true, true) {
             Err(_) => (None, after_star),
             Ok((node, scan)) => (Some(node), scan),
         };
-        let (_, after_lp) =
-            scan_for_punct(after_ident, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_ident, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (params, after_params) = FormalParameters::parse(parser, after_lp, true, true);
-        let (_, after_rp) =
-            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_params, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
         let (body, after_body) = AsyncGeneratorBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
-            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+            scan_for_punct(after_body, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
         let location = async_loc.merge(&rb_loc);
         Ok((Rc::new(AsyncGeneratorExpression { ident, params, body, location }), after_rb))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, _: ParseNodeKind) -> bool {
-        false
-    }
-
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -510,7 +487,7 @@ impl AsyncGeneratorExpression {
     /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  AsyncGeneratorExpression :
         //      async function * BindingIdentifier[opt] ( FormalParameters ) { AsyncGeneratorBody }
@@ -545,11 +522,11 @@ impl AsyncGeneratorExpression {
         // Don't need to check the child nodes, as function_early_errors, above, already did.
     }
 
-    pub fn is_named_function(&self) -> bool {
+    pub(crate) fn is_named_function(&self) -> bool {
         self.ident.is_some()
     }
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         todo!()
     }
 }
@@ -557,7 +534,7 @@ impl AsyncGeneratorExpression {
 // AsyncGeneratorBody :
 //      FunctionBody[+Yield, +Await]
 #[derive(Debug)]
-pub struct AsyncGeneratorBody(pub Rc<FunctionBody>);
+pub(crate) struct AsyncGeneratorBody(pub(crate) Rc<FunctionBody>);
 
 impl fmt::Display for AsyncGeneratorBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -585,12 +562,11 @@ impl PrettyPrint for AsyncGeneratorBody {
 
 impl AsyncGeneratorBody {
     fn parse_core(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
-        let (body, after_body) =
-            FunctionBody::parse(parser, scanner, true, true, FunctionBodyParent::AsyncGeneratorBody);
+        let (body, after_body) = FunctionBody::parse(parser, scanner, true, true, FunctionBodyParent::AsyncGenerator);
         (Rc::new(AsyncGeneratorBody(body)), after_body)
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
         match parser.async_generator_body_cache.get(&scanner) {
             Some(result) => result.clone(),
             None => {
@@ -601,11 +577,11 @@ impl AsyncGeneratorBody {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -625,7 +601,7 @@ impl AsyncGeneratorBody {
     /// See [Early Errors for Async Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-async-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.0.early_errors(errs, strict);
     }
 
@@ -635,32 +611,32 @@ impl AsyncGeneratorBody {
     /// of the var-declared list.
     ///
     /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.0.var_declared_names()
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.0.var_scoped_declarations()
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         self.0.lexically_declared_names()
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.0.lexically_scoped_declarations()
     }
 
-    pub fn function_body_contains_use_strict(&self) -> bool {
+    pub(crate) fn function_body_contains_use_strict(&self) -> bool {
         self.0.function_body_contains_use_strict()
     }
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    todo!()
+    //}
 }
 
 #[cfg(test)]

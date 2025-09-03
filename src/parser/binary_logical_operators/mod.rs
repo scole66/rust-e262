@@ -7,7 +7,7 @@ use std::io::Write;
 //      BitwiseORExpression[?In, ?Yield, ?Await]
 //      LogicalANDExpression[?In, ?Yield, ?Await] && BitwiseORExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum LogicalANDExpression {
+pub(crate) enum LogicalANDExpression {
     BitwiseORExpression(Rc<BitwiseORExpression>),
     LogicalAND(Rc<LogicalANDExpression>, Rc<BitwiseORExpression>),
 }
@@ -57,18 +57,9 @@ impl PrettyPrint for LogicalANDExpression {
     }
 }
 
-impl IsFunctionDefinition for LogicalANDExpression {
-    fn is_function_definition(&self) -> bool {
-        match &self {
-            LogicalANDExpression::LogicalAND(_, _) => false,
-            LogicalANDExpression::BitwiseORExpression(node) => node.is_function_definition(),
-        }
-    }
-}
-
 impl LogicalANDExpression {
     // No need to cache. Only one parent.
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -79,7 +70,7 @@ impl LogicalANDExpression {
             let mut current = Rc::new(LogicalANDExpression::BitwiseORExpression(left));
             let mut current_scanner = after_left;
             while let Ok((right, after_right)) =
-                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::AmpAmp).and_then(
+                scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::AmpAmp).and_then(
                     |(_, after_op)| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
                 )
             {
@@ -90,28 +81,28 @@ impl LogicalANDExpression {
         })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             LogicalANDExpression::BitwiseORExpression(exp) => exp.location(),
             LogicalANDExpression::LogicalAND(left, right) => left.location().merge(&right.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             LogicalANDExpression::BitwiseORExpression(n) => n.contains(kind),
             LogicalANDExpression::LogicalAND(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             LogicalANDExpression::BitwiseORExpression(n) => n.as_string_literal(),
             LogicalANDExpression::LogicalAND(..) => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -130,7 +121,7 @@ impl LogicalANDExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -143,7 +134,7 @@ impl LogicalANDExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             LogicalANDExpression::BitwiseORExpression(n) => n.early_errors(errs, strict),
             LogicalANDExpression::LogicalAND(l, r) => {
@@ -153,7 +144,7 @@ impl LogicalANDExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             LogicalANDExpression::BitwiseORExpression(node) => node.is_strictly_deletable(),
             LogicalANDExpression::LogicalAND(..) => true,
@@ -163,21 +154,21 @@ impl LogicalANDExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match &self {
             LogicalANDExpression::LogicalAND(_, _) => ATTKind::Invalid,
             LogicalANDExpression::BitwiseORExpression(node) => node.assignment_target_type(strict),
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            LogicalANDExpression::LogicalAND(..) => false,
-            LogicalANDExpression::BitwiseORExpression(node) => node.is_named_function(),
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        LogicalANDExpression::LogicalAND(..) => false,
+    //        LogicalANDExpression::BitwiseORExpression(node) => node.is_named_function(),
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -191,7 +182,7 @@ impl LogicalANDExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -219,7 +210,7 @@ impl LogicalANDExpression {
 //      LogicalANDExpression[?In, ?Yield, ?Await]
 //      LogicalORExpression[?In, ?Yield, ?Await] || LogicalANDExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum LogicalORExpression {
+pub(crate) enum LogicalORExpression {
     LogicalANDExpression(Rc<LogicalANDExpression>),
     LogicalOR(Rc<LogicalORExpression>, Rc<LogicalANDExpression>),
 }
@@ -269,18 +260,9 @@ impl PrettyPrint for LogicalORExpression {
     }
 }
 
-impl IsFunctionDefinition for LogicalORExpression {
-    fn is_function_definition(&self) -> bool {
-        match &self {
-            LogicalORExpression::LogicalOR(_, _) => false,
-            LogicalORExpression::LogicalANDExpression(node) => node.is_function_definition(),
-        }
-    }
-}
-
 impl LogicalORExpression {
     // Only one parent, no need to cache
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -291,10 +273,9 @@ impl LogicalORExpression {
             let mut current = Rc::new(LogicalORExpression::LogicalANDExpression(left));
             let mut current_scanner = after_left;
             while let Ok((right, after_right)) =
-                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::PipePipe)
-                    .and_then(|(_, after_op)| {
-                        LogicalANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag)
-                    })
+                scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::PipePipe).and_then(
+                    |(_, after_op)| LogicalANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
+                )
             {
                 current = Rc::new(LogicalORExpression::LogicalOR(current, right));
                 current_scanner = after_right;
@@ -303,28 +284,28 @@ impl LogicalORExpression {
         })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             LogicalORExpression::LogicalANDExpression(exp) => exp.location(),
             LogicalORExpression::LogicalOR(left, right) => left.location().merge(&right.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             LogicalORExpression::LogicalANDExpression(n) => n.contains(kind),
             LogicalORExpression::LogicalOR(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             LogicalORExpression::LogicalANDExpression(n) => n.as_string_literal(),
             LogicalORExpression::LogicalOR(..) => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -343,7 +324,7 @@ impl LogicalORExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -356,7 +337,7 @@ impl LogicalORExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             LogicalORExpression::LogicalANDExpression(n) => n.early_errors(errs, strict),
             LogicalORExpression::LogicalOR(l, r) => {
@@ -366,7 +347,7 @@ impl LogicalORExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             LogicalORExpression::LogicalANDExpression(node) => node.is_strictly_deletable(),
             LogicalORExpression::LogicalOR(..) => true,
@@ -376,21 +357,21 @@ impl LogicalORExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match &self {
             LogicalORExpression::LogicalOR(_, _) => ATTKind::Invalid,
             LogicalORExpression::LogicalANDExpression(node) => node.assignment_target_type(strict),
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            LogicalORExpression::LogicalOR(..) => false,
-            LogicalORExpression::LogicalANDExpression(node) => node.is_named_function(),
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        LogicalORExpression::LogicalOR(..) => false,
+    //        LogicalORExpression::LogicalANDExpression(node) => node.is_named_function(),
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -404,7 +385,7 @@ impl LogicalORExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -430,9 +411,9 @@ impl LogicalORExpression {
 // CoalesceExpression[In, Yield, Await] :
 //      CoalesceExpressionHead[?In, ?Yield, ?Await] ?? BitwiseORExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub struct CoalesceExpression {
-    pub head: Rc<CoalesceExpressionHead>,
-    pub tail: Rc<BitwiseORExpression>,
+pub(crate) struct CoalesceExpression {
+    pub(crate) head: Rc<CoalesceExpressionHead>,
+    pub(crate) tail: Rc<BitwiseORExpression>,
 }
 
 impl fmt::Display for CoalesceExpression {
@@ -476,7 +457,7 @@ impl CoalesceExpression {
             let mut current_scanner = after_left;
             let mut exp_scanner = scanner;
             while let Ok((right, after_right)) =
-                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::QQ).and_then(
+                scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::QQ).and_then(
                     |(_, after_op)| BitwiseORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
                 )
             {
@@ -496,7 +477,7 @@ impl CoalesceExpression {
         })
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -514,15 +495,15 @@ impl CoalesceExpression {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.head.location().merge(&self.tail.location())
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.head.contains(kind) || self.tail.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -536,7 +517,7 @@ impl CoalesceExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -546,12 +527,12 @@ impl CoalesceExpression {
         self.head.contains_arguments() || self.tail.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.head.early_errors(errs, strict);
         self.tail.early_errors(errs, strict);
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             self.head.body_containing_location(location).or_else(|| self.tail.body_containing_location(location))
@@ -560,7 +541,7 @@ impl CoalesceExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -580,7 +561,7 @@ impl CoalesceExpression {
 //      CoalesceExpression[?In, ?Yield, ?Await]
 //      BitwiseORExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum CoalesceExpressionHead {
+pub(crate) enum CoalesceExpressionHead {
     CoalesceExpression(Rc<CoalesceExpression>),
     BitwiseORExpression(Rc<BitwiseORExpression>),
 }
@@ -627,21 +608,21 @@ impl CoalesceExpressionHead {
     // together is far simpler than giving each its own parse routine. So there's no independent implementation for
     // CoalesceExpressionHead here; look to CoalesceExpression to find the bundle.
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             CoalesceExpressionHead::CoalesceExpression(exp) => exp.location(),
             CoalesceExpressionHead::BitwiseORExpression(exp) => exp.location(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             CoalesceExpressionHead::CoalesceExpression(n) => n.contains(kind),
             CoalesceExpressionHead::BitwiseORExpression(n) => n.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -658,7 +639,7 @@ impl CoalesceExpressionHead {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -671,14 +652,14 @@ impl CoalesceExpressionHead {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             CoalesceExpressionHead::CoalesceExpression(n) => n.early_errors(errs, strict),
             CoalesceExpressionHead::BitwiseORExpression(n) => n.early_errors(errs, strict),
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -695,7 +676,7 @@ impl CoalesceExpressionHead {
 //      LogicalORExpression[?In, ?Yield, ?Await]
 //      CoalesceExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum ShortCircuitExpression {
+pub(crate) enum ShortCircuitExpression {
     LogicalORExpression(Rc<LogicalORExpression>),
     CoalesceExpression(Rc<CoalesceExpression>),
 }
@@ -736,18 +717,9 @@ impl PrettyPrint for ShortCircuitExpression {
     }
 }
 
-impl IsFunctionDefinition for ShortCircuitExpression {
-    fn is_function_definition(&self) -> bool {
-        match &self {
-            ShortCircuitExpression::CoalesceExpression(_) => false,
-            ShortCircuitExpression::LogicalORExpression(node) => node.is_function_definition(),
-        }
-    }
-}
-
 impl ShortCircuitExpression {
     // No need to cache
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -765,28 +737,28 @@ impl ShortCircuitExpression {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ShortCircuitExpression::LogicalORExpression(exp) => exp.location(),
             ShortCircuitExpression::CoalesceExpression(exp) => exp.location(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ShortCircuitExpression::LogicalORExpression(n) => n.contains(kind),
             ShortCircuitExpression::CoalesceExpression(n) => n.contains(kind),
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             ShortCircuitExpression::LogicalORExpression(n) => n.as_string_literal(),
             ShortCircuitExpression::CoalesceExpression(_) => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -803,7 +775,7 @@ impl ShortCircuitExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -816,14 +788,14 @@ impl ShortCircuitExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ShortCircuitExpression::LogicalORExpression(n) => n.early_errors(errs, strict),
             ShortCircuitExpression::CoalesceExpression(n) => n.early_errors(errs, strict),
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             ShortCircuitExpression::LogicalORExpression(node) => node.is_strictly_deletable(),
             ShortCircuitExpression::CoalesceExpression(_) => true,
@@ -833,21 +805,21 @@ impl ShortCircuitExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match &self {
             ShortCircuitExpression::CoalesceExpression(_) => ATTKind::Invalid,
             ShortCircuitExpression::LogicalORExpression(node) => node.assignment_target_type(strict),
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            ShortCircuitExpression::CoalesceExpression(_) => false,
-            ShortCircuitExpression::LogicalORExpression(node) => node.is_named_function(),
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        ShortCircuitExpression::CoalesceExpression(_) => false,
+    //        ShortCircuitExpression::LogicalORExpression(node) => node.is_named_function(),
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -859,7 +831,7 @@ impl ShortCircuitExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

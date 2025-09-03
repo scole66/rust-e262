@@ -7,7 +7,7 @@ use std::io::Write;
 //      continue ;
 //      continue [no LineTerminator here] LabelIdentifier[?Yield, ?Await] ;
 #[derive(Debug)]
-pub enum ContinueStatement {
+pub(crate) enum ContinueStatement {
     Bare { location: Location },
     Labelled { label: Rc<LabelIdentifier>, location: Location },
 }
@@ -50,16 +50,21 @@ impl PrettyPrint for ContinueStatement {
 
 impl ContinueStatement {
     // no need to cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (cont_loc, after_cont) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Continue)?;
-        scan_for_auto_semi(after_cont, parser.source, ScanGoal::InputElementDiv)
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Continue)?;
+        scan_for_auto_semi(after_cont, parser.source, InputElementGoal::Div)
             .map(|(semi_loc, after_semi)| {
                 (Rc::new(ContinueStatement::Bare { location: cont_loc.merge(&semi_loc) }), after_semi)
             })
             .otherwise(|| {
                 let (li, after_li) = LabelIdentifier::parse(parser, after_cont, yield_flag, await_flag)?;
-                let (semi_loc, after_semi) = scan_for_auto_semi(after_li, parser.source, ScanGoal::InputElementDiv)?;
+                let (semi_loc, after_semi) = scan_for_auto_semi(after_li, parser.source, InputElementGoal::Div)?;
                 Ok((
                     Rc::new(ContinueStatement::Labelled { label: li, location: cont_loc.merge(&semi_loc) }),
                     after_semi,
@@ -67,27 +72,20 @@ impl ContinueStatement {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ContinueStatement::Bare { location } | ContinueStatement::Labelled { location, .. } => *location,
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            ContinueStatement::Bare { .. } => false,
-            ContinueStatement::Labelled { label, .. } => label.contains(kind),
-        }
-    }
-
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             ContinueStatement::Bare { .. } => false,
             ContinueStatement::Labelled { label, .. } => !iteration_set.contains(&label.string_value()),
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         // Static Semantics: Early Errors
         // ContinueStatement :
         //      continue ;
@@ -106,7 +104,7 @@ impl ContinueStatement {
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }

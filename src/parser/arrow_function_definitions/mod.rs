@@ -6,9 +6,9 @@ use std::io::Write;
 // ArrowFunction[In, Yield, Await] :
 //      ArrowParameters[?Yield, ?Await] [no LineTerminator here] => ConciseBody[?In]
 #[derive(Debug)]
-pub struct ArrowFunction {
-    pub parameters: Rc<ArrowParameters>,
-    pub body: Rc<ConciseBody>,
+pub(crate) struct ArrowFunction {
+    pub(crate) parameters: Rc<ArrowParameters>,
+    pub(crate) body: Rc<ConciseBody>,
 }
 
 impl fmt::Display for ArrowFunction {
@@ -42,7 +42,7 @@ impl PrettyPrint for ArrowFunction {
 
 impl ArrowFunction {
     // ArrowFunction's only parent is AssignmentExpression. It doesn't need to be cached.
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -51,17 +51,16 @@ impl ArrowFunction {
     ) -> ParseResult<Self> {
         let (parameters, after_params) = ArrowParameters::parse(parser, scanner, yield_flag, await_flag)?;
         no_line_terminator(after_params, parser.source)?;
-        let (_, after_arrow) =
-            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::EqGt)?;
+        let (_, after_arrow) = scan_for_punct(after_params, parser.source, InputElementGoal::Div, Punctuator::EqGt)?;
         let (body, after_body) = ConciseBody::parse(parser, after_arrow, in_flag)?;
         Ok((Rc::new(ArrowFunction { parameters, body }), after_body))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.parameters.location().merge(&self.body.location())
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         (kind == ParseNodeKind::Super
             || kind == ParseNodeKind::This
             || kind == ParseNodeKind::NewTarget
@@ -70,7 +69,7 @@ impl ArrowFunction {
             && (self.parameters.contains(kind) || self.body.contains(kind))
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -84,7 +83,7 @@ impl ArrowFunction {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -94,7 +93,7 @@ impl ArrowFunction {
         self.parameters.contains_arguments() || self.body.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  ArrowFunction : ArrowParameters => ConciseBody
         //  * It is a Syntax Error if ArrowParameters Contains YieldExpression is true.
@@ -132,10 +131,13 @@ impl ArrowFunction {
         self.body.early_errors(errs, strict_function);
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            self.parameters.body_containing_location(location).or_else(|| self.body.body_containing_location(location))
+        } else {
+            None
+        }
     }
 }
 
@@ -143,7 +145,7 @@ impl ArrowFunction {
 //      BindingIdentifier[?Yield, ?Await]
 //      CoverParenthesizedExpressionAndArrowParameterList[?Yield, ?Await]
 #[derive(Debug)]
-pub enum ArrowParameters {
+pub(crate) enum ArrowParameters {
     Identifier(Rc<BindingIdentifier>),
     Formals(Rc<ArrowFormalParameters>),
 }
@@ -183,7 +185,12 @@ impl PrettyPrint for ArrowParameters {
 
 impl ArrowParameters {
     // ArrowParameters's only direct parent is ArrowFunction. It doesn't need to be cached.
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::IdOrFormalsExpected, scanner))
             .otherwise(|| {
                 BindingIdentifier::parse(parser, scanner, yield_flag, await_flag)
@@ -210,21 +217,21 @@ impl ArrowParameters {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ArrowParameters::Identifier(id) => id.location(),
             ArrowParameters::Formals(formals) => formals.location(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ArrowParameters::Identifier(node) => node.contains(kind),
+            ArrowParameters::Identifier(_) => false,
             ArrowParameters::Formals(node) => node.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -241,7 +248,7 @@ impl ArrowParameters {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -254,14 +261,14 @@ impl ArrowParameters {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             ArrowParameters::Identifier(id) => id.bound_names(),
             ArrowParameters::Formals(afp) => afp.bound_names(),
         }
     }
 
-    pub fn is_simple_parameter_list(&self) -> bool {
+    pub(crate) fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
         // The syntax-directed operation IsSimpleParameterList takes no arguments and returns a Boolean.
         //  ArrowParameters : BindingIdentifier
@@ -275,14 +282,14 @@ impl ArrowParameters {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrowParameters::Identifier(id) => id.early_errors(errs, strict),
             ArrowParameters::Formals(afp) => afp.early_errors(errs, strict),
         }
     }
 
-    pub fn expected_argument_count(&self) -> f64 {
+    pub(crate) fn expected_argument_count(&self) -> f64 {
         match self {
             ArrowParameters::Identifier(_) => 1.0,
             ArrowParameters::Formals(formals) => formals.expected_argument_count(),
@@ -292,25 +299,33 @@ impl ArrowParameters {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         match self {
             ArrowParameters::Identifier(_) => false,
             ArrowParameters::Formals(f) => f.contains_expression(),
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                ArrowParameters::Identifier(_) => None,
+                ArrowParameters::Formals(arrow_formal_parameters) => {
+                    arrow_formal_parameters.body_containing_location(location)
+                }
+            }
+        } else {
+            None
+        }
     }
 }
 
 // ArrowFormalParameters[Yield, Await] :
 //      ( UniqueFormalParameters[?Yield, ?Await] )
 #[derive(Debug)]
-pub struct ArrowFormalParameters {
-    pub params: Rc<UniqueFormalParameters>,
+pub(crate) struct ArrowFormalParameters {
+    pub(crate) params: Rc<UniqueFormalParameters>,
     location: Location,
 }
 
@@ -349,16 +364,20 @@ impl PrettyPrint for ArrowFormalParameters {
 impl ArrowFormalParameters {
     // I _think_ this needs to be cached.
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (lp_loc, after_lp) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (lp_loc, after_lp) = scan_for_punct(scanner, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, yield_flag, await_flag);
         let (rp_loc, after_rp) =
-            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+            scan_for_punct(after_params, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
         let location = lp_loc.merge(&rp_loc);
         Ok((Rc::new(ArrowFormalParameters { params, location }), after_rp))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.arrow_formal_parameters_cache.get(&key) {
             Some(result) => result.clone(),
@@ -370,15 +389,15 @@ impl ArrowFormalParameters {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.params.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -392,7 +411,7 @@ impl ArrowFormalParameters {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -402,11 +421,11 @@ impl ArrowFormalParameters {
         self.params.contains_arguments()
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         self.params.bound_names()
     }
 
-    pub fn is_simple_parameter_list(&self) -> bool {
+    pub(crate) fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
         // The syntax-directed operation IsSimpleParameterList takes no arguments and returns a Boolean.
         //  ArrowFormalParameters : ( UniqueFormalParameters )
@@ -414,25 +433,24 @@ impl ArrowFormalParameters {
         self.params.is_simple_parameter_list()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.params.early_errors(errs, strict);
     }
 
-    pub fn expected_argument_count(&self) -> f64 {
+    pub(crate) fn expected_argument_count(&self) -> f64 {
         self.params.expected_argument_count()
     }
 
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         self.params.contains_expression()
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) { self.params.body_containing_location(location) } else { None }
     }
 }
 
@@ -440,7 +458,7 @@ impl ArrowFormalParameters {
 //      [lookahead ≠ {] ExpressionBody[?In, ~Await]
 //      { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
-pub enum ConciseBody {
+pub(crate) enum ConciseBody {
     Expression(Rc<ExpressionBody>),
     Function { body: Rc<FunctionBody>, location: Location },
 }
@@ -486,21 +504,21 @@ impl PrettyPrint for ConciseBody {
 
 impl ConciseBody {
     // ConciseBody's only direct parent is ArrowFunction. It doesn't need to be cached.
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ConciseBody), scanner))
             .otherwise(|| {
                 let (lb_loc, after_curly) =
-                    scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+                    scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::LeftBrace)?;
                 let (body, after_fb) =
-                    FunctionBody::parse(parser, after_curly, in_flag, false, FunctionBodyParent::FunctionBody);
+                    FunctionBody::parse(parser, after_curly, in_flag, false, FunctionBodyParent::Function);
                 let (rb_loc, after_rb) =
-                    scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                    scan_for_punct(after_fb, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
                 let location = lb_loc.merge(&rb_loc);
                 let concise_body = Rc::new(ConciseBody::Function { body, location });
                 Ok((concise_body, after_rb))
             })
             .otherwise(|| {
-                let r = scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace);
+                let r = scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::LeftBrace);
                 match r {
                     Err(_) => {
                         let (exp, after_exp) = ExpressionBody::parse(parser, scanner, in_flag, false)?;
@@ -512,21 +530,21 @@ impl ConciseBody {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ConciseBody::Expression(exp) => exp.location(),
             ConciseBody::Function { location, .. } => *location,
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ConciseBody::Expression(node) => node.contains(kind),
             ConciseBody::Function { body, .. } => body.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -543,7 +561,7 @@ impl ConciseBody {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -556,7 +574,7 @@ impl ConciseBody {
         }
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: LexicallyDeclaredNames
         // The syntax-directed operation LexicallyDeclaredNames takes no arguments and returns a List of Strings.
         //  ConciseBody : ExpressionBody
@@ -569,7 +587,7 @@ impl ConciseBody {
         }
     }
 
-    pub fn concise_body_contains_use_strict(&self) -> bool {
+    pub(crate) fn concise_body_contains_use_strict(&self) -> bool {
         // Static Semantics: ConciseBodyContainsUseStrict
         // The syntax-directed operation ConciseBodyContainsUseStrict takes no arguments and returns a Boolean. It is
         // defined piecewise over the following productions:
@@ -584,7 +602,7 @@ impl ConciseBody {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ConciseBody::Expression(exp) => exp.early_errors(errs, strict),
             ConciseBody::Function { body, .. } => body.early_errors(errs, strict),
@@ -597,7 +615,7 @@ impl ConciseBody {
     /// of the var-declared list.
     ///
     /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             ConciseBody::Expression(_) => vec![],
             ConciseBody::Function { body, .. } => body.var_declared_names(),
@@ -607,41 +625,59 @@ impl ConciseBody {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             ConciseBody::Expression(_) => vec![],
             ConciseBody::Function { body, .. } => body.var_scoped_declarations(),
         }
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         match self {
             ConciseBody::Expression(_) => vec![],
             ConciseBody::Function { body, .. } => body.lexically_scoped_declarations(),
         }
     }
 
-    pub fn parent_body(&self) -> Option<ParseNodeKind> {
-        todo!()
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        match self {
+            ConciseBody::Expression(expression_body) => expression_body.has_call_in_tail_position(location),
+            ConciseBody::Function { body, .. } => body.has_call_in_tail_position(location),
+        }
     }
 
-    #[expect(unused_variables)]
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
-        todo!()
-    }
-
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(self: &Rc<Self>, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self.as_ref() {
+                ConciseBody::Expression(expression_body) => expression_body
+                    .body_containing_location(location)
+                    .or_else(|| Some(ContainingBody::ConciseBody(Rc::clone(self)))),
+                ConciseBody::Function { body, .. } => body
+                    .body_containing_location(location)
+                    .or_else(|| Some(ContainingBody::ConciseBody(Rc::clone(self)))),
+            }
+        } else {
+            None
+        }
     }
 }
 
 // ExpressionBody[In, Await] :
 //      AssignmentExpression[?In, ~Yield, ?Await]
 #[derive(Debug)]
-pub struct ExpressionBody {
-    pub expression: Rc<AssignmentExpression>,
+pub(crate) struct ExpressionBody {
+    pub(crate) expression: Rc<AssignmentExpression>,
 }
 
 impl fmt::Display for ExpressionBody {
@@ -675,7 +711,7 @@ impl ExpressionBody {
         Ok((Rc::new(ExpressionBody { expression: ae }), after_ae))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let key = InAwaitKey { scanner, in_flag, await_flag };
         match parser.expression_body_cache.get(&key) {
             Some(result) => result.clone(),
@@ -687,15 +723,15 @@ impl ExpressionBody {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.expression.location()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -709,7 +745,7 @@ impl ExpressionBody {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -719,14 +755,27 @@ impl ExpressionBody {
         self.expression.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.expression.early_errors(errs, strict);
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        self.expression.has_call_in_tail_position(location)
+    }
+
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) { self.expression.body_containing_location(location) } else { None }
     }
 }
 

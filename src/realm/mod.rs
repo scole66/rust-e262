@@ -6,16 +6,16 @@ use std::fmt;
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum IntrinsicId {
+pub(crate) enum IntrinsicId {
     // If you add something here, _please_ update the ALL_INTRINSIC_IDS list in the unit tests!
     // And to the "which" function, below.
     Array,
     ArrayPrototype,
     ArrayPrototypeValues,
     ArrayIteratorPrototype,
-    AsyncFunctionPrototype,
-    AsyncGeneratorFunctionPrototype,
-    AsyncGeneratorFunctionPrototypePrototype,
+    //AsyncFunctionPrototype,
+    //AsyncGeneratorFunctionPrototype,
+    //AsyncGeneratorFunctionPrototypePrototype,
     BigInt,
     BigIntPrototype,
     Boolean,
@@ -74,100 +74,100 @@ pub enum IntrinsicId {
     URIErrorPrototype,
 }
 
-pub struct Intrinsics {
-    pub aggregate_error: Object,          // aka "AggregateError", The AggregateError constructor
-    pub array: Object,                    // aka "Array", The Array constructor
-    pub array_prototype: Object,          // %Array.prototype%
-    pub array_prototype_values: Object,   // %Array.prototype.values%
-    pub array_buffer: Object,             // ArrayBuffer	The ArrayBuffer constructor (25.1.3)
-    pub array_iterator_prototype: Object, // The prototype of Array iterator objects (23.1.5)
-    pub async_from_sync_iterator_prototype: Object, // The prototype of async-from-sync iterator objects (27.1.4)
-    pub async_function: Object,           // The constructor of async function objects (27.7.1)
-    pub async_function_prototype: Object,
-    pub async_generator_function: Object, // The constructor of async iterator objects (27.4.1)
-    pub async_generator_function_prototype: Object,
-    pub async_generator_function_prototype_prototype: Object,
-    pub async_iterator_prototype: Object, // An object that all standard built-in async iterator objects indirectly inherit from
-    pub atomics: Object,                  // Atomics	The Atomics object (25.4)
-    pub big_int: Object,                  // BigInt	The BigInt constructor (21.2.1)
-    pub big_int_prototype: Object,        //
-    pub big_int64_array: Object,          // BigInt64Array	The BigInt64Array constructor (23.2)
-    pub big_uint64_array: Object,         // BigUint64Array	The BigUint64Array constructor (23.2)
-    pub boolean: Object,                  // Boolean	The Boolean constructor (20.3.1)
-    pub boolean_prototype: Object,        // The Boolean object prototoype
-    pub data_view: Object,                // DataView	The DataView constructor (25.3.2)
-    pub date: Object,                     // Date	The Date constructor (21.4.2)
-    pub date_prototype: Object,           // Date.prototype
-    pub decode_uri: Object,               // decodeURI	The decodeURI function (19.2.6.2)
-    pub decode_uri_component: Object,     // decodeURIComponent	The decodeURIComponent function (19.2.6.3)
-    pub encode_uri: Object,               // encodeURI	The encodeURI function (19.2.6.4)
-    pub encode_uri_component: Object,     // encodeURIComponent	The encodeURIComponent function (19.2.6.5)
-    pub error: Object,                    // Error	The Error constructor (20.5.1)
-    pub error_prototype: Object,          //
-    pub eval: Object,                     // eval	The eval function (19.2.1)
-    pub eval_error: Object,               // EvalError	The EvalError constructor (20.5.5.1)
-    pub eval_error_prototype: Object,     //
-    pub finalization_registry: Object,    // FinalizationRegistry	The FinalizationRegistry constructor (26.2.1)
-    pub float32_array: Object,            // Float32Array	The Float32Array constructor (23.2)
-    pub float64_array: Object,            // Float64Array	The Float64Array constructor (23.2)
-    pub for_in_iterator_prototype: Object, // The prototype of For-In iterator objects (14.7.5.10)
-    pub function: Object,                 // Function	The Function constructor (20.2.1)
-    pub function_prototype: Object,       //
-    pub generator_function: Object,       // The constructor of generator objects (27.3.1)
-    pub generator_function_prototype: Object, //
-    pub generator_function_prototype_prototype: Object, //
-    pub generator_function_prototype_prototype_next: Object, //
-    pub int8_array: Object,               // Int8Array	The Int8Array constructor (23.2)
-    pub int16_array: Object,              // Int16Array	The Int16Array constructor (23.2)
-    pub int32_array: Object,              // Int32Array	The Int32Array constructor (23.2)
-    pub is_finite: Object,                // isFinite	The isFinite function (19.2.2)
-    pub is_nan: Object,                   // isNaN	The isNaN function (19.2.3)
-    pub iterator_prototype: Object, // An object that all standard built-in iterator objects indirectly inherit from
-    pub json: Object,               // JSON	The JSON object (25.5)
-    pub map: Object,                // Map	The Map constructor (24.1.1)
-    pub map_prototype: Object,      // Map's prototype object
-    pub map_iterator_prototype: Object, // The prototype of Map iterator objects (24.1.5)
-    pub math: Object,               // Math	The Math object (21.3)
-    pub number: Object,             // Number	The Number constructor (21.1.1)
-    pub number_prototype: Object,   //
-    pub object: Object,             // Object	The Object constructor (20.1.1)
-    pub object_prototype: Object,   // The Object prototype object
-    pub object_prototype_to_string: Object, // The initial value of %ObjectPrototype%.toString
-    pub parse_float: Object,        // parseFloat	The parseFloat function (19.2.4)
-    pub parse_int: Object,          // parseInt	The parseInt function (19.2.5)
-    pub promise: Object,            // Promise	The Promise constructor (27.2.3)
-    pub proxy: Object,              // Proxy	The Proxy constructor (28.2.1)
-    pub range_error: Object,        // RangeError	The RangeError constructor (20.5.5.2)
-    pub range_error_prototype: Object, //
-    pub reference_error: Object,    // ReferenceError	The ReferenceError constructor (20.5.5.3)
-    pub reference_error_prototype: Object, //
-    pub reflect: Object,            // Reflect	The Reflect object (28.1)
-    pub reg_exp: Object,            // RegExp	The RegExp constructor (22.2.3)
-    pub reg_exp_prototype: Object,
-    pub reg_exp_string_iterator_prototype: Object, // The prototype of RegExp String Iterator objects (22.2.7)
-    pub set: Object,                               // Set	The Set constructor (24.2.1)
-    pub set_iterator_prototype: Object,            // The prototype of Set iterator objects (24.2.5)
-    pub shared_array_buffer: Object,               // SharedArrayBuffer	The SharedArrayBuffer constructor (25.2.2)
-    pub string: Object,                            // String	The String constructor (22.1.1)
-    pub string_prototype: Object,                  // Initial value of %String.prototype%.
-    pub string_iterator_prototype: Object,         // The prototype of String iterator objects (22.1.5)
-    pub symbol: Object,                            // Symbol	The Symbol constructor (20.4.1)
-    pub symbol_prototype: Object,                  //
-    pub syntax_error: Object,                      // SyntaxError	The SyntaxError constructor (20.5.5.4)
-    pub syntax_error_prototype: Object,            //
-    pub throw_type_error: Object, // A function object that unconditionally throws a new instance of %TypeError%
-    pub typed_array: Object,      // The super class of all typed Array constructors (23.2.1)
-    pub type_error: Object,       // TypeError	The TypeError constructor (20.5.5.5)
-    pub type_error_prototype: Object, //
-    pub uint8_array: Object,      // Uint8Array	The Uint8Array constructor (23.2)
-    pub uint8_clampedarray: Object, // Uint8ClampedArray	The Uint8ClampedArray constructor (23.2)
-    pub uint16_array: Object,     // Uint16Array	The Uint16Array constructor (23.2)
-    pub uint32_array: Object,     // Uint32Array	The Uint32Array constructor (23.2)
-    pub uri_error: Object,        // URIError	The URIError constructor (20.5.5.6)
-    pub uri_error_prototype: Object, //
-    pub weak_map: Object,         // WeakMap	The WeakMap constructor (24.3.1)
-    pub weak_ref: Object,         // WeakRef	The WeakRef constructor (26.1.1)
-    pub weak_set: Object,         // WeakSet	The WeakSet constructor (24.4.1)
+pub(crate) struct Intrinsics {
+    //pub(crate) aggregate_error: Object, // aka "AggregateError", The AggregateError constructor
+    pub(crate) array: Object,                  // aka "Array", The Array constructor
+    pub(crate) array_prototype: Object,        // %Array.prototype%
+    pub(crate) array_prototype_values: Object, // %Array.prototype.values%
+    //pub(crate) array_buffer: Object,    // ArrayBuffer	The ArrayBuffer constructor (25.1.3)
+    pub(crate) array_iterator_prototype: Object, // The prototype of Array iterator objects (23.1.5)
+    //pub(crate) async_from_sync_iterator_prototype: Object, // The prototype of async-from-sync iterator objects (27.1.4)
+    //pub(crate) async_function: Object,  // The constructor of async function objects (27.7.1)
+    //pub(crate) async_function_prototype: Object,
+    //pub(crate) async_generator_function: Object, // The constructor of async iterator objects (27.4.1)
+    //pub(crate) async_generator_function_prototype: Object,
+    //pub(crate) async_generator_function_prototype_prototype: Object,
+    //pub(crate) async_iterator_prototype: Object, // An object that all standard built-in async iterator objects indirectly inherit from
+    //pub(crate) atomics: Object,                  // Atomics	The Atomics object (25.4)
+    pub(crate) big_int: Object,           // BigInt	The BigInt constructor (21.2.1)
+    pub(crate) big_int_prototype: Object, //
+    //pub(crate) big_int64_array: Object,          // BigInt64Array	The BigInt64Array constructor (23.2)
+    //pub(crate) big_uint64_array: Object,         // BigUint64Array	The BigUint64Array constructor (23.2)
+    pub(crate) boolean: Object,           // Boolean	The Boolean constructor (20.3.1)
+    pub(crate) boolean_prototype: Object, // The Boolean object prototoype
+    //pub(crate) data_view: Object,                // DataView	The DataView constructor (25.3.2)
+    pub(crate) date: Object,                 // Date	The Date constructor (21.4.2)
+    pub(crate) date_prototype: Object,       // Date.prototype
+    pub(crate) decode_uri: Object,           // decodeURI	The decodeURI function (19.2.6.2)
+    pub(crate) decode_uri_component: Object, // decodeURIComponent	The decodeURIComponent function (19.2.6.3)
+    pub(crate) encode_uri: Object,           // encodeURI	The encodeURI function (19.2.6.4)
+    pub(crate) encode_uri_component: Object, // encodeURIComponent	The encodeURIComponent function (19.2.6.5)
+    pub(crate) error: Object,                // Error	The Error constructor (20.5.1)
+    pub(crate) error_prototype: Object,      //
+    pub(crate) eval: Object,                 // eval	The eval function (19.2.1)
+    pub(crate) eval_error: Object,           // EvalError	The EvalError constructor (20.5.5.1)
+    pub(crate) eval_error_prototype: Object, //
+    //pub(crate) finalization_registry: Object,    // FinalizationRegistry	The FinalizationRegistry constructor (26.2.1)
+    //pub(crate) float32_array: Object,            // Float32Array	The Float32Array constructor (23.2)
+    //pub(crate) float64_array: Object,            // Float64Array	The Float64Array constructor (23.2)
+    pub(crate) for_in_iterator_prototype: Object, // The prototype of For-In iterator objects (14.7.5.10)
+    pub(crate) function: Object,                  // Function	The Function constructor (20.2.1)
+    pub(crate) function_prototype: Object,        //
+    pub(crate) generator_function: Object,        // The constructor of generator objects (27.3.1)
+    pub(crate) generator_function_prototype: Object, //
+    pub(crate) generator_function_prototype_prototype: Object, //
+    pub(crate) generator_function_prototype_prototype_next: Object, //
+    //pub(crate) int8_array: Object,               // Int8Array	The Int8Array constructor (23.2)
+    //pub(crate) int16_array: Object,              // Int16Array	The Int16Array constructor (23.2)
+    //pub(crate) int32_array: Object,              // Int32Array	The Int32Array constructor (23.2)
+    pub(crate) is_finite: Object,          // isFinite	The isFinite function (19.2.2)
+    pub(crate) is_nan: Object,             // isNaN	The isNaN function (19.2.3)
+    pub(crate) iterator_prototype: Object, // An object that all standard built-in iterator objects indirectly inherit from
+    //pub(crate) json: Object,               // JSON	The JSON object (25.5)
+    pub(crate) map: Object,                        // Map	The Map constructor (24.1.1)
+    pub(crate) map_prototype: Object,              // Map's prototype object
+    pub(crate) map_iterator_prototype: Object,     // The prototype of Map iterator objects (24.1.5)
+    pub(crate) math: Object,                       // Math	The Math object (21.3)
+    pub(crate) number: Object,                     // Number	The Number constructor (21.1.1)
+    pub(crate) number_prototype: Object,           //
+    pub(crate) object: Object,                     // Object	The Object constructor (20.1.1)
+    pub(crate) object_prototype: Object,           // The Object prototype object
+    pub(crate) object_prototype_to_string: Object, // The initial value of %ObjectPrototype%.toString
+    pub(crate) parse_float: Object,                // parseFloat	The parseFloat function (19.2.4)
+    pub(crate) parse_int: Object,                  // parseInt	The parseInt function (19.2.5)
+    //pub(crate) promise: Object,            // Promise	The Promise constructor (27.2.3)
+    pub(crate) proxy: Object,                     // Proxy	The Proxy constructor (28.2.1)
+    pub(crate) range_error: Object,               // RangeError	The RangeError constructor (20.5.5.2)
+    pub(crate) range_error_prototype: Object,     //
+    pub(crate) reference_error: Object,           // ReferenceError	The ReferenceError constructor (20.5.5.3)
+    pub(crate) reference_error_prototype: Object, //
+    pub(crate) reflect: Object,                   // Reflect	The Reflect object (28.1)
+    pub(crate) reg_exp: Object,                   // RegExp	The RegExp constructor (22.2.3)
+    pub(crate) reg_exp_prototype: Object,
+    //pub(crate) reg_exp_string_iterator_prototype: Object, // The prototype of RegExp String Iterator objects (22.2.7)
+    //pub(crate) set: Object,                               // Set	The Set constructor (24.2.1)
+    //pub(crate) set_iterator_prototype: Object,            // The prototype of Set iterator objects (24.2.5)
+    //pub(crate) shared_array_buffer: Object, // SharedArrayBuffer	The SharedArrayBuffer constructor (25.2.2)
+    pub(crate) string: Object,                    // String	The String constructor (22.1.1)
+    pub(crate) string_prototype: Object,          // Initial value of %String.prototype%.
+    pub(crate) string_iterator_prototype: Object, // The prototype of String iterator objects (22.1.5)
+    pub(crate) symbol: Object,                    // Symbol	The Symbol constructor (20.4.1)
+    pub(crate) symbol_prototype: Object,          //
+    pub(crate) syntax_error: Object,              // SyntaxError	The SyntaxError constructor (20.5.5.4)
+    pub(crate) syntax_error_prototype: Object,    //
+    pub(crate) throw_type_error: Object, // A function object that unconditionally throws a new instance of %TypeError%
+    //pub(crate) typed_array: Object,      // The super class of all typed Array constructors (23.2.1)
+    pub(crate) type_error: Object, // TypeError	The TypeError constructor (20.5.5.5)
+    pub(crate) type_error_prototype: Object, //
+    //pub(crate) uint8_array: Object,      // Uint8Array	The Uint8Array constructor (23.2)
+    //pub(crate) uint8_clampedarray: Object, // Uint8ClampedArray	The Uint8ClampedArray constructor (23.2)
+    //pub(crate) uint16_array: Object,     // Uint16Array	The Uint16Array constructor (23.2)
+    //pub(crate) uint32_array: Object,     // Uint32Array	The Uint32Array constructor (23.2)
+    pub(crate) uri_error: Object, // URIError	The URIError constructor (20.5.5.6)
+    pub(crate) uri_error_prototype: Object, //
+                                  //pub(crate) weak_map: Object,         // WeakMap	The WeakMap constructor (24.3.1)
+                                  //pub(crate) weak_ref: Object,         // WeakRef	The WeakRef constructor (26.1.1)
+                                  //pub(crate) weak_set: Object,         // WeakSet	The WeakSet constructor (24.4.1)
 }
 
 impl Intrinsics {
@@ -180,27 +180,27 @@ impl Intrinsics {
         // less overhead.)
         let dead = DeadObject::object();
         Intrinsics {
-            aggregate_error: dead.clone(),
+            //aggregate_error: dead.clone(),
             array: dead.clone(),
             array_prototype: dead.clone(),
             array_prototype_values: dead.clone(),
-            array_buffer: dead.clone(),
+            //array_buffer: dead.clone(),
             array_iterator_prototype: dead.clone(),
-            async_from_sync_iterator_prototype: dead.clone(),
-            async_function: dead.clone(),
-            async_function_prototype: dead.clone(),
-            async_generator_function: dead.clone(),
-            async_generator_function_prototype: dead.clone(),
-            async_generator_function_prototype_prototype: dead.clone(),
-            async_iterator_prototype: dead.clone(),
-            atomics: dead.clone(),
+            //async_from_sync_iterator_prototype: dead.clone(),
+            //async_function: dead.clone(),
+            //async_function_prototype: dead.clone(),
+            //async_generator_function: dead.clone(),
+            //async_generator_function_prototype: dead.clone(),
+            //async_generator_function_prototype_prototype: dead.clone(),
+            //async_iterator_prototype: dead.clone(),
+            //atomics: dead.clone(),
             big_int: dead.clone(),
             big_int_prototype: dead.clone(),
-            big_int64_array: dead.clone(),
-            big_uint64_array: dead.clone(),
+            //big_int64_array: dead.clone(),
+            //big_uint64_array: dead.clone(),
             boolean: dead.clone(),
             boolean_prototype: dead.clone(),
-            data_view: dead.clone(),
+            //data_view: dead.clone(),
             date: dead.clone(),
             date_prototype: dead.clone(),
             decode_uri: dead.clone(),
@@ -212,9 +212,9 @@ impl Intrinsics {
             eval: dead.clone(),
             eval_error: dead.clone(),
             eval_error_prototype: dead.clone(),
-            finalization_registry: dead.clone(),
-            float32_array: dead.clone(),
-            float64_array: dead.clone(),
+            //finalization_registry: dead.clone(),
+            //float32_array: dead.clone(),
+            //float64_array: dead.clone(),
             for_in_iterator_prototype: dead.clone(),
             function: dead.clone(),
             function_prototype: dead.clone(),
@@ -222,13 +222,13 @@ impl Intrinsics {
             generator_function_prototype: dead.clone(),
             generator_function_prototype_prototype: dead.clone(),
             generator_function_prototype_prototype_next: dead.clone(),
-            int8_array: dead.clone(),
-            int16_array: dead.clone(),
-            int32_array: dead.clone(),
+            //int8_array: dead.clone(),
+            //int16_array: dead.clone(),
+            //int32_array: dead.clone(),
             is_finite: dead.clone(),
             is_nan: dead.clone(),
             iterator_prototype: dead.clone(),
-            json: dead.clone(),
+            //json: dead.clone(),
             map: dead.clone(),
             map_prototype: dead.clone(),
             map_iterator_prototype: dead.clone(),
@@ -240,7 +240,7 @@ impl Intrinsics {
             object_prototype_to_string: dead.clone(),
             parse_float: dead.clone(),
             parse_int: dead.clone(),
-            promise: dead.clone(),
+            //promise: dead.clone(),
             proxy: dead.clone(),
             range_error: dead.clone(),
             range_error_prototype: dead.clone(),
@@ -249,10 +249,10 @@ impl Intrinsics {
             reflect: dead.clone(),
             reg_exp: dead.clone(),
             reg_exp_prototype: dead.clone(),
-            reg_exp_string_iterator_prototype: dead.clone(),
-            set: dead.clone(),
-            set_iterator_prototype: dead.clone(),
-            shared_array_buffer: dead.clone(),
+            //reg_exp_string_iterator_prototype: dead.clone(),
+            //set: dead.clone(),
+            //set_iterator_prototype: dead.clone(),
+            //shared_array_buffer: dead.clone(),
             string: dead.clone(),
             string_prototype: dead.clone(),
             string_iterator_prototype: dead.clone(),
@@ -261,29 +261,29 @@ impl Intrinsics {
             syntax_error: dead.clone(),
             syntax_error_prototype: dead.clone(),
             throw_type_error: dead.clone(),
-            typed_array: dead.clone(),
+            //typed_array: dead.clone(),
             type_error: dead.clone(),
             type_error_prototype: dead.clone(),
-            uint8_array: dead.clone(),
-            uint8_clampedarray: dead.clone(),
-            uint16_array: dead.clone(),
-            uint32_array: dead.clone(),
+            //uint8_array: dead.clone(),
+            //uint8_clampedarray: dead.clone(),
+            //uint16_array: dead.clone(),
+            //uint32_array: dead.clone(),
             uri_error: dead.clone(),
             uri_error_prototype: dead.clone(),
-            weak_map: dead.clone(),
-            weak_ref: dead.clone(),
-            weak_set: dead,
+            //weak_map: dead.clone(),
+            //weak_ref: dead.clone(),
+            //weak_set: dead,
         }
     }
-    pub fn get(&self, id: IntrinsicId) -> Object {
+    pub(crate) fn get(&self, id: IntrinsicId) -> Object {
         match id {
             IntrinsicId::Array => &self.array,
             IntrinsicId::ArrayPrototype => &self.array_prototype,
             IntrinsicId::ArrayPrototypeValues => &self.array_prototype_values,
             IntrinsicId::ArrayIteratorPrototype => &self.array_iterator_prototype,
-            IntrinsicId::AsyncFunctionPrototype => &self.async_function_prototype,
-            IntrinsicId::AsyncGeneratorFunctionPrototype => &self.async_generator_function_prototype,
-            IntrinsicId::AsyncGeneratorFunctionPrototypePrototype => &self.async_generator_function_prototype_prototype,
+            //IntrinsicId::AsyncFunctionPrototype => &self.async_function_prototype,
+            //IntrinsicId::AsyncGeneratorFunctionPrototype => &self.async_generator_function_prototype,
+            //IntrinsicId::AsyncGeneratorFunctionPrototypePrototype => &self.async_generator_function_prototype_prototype,
             IntrinsicId::BigInt => &self.big_int,
             IntrinsicId::BigIntPrototype => &self.big_int_prototype,
             IntrinsicId::Boolean => &self.boolean,
@@ -343,7 +343,7 @@ impl Intrinsics {
         }
         .clone()
     }
-    pub fn which(&self, intrinsic: &Object) -> Option<IntrinsicId> {
+    pub(crate) fn which(&self, intrinsic: &Object) -> Option<IntrinsicId> {
         match intrinsic {
             o if o == &self.array => Some(IntrinsicId::Array),
             o if o == &self.array_prototype => Some(IntrinsicId::ArrayPrototype),
@@ -418,9 +418,9 @@ impl fmt::Debug for Intrinsics {
     }
 }
 
-pub type RealmId = u64;
+pub(crate) type RealmId = u64;
 
-pub struct Realm {
+pub(crate) struct Realm {
     // NOTE NOTE NOTE NOTE: Realm is a circular structure. The function objects in the Intrinsics field each have their
     // own Realm pointer, which points back to this structure. They _should_ be weak pointers, because of that, except
     // that anything can duplicate an intrinsic, and doing so should mean that the pointer is no longer weak.
@@ -430,9 +430,9 @@ pub struct Realm {
     //
     // Until I figure out a solution for that, once a realm is created, it can never be dropped. (Currently, aside from
     // testing, only one realm is ever made, so it's not a huge issue.)
-    pub intrinsics: Intrinsics,
-    pub global_object: Option<Object>,
-    pub global_env: Option<Rc<GlobalEnvironmentRecord>>,
+    pub(crate) intrinsics: Intrinsics,
+    pub(crate) global_object: Option<Object>,
+    pub(crate) global_env: Option<Rc<GlobalEnvironmentRecord>>,
     // TemplateMap: later, when needed
     id: RealmId,
 }
@@ -448,7 +448,8 @@ impl fmt::Debug for Realm {
 }
 
 impl Realm {
-    pub fn id(&self) -> RealmId {
+    #[cfg(test)]
+    pub(crate) fn id(&self) -> RealmId {
         self.id
     }
 }
@@ -463,7 +464,7 @@ impl Realm {
 //  4. Set realmRec.[[GlobalEnv]] to undefined.
 //  5. Set realmRec.[[TemplateMap]] to a new empty List.
 //  6. Return realmRec.
-pub fn create_realm(id: RealmId) -> Rc<RefCell<Realm>> {
+pub(crate) fn create_realm(id: RealmId) -> Rc<RefCell<Realm>> {
     let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(), global_object: None, global_env: None, id }));
     create_intrinsics(&r);
     r
@@ -487,7 +488,7 @@ pub fn create_realm(id: RealmId) -> Rc<RefCell<Realm>> {
 //     not yet been created.
 //  4. Perform AddRestrictedFunctionProperties(intrinsics.[[%Function.prototype%]], realmRec).
 //  5. Return intrinsics.
-pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
+pub(crate) fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     // ToDo: All of step 3.
 
     // %Object.prototype%
@@ -578,7 +579,7 @@ pub fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
 //    [[Enumerable]]: false, [[Configurable]]: true }).
 // 4. Return ! DefinePropertyOrThrow(F, "arguments", PropertyDescriptor { [[Get]]: thrower, [[Set]]: thrower,
 //    [[Enumerable]]: false, [[Configurable]]: true }).
-pub fn add_restricted_function_properties(f: &Object, realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn add_restricted_function_properties(f: &Object, realm: &Rc<RefCell<Realm>>) {
     let thrower = ECMAScriptValue::Object(realm.borrow().intrinsics.get(IntrinsicId::ThrowTypeError));
     define_property_or_throw(
         f,
@@ -612,7 +613,7 @@ pub fn add_restricted_function_properties(f: &Object, realm: &Rc<RefCell<Realm>>
 //
 // The "name" property of a %ThrowTypeError% function has the attributes { [[Writable]]: false, [[Enumerable]]: false,
 // [[Configurable]]: false }.
-pub fn throw_type_error(
+pub(crate) fn throw_type_error(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -649,7 +650,8 @@ fn create_throw_type_error_builtin(realm: Rc<RefCell<Realm>>) -> Object {
     fcn
 }
 
-pub fn do_nothing(
+#[expect(clippy::unnecessary_wraps)]
+pub(crate) fn do_nothing(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -841,13 +843,13 @@ fn parse_int(
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum EvalCallStatus {
+pub(crate) enum EvalCallStatus {
     DirectWithStrictCaller,
     DirectWithNonStrictCaller,
     NotDirect,
 }
 
-pub fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completion<ECMAScriptValue> {
+pub(crate) fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Completion<ECMAScriptValue> {
     match x {
         ECMAScriptValue::String(x) => {
             let eval_realm = current_realm_record().unwrap();

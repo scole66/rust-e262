@@ -21,7 +21,7 @@ use super::*;
 /// used as a Map key and whose second element is the value to associate with that key.
 ///
 /// See [AddEntriesFromIterable](https://tc39.es/ecma262/#sec-add-entries-from-iterable) in ECMA-262.
-pub fn add_entries_from_iterable(
+pub(crate) fn add_entries_from_iterable(
     target: &ECMAScriptValue,
     iterable: &ECMAScriptValue,
     adder: &ECMAScriptValue,
@@ -90,7 +90,7 @@ pub fn add_entries_from_iterable(
     }
 }
 
-pub fn provision_map_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_map_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -326,7 +326,7 @@ struct MapInternals {
 }
 
 #[derive(Debug)]
-pub struct MapObject {
+pub(crate) struct MapObject {
     common: RefCell<CommonObjectData>,
     map_data: RefCell<MapInternals>,
 }
@@ -470,7 +470,7 @@ impl MapObject {
         }
     }
 
-    pub fn object(prototype: Option<Object>) -> Object {
+    pub(crate) fn object(prototype: Option<Object>) -> Object {
         Object { o: Rc::new(Self::new(prototype)) }
     }
 }
@@ -840,7 +840,7 @@ fn map_prototype_values(
 
 impl ECMAScriptValue {
     #[must_use]
-    pub fn canonicalize_keyed_collection_key(self) -> Self {
+    pub(crate) fn canonicalize_keyed_collection_key(self) -> Self {
         // CanonicalizeKeyedCollectionKey ( key )
         // The abstract operation CanonicalizeKeyedCollectionKey takes argument key (an ECMAScript language value) and
         // returns an ECMAScript language value. It performs the following steps when called:

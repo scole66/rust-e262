@@ -4,7 +4,7 @@ use std::fmt;
 use std::ptr::addr_of;
 
 #[derive(Clone, Debug)]
-pub enum NormalCompletion {
+pub(crate) enum NormalCompletion {
     Empty,
     Value(ECMAScriptValue),
     Reference(Box<Reference>),
@@ -61,7 +61,7 @@ impl fmt::Display for NormalCompletion {
     }
 }
 #[derive(Clone, Debug, PartialEq)]
-pub enum AbruptCompletion {
+pub(crate) enum AbruptCompletion {
     Break { value: NormalCompletion, target: Option<JSString> },
     Continue { value: NormalCompletion, target: Option<JSString> },
     Return { value: ECMAScriptValue },
@@ -96,8 +96,8 @@ impl From<AbruptCompletion> for String {
     }
 }
 
-pub type Completion<T> = Result<T, AbruptCompletion>;
-pub type FullCompletion = Completion<NormalCompletion>;
+pub(crate) type Completion<T> = Result<T, AbruptCompletion>;
+pub(crate) type FullCompletion = Completion<NormalCompletion>;
 
 impl<T> From<T> for NormalCompletion
 where
@@ -256,7 +256,7 @@ impl TryFrom<NormalCompletion> for Box<Reference> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ThrowValue(ECMAScriptValue);
+pub(crate) struct ThrowValue(ECMAScriptValue);
 impl TryFrom<AbruptCompletion> for ThrowValue {
     type Error = anyhow::Error;
     fn try_from(value: AbruptCompletion) -> Result<Self, Self::Error> {
@@ -274,7 +274,7 @@ impl From<ThrowValue> for ECMAScriptValue {
     }
 }
 
-pub fn update_empty(completion_record: FullCompletion, old_value: NormalCompletion) -> FullCompletion {
+pub(crate) fn update_empty(completion_record: FullCompletion, old_value: NormalCompletion) -> FullCompletion {
     match completion_record {
         Ok(NormalCompletion::Empty) => Ok(old_value),
         Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target }) => {

@@ -6,26 +6,26 @@ use std::fmt;
 use std::rc::Rc;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ConstructorKind {
+pub(crate) enum ConstructorKind {
     Base,
     Derived,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ThisMode {
+pub(crate) enum ThisMode {
     Lexical,
     Strict,
     Global,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ThisLexicality {
+pub(crate) enum ThisLexicality {
     LexicalThis,
     NonLexicalThis,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ClassName {
+pub(crate) enum ClassName {
     String(JSString),
     Symbol(Symbol),
     Private(PrivateName),
@@ -96,18 +96,18 @@ impl fmt::Display for ClassName {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ClassFieldDefinitionRecord {
-    pub name: ClassName,
-    pub initializer: Option<Object>,
+pub(crate) struct ClassFieldDefinitionRecord {
+    pub(crate) name: ClassName,
+    pub(crate) initializer: Option<Object>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ClassStaticBlockDefinitionRecord {
-    pub body_function: Object,
+pub(crate) struct ClassStaticBlockDefinitionRecord {
+    pub(crate) body_function: Object,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ClassItem {
+pub(crate) enum ClassItem {
     StaticPrivateElement(PrivateElement),
     PrivateElement(PrivateElement),
     StaticClassFieldDefinition(ClassFieldDefinitionRecord),
@@ -170,7 +170,7 @@ impl fmt::Display for ClassItem {
 }
 
 #[derive(Debug, Clone)]
-pub enum BodySource {
+pub(crate) enum BodySource {
     Function(Rc<FunctionBody>),
     Generator(Rc<GeneratorBody>),
     AsyncFunction(Rc<AsyncFunctionBody>),
@@ -180,7 +180,7 @@ pub enum BodySource {
     Initializer(Rc<Initializer>),
     ClassStaticBlockBody(Rc<ClassStaticBlockBody>),
 }
-pub struct ConciseBodySource<'a>(&'a BodySource);
+pub(crate) struct ConciseBodySource<'a>(&'a BodySource);
 impl fmt::Debug for ConciseBodySource<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
@@ -230,10 +230,10 @@ impl From<Rc<ClassStaticBlockBody>> for BodySource {
 impl From<ParsedBody> for BodySource {
     fn from(value: ParsedBody) -> Self {
         match value {
-            ParsedBody::FunctionBody(function_body) => BodySource::Function(function_body),
-            ParsedBody::GeneratorBody(generator_body) => BodySource::Generator(generator_body),
-            ParsedBody::AsyncFunctionBody(async_function_body) => BodySource::AsyncFunction(async_function_body),
-            ParsedBody::AsyncGeneratorBody(async_generator_body) => BodySource::AsyncGenerator(async_generator_body),
+            ParsedBody::Function(function_body) => BodySource::Function(function_body),
+            ParsedBody::Generator(generator_body) => BodySource::Generator(generator_body),
+            ParsedBody::AsyncFunction(async_function_body) => BodySource::AsyncFunction(async_function_body),
+            ParsedBody::AsyncGenerator(async_generator_body) => BodySource::AsyncGenerator(async_generator_body),
         }
     }
 }
@@ -296,7 +296,7 @@ impl BodySource {
     /// of the var-declared list.
     ///
     /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             BodySource::Function(f) => f.var_declared_names(),
             BodySource::Generator(g) => g.var_declared_names(),
@@ -311,7 +311,7 @@ impl BodySource {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             BodySource::Function(f) => f.var_scoped_declarations(),
             BodySource::Generator(g) => g.var_scoped_declarations(),
@@ -323,7 +323,7 @@ impl BodySource {
         }
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         match self {
             BodySource::Function(f) => f.lexically_declared_names(),
             BodySource::Generator(g) => g.lexically_declared_names(),
@@ -335,7 +335,7 @@ impl BodySource {
         }
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         match self {
             BodySource::Function(f) => f.lexically_scoped_declarations(),
             BodySource::Generator(g) => g.lexically_scoped_declarations(),
@@ -347,7 +347,7 @@ impl BodySource {
         }
     }
 
-    pub fn contains_use_strict(&self) -> bool {
+    pub(crate) fn contains_use_strict(&self) -> bool {
         match self {
             BodySource::Function(node) => node.function_body_contains_use_strict(),
             BodySource::Generator(node) => node.function_body_contains_use_strict(),
@@ -361,7 +361,7 @@ impl BodySource {
 }
 
 #[derive(Debug, Clone)]
-pub enum ParamSource {
+pub(crate) enum ParamSource {
     FormalParameters(Rc<FormalParameters>),
     ArrowParameters(Rc<ArrowParameters>),
     AsyncArrowBinding(Rc<AsyncArrowBindingIdentifier>),
@@ -370,7 +370,7 @@ pub enum ParamSource {
     PropertySetParameterList(Rc<PropertySetParameterList>),
 }
 
-pub struct ConciseParamSource<'a>(&'a ParamSource);
+pub(crate) struct ConciseParamSource<'a>(&'a ParamSource);
 impl fmt::Debug for ConciseParamSource<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.0, f)
@@ -452,18 +452,18 @@ impl TryFrom<ParamSource> for Rc<FormalParameters> {
     }
 }
 impl ParamSource {
-    pub fn expected_argument_count(&self) -> f64 {
+    pub(crate) fn expected_argument_count(&self) -> f64 {
         match self {
             ParamSource::FormalParameters(formals) => formals.expected_argument_count(),
             ParamSource::ArrowParameters(arrow) => arrow.expected_argument_count(),
-            ParamSource::AsyncArrowBinding(node) => node.expected_argument_count(),
+            ParamSource::AsyncArrowBinding(_) => 1.0,
             ParamSource::ArrowFormals(node) => node.expected_argument_count(),
             ParamSource::UniqueFormalParameters(node) => node.expected_argument_count(),
             ParamSource::PropertySetParameterList(node) => node.expected_argument_count(),
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             ParamSource::FormalParameters(formals) => formals.bound_names(),
             ParamSource::ArrowParameters(arrow) => arrow.bound_names(),
@@ -474,22 +474,22 @@ impl ParamSource {
         }
     }
 
-    pub fn is_simple_parameter_list(&self) -> bool {
+    pub(crate) fn is_simple_parameter_list(&self) -> bool {
         match self {
             ParamSource::FormalParameters(formals) => formals.is_simple_parameter_list(),
             ParamSource::ArrowParameters(arrow) => arrow.is_simple_parameter_list(),
-            ParamSource::AsyncArrowBinding(node) => node.is_simple_parameter_list(),
+            ParamSource::AsyncArrowBinding(_) => true,
             ParamSource::ArrowFormals(node) => node.is_simple_parameter_list(),
             ParamSource::UniqueFormalParameters(node) => node.is_simple_parameter_list(),
             ParamSource::PropertySetParameterList(node) => node.is_simple_parameter_list(),
         }
     }
 
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         match self {
             ParamSource::FormalParameters(formals) => formals.contains_expression(),
             ParamSource::ArrowParameters(arrow) => arrow.contains_expression(),
-            ParamSource::AsyncArrowBinding(node) => node.contains_expression(),
+            ParamSource::AsyncArrowBinding(_) => false,
             ParamSource::ArrowFormals(node) => node.contains_expression(),
             ParamSource::UniqueFormalParameters(node) => node.contains_expression(),
             ParamSource::PropertySetParameterList(node) => node.contains_expression(),
@@ -498,15 +498,17 @@ impl ParamSource {
 }
 
 #[derive(Debug, Clone)]
-pub enum FunctionSource {
+pub(crate) enum FunctionSource {
     FunctionExpression(Rc<FunctionExpression>),
     GeneratorExpression(Rc<GeneratorExpression>),
+    #[cfg(test)]
     AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
+    #[cfg(test)]
     AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
     ArrowFunction(Rc<ArrowFunction>),
-    AsyncArrowFunction(Rc<AsyncArrowFunction>),
+    //AsyncArrowFunction(Rc<AsyncArrowFunction>),
     MethodDefinition(Rc<MethodDefinition>),
-    HoistableDeclaration(Rc<HoistableDeclaration>),
+    //HoistableDeclaration(Rc<HoistableDeclaration>),
     FieldDefinition(Rc<FieldDefinition>),
     ClassStaticBlock(Rc<ClassStaticBlock>),
     FunctionDeclaration(Rc<FunctionDeclaration>),
@@ -519,12 +521,14 @@ impl fmt::Display for FunctionSource {
         match self {
             FunctionSource::FunctionExpression(node) => node.fmt(f),
             FunctionSource::GeneratorExpression(node) => node.fmt(f),
+            #[cfg(test)]
             FunctionSource::AsyncGeneratorExpression(node) => node.fmt(f),
+            #[cfg(test)]
             FunctionSource::AsyncFunctionExpression(node) => node.fmt(f),
             FunctionSource::ArrowFunction(node) => node.fmt(f),
-            FunctionSource::AsyncArrowFunction(node) => node.fmt(f),
+            //FunctionSource::AsyncArrowFunction(node) => node.fmt(f),
             FunctionSource::MethodDefinition(node) => node.fmt(f),
-            FunctionSource::HoistableDeclaration(node) => node.fmt(f),
+            //FunctionSource::HoistableDeclaration(node) => node.fmt(f),
             FunctionSource::FieldDefinition(node) => node.fmt(f),
             FunctionSource::ClassStaticBlock(node) => node.fmt(f),
             FunctionSource::FunctionDeclaration(node) => node.fmt(f),
@@ -539,26 +543,30 @@ impl PartialEq for FunctionSource {
         match (self, other) {
             (Self::FunctionExpression(l0), Self::FunctionExpression(r0)) => Rc::ptr_eq(l0, r0),
             (Self::GeneratorExpression(l0), Self::GeneratorExpression(r0)) => Rc::ptr_eq(l0, r0),
+            #[cfg(test)]
             (Self::AsyncGeneratorExpression(l0), Self::AsyncGeneratorExpression(r0)) => Rc::ptr_eq(l0, r0),
+            #[cfg(test)]
             (Self::AsyncFunctionExpression(l0), Self::AsyncFunctionExpression(r0)) => Rc::ptr_eq(l0, r0),
             (Self::ArrowFunction(l0), Self::ArrowFunction(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::AsyncArrowFunction(l0), Self::AsyncArrowFunction(r0)) => Rc::ptr_eq(l0, r0),
+            //(Self::AsyncArrowFunction(l0), Self::AsyncArrowFunction(r0)) => Rc::ptr_eq(l0, r0),
             (Self::MethodDefinition(l0), Self::MethodDefinition(r0)) => Rc::ptr_eq(l0, r0),
-            (Self::HoistableDeclaration(l0), Self::HoistableDeclaration(r0)) => Rc::ptr_eq(l0, r0),
+            //(Self::HoistableDeclaration(l0), Self::HoistableDeclaration(r0)) => Rc::ptr_eq(l0, r0),
             (Self::FieldDefinition(l0), Self::FieldDefinition(r0)) => Rc::ptr_eq(l0, r0),
             (Self::ClassStaticBlock(l0), Self::ClassStaticBlock(r0)) => Rc::ptr_eq(l0, r0),
             (Self::FunctionDeclaration(l0), Self::FunctionDeclaration(r0)) => Rc::ptr_eq(l0, r0),
             (Self::GeneratorDeclaration(l0), Self::GeneratorDeclaration(r0)) => Rc::ptr_eq(l0, r0),
             (Self::GeneratorMethod(l0), Self::GeneratorMethod(r0)) => Rc::ptr_eq(l0, r0),
+            #[cfg(test)]
+            (   Self::AsyncGeneratorExpression(_)
+                | Self::AsyncFunctionExpression(_), _
+            ) => false,
             (
                 Self::FunctionExpression(_)
                 | Self::GeneratorExpression(_)
-                | Self::AsyncGeneratorExpression(_)
-                | Self::AsyncFunctionExpression(_)
                 | Self::ArrowFunction(_)
-                | Self::AsyncArrowFunction(_)
+                //| Self::AsyncArrowFunction(_)
                 | Self::MethodDefinition(_)
-                | Self::HoistableDeclaration(_)
+                //| Self::HoistableDeclaration(_)
                 | Self::FieldDefinition(_)
                 | Self::ClassStaticBlock(_)
                 | Self::FunctionDeclaration(_)
@@ -705,22 +713,22 @@ impl TryFrom<FunctionSource> for Rc<MethodDefinition> {
     }
 }
 
-pub struct FunctionObjectData {
-    pub environment: Rc<dyn EnvironmentRecord>,
+pub(crate) struct FunctionObjectData {
+    pub(crate) environment: Rc<dyn EnvironmentRecord>,
     private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
     formal_parameters: ParamSource,
     ecmascript_code: BodySource,
     compiled: Rc<Chunk>,
-    pub constructor_kind: ConstructorKind,
-    pub realm: Rc<RefCell<Realm>>,
+    pub(crate) constructor_kind: ConstructorKind,
+    pub(crate) realm: Rc<RefCell<Realm>>,
     script_or_module: Option<ScriptOrModule>,
-    pub this_mode: ThisMode,
+    pub(crate) this_mode: ThisMode,
     strict: bool,
-    pub home_object: Option<Object>,
-    pub source_text: String,
-    pub fields: Vec<ClassFieldDefinitionRecord>,
-    pub private_methods: Vec<PrivateElement>,
-    pub class_field_initializer_name: Option<ClassName>,
+    pub(crate) home_object: Option<Object>,
+    pub(crate) source_text: String,
+    pub(crate) fields: Vec<ClassFieldDefinitionRecord>,
+    pub(crate) private_methods: Vec<PrivateElement>,
+    pub(crate) class_field_initializer_name: Option<ClassName>,
     is_class_constructor: bool,
     is_constructor: bool,
 }
@@ -749,7 +757,7 @@ impl fmt::Debug for FunctionObjectData {
 }
 
 #[derive(Debug)]
-pub struct FunctionObject {
+pub(crate) struct FunctionObject {
     common: RefCell<CommonObjectData>,
     function_data: RefCell<FunctionObjectData>,
 }
@@ -760,7 +768,7 @@ impl<'a> From<&'a FunctionObject> for &'a dyn ObjectInterface {
     }
 }
 
-pub trait CallableObject: ObjectInterface {
+pub(crate) trait CallableObject: ObjectInterface {
     fn call(&self, self_object: &Object, this_argument: &ECMAScriptValue, arguments_list: &[ECMAScriptValue]);
     fn construct(&self, self_object: &Object, arguments_list: &[ECMAScriptValue], new_target: &Object);
     fn end_evaluation(&self, result: FullCompletion);
@@ -1015,7 +1023,7 @@ impl CallableObject for FunctionObject {
     }
 }
 
-pub fn initialize_instance_elements(this_argument: &Object, constructor: &Object) -> Completion<()> {
+pub(crate) fn initialize_instance_elements(this_argument: &Object, constructor: &Object) -> Completion<()> {
     // InitializeInstanceElements ( O, constructor )
     // The abstract operation InitializeInstanceElements takes arguments O (an Object) and constructor (an ECMAScript
     // function object) and returns either a normal completion containing unused or a throw completion. It performs the
@@ -1062,7 +1070,7 @@ impl FunctionInterface for FunctionObject {
 
 impl FunctionObject {
     #[expect(clippy::too_many_arguments)]
-    pub fn new(
+    pub(crate) fn new(
         prototype: Option<Object>,
         environment: Rc<dyn EnvironmentRecord>,
         private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
@@ -1106,7 +1114,7 @@ impl FunctionObject {
     }
 
     #[expect(clippy::too_many_arguments)]
-    pub fn object(
+    pub(crate) fn object(
         prototype: Option<Object>,
         environment: Rc<dyn EnvironmentRecord>,
         private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
@@ -1154,7 +1162,7 @@ impl FunctionObject {
 /// The function being called is `func`, and any target for New expressions is in `new_target`.
 ///
 /// See [PrepareForOrdinaryCall](https://tc39.es/ecma262/#sec-prepareforordinarycall) from ECMA-262.
-pub fn prepare_for_ordinary_call(func: &Object, new_target: Option<Object>) {
+pub(crate) fn prepare_for_ordinary_call(func: &Object, new_target: Option<Object>) {
     // PrepareForOrdinaryCall ( F, newTarget )
     //
     // The abstract operation PrepareForOrdinaryCall takes arguments F (a function object) and newTarget (an Object
@@ -1294,7 +1302,7 @@ fn ordinary_call_evaluate_body(func: &Object, args: &[ECMAScriptValue]) {
     ec_push(Ok(args.len().into()));
 }
 
-pub fn nameify(src: &str, limit: usize) -> String {
+pub(crate) fn nameify(src: &str, limit: usize) -> String {
     let minimized = src.trim().split(|c: char| c.is_whitespace()).filter(|x| !x.is_empty()).join(" ");
     let (always_shown, maybe_shown): (Vec<_>, Vec<_>) =
         minimized.chars().enumerate().partition(|&(idx, _)| idx < limit - 3);
@@ -1330,7 +1338,7 @@ pub fn nameify(src: &str, limit: usize) -> String {
 //              i. Optionally, set F.[[InitialName]] to name.
 //      6. Return ! DefinePropertyOrThrow(F, "name", PropertyDescriptor { [[Value]]: name, [[Writable]]: false,
 //         [[Enumerable]]: false, [[Configurable]]: true }).
-pub fn set_function_name(func: &Object, name: FunctionName, prefix: Option<JSString>) {
+pub(crate) fn set_function_name(func: &Object, name: FunctionName, prefix: Option<JSString>) {
     let name_before_prefix = match name {
         FunctionName::String(s) => s,
         FunctionName::PrivateName(pn) => pn.description,
@@ -1377,7 +1385,7 @@ pub fn set_function_name(func: &Object, name: FunctionName, prefix: Option<JSStr
 //      1. Assert: F is an extensible object that does not have a "length" own property.
 //      2. Return ! DefinePropertyOrThrow(F, "length", PropertyDescriptor { [[Value]]: 𝔽(length), [[Writable]]: false,
 //         [[Enumerable]]: false, [[Configurable]]: true }).
-pub fn set_function_length(func: &Object, length: f64) {
+pub(crate) fn set_function_length(func: &Object, length: f64) {
     define_property_or_throw(
         func,
         "length",
@@ -1399,7 +1407,7 @@ pub fn set_function_length(func: &Object, length: f64) {
 //      let second_arg = args.next_arg();
 // etc. If the args are there, you get them, if the arguments array is short, then you get undefined.
 // args.remaining() returns an iterator over the "rest" of the args (since "next_arg" won't tell if you've "gotten to the end")
-pub struct FuncArgs<'a> {
+pub(crate) struct FuncArgs<'a> {
     iterator: std::slice::Iter<'a, ECMAScriptValue>,
     count: usize,
 }
@@ -1410,22 +1418,22 @@ impl<'a> From<&'a [ECMAScriptValue]> for FuncArgs<'a> {
     }
 }
 impl<'a> FuncArgs<'a> {
-    pub fn next_arg(&mut self) -> ECMAScriptValue {
+    pub(crate) fn next_arg(&mut self) -> ECMAScriptValue {
         self.iterator.next().cloned().unwrap_or(ECMAScriptValue::Undefined)
     }
-    pub fn count(&self) -> usize {
+    pub(crate) fn count(&self) -> usize {
         self.count
     }
-    pub fn remaining(&mut self) -> &mut std::slice::Iter<'a, ECMAScriptValue> {
+    pub(crate) fn remaining(&mut self) -> &mut std::slice::Iter<'a, ECMAScriptValue> {
         &mut self.iterator
     }
-    pub fn next_if_exists(&mut self) -> Option<ECMAScriptValue> {
+    pub(crate) fn next_if_exists(&mut self) -> Option<ECMAScriptValue> {
         self.iterator.next().cloned()
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum FunctionName {
+pub(crate) enum FunctionName {
     String(JSString),
     Symbol(Symbol),
     PrivateName(PrivateName),
@@ -1526,16 +1534,17 @@ impl TryFrom<NormalCompletion> for FunctionName {
     }
 }
 
-pub type BuiltInFcn = Box<dyn Fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>>;
+pub(crate) type BuiltInFcn =
+    Box<dyn Fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>>;
 
-pub struct BuiltInFunctionData {
-    pub realm: Rc<RefCell<Realm>>,
-    pub initial_name: Option<FunctionName>,
-    pub steps: BuiltInFcn,
-    pub constructor_kind: Option<ConstructorKind>,
-    pub fields: Vec<ClassFieldDefinitionRecord>,
-    pub private_methods: Vec<PrivateElement>,
-    pub source_text: Option<String>,
+pub(crate) struct BuiltInFunctionData {
+    pub(crate) realm: Rc<RefCell<Realm>>,
+    pub(crate) initial_name: Option<FunctionName>,
+    pub(crate) steps: BuiltInFcn,
+    pub(crate) constructor_kind: Option<ConstructorKind>,
+    pub(crate) fields: Vec<ClassFieldDefinitionRecord>,
+    pub(crate) private_methods: Vec<PrivateElement>,
+    pub(crate) source_text: Option<String>,
 }
 
 impl fmt::Debug for BuiltInFunctionData {
@@ -1553,7 +1562,7 @@ impl fmt::Debug for BuiltInFunctionData {
 }
 
 impl BuiltInFunctionData {
-    pub fn new(
+    pub(crate) fn new(
         realm: Rc<RefCell<Realm>>,
         initial_name: Option<FunctionName>,
         steps: BuiltInFcn,
@@ -1572,7 +1581,7 @@ impl BuiltInFunctionData {
 }
 
 #[derive(Debug)]
-pub struct BuiltInFunctionObject {
+pub(crate) struct BuiltInFunctionObject {
     common: RefCell<CommonObjectData>,
     builtin_data: RefCell<BuiltInFunctionData>,
 }
@@ -1590,7 +1599,7 @@ impl BuiltinFunctionInterface for BuiltInFunctionObject {
 }
 
 impl BuiltInFunctionObject {
-    pub fn new(
+    pub(crate) fn new(
         prototype: Option<Object>,
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
@@ -1604,7 +1613,7 @@ impl BuiltInFunctionObject {
         }
     }
 
-    pub fn object(
+    pub(crate) fn object(
         prototype: Option<Object>,
         extensible: bool,
         realm: Rc<RefCell<Realm>>,
@@ -1616,7 +1625,7 @@ impl BuiltInFunctionObject {
     }
 }
 
-pub trait BuiltinFunctionInterface: CallableObject {
+pub(crate) trait BuiltinFunctionInterface: CallableObject {
     fn builtin_function_data(&self) -> &RefCell<BuiltInFunctionData>;
 }
 
@@ -1783,7 +1792,7 @@ impl CallableObject for BuiltInFunctionObject {
 // Each built-in function defined in this specification is created by calling the CreateBuiltinFunction abstract
 // operation.
 #[expect(clippy::too_many_arguments)]
-pub fn create_builtin_function(
+pub(crate) fn create_builtin_function(
     behavior: BuiltInFcn,
     constructor_kind: Option<ConstructorKind>,
     length: f64,
@@ -1803,7 +1812,7 @@ pub fn create_builtin_function(
 }
 
 impl FunctionDeclaration {
-    pub fn instantiate_function_object(
+    pub(crate) fn instantiate_function_object(
         self: &Rc<Self>,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
@@ -1884,7 +1893,7 @@ impl FunctionDeclaration {
 }
 
 impl GeneratorDeclaration {
-    pub fn instantiate_function_object(
+    pub(crate) fn instantiate_function_object(
         self: &Rc<Self>,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
@@ -1979,7 +1988,7 @@ impl GeneratorDeclaration {
 
 impl AsyncFunctionDeclaration {
     #[expect(unused_variables, clippy::needless_pass_by_value)]
-    pub fn instantiate_function_object(
+    pub(crate) fn instantiate_function_object(
         self: &Rc<Self>,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
@@ -1992,7 +2001,7 @@ impl AsyncFunctionDeclaration {
 
 impl AsyncGeneratorDeclaration {
     #[expect(unused_variables, clippy::needless_pass_by_value)]
-    pub fn instantiate_function_object(
+    pub(crate) fn instantiate_function_object(
         self: &Rc<Self>,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
@@ -2007,7 +2016,7 @@ impl AsyncGeneratorDeclaration {
 ///
 /// See [OrdinaryFunctionCreate](https://tc39.es/ecma262/#sec-ordinaryfunctioncreate) from ECMA-262.
 #[expect(clippy::too_many_arguments)]
-pub fn ordinary_function_create(
+pub(crate) fn ordinary_function_create(
     function_prototype: Object,
     source_text: &str,
     parameter_list: ParamSource,
@@ -2096,7 +2105,7 @@ pub fn ordinary_function_create(
 /// Transform a function object into a constructor
 ///
 /// See [MakeConstructor](https://tc39.es/ecma262/#sec-makeconstructor) from ECMA-262.
-pub fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
+pub(crate) fn make_constructor(func: &Object, args: Option<(bool, Object)>) {
     // MakeConstructor ( F [ , writablePrototype [ , prototype ] ] )
     //
     // The abstract operation MakeConstructor takes argument F (an ECMAScript function object or a built-in function
@@ -2197,7 +2206,7 @@ fn function_prototype_call(
     }
 }
 
-pub fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_function_intrinsic(realm: &Rc<RefCell<Realm>>) {
     //let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -2323,14 +2332,14 @@ fn function_constructor_function(
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum FunctionKind {
+pub(crate) enum FunctionKind {
     Normal,
     Generator,
-    Async,
-    AsyncGenerator,
+    //Async,
+    //AsyncGenerator,
 }
 
-pub fn create_dynamic_function(
+pub(crate) fn create_dynamic_function(
     constructor: &Object,
     new_target: Option<&Object>,
     kind: FunctionKind,
@@ -2341,8 +2350,8 @@ pub fn create_dynamic_function(
     let (prefix, fallback_proto) = match kind {
         FunctionKind::Normal => ("function", IntrinsicId::FunctionPrototype),
         FunctionKind::Generator => ("function*", IntrinsicId::GeneratorFunctionPrototype),
-        FunctionKind::Async => ("async function", IntrinsicId::AsyncFunctionPrototype),
-        FunctionKind::AsyncGenerator => ("async function*", IntrinsicId::AsyncGeneratorFunctionPrototype),
+        //FunctionKind::Async => ("async function", IntrinsicId::AsyncFunctionPrototype),
+        //FunctionKind::AsyncGenerator => ("async function*", IntrinsicId::AsyncGeneratorFunctionPrototype),
     };
     let parameter_strings = parameter_args.iter().map(|v| to_string(v.clone())).collect::<Result<Vec<_>, _>>()?;
     let body_string = to_string(body_arg.clone())?;
@@ -2372,8 +2381,8 @@ pub fn create_dynamic_function(
         match kind {
             FunctionKind::Normal => ParseGoal::FormalParameters(YieldAllowed::No, AwaitAllowed::No),
             FunctionKind::Generator => ParseGoal::FormalParameters(YieldAllowed::Yes, AwaitAllowed::No),
-            FunctionKind::Async => ParseGoal::FormalParameters(YieldAllowed::No, AwaitAllowed::Yes),
-            FunctionKind::AsyncGenerator => ParseGoal::FormalParameters(YieldAllowed::Yes, AwaitAllowed::Yes),
+            //FunctionKind::Async => ParseGoal::FormalParameters(YieldAllowed::No, AwaitAllowed::Yes),
+            //FunctionKind::AsyncGenerator => ParseGoal::FormalParameters(YieldAllowed::Yes, AwaitAllowed::Yes),
         },
         false,
         false,
@@ -2392,8 +2401,8 @@ pub fn create_dynamic_function(
         match kind {
             FunctionKind::Normal => ParseGoal::FunctionBody(YieldAllowed::No, AwaitAllowed::No),
             FunctionKind::Generator => ParseGoal::GeneratorBody,
-            FunctionKind::Async => ParseGoal::AsyncFunctionBody,
-            FunctionKind::AsyncGenerator => ParseGoal::AsyncGeneratorBody,
+            //FunctionKind::Async => ParseGoal::AsyncFunctionBody,
+            //FunctionKind::AsyncGenerator => ParseGoal::AsyncGeneratorBody,
         },
         false,
         false,
@@ -2403,10 +2412,10 @@ pub fn create_dynamic_function(
         Err(mut errs) => {
             return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
         }
-        Ok(ParsedBody::FunctionBody(fb)) => BodySource::from(fb),
-        Ok(ParsedBody::GeneratorBody(gb)) => BodySource::from(gb),
-        Ok(ParsedBody::AsyncFunctionBody(afb)) => BodySource::from(afb),
-        Ok(ParsedBody::AsyncGeneratorBody(agb)) => BodySource::from(agb),
+        Ok(ParsedBody::Function(fb)) => BodySource::from(fb),
+        Ok(ParsedBody::Generator(gb)) => BodySource::from(gb),
+        Ok(ParsedBody::AsyncFunction(afb)) => BodySource::from(afb),
+        Ok(ParsedBody::AsyncGenerator(agb)) => BodySource::from(agb),
     };
     let body_contains_use_strict = body.contains_use_strict();
     let function_expression = parse_text(
@@ -2414,8 +2423,8 @@ pub fn create_dynamic_function(
         match kind {
             FunctionKind::Normal => ParseGoal::FunctionExpression,
             FunctionKind::Generator => ParseGoal::GeneratorExpression,
-            FunctionKind::Async => ParseGoal::AsyncFunctionExpression,
-            FunctionKind::AsyncGenerator => ParseGoal::AsyncGeneratorExpression,
+            //FunctionKind::Async => ParseGoal::AsyncFunctionExpression,
+            //FunctionKind::AsyncGenerator => ParseGoal::AsyncGeneratorExpression,
         },
         body_contains_use_strict,
         false,
@@ -2426,10 +2435,12 @@ pub fn create_dynamic_function(
         Err(mut errs) => {
             return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
         }
-        Ok(ParsedFunctionExpression::FunctionExpression(fe)) => FunctionSource::FunctionExpression(fe),
-        Ok(ParsedFunctionExpression::GeneratorExpression(ge)) => FunctionSource::GeneratorExpression(ge),
-        Ok(ParsedFunctionExpression::AsyncFunctionExpression(afe)) => FunctionSource::AsyncFunctionExpression(afe),
-        Ok(ParsedFunctionExpression::AsyncGeneratorExpression(age)) => FunctionSource::AsyncGeneratorExpression(age),
+        Ok(ParsedFunctionExpression::Function(fe)) => FunctionSource::FunctionExpression(fe),
+        Ok(ParsedFunctionExpression::Generator(ge)) => FunctionSource::GeneratorExpression(ge),
+        #[cfg(test)]
+        Ok(ParsedFunctionExpression::AsyncFunction(afe)) => FunctionSource::AsyncFunctionExpression(afe),
+        #[cfg(test)]
+        Ok(ParsedFunctionExpression::AsyncGenerator(age)) => FunctionSource::AsyncGeneratorExpression(age),
     };
     let proto = new_target.get_prototype_from_constructor(fallback_proto)?;
     let env = current_realm.borrow().global_env.clone().expect("There should be a global environment");
@@ -2447,9 +2458,9 @@ pub fn create_dynamic_function(
     let body = ParsedBody::try_from(body).expect("body should be a function body");
     let source_tree = SourceTree { text: source_text.clone(), ast: parsed_body };
     let compilation_status = match &body {
-        ParsedBody::FunctionBody(fb) => fb.compile_body(&mut compiled, &source_tree, &function_data),
-        ParsedBody::GeneratorBody(gb) => gb.evaluate_generator_body(&mut compiled, &source_tree, &function_data),
-        ParsedBody::AsyncFunctionBody(_) | ParsedBody::AsyncGeneratorBody(_) => {
+        ParsedBody::Function(fb) => fb.compile_body(&mut compiled, &source_tree, &function_data),
+        ParsedBody::Generator(gb) => gb.evaluate_generator_body(&mut compiled, &source_tree, &function_data),
+        ParsedBody::AsyncFunction(_) | ParsedBody::AsyncGenerator(_) => {
             compiled.op(Insn::ToDo);
             Ok(AbruptResult::Never)
         }
@@ -2491,22 +2502,21 @@ pub fn create_dynamic_function(
                     .configurable(false),
             )
             .unwrap();
-        }
-        FunctionKind::Async => {}
-        FunctionKind::AsyncGenerator => {
-            let prototype =
-                ordinary_object_create(Some(intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype)));
-            define_property_or_throw(
-                &f,
-                "prototype",
-                PotentialPropertyDescriptor::new()
-                    .value(prototype)
-                    .writable(true)
-                    .enumerable(false)
-                    .configurable(false),
-            )
-            .unwrap();
-        }
+        } //FunctionKind::Async => {}
+          //FunctionKind::AsyncGenerator => {
+          //    let prototype =
+          //        ordinary_object_create(Some(intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype)));
+          //    define_property_or_throw(
+          //        &f,
+          //        "prototype",
+          //        PotentialPropertyDescriptor::new()
+          //            .value(prototype)
+          //            .writable(true)
+          //            .enumerable(false)
+          //            .configurable(false),
+          //    )
+          //    .unwrap();
+          //}
     }
     Ok(f)
 }
@@ -2703,7 +2713,7 @@ fn function_prototype_has_instance(
     ordinary_has_instance(this_value, &v).map(ECMAScriptValue::from)
 }
 
-pub fn make_method(f: &dyn FunctionInterface, home_object: Object) {
+pub(crate) fn make_method(f: &dyn FunctionInterface, home_object: Object) {
     // MakeMethod ( F, homeObject )
     // The abstract operation MakeMethod takes arguments F (an ECMAScript function object) and homeObject (an Object)
     // and returns UNUSED. It configures F as a method. It performs the following steps when called:
@@ -2713,7 +2723,7 @@ pub fn make_method(f: &dyn FunctionInterface, home_object: Object) {
     f.function_data().borrow_mut().home_object = Some(home_object);
 }
 
-pub fn make_class_constructor(f: &Object) {
+pub(crate) fn make_class_constructor(f: &Object) {
     // MakeClassConstructor ( F )
     // The abstract operation MakeClassConstructor takes argument F (an ECMAScript function object) and returns unused.
     // It performs the following steps when called:
@@ -2735,7 +2745,7 @@ pub fn make_class_constructor(f: &Object) {
     }
 }
 
-pub fn get_super_constructor() -> Result<ECMAScriptValue, InternalRuntimeError> {
+pub(crate) fn get_super_constructor() -> Result<ECMAScriptValue, InternalRuntimeError> {
     // GetSuperConstructor ( )
     // The abstract operation GetSuperConstructor takes no arguments and returns an ECMAScript language value. It
     // performs the following steps when called:

@@ -20,7 +20,7 @@ use std::io::Write;
 //      CoverParenthesizedExpressionAndArrowParameterList[?Yield, ?Await]
 
 #[derive(Debug)]
-pub enum PrimaryExpression {
+pub(crate) enum PrimaryExpression {
     This { location: Location },
     IdentifierReference { node: Rc<IdentifierReference> },
     Literal { node: Rc<Literal> },
@@ -105,30 +105,6 @@ impl PrettyPrint for PrimaryExpression {
     }
 }
 
-impl IsFunctionDefinition for PrimaryExpression {
-    fn is_function_definition(&self) -> bool {
-        use PrimaryExpression::{
-            ArrayLiteral, AsyncFunction, AsyncGenerator, Class, Function, Generator, IdentifierReference, Literal,
-            ObjectLiteral, Parenthesized, RegularExpression, TemplateLiteral, This,
-        };
-        match self {
-            This { .. }
-            | IdentifierReference { .. }
-            | Literal { .. }
-            | ArrayLiteral { .. }
-            | ObjectLiteral { .. }
-            | TemplateLiteral { .. }
-            | RegularExpression { .. } => false,
-            Parenthesized { node } => node.is_function_definition(),
-            Function { node } => node.is_function_definition(),
-            Class { node } => node.is_function_definition(),
-            Generator { node } => node.is_function_definition(),
-            AsyncFunction { node } => node.is_function_definition(),
-            AsyncGenerator { node } => node.is_function_definition(),
-        }
-    }
-}
-
 impl From<Rc<IdentifierReference>> for PrimaryExpression {
     fn from(node: Rc<IdentifierReference>) -> Self {
         Self::IdentifierReference { node }
@@ -197,7 +173,7 @@ impl From<Rc<AsyncGeneratorExpression>> for PrimaryExpression {
 
 impl PrimaryExpression {
     fn parse_this(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let (tok_loc, after) = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::This)?;
+        let (tok_loc, after) = scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::This)?;
         Ok((Rc::new(PrimaryExpression::This { location: tok_loc }), after))
     }
 
@@ -275,7 +251,7 @@ impl PrimaryExpression {
     }
 
     fn parse_regex(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let (tok, tok_loc, after) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (tok, tok_loc, after) = scan_token(&scanner, parser.source, InputElementGoal::RegExp);
         match tok {
             Token::RegularExpression(rd) => {
                 Ok((Rc::new(PrimaryExpression::RegularExpression { regex: rd, location: tok_loc }), after))
@@ -284,7 +260,12 @@ impl PrimaryExpression {
         }
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PrimaryExpression), scanner))
             .otherwise(|| Self::parse_this(parser, scanner))
             .otherwise(|| Self::parse_async_func(parser, scanner))
@@ -301,7 +282,7 @@ impl PrimaryExpression {
             .otherwise(|| Self::parse_regex(parser, scanner))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             PrimaryExpression::This { location } | PrimaryExpression::RegularExpression { location, .. } => *location,
             PrimaryExpression::IdentifierReference { node } => node.location(),
@@ -318,32 +299,32 @@ impl PrimaryExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             PrimaryExpression::This { .. } => kind == ParseNodeKind::This,
-            PrimaryExpression::IdentifierReference { node } => node.contains(kind),
             PrimaryExpression::Literal { node } => kind == ParseNodeKind::Literal || node.contains(kind),
             PrimaryExpression::ArrayLiteral { node } => node.contains(kind),
             PrimaryExpression::ObjectLiteral { node } => node.contains(kind),
             PrimaryExpression::Parenthesized { node } => node.contains(kind),
             PrimaryExpression::TemplateLiteral { node } => node.contains(kind),
-            PrimaryExpression::Function { node } => node.contains(kind),
             PrimaryExpression::Class { node } => node.contains(kind),
-            PrimaryExpression::Generator { node } => node.contains(kind),
-            PrimaryExpression::AsyncFunction { node } => node.contains(kind),
-            PrimaryExpression::AsyncGenerator { node } => node.contains(kind),
-            PrimaryExpression::RegularExpression { .. } => false,
+            PrimaryExpression::IdentifierReference { .. }
+            | PrimaryExpression::Generator { .. }
+            | PrimaryExpression::Function { .. }
+            | PrimaryExpression::AsyncFunction { .. }
+            | PrimaryExpression::AsyncGenerator { .. }
+            | PrimaryExpression::RegularExpression { .. } => false,
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             PrimaryExpression::Literal { node: n } => n.as_string_literal(),
             _ => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -371,7 +352,7 @@ impl PrimaryExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -395,11 +376,11 @@ impl PrimaryExpression {
         }
     }
 
-    pub fn is_object_or_array_literal(&self) -> bool {
+    pub(crate) fn is_object_or_array_literal(&self) -> bool {
         matches!(self, PrimaryExpression::ArrayLiteral { .. } | PrimaryExpression::ObjectLiteral { .. })
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             PrimaryExpression::This { .. } => {}
             PrimaryExpression::IdentifierReference { node: id } => id.early_errors(errs, strict),
@@ -424,7 +405,7 @@ impl PrimaryExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             PrimaryExpression::IdentifierReference { .. } => false,
             PrimaryExpression::Parenthesized { node: exp } => exp.is_strictly_deletable(),
@@ -435,7 +416,7 @@ impl PrimaryExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         use PrimaryExpression::{
             ArrayLiteral, AsyncFunction, AsyncGenerator, Class, Function, Generator, IdentifierReference, Literal,
             ObjectLiteral, Parenthesized, RegularExpression, TemplateLiteral, This,
@@ -460,10 +441,10 @@ impl PrimaryExpression {
     /// True if this production winds up being an IdentifierRef
     ///
     /// See [IsIdentifierRef](https://tc39.es/ecma262/#sec-static-semantics-isidentifierref) from ECMA-262.
-    pub fn is_identifier_ref(&self) -> bool {
-        matches!(self, PrimaryExpression::IdentifierReference { .. })
-    }
-    pub fn identifier_ref(&self) -> Option<Rc<IdentifierReference>> {
+    //pub(crate) fn is_identifier_ref(&self) -> bool {
+    //    matches!(self, PrimaryExpression::IdentifierReference { .. })
+    //}
+    pub(crate) fn identifier_ref(&self) -> Option<Rc<IdentifierReference>> {
         match self {
             PrimaryExpression::IdentifierReference { node } => Some(node.clone()),
             PrimaryExpression::This { .. }
@@ -481,19 +462,19 @@ impl PrimaryExpression {
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            PrimaryExpression::Function { node } => node.is_named_function(),
-            PrimaryExpression::Class { node } => node.is_named_function(),
-            PrimaryExpression::Generator { node } => node.is_named_function(),
-            PrimaryExpression::AsyncFunction { node } => node.is_named_function(),
-            PrimaryExpression::AsyncGenerator { node } => node.is_named_function(),
-            PrimaryExpression::Parenthesized { node } => node.is_named_function(),
-            _ => false,
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        PrimaryExpression::Function { node } => node.is_named_function(),
+    //        PrimaryExpression::Class { node } => node.is_named_function(),
+    //        PrimaryExpression::Generator { node } => node.is_named_function(),
+    //        PrimaryExpression::AsyncFunction { node } => node.is_named_function(),
+    //        PrimaryExpression::AsyncGenerator { node } => node.is_named_function(),
+    //        PrimaryExpression::Parenthesized { node } => node.is_named_function(),
+    //        _ => false,
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         match self {
             PrimaryExpression::This { .. }
@@ -512,7 +493,7 @@ impl PrimaryExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -557,8 +538,8 @@ impl PrimaryExpression {
 }
 
 #[derive(Debug)]
-pub struct Elisions {
-    pub count: usize,
+pub(crate) struct Elisions {
+    pub(crate) count: usize,
     pub(crate) location: Location,
 }
 
@@ -598,8 +579,7 @@ impl Elisions {
         let mut current_scanner = scanner;
         let mut current_location = None;
         loop {
-            let (token, tok_loc, after_comma) =
-                scan_token(&current_scanner, parser.source, ScanGoal::InputElementRegExp);
+            let (token, tok_loc, after_comma) = scan_token(&current_scanner, parser.source, InputElementGoal::RegExp);
             if !token.matches_punct(Punctuator::Comma) {
                 return if comma_count == 0 {
                     Err(ParseError::new(PECode::PunctuatorExpected(Punctuator::Comma), tok_loc))
@@ -616,7 +596,7 @@ impl Elisions {
         }
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         match parser.elision_cache.get(&scanner) {
             Some(result) => result.clone(),
             None => {
@@ -627,26 +607,16 @@ impl Elisions {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
-    }
-
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
-
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
     }
 }
 
 // SpreadElement[Yield, Await] :
 //      ... AssignmentExpression[+In, ?Yield, ?Await]
 #[derive(Debug)]
-pub struct SpreadElement {
-    pub ae: Rc<AssignmentExpression>,
+pub(crate) struct SpreadElement {
+    pub(crate) ae: Rc<AssignmentExpression>,
     location: Location,
 }
 
@@ -677,9 +647,14 @@ impl PrettyPrint for SpreadElement {
 }
 
 impl SpreadElement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (tok_loc, after_ellipsis) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_ellipsis, true, yield_flag, await_flag)?;
         Ok((
             Rc::new({
@@ -690,15 +665,15 @@ impl SpreadElement {
         ))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.ae.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -712,7 +687,7 @@ impl SpreadElement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -722,12 +697,12 @@ impl SpreadElement {
         self.ae.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.ae.early_errors(errs, strict);
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         todo!()
     }
 }
@@ -738,11 +713,11 @@ impl SpreadElement {
 //      ElementList[?Yield, ?Await] , Elisionopt AssignmentExpression[+In, ?Yield, ?Await]
 //      ElementList[?Yield, ?Await] , Elisionopt SpreadElement[?Yield, ?Await]
 #[derive(Debug)]
-pub enum ElementList {
+pub(crate) enum ElementList {
     AssignmentExpression { elision: Option<Rc<Elisions>>, ae: Rc<AssignmentExpression> },
     SpreadElement { elision: Option<Rc<Elisions>>, se: Rc<SpreadElement> },
-    ElementListAssignmentExpression { el: Rc<ElementList>, elision: Option<Rc<Elisions>>, ae: Rc<AssignmentExpression> },
-    ElementListSpreadElement { el: Rc<ElementList>, elision: Option<Rc<Elisions>>, se: Rc<SpreadElement> },
+    ListAssignmentExpression { el: Rc<ElementList>, elision: Option<Rc<Elisions>>, ae: Rc<AssignmentExpression> },
+    ListSpreadElement { el: Rc<ElementList>, elision: Option<Rc<Elisions>>, se: Rc<SpreadElement> },
 }
 
 impl fmt::Display for ElementList {
@@ -756,11 +731,11 @@ impl fmt::Display for ElementList {
                 None => write!(f, "{se}"),
                 Some(commas) => write!(f, "{commas} {se}"),
             },
-            ElementList::ElementListAssignmentExpression { el, elision, ae } => match elision {
+            ElementList::ListAssignmentExpression { el, elision, ae } => match elision {
                 None => write!(f, "{el} , {ae}"),
                 Some(commas) => write!(f, "{el} , {commas} {ae}"),
             },
-            ElementList::ElementListSpreadElement { el, elision, se } => match elision {
+            ElementList::ListSpreadElement { el, elision, se } => match elision {
                 None => write!(f, "{el} , {se}"),
                 Some(commas) => write!(f, "{el} , {commas} {se}"),
             },
@@ -790,7 +765,7 @@ impl PrettyPrint for ElementList {
                     boxed.pprint_with_leftpad(writer, &successive, Spot::Final)
                 }
             },
-            ElementList::ElementListAssignmentExpression { el: right, elision, ae: left } => match elision {
+            ElementList::ListAssignmentExpression { el: right, elision, ae: left } => match elision {
                 None => {
                     right.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                     left.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -801,7 +776,7 @@ impl PrettyPrint for ElementList {
                     left.pprint_with_leftpad(writer, &successive, Spot::Final)
                 }
             },
-            ElementList::ElementListSpreadElement { el: right, elision, se: left } => match elision {
+            ElementList::ListSpreadElement { el: right, elision, se: left } => match elision {
                 None => {
                     right.pprint_with_leftpad(writer, &successive, Spot::NotFinal)?;
                     left.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -832,26 +807,26 @@ impl PrettyPrint for ElementList {
                 commas.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 se.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ElementList::ElementListAssignmentExpression { el, elision: None, ae } => {
+            ElementList::ListAssignmentExpression { el, elision: None, ae } => {
                 writeln!(writer, "{first}ElementList: {self}")?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 ae.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ElementList::ElementListAssignmentExpression { el, elision: Some(commas), ae } => {
+            ElementList::ListAssignmentExpression { el, elision: Some(commas), ae } => {
                 writeln!(writer, "{first}ElementList: {self}")?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 commas.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 ae.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ElementList::ElementListSpreadElement { el, elision: None, se } => {
+            ElementList::ListSpreadElement { el, elision: None, se } => {
                 writeln!(writer, "{first}ElementList: {self}")?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 se.concise_with_leftpad(writer, &successive, Spot::Final)
             }
-            ElementList::ElementListSpreadElement { el, elision: Some(commas), se } => {
+            ElementList::ListSpreadElement { el, elision: Some(commas), se } => {
                 writeln!(writer, "{first}ElementList: {self}")?;
                 el.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
@@ -910,7 +885,12 @@ impl ElementList {
         }
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (elision, item, after) = Self::non_recursive_part(parser, scanner, yield_flag, await_flag)?;
         let mut current_production = match item {
             ELItemKind::AE(boxed_ae) => Rc::new(ElementList::AssignmentExpression { elision, ae: boxed_ae }),
@@ -919,17 +899,15 @@ impl ElementList {
         let mut current_scanner = after;
 
         while let Ok((elision, item, after)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Comma)
                 .and_then(|(_, after_comma)| Self::non_recursive_part(parser, after_comma, yield_flag, await_flag))
         {
             current_production = match item {
-                ELItemKind::AE(boxed_ae) => Rc::new(ElementList::ElementListAssignmentExpression {
-                    el: current_production,
-                    elision,
-                    ae: boxed_ae,
-                }),
+                ELItemKind::AE(boxed_ae) => {
+                    Rc::new(ElementList::ListAssignmentExpression { el: current_production, elision, ae: boxed_ae })
+                }
                 ELItemKind::SE(boxed_se) => {
-                    Rc::new(ElementList::ElementListSpreadElement { el: current_production, elision, se: boxed_se })
+                    Rc::new(ElementList::ListSpreadElement { el: current_production, elision, se: boxed_se })
                 }
             };
             current_scanner = after;
@@ -937,7 +915,7 @@ impl ElementList {
         Ok((current_production, current_scanner))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ElementList::AssignmentExpression { elision: None, ae } => ae.location(),
             ElementList::AssignmentExpression { elision: Some(elision), ae } => {
@@ -945,35 +923,33 @@ impl ElementList {
             }
             ElementList::SpreadElement { elision: None, se } => se.location(),
             ElementList::SpreadElement { elision: Some(elision), se } => elision.location().merge(&se.location()),
-            ElementList::ElementListAssignmentExpression { el, elision: _, ae } => el.location().merge(&ae.location()),
-            ElementList::ElementListSpreadElement { el, elision: _, se } => el.location().merge(&se.location()),
+            ElementList::ListAssignmentExpression { el, elision: _, ae } => el.location().merge(&ae.location()),
+            ElementList::ListSpreadElement { el, elision: _, se } => el.location().merge(&se.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ElementList::AssignmentExpression { elision, ae } => {
-                elision.as_ref().is_some_and(|n| kind == ParseNodeKind::Elisions || n.contains(kind))
-                    || ae.contains(kind)
+                elision.as_ref().is_some_and(|_| kind == ParseNodeKind::Elisions) || ae.contains(kind)
             }
             ElementList::SpreadElement { elision, se } => {
-                elision.as_ref().is_some_and(|n| kind == ParseNodeKind::Elisions || n.contains(kind))
-                    || se.contains(kind)
+                elision.as_ref().is_some_and(|_| kind == ParseNodeKind::Elisions) || se.contains(kind)
             }
-            ElementList::ElementListAssignmentExpression { el, elision, ae } => {
+            ElementList::ListAssignmentExpression { el, elision, ae } => {
                 el.contains(kind)
-                    || elision.as_ref().is_some_and(|n| kind == ParseNodeKind::Elisions || n.contains(kind))
+                    || elision.as_ref().is_some_and(|_| kind == ParseNodeKind::Elisions)
                     || ae.contains(kind)
             }
-            ElementList::ElementListSpreadElement { el, elision, se } => {
+            ElementList::ListSpreadElement { el, elision, se } => {
                 el.contains(kind)
-                    || elision.as_ref().is_some_and(|n| kind == ParseNodeKind::Elisions || n.contains(kind))
+                    || elision.as_ref().is_some_and(|_| kind == ParseNodeKind::Elisions)
                     || se.contains(kind)
             }
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -983,10 +959,10 @@ impl ElementList {
         match self {
             ElementList::AssignmentExpression { elision: _, ae } => ae.all_private_identifiers_valid(names),
             ElementList::SpreadElement { elision: _, se } => se.all_private_identifiers_valid(names),
-            ElementList::ElementListAssignmentExpression { el, elision: _, ae } => {
+            ElementList::ListAssignmentExpression { el, elision: _, ae } => {
                 el.all_private_identifiers_valid(names) && ae.all_private_identifiers_valid(names)
             }
-            ElementList::ElementListSpreadElement { el, elision: _, se } => {
+            ElementList::ListSpreadElement { el, elision: _, se } => {
                 el.all_private_identifiers_valid(names) && se.all_private_identifiers_valid(names)
             }
         }
@@ -996,7 +972,7 @@ impl ElementList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1006,14 +982,12 @@ impl ElementList {
         match self {
             ElementList::AssignmentExpression { ae, .. } => ae.contains_arguments(),
             ElementList::SpreadElement { se, .. } => se.contains_arguments(),
-            ElementList::ElementListAssignmentExpression { el, ae, .. } => {
-                el.contains_arguments() || ae.contains_arguments()
-            }
-            ElementList::ElementListSpreadElement { el, se, .. } => el.contains_arguments() || se.contains_arguments(),
+            ElementList::ListAssignmentExpression { el, ae, .. } => el.contains_arguments() || ae.contains_arguments(),
+            ElementList::ListSpreadElement { el, se, .. } => el.contains_arguments() || se.contains_arguments(),
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ElementList::AssignmentExpression { ae: b, .. } => {
                 b.early_errors(errs, strict);
@@ -1021,21 +995,33 @@ impl ElementList {
             ElementList::SpreadElement { se: b, .. } => {
                 b.early_errors(errs, strict);
             }
-            ElementList::ElementListAssignmentExpression { el: a, ae: c, .. } => {
+            ElementList::ListAssignmentExpression { el: a, ae: c, .. } => {
                 a.early_errors(errs, strict);
                 c.early_errors(errs, strict);
             }
-            ElementList::ElementListSpreadElement { el: a, se: c, .. } => {
+            ElementList::ListSpreadElement { el: a, se: c, .. } => {
                 a.early_errors(errs, strict);
                 c.early_errors(errs, strict);
             }
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                ElementList::AssignmentExpression { elision: _, ae } => ae.body_containing_location(location),
+                ElementList::SpreadElement { elision: _, se } => se.body_containing_location(location),
+                ElementList::ListAssignmentExpression { el, elision: _, ae } => {
+                    el.body_containing_location(location).or_else(|| ae.body_containing_location(location))
+                }
+                ElementList::ListSpreadElement { el, elision: _, se } => {
+                    el.body_containing_location(location).or_else(|| se.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -1044,7 +1030,7 @@ impl ElementList {
 //      [ ElementList[?Yield, ?Await] ]
 //      [ ElementList[?Yield, ?Await] , Elisionopt ]
 #[derive(Debug)]
-pub enum ArrayLiteral {
+pub(crate) enum ArrayLiteral {
     Empty { elision: Option<Rc<Elisions>>, location: Location },
     ElementList { el: Rc<ElementList>, location: Location },
     ElementListElision { el: Rc<ElementList>, elision: Option<Rc<Elisions>>, location: Location },
@@ -1126,16 +1112,21 @@ impl PrettyPrint for ArrayLiteral {
 
 impl ArrayLiteral {
     // ArrayLiteral's only parent is PrimaryExpression. It doesn't need to be cached.
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (open_loc, after) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::LeftBracket)?;
         Err(ParseError::new(PECode::CommaLeftBracketElementListExpected, after))
             .otherwise(|| {
                 let (el, after_el) = ElementList::parse(parser, after, yield_flag, await_flag)?;
                 let (punct, punct_loc, after_punct) = scan_for_punct_set(
                     after_el,
                     parser.source,
-                    ScanGoal::InputElementDiv,
+                    InputElementGoal::Div,
                     &[Punctuator::Comma, Punctuator::RightBracket],
                 )?;
                 match punct {
@@ -1151,7 +1142,7 @@ impl ArrayLiteral {
                         let (end_loc, end_scan) = scan_for_punct(
                             after_elisions,
                             parser.source,
-                            ScanGoal::InputElementRegExp,
+                            InputElementGoal::RegExp,
                             Punctuator::RightBracket,
                         )?;
                         Ok((
@@ -1170,17 +1161,13 @@ impl ArrayLiteral {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after),
                 };
-                let (end_loc, end_scan) = scan_for_punct(
-                    after_elisions,
-                    parser.source,
-                    ScanGoal::InputElementRegExp,
-                    Punctuator::RightBracket,
-                )?;
+                let (end_loc, end_scan) =
+                    scan_for_punct(after_elisions, parser.source, InputElementGoal::RegExp, Punctuator::RightBracket)?;
                 Ok((Rc::new(ArrayLiteral::Empty { elision, location: open_loc.merge(&end_loc) }), end_scan))
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ArrayLiteral::Empty { location, .. }
             | ArrayLiteral::ElementList { location, .. }
@@ -1188,20 +1175,19 @@ impl ArrayLiteral {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ArrayLiteral::Empty { elision: pot_elision, .. } => {
-                pot_elision.as_ref().is_some_and(|n| kind == ParseNodeKind::Elisions || n.contains(kind))
+                pot_elision.as_ref().is_some_and(|_| kind == ParseNodeKind::Elisions)
             }
             ArrayLiteral::ElementList { el: boxed, .. } => boxed.contains(kind),
             ArrayLiteral::ElementListElision { el: boxed, elision: pot_elision, .. } => {
-                boxed.contains(kind)
-                    || pot_elision.as_ref().is_some_and(|n| kind == ParseNodeKind::Elisions || n.contains(kind))
+                boxed.contains(kind) || pot_elision.as_ref().is_some_and(|_| kind == ParseNodeKind::Elisions)
             }
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1220,7 +1206,7 @@ impl ArrayLiteral {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1235,7 +1221,7 @@ impl ArrayLiteral {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayLiteral::Empty { .. } => {}
             ArrayLiteral::ElementList { el: node, .. } | ArrayLiteral::ElementListElision { el: node, .. } => {
@@ -1244,19 +1230,27 @@ impl ArrayLiteral {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                ArrayLiteral::Empty { .. } => None,
+                ArrayLiteral::ElementList { el: node, .. } | ArrayLiteral::ElementListElision { el: node, .. } => {
+                    node.body_containing_location(location)
+                }
+            }
+        } else {
+            None
+        }
     }
 }
 
 // Initializer[In, Yield, Await] :
 //      = AssignmentExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub struct Initializer {
-    pub ae: Rc<AssignmentExpression>,
-    pub location: Location,
+pub(crate) struct Initializer {
+    pub(crate) ae: Rc<AssignmentExpression>,
+    pub(crate) location: Location,
 }
 
 impl fmt::Display for Initializer {
@@ -1293,8 +1287,7 @@ impl Initializer {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<Initializer> {
-        let (tok_loc, after_tok) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Eq)?;
+        let (tok_loc, after_tok) = scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Eq)?;
         let (boxed_ae, after_ae) = AssignmentExpression::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
         Ok((
             Rc::new({
@@ -1305,7 +1298,7 @@ impl Initializer {
         ))
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -1323,15 +1316,15 @@ impl Initializer {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.ae.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1345,7 +1338,7 @@ impl Initializer {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1355,22 +1348,22 @@ impl Initializer {
         self.ae.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.ae.early_errors(errs, strict);
     }
 
     /// Determine if this parse node is an anonymous function
     ///
     /// See [IsAnonymousFunctionDefinition](https://tc39.es/ecma262/#sec-isanonymousfunctiondefinition) in ECMA-262.
-    pub fn is_anonymous_function_definition(&self) -> bool {
-        self.ae.is_anonymous_function_definition()
-    }
-
-    pub fn anonymous_function_definition(&self) -> Option<NameableProduction> {
+    pub(crate) fn anonymous_function_definition(&self) -> Option<NameableProduction> {
         self.ae.anonymous_function_definition()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //pub(crate) fn is_anonymous_function_definition(&self) -> bool {
+    //    self.ae.is_anonymous_function_definition()
+    //}
+
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         self.ae.body_containing_location(location)
     }
@@ -1379,7 +1372,7 @@ impl Initializer {
 // CoverInitializedName[Yield, Await] :
 //      IdentifierReference[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum CoverInitializedName {
+pub(crate) enum CoverInitializedName {
     InitializedName(Rc<IdentifierReference>, Rc<Initializer>),
 }
 
@@ -1414,23 +1407,28 @@ impl PrettyPrint for CoverInitializedName {
 }
 
 impl CoverInitializedName {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (idref, after_idref) = IdentifierReference::parse(parser, scanner, yield_flag, await_flag)?;
         let (izer, after_izer) = Initializer::parse(parser, after_idref, true, yield_flag, await_flag)?;
         Ok((Rc::new(CoverInitializedName::InitializedName(idref, izer)), after_izer))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         let CoverInitializedName::InitializedName(idref, izer) = self;
         idref.location().merge(&izer.location())
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let CoverInitializedName::InitializedName(idref, izer) = self;
-        idref.contains(kind) || izer.contains(kind)
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
+        let CoverInitializedName::InitializedName(_, izer) = self;
+        izer.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1441,21 +1439,21 @@ impl CoverInitializedName {
         izer.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         let CoverInitializedName::InitializedName(a, b) = self;
         a.early_errors(errs, strict);
         b.early_errors(errs, strict);
     }
 
-    pub fn prop_name(&self) -> JSString {
-        // Static Semantics: PropName
-        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
-        let CoverInitializedName::InitializedName(idref, _) = self;
-        idref.string_value()
-    }
+    //pub(crate) fn prop_name(&self) -> JSString {
+    //    // Static Semantics: PropName
+    //    // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+    //    let CoverInitializedName::InitializedName(idref, _) = self;
+    //    idref.string_value()
+    //}
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }
@@ -1464,9 +1462,9 @@ impl CoverInitializedName {
 // ComputedPropertyName[Yield, Await] :
 //      [ AssignmentExpression[+In, ?Yield, ?Await] ]
 #[derive(Debug)]
-pub struct ComputedPropertyName {
-    pub ae: Rc<AssignmentExpression>,
-    pub location: Location,
+pub(crate) struct ComputedPropertyName {
+    pub(crate) ae: Rc<AssignmentExpression>,
+    pub(crate) location: Location,
 }
 
 impl fmt::Display for ComputedPropertyName {
@@ -1497,24 +1495,29 @@ impl PrettyPrint for ComputedPropertyName {
 }
 
 impl ComputedPropertyName {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (open_loc, after_tok) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::LeftBracket)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
         let (close_loc, after_rb) =
-            scan_for_punct(after_ae, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket)?;
+            scan_for_punct(after_ae, parser.source, InputElementGoal::RegExp, Punctuator::RightBracket)?;
         Ok((Rc::new(ComputedPropertyName { ae, location: open_loc.merge(&close_loc) }), after_rb))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.ae.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1528,7 +1531,7 @@ impl ComputedPropertyName {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1538,18 +1541,11 @@ impl ComputedPropertyName {
         self.ae.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.ae.early_errors(errs, strict);
     }
 
-    /// Reports whether this property key is formed by computation or not
-    ///
-    /// See [IsComputedPropertyKey](https://tc39.es/ecma262/#sec-static-semantics-iscomputedpropertykey) in ECMA-262.
-    pub fn is_computed_property_key(&self) -> bool {
-        true
-    }
-
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location.contains(location) { self.ae.body_containing_location(location) } else { None }
     }
@@ -1560,7 +1556,7 @@ impl ComputedPropertyName {
 //      StringLiteral
 //      NumericLiteral
 #[derive(Debug)]
-pub enum LiteralPropertyName {
+pub(crate) enum LiteralPropertyName {
     IdentifierName { data: IdentifierData, location: Location },
     StringLiteral { data: StringToken, location: Location },
     NumericLiteral { data: Numeric, location: Location },
@@ -1610,8 +1606,8 @@ impl PrettyPrint for LiteralPropertyName {
 }
 
 impl LiteralPropertyName {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let (tok, tok_loc, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+        let (tok, tok_loc, after_tok) = scan_token(&scanner, parser.source, InputElementGoal::RegExp);
         match tok {
             Token::Identifier(id) => {
                 Ok((Rc::new(LiteralPropertyName::IdentifierName { data: id, location: tok_loc }), after_tok))
@@ -1631,7 +1627,7 @@ impl LiteralPropertyName {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             LiteralPropertyName::IdentifierName { location, .. }
             | LiteralPropertyName::StringLiteral { location, .. }
@@ -1639,11 +1635,7 @@ impl LiteralPropertyName {
         }
     }
 
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
-
-    pub fn prop_name(&self) -> JSString {
+    pub(crate) fn prop_name(&self) -> JSString {
         // Static Semantics: PropName
         // The syntax-directed operation PropName takes no arguments and returns a String or empty.
         match self {
@@ -1668,25 +1660,13 @@ impl LiteralPropertyName {
             LiteralPropertyName::NumericLiteral { data: Numeric::BigInt(bi), .. } => JSString::from(bi.to_string()),
         }
     }
-
-    /// Reports whether this property key is formed by computation or not
-    ///
-    /// See [IsComputedPropertyKey](https://tc39.es/ecma262/#sec-static-semantics-iscomputedpropertykey) in ECMA-262.
-    pub fn is_computed_property_key(&self) -> bool {
-        false
-    }
-
-    pub fn body_containing_location(&self, _: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        None
-    }
 }
 
 // PropertyName[Yield, Await] :
 //      LiteralPropertyName
 //      ComputedPropertyName[?Yield, ?Await]
 #[derive(Debug)]
-pub enum PropertyName {
+pub(crate) enum PropertyName {
     LiteralPropertyName(Rc<LiteralPropertyName>),
     ComputedPropertyName(Rc<ComputedPropertyName>),
 }
@@ -1736,7 +1716,12 @@ impl PropertyName {
             })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.property_name_cache.get(&key) {
             Some(result) => result.clone(),
@@ -1748,28 +1733,28 @@ impl PropertyName {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             PropertyName::LiteralPropertyName(node) => node.location(),
             PropertyName::ComputedPropertyName(node) => node.location(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            PropertyName::LiteralPropertyName(n) => n.contains(kind),
+            PropertyName::LiteralPropertyName(_) => false,
             PropertyName::ComputedPropertyName(n) => n.contains(kind),
         }
     }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             PropertyName::LiteralPropertyName(..) => false,
             PropertyName::ComputedPropertyName(n) => n.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1786,7 +1771,7 @@ impl PropertyName {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1799,14 +1784,14 @@ impl PropertyName {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             PropertyName::LiteralPropertyName(_) => (),
             PropertyName::ComputedPropertyName(x) => x.early_errors(errs, strict),
         }
     }
 
-    pub fn prop_name(&self) -> Option<JSString> {
+    pub(crate) fn prop_name(&self) -> Option<JSString> {
         // Static Semantics: PropName
         // The syntax-directed operation PropName takes no arguments and returns a String or empty.
         match self {
@@ -1818,17 +1803,17 @@ impl PropertyName {
     /// Reports whether this property key is formed by computation or not
     ///
     /// See [IsComputedPropertyKey](https://tc39.es/ecma262/#sec-static-semantics-iscomputedpropertykey) in ECMA-262.
-    pub fn is_computed_property_key(&self) -> bool {
+    pub(crate) fn is_computed_property_key(&self) -> bool {
         match self {
-            PropertyName::LiteralPropertyName(lpn) => lpn.is_computed_property_key(),
-            PropertyName::ComputedPropertyName(cpn) => cpn.is_computed_property_key(),
+            PropertyName::LiteralPropertyName(_) => false,
+            PropertyName::ComputedPropertyName(_) => true,
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         match self {
-            PropertyName::LiteralPropertyName(lpn) => lpn.body_containing_location(location),
+            PropertyName::LiteralPropertyName(_) => None,
             PropertyName::ComputedPropertyName(cpn) => cpn.body_containing_location(location),
         }
     }
@@ -1841,7 +1826,7 @@ impl PropertyName {
 //      MethodDefinition[?Yield, ?Await]
 //      ... AssignmentExpression[+In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum PropertyDefinition {
+pub(crate) enum PropertyDefinition {
     IdentifierReference(Rc<IdentifierReference>),
     CoverInitializedName(Rc<CoverInitializedName>),
     PropertyNameAssignmentExpression(Rc<PropertyName>, Rc<AssignmentExpression>),
@@ -1911,7 +1896,7 @@ impl PrettyPrint for PropertyDefinition {
 impl PropertyDefinition {
     fn parse_pn_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (pn, after_pn) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
-        let (tok, tok_loc, after_tok) = scan_token(&after_pn, parser.source, ScanGoal::InputElementRegExp);
+        let (tok, tok_loc, after_tok) = scan_token(&after_pn, parser.source, InputElementGoal::RegExp);
         match tok {
             Token::Punctuator(Punctuator::Colon) => {
                 let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
@@ -1938,7 +1923,7 @@ impl PropertyDefinition {
 
     fn parse_ae(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (dots_loc, after_tok) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Ellipsis)?;
         let (ae, after_ae) = AssignmentExpression::parse(parser, after_tok, true, yield_flag, await_flag)?;
         Ok((
             Rc::new({
@@ -1949,7 +1934,12 @@ impl PropertyDefinition {
         ))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::PropertyName), scanner))
             .otherwise(|| Self::parse_pn_ae(parser, scanner, yield_flag, await_flag))
             .otherwise(|| Self::parse_cin(parser, scanner, yield_flag, await_flag))
@@ -1958,7 +1948,7 @@ impl PropertyDefinition {
             .otherwise(|| Self::parse_ae(parser, scanner, yield_flag, await_flag))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             PropertyDefinition::IdentifierReference(node) => node.location(),
             PropertyDefinition::CoverInitializedName(node) => node.location(),
@@ -1968,9 +1958,9 @@ impl PropertyDefinition {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            PropertyDefinition::IdentifierReference(idref) => idref.contains(kind),
+            PropertyDefinition::IdentifierReference(_) => false,
             PropertyDefinition::CoverInitializedName(cin) => cin.contains(kind),
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => pn.contains(kind) || ae.contains(kind),
             PropertyDefinition::MethodDefinition(md) => {
@@ -1980,7 +1970,7 @@ impl PropertyDefinition {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2002,7 +1992,7 @@ impl PropertyDefinition {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2020,7 +2010,7 @@ impl PropertyDefinition {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             PropertyDefinition::IdentifierReference(idref) => idref.early_errors(errs, strict),
@@ -2068,31 +2058,31 @@ impl PropertyDefinition {
         }
     }
 
-    pub fn prop_name(&self) -> Option<JSString> {
-        // Static Semantics: PropName
-        // The syntax-directed operation PropName takes no arguments and returns a String or empty.
-        match self {
-            PropertyDefinition::IdentifierReference(id) => {
-                // PropertyDefinition : IdentifierReference
-                //  1. Return StringValue of IdentifierReference.
-                Some(id.string_value())
-            }
-            PropertyDefinition::AssignmentExpression(..) => {
-                // PropertyDefinition : ... AssignmentExpression
-                //  1. Return empty.
-                None
-            }
-            PropertyDefinition::PropertyNameAssignmentExpression(pn, _) => {
-                // PropertyDefinition : PropertyName : AssignmentExpression
-                //  1. Return PropName of PropertyName.
-                pn.prop_name()
-            }
-            PropertyDefinition::CoverInitializedName(cin) => Some(cin.prop_name()),
-            PropertyDefinition::MethodDefinition(md) => md.prop_name(),
-        }
-    }
+    //pub(crate) fn prop_name(&self) -> Option<JSString> {
+    //    // Static Semantics: PropName
+    //    // The syntax-directed operation PropName takes no arguments and returns a String or empty.
+    //    match self {
+    //        PropertyDefinition::IdentifierReference(id) => {
+    //            // PropertyDefinition : IdentifierReference
+    //            //  1. Return StringValue of IdentifierReference.
+    //            Some(id.string_value())
+    //        }
+    //        PropertyDefinition::AssignmentExpression(..) => {
+    //            // PropertyDefinition : ... AssignmentExpression
+    //            //  1. Return empty.
+    //            None
+    //        }
+    //        PropertyDefinition::PropertyNameAssignmentExpression(pn, _) => {
+    //            // PropertyDefinition : PropertyName : AssignmentExpression
+    //            //  1. Return PropName of PropertyName.
+    //            pn.prop_name()
+    //        }
+    //        PropertyDefinition::CoverInitializedName(cin) => Some(cin.prop_name()),
+    //        PropertyDefinition::MethodDefinition(md) => md.prop_name(),
+    //    }
+    //}
 
-    pub fn special_proto_count(&self) -> u64 {
+    pub(crate) fn special_proto_count(&self) -> u64 {
         match self {
             PropertyDefinition::PropertyNameAssignmentExpression(pn, _) => match pn.prop_name() {
                 Some(x) if x == "__proto__" => 1,
@@ -2102,7 +2092,7 @@ impl PropertyDefinition {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if !self.location().contains(location) {
             return None;
@@ -2123,7 +2113,7 @@ impl PropertyDefinition {
 //      PropertyDefinition[?Yield, ?Await]
 //      PropertyDefinitionList[?Yield, ?Await] , PropertyDefinition[?Yield, ?Await]
 #[derive(Debug)]
-pub enum PropertyDefinitionList {
+pub(crate) enum PropertyDefinitionList {
     OneDef(Rc<PropertyDefinition>),
     ManyDefs(Rc<PropertyDefinitionList>, Rc<PropertyDefinition>),
 }
@@ -2172,12 +2162,17 @@ impl PrettyPrint for PropertyDefinitionList {
 }
 
 impl PropertyDefinitionList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (pd, after_pd) = PropertyDefinition::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current_production = Rc::new(PropertyDefinitionList::OneDef(pd));
         let mut current_scanner = after_pd;
         while let Ok((pd2, after_pd2)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Comma)
                 .and_then(|(_, after_comma)| PropertyDefinition::parse(parser, after_comma, yield_flag, await_flag))
         {
             current_production = Rc::new(PropertyDefinitionList::ManyDefs(current_production, pd2));
@@ -2186,21 +2181,21 @@ impl PropertyDefinitionList {
         Ok((current_production, current_scanner))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             PropertyDefinitionList::OneDef(node) => node.location(),
             PropertyDefinitionList::ManyDefs(lst, item) => lst.location().merge(&item.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             PropertyDefinitionList::OneDef(pd) => pd.contains(kind),
             PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.contains(kind) || pd.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2219,7 +2214,7 @@ impl PropertyDefinitionList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2232,7 +2227,7 @@ impl PropertyDefinitionList {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             PropertyDefinitionList::OneDef(pd) => pd.early_errors(errs, strict),
@@ -2243,20 +2238,24 @@ impl PropertyDefinitionList {
         }
     }
 
-    pub fn special_proto_count(&self) -> u64 {
+    pub(crate) fn special_proto_count(&self) -> u64 {
         match self {
             PropertyDefinitionList::OneDef(pd) => pd.special_proto_count(),
             PropertyDefinitionList::ManyDefs(pdl, pd) => pdl.special_proto_count() + pd.special_proto_count(),
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        match self {
-            PropertyDefinitionList::OneDef(pd) => pd.body_containing_location(location),
-            PropertyDefinitionList::ManyDefs(pdl, pd) => {
-                pdl.body_containing_location(location).or_else(|| pd.body_containing_location(location))
+        if self.location().contains(location) {
+            match self {
+                PropertyDefinitionList::OneDef(pd) => pd.body_containing_location(location),
+                PropertyDefinitionList::ManyDefs(pdl, pd) => {
+                    pdl.body_containing_location(location).or_else(|| pd.body_containing_location(location))
+                }
             }
+        } else {
+            None
         }
     }
 }
@@ -2266,7 +2265,7 @@ impl PropertyDefinitionList {
 //      { PropertyDefinitionList[?Yield, ?Await] }
 //      { PropertyDefinitionList[?Yield, ?Await] , }
 #[derive(Debug)]
-pub enum ObjectLiteral {
+pub(crate) enum ObjectLiteral {
     Empty { location: Location },
     Normal { pdl: Rc<PropertyDefinitionList>, location: Location },
     TrailingComma { pdl: Rc<PropertyDefinitionList>, location: Location },
@@ -2318,20 +2317,25 @@ impl PrettyPrint for ObjectLiteral {
 }
 
 impl ObjectLiteral {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (open_loc, after_brace) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::LeftBrace)?;
         match PropertyDefinitionList::parse(parser, after_brace, yield_flag, await_flag) {
             Err(_) => {
                 let (close_loc, after_brace2) =
-                    scan_for_punct(after_brace, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                    scan_for_punct(after_brace, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
                 Ok((Rc::new(ObjectLiteral::Empty { location: open_loc.merge(&close_loc) }), after_brace2))
             }
             Ok((pdl, after_pdl)) => {
                 let (comma_or_brace, punct_loc, after_punct) = scan_for_punct_set(
                     after_pdl,
                     parser.source,
-                    ScanGoal::InputElementDiv,
+                    InputElementGoal::Div,
                     &[Punctuator::RightBrace, Punctuator::Comma],
                 )?;
                 match comma_or_brace {
@@ -2339,12 +2343,8 @@ impl ObjectLiteral {
                         Ok((Rc::new(ObjectLiteral::Normal { pdl, location: open_loc.merge(&punct_loc) }), after_punct))
                     }
                     _ => {
-                        let (close_loc, after_brace3) = scan_for_punct(
-                            after_punct,
-                            parser.source,
-                            ScanGoal::InputElementDiv,
-                            Punctuator::RightBrace,
-                        )?;
+                        let (close_loc, after_brace3) =
+                            scan_for_punct(after_punct, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
                         Ok((
                             Rc::new(ObjectLiteral::TrailingComma { pdl, location: open_loc.merge(&close_loc) }),
                             after_brace3,
@@ -2355,7 +2355,7 @@ impl ObjectLiteral {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ObjectLiteral::Empty { location }
             | ObjectLiteral::Normal { location, .. }
@@ -2363,14 +2363,14 @@ impl ObjectLiteral {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ObjectLiteral::Empty { .. } => false,
             ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => pdl.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2389,7 +2389,7 @@ impl ObjectLiteral {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2402,7 +2402,7 @@ impl ObjectLiteral {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             ObjectLiteral::Empty { .. } => {}
@@ -2429,13 +2429,17 @@ impl ObjectLiteral {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        match self {
-            ObjectLiteral::Empty { .. } => None,
-            ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => {
-                pdl.body_containing_location(location)
+        if self.location().contains(location) {
+            match self {
+                ObjectLiteral::Empty { .. } => None,
+                ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => {
+                    pdl.body_containing_location(location)
+                }
             }
+        } else {
+            None
         }
     }
 }
@@ -2470,7 +2474,7 @@ impl Numeric {
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum DebugKind {
+pub(crate) enum DebugKind {
     Char(char),
     Number(i64),
 }
@@ -2485,33 +2489,33 @@ impl fmt::Display for DebugKind {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Literal {
-    NullLiteral { location: Location },
-    BooleanLiteral { val: bool, location: Location },
-    NumericLiteral { val: Numeric, location: Location },
-    StringLiteral { val: StringToken, location: Location },
-    DebugLiteral { val: DebugKind, location: Location },
+pub(crate) enum Literal {
+    Null { location: Location },
+    Boolean { val: bool, location: Location },
+    Numeric { val: Numeric, location: Location },
+    String { val: StringToken, location: Location },
+    Debug { val: DebugKind, location: Location },
 }
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Literal::NullLiteral { .. } => write!(f, "null"),
-            Literal::BooleanLiteral { val: b, .. } => {
+            Literal::Null { .. } => write!(f, "null"),
+            Literal::Boolean { val: b, .. } => {
                 if *b {
                     write!(f, "true")
                 } else {
                     write!(f, "false")
                 }
             }
-            Literal::NumericLiteral { val: Numeric::Number(n), .. } => {
+            Literal::Numeric { val: Numeric::Number(n), .. } => {
                 let mut s = Vec::new();
                 number_to_string(&mut s, *n).unwrap();
                 write!(f, "{}", String::from_utf8(s).unwrap())
             }
-            Literal::NumericLiteral { val: Numeric::BigInt(b), .. } => write!(f, "{}", *b),
-            Literal::StringLiteral { val: s, .. } => write!(f, "{}", *s),
-            Literal::DebugLiteral { val: ch, .. } => write!(f, "@@{ch}"),
+            Literal::Numeric { val: Numeric::BigInt(b), .. } => write!(f, "{}", *b),
+            Literal::String { val: s, .. } => write!(f, "{}", *s),
+            Literal::Debug { val: ch, .. } => write!(f, "@@{ch}"),
         }
     }
 }
@@ -2529,72 +2533,72 @@ impl PrettyPrint for Literal {
         T: Write,
     {
         match self {
-            Literal::NullLiteral { .. } => pprint_token(writer, "null", TokenType::Keyword, pad, state),
-            Literal::BooleanLiteral { .. } => pprint_token(writer, self, TokenType::Keyword, pad, state),
-            Literal::NumericLiteral { .. } => pprint_token(writer, self, TokenType::Numeric, pad, state),
-            Literal::StringLiteral { .. } => pprint_token(writer, self, TokenType::String, pad, state),
-            Literal::DebugLiteral { .. } => pprint_token(writer, self, TokenType::Punctuator, pad, state),
+            Literal::Null { .. } => pprint_token(writer, "null", TokenType::Keyword, pad, state),
+            Literal::Boolean { .. } => pprint_token(writer, self, TokenType::Keyword, pad, state),
+            Literal::Numeric { .. } => pprint_token(writer, self, TokenType::Numeric, pad, state),
+            Literal::String { .. } => pprint_token(writer, self, TokenType::String, pad, state),
+            Literal::Debug { .. } => pprint_token(writer, self, TokenType::Punctuator, pad, state),
         }
     }
 }
 
 impl Literal {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Literal> {
-        let (token, tok_loc, newscanner) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Literal> {
+        let (token, tok_loc, newscanner) = scan_token(&scanner, parser.source, InputElementGoal::RegExp);
         match token {
             Token::Identifier(id) if id.matches(Keyword::Null) => {
-                Ok((Rc::new(Literal::NullLiteral { location: tok_loc }), newscanner))
+                Ok((Rc::new(Literal::Null { location: tok_loc }), newscanner))
             }
             Token::Identifier(id) if id.matches(Keyword::True) => {
-                Ok((Rc::new(Literal::BooleanLiteral { val: true, location: tok_loc }), newscanner))
+                Ok((Rc::new(Literal::Boolean { val: true, location: tok_loc }), newscanner))
             }
             Token::Identifier(id) if id.matches(Keyword::False) => {
-                Ok((Rc::new(Literal::BooleanLiteral { val: false, location: tok_loc }), newscanner))
+                Ok((Rc::new(Literal::Boolean { val: false, location: tok_loc }), newscanner))
             }
             Token::Number(num) => {
-                Ok((Rc::new(Literal::NumericLiteral { val: Numeric::Number(num), location: tok_loc }), newscanner))
+                Ok((Rc::new(Literal::Numeric { val: Numeric::Number(num), location: tok_loc }), newscanner))
             }
-            Token::BigInt(bi) => Ok((
-                Rc::new(Literal::NumericLiteral { val: Numeric::BigInt(Rc::new(bi)), location: tok_loc }),
-                newscanner,
-            )),
-            Token::String(s) => Ok((Rc::new(Literal::StringLiteral { val: s, location: tok_loc }), newscanner)),
-            Token::Debug(ch) => Ok((Rc::new(Literal::DebugLiteral { val: ch, location: tok_loc }), newscanner)),
+            Token::BigInt(bi) => {
+                Ok((Rc::new(Literal::Numeric { val: Numeric::BigInt(Rc::new(bi)), location: tok_loc }), newscanner))
+            }
+            Token::String(s) => Ok((Rc::new(Literal::String { val: s, location: tok_loc }), newscanner)),
+            Token::Debug(ch) => Ok((Rc::new(Literal::Debug { val: ch, location: tok_loc }), newscanner)),
             _ => Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Literal), tok_loc)),
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
-            Literal::NullLiteral { location }
-            | Literal::BooleanLiteral { location, .. }
-            | Literal::NumericLiteral { location, .. }
-            | Literal::StringLiteral { location, .. }
-            | Literal::DebugLiteral { location, .. } => *location,
+            Literal::Null { location }
+            | Literal::Boolean { location, .. }
+            | Literal::Numeric { location, .. }
+            | Literal::String { location, .. }
+            | Literal::Debug { location, .. } => *location,
         }
     }
 
-    pub fn contains(&self, _: ParseNodeKind) -> bool {
+    #[expect(clippy::unused_self)]
+    pub(crate) fn contains(&self, _: ParseNodeKind) -> bool {
         false
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
-        if let Literal::StringLiteral { val: s, .. } = self { Some(s.clone()) } else { None }
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
+        if let Literal::String { val: s, .. } = self { Some(s.clone()) } else { None }
     }
 
-    pub fn early_errors(&self) {
+    pub(crate) fn early_errors(&self) {
         // Since we don't implement Legacy Octal syntax (yet), these two errors are never generated. That makes this
         // function impossible to test. I hate untestable code. So here's what's gonna happen: we just make some
         // assertions that are supposed to fail once we do actually implement legacy octal. That will be my reminder to
         // uncomment the rest of this function.
         match self {
-            Literal::NumericLiteral { val: n, .. } => {
+            Literal::Numeric { val: n, .. } => {
                 assert!(!n.has_legacy_octal_syntax());
             }
-            Literal::StringLiteral { val: s, .. } => {
+            Literal::String { val: s, .. } => {
                 assert!(!s.has_legacy_octal_escapes());
             }
-            Literal::BooleanLiteral { .. } | Literal::NullLiteral { .. } | Literal::DebugLiteral { .. } => (),
+            Literal::Boolean { .. } | Literal::Null { .. } | Literal::Debug { .. } => (),
         }
 
         //match &self.kind {
@@ -2612,18 +2616,17 @@ impl Literal {
         //}
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //pub(crate) fn body_containing_location(&self, _location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    None
+    //}
 }
 
 // TemplateLiteral[Yield, Await, Tagged] :
 //      NoSubstitutionTemplate
 //      SubstitutionTemplate[?Yield, ?Await, ?Tagged]
 #[derive(Debug)]
-pub enum TemplateLiteral {
+pub(crate) enum TemplateLiteral {
     NoSubstitutionTemplate { data: TemplateData, tagged: bool, location: Location },
     SubstitutionTemplate(Rc<SubstitutionTemplate>),
 }
@@ -2665,7 +2668,7 @@ impl PrettyPrint for TemplateLiteral {
 
 impl TemplateLiteral {
     fn parse_nst(parser: &mut Parser, scanner: Scanner, tagged_flag: bool) -> ParseResult<Self> {
-        let (tok, tok_loc, after_nst) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (tok, tok_loc, after_nst) = scan_token(&scanner, parser.source, InputElementGoal::RegExp);
         if let Token::NoSubstitutionTemplate(td) = tok {
             Ok((
                 Rc::new(TemplateLiteral::NoSubstitutionTemplate { data: td, tagged: tagged_flag, location: tok_loc }),
@@ -2699,7 +2702,7 @@ impl TemplateLiteral {
             .otherwise(|| Self::parse_subst(parser, scanner, yield_flag, await_flag, tagged_flag))
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -2717,21 +2720,21 @@ impl TemplateLiteral {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             TemplateLiteral::NoSubstitutionTemplate { location, .. } => *location,
             TemplateLiteral::SubstitutionTemplate(st) => st.location(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             TemplateLiteral::SubstitutionTemplate(boxed) => boxed.contains(kind),
             TemplateLiteral::NoSubstitutionTemplate { .. } => false,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2748,7 +2751,7 @@ impl TemplateLiteral {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2761,7 +2764,7 @@ impl TemplateLiteral {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, ts_limit: usize) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, ts_limit: usize) {
         // Static Semantics: Early Errors
         match self {
             TemplateLiteral::NoSubstitutionTemplate { data: td, tagged, location } => {
@@ -2788,7 +2791,7 @@ impl TemplateLiteral {
         }
     }
 
-    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+    pub(crate) fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
         // Static Semantics: TemplateStrings
         //
         // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
@@ -2811,21 +2814,27 @@ impl TemplateLiteral {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                TemplateLiteral::NoSubstitutionTemplate { .. } => None,
+                TemplateLiteral::SubstitutionTemplate(st) => st.body_containing_location(location),
+            }
+        } else {
+            None
+        }
     }
 }
 
 // SubstitutionTemplate[Yield, Await, Tagged] :
 //      TemplateHead Expression[+In, ?Yield, ?Await] TemplateSpans[?Yield, ?Await, ?Tagged]
 #[derive(Debug)]
-pub struct SubstitutionTemplate {
-    pub template_head: TemplateData,
+pub(crate) struct SubstitutionTemplate {
+    pub(crate) template_head: TemplateData,
     tagged: bool,
-    pub expression: Rc<Expression>,
-    pub template_spans: Rc<TemplateSpans>,
+    pub(crate) expression: Rc<Expression>,
+    pub(crate) template_spans: Rc<TemplateSpans>,
     location: Location,
 }
 
@@ -2864,14 +2873,14 @@ impl PrettyPrint for SubstitutionTemplate {
 }
 
 impl SubstitutionTemplate {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
         tagged_flag: bool,
     ) -> ParseResult<Self> {
-        let (head, tok_loc, after_head) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (head, tok_loc, after_head) = scan_token(&scanner, parser.source, InputElementGoal::RegExp);
         if let Token::TemplateHead(td) = head {
             let (exp_boxed, after_exp) = Expression::parse(parser, after_head, true, yield_flag, await_flag)?;
             let (spans_boxed, after_spans) =
@@ -2894,15 +2903,15 @@ impl SubstitutionTemplate {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind) || self.template_spans.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2916,7 +2925,7 @@ impl SubstitutionTemplate {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2926,7 +2935,7 @@ impl SubstitutionTemplate {
         self.expression.contains_arguments() || self.template_spans.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // SubstitutionTemplate : TemplateHead Expression TemplateSpans
         //  * It is a Syntax Error if the [Tagged] parameter was not set and TemplateHead Contains NotEscapeSequence.
@@ -2937,7 +2946,7 @@ impl SubstitutionTemplate {
         self.template_spans.early_errors(errs, strict);
     }
 
-    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+    pub(crate) fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
         // Static Semantics: TemplateStrings
         //
         // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
@@ -2957,10 +2966,15 @@ impl SubstitutionTemplate {
         head
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            self.expression
+                .body_containing_location(location)
+                .or_else(|| self.template_spans.body_containing_location(location))
+        } else {
+            None
+        }
     }
 }
 
@@ -2968,7 +2982,7 @@ impl SubstitutionTemplate {
 //      TemplateTail
 //      TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateTail
 #[derive(Debug)]
-pub enum TemplateSpans {
+pub(crate) enum TemplateSpans {
     Tail { data: TemplateData, tagged: bool, location: Location },
     List { tml: Rc<TemplateMiddleList>, data: TemplateData, tagged: bool, location: Location },
 }
@@ -3019,7 +3033,7 @@ impl PrettyPrint for TemplateSpans {
 
 impl TemplateSpans {
     fn parse_tail(parser: &mut Parser, scanner: Scanner, tagged_flag: bool) -> ParseResult<Self> {
-        let (token, tok_loc, after_tmplt) = scan_token(&scanner, parser.source, ScanGoal::InputElementTemplateTail);
+        let (token, tok_loc, after_tmplt) = scan_token(&scanner, parser.source, InputElementGoal::TemplateTail);
         if let Token::TemplateTail(td) = token {
             Ok((Rc::new(TemplateSpans::Tail { data: td, tagged: tagged_flag, location: tok_loc }), after_tmplt))
         } else {
@@ -3035,7 +3049,7 @@ impl TemplateSpans {
         tagged_flag: bool,
     ) -> ParseResult<Self> {
         let (tml, after_tml) = TemplateMiddleList::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
-        let (token, tok_loc, after_tmplt) = scan_token(&after_tml, parser.source, ScanGoal::InputElementTemplateTail);
+        let (token, tok_loc, after_tmplt) = scan_token(&after_tml, parser.source, InputElementGoal::TemplateTail);
         if let Token::TemplateTail(td) = token {
             Ok((
                 Rc::new({
@@ -3048,7 +3062,7 @@ impl TemplateSpans {
             Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::TemplateTail), tok_loc))
         }
     }
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -3060,20 +3074,20 @@ impl TemplateSpans {
             .otherwise(|| Self::parse_tml_tail(parser, scanner, yield_flag, await_flag, tagged_flag))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             TemplateSpans::Tail { location, .. } | TemplateSpans::List { location, .. } => *location,
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             TemplateSpans::Tail { .. } => false,
             TemplateSpans::List { tml, .. } => tml.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -3090,7 +3104,7 @@ impl TemplateSpans {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -3103,7 +3117,7 @@ impl TemplateSpans {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  TemplateSpans :
         //      TemplateTail
@@ -3125,7 +3139,7 @@ impl TemplateSpans {
         }
     }
 
-    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+    pub(crate) fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
         // Static Semantics: TemplateStrings
         //
         // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
@@ -3156,10 +3170,16 @@ impl TemplateSpans {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                TemplateSpans::Tail { .. } => None,
+                TemplateSpans::List { tml, .. } => tml.body_containing_location(location),
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -3167,7 +3187,7 @@ impl TemplateSpans {
 //      TemplateMiddle Expression[+In, ?Yield, ?Await]
 //      TemplateMiddleList[?Yield, ?Await, ?Tagged] TemplateMiddle Expression[+In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum TemplateMiddleList {
+pub(crate) enum TemplateMiddleList {
     ListHead { data: TemplateData, exp: Rc<Expression>, tagged: bool, location: Location },
     ListMid(Rc<TemplateMiddleList>, TemplateData, Rc<Expression>, bool),
 }
@@ -3227,7 +3247,7 @@ impl TemplateMiddleList {
         yield_flag: bool,
         await_flag: bool,
     ) -> Result<(TemplateData, Location, Rc<Expression>, Scanner), ParseError> {
-        let (middle, tok_loc, after_mid) = scan_token(&scanner, parser.source, ScanGoal::InputElementTemplateTail);
+        let (middle, tok_loc, after_mid) = scan_token(&scanner, parser.source, InputElementGoal::TemplateTail);
         if let Token::TemplateMiddle(td) = middle {
             let (exp, after_exp) = Expression::parse(parser, after_mid, true, yield_flag, await_flag)?;
             Ok((td, tok_loc, exp, after_exp))
@@ -3253,7 +3273,7 @@ impl TemplateMiddleList {
         ))
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -3271,21 +3291,21 @@ impl TemplateMiddleList {
         Ok((current_node, current_scanner))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             TemplateMiddleList::ListHead { location, .. } => *location,
             TemplateMiddleList::ListMid(tml, _, exp, _) => tml.location().merge(&exp.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             TemplateMiddleList::ListHead { exp, .. } => exp.contains(kind),
             TemplateMiddleList::ListMid(tml, _, exp, _) => tml.contains(kind) || exp.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -3304,7 +3324,7 @@ impl TemplateMiddleList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -3317,7 +3337,7 @@ impl TemplateMiddleList {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  TemplateMiddleList :
         //      TemplateMiddle Expression
@@ -3340,7 +3360,7 @@ impl TemplateMiddleList {
         }
     }
 
-    pub fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
+    pub(crate) fn template_strings(&self, raw: bool) -> Vec<Option<JSString>> {
         // Static Semantics: TemplateStrings
         //
         // The syntax-directed operation TemplateStrings takes argument raw and returns a List of Strings. It is
@@ -3371,18 +3391,28 @@ impl TemplateMiddleList {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                TemplateMiddleList::ListHead { data: _, exp, tagged: _, location: _ } => {
+                    exp.body_containing_location(location)
+                }
+                TemplateMiddleList::ListMid(tml, _, exp, _) => {
+                    tml.body_containing_location(location).or_else(|| exp.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
     }
 }
 
 // ParenthesizedExpression[Yield, Await] :
 //      ( Expression[+In, ?Yield, ?Await] )
 #[derive(Debug)]
-pub struct ParenthesizedExpression {
-    pub exp: Rc<Expression>,
+pub(crate) struct ParenthesizedExpression {
+    pub(crate) exp: Rc<Expression>,
     location: Location,
 }
 
@@ -3414,31 +3444,30 @@ impl PrettyPrint for ParenthesizedExpression {
     }
 }
 
-impl IsFunctionDefinition for ParenthesizedExpression {
-    fn is_function_definition(&self) -> bool {
-        self.exp.is_function_definition()
-    }
-}
-
 impl ParenthesizedExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (open_loc, after_lp) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_lp, true, yield_flag, await_flag)?;
         let (close_loc, after_rp) =
-            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
+            scan_for_punct(after_exp, parser.source, InputElementGoal::RegExp, Punctuator::RightParen)?;
         Ok((Rc::new(ParenthesizedExpression { exp, location: open_loc.merge(&close_loc) }), after_rp))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.exp.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -3452,7 +3481,7 @@ impl ParenthesizedExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -3462,31 +3491,31 @@ impl ParenthesizedExpression {
         self.exp.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.exp.early_errors(errs, strict);
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         self.exp.is_strictly_deletable()
     }
 
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         self.exp.assignment_target_type(strict)
     }
 
-    pub fn is_named_function(&self) -> bool {
-        self.exp.is_named_function()
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    self.exp.is_named_function()
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) { self.exp.body_containing_location(location) } else { None }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -3511,14 +3540,14 @@ impl ParenthesizedExpression {
 //      ( Expression[+In, ?Yield, ?Await] , ... BindingIdentifier[?Yield, ?Await] )
 //      ( Expression[+In, ?Yield, ?Await] , ... BindingPattern[?Yield, ?Await] )
 #[derive(Debug)]
-pub enum CoverParenthesizedExpressionAndArrowParameterList {
-    Expression { exp: Rc<Expression>, location: Location },
-    ExpComma { exp: Rc<Expression>, location: Location },
-    Empty { location: Location },
-    Ident { bi: Rc<BindingIdentifier>, location: Location },
-    Pattern { bp: Rc<BindingPattern>, location: Location },
-    ExpIdent { exp: Rc<Expression>, bi: Rc<BindingIdentifier>, location: Location },
-    ExpPattern { exp: Rc<Expression>, bp: Rc<BindingPattern>, location: Location },
+pub(crate) enum CoverParenthesizedExpressionAndArrowParameterList {
+    Expression { exp: Rc<Expression> },
+    ExpComma { exp: Rc<Expression> },
+    Empty,
+    Ident { bi: Rc<BindingIdentifier> },
+    Pattern { bp: Rc<BindingPattern> },
+    ExpIdent { exp: Rc<Expression>, bi: Rc<BindingIdentifier> },
+    ExpPattern { exp: Rc<Expression>, bp: Rc<BindingPattern> },
 }
 
 impl fmt::Display for CoverParenthesizedExpressionAndArrowParameterList {
@@ -3530,7 +3559,7 @@ impl fmt::Display for CoverParenthesizedExpressionAndArrowParameterList {
             CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
                 write!(f, "( {node} , )")
             }
-            CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => {
+            CoverParenthesizedExpressionAndArrowParameterList::Empty => {
                 write!(f, "( )")
             }
             CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
@@ -3557,7 +3586,7 @@ impl PrettyPrint for CoverParenthesizedExpressionAndArrowParameterList {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}CoverParenthesizedExpressionAndArrowParameterList: {self}")?;
         match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => Ok(()),
+            CoverParenthesizedExpressionAndArrowParameterList::Empty => Ok(()),
             CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
             | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
                 node.pprint_with_leftpad(writer, &successive, Spot::Final)
@@ -3594,7 +3623,7 @@ impl PrettyPrint for CoverParenthesizedExpressionAndArrowParameterList {
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
                 pprint_token(writer, ",", TokenType::Punctuator, &successive, Spot::NotFinal)?;
             }
-            CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => {}
+            CoverParenthesizedExpressionAndArrowParameterList::Empty => {}
             CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
                 pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
                 node.concise_with_leftpad(writer, &successive, Spot::NotFinal)?;
@@ -3626,25 +3655,20 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
             Id(Rc<BindingIdentifier>),
             Pat(Rc<BindingPattern>),
         }
-        let (open_loc, after_lparen) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftParen)?;
+        let (_, after_lparen) =
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::LeftParen)?;
         Err(ParseError::new(PECode::ExpressionSpreadOrRPExpected, after_lparen))
             .otherwise(|| {
                 // ( )
-                let (close_loc, after_rparen) =
-                    scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightParen)?;
-                Ok((
-                    Rc::new(CoverParenthesizedExpressionAndArrowParameterList::Empty {
-                        location: open_loc.merge(&close_loc),
-                    }),
-                    after_rparen,
-                ))
+                let (_, after_rparen) =
+                    scan_for_punct(after_lparen, parser.source, InputElementGoal::RegExp, Punctuator::RightParen)?;
+                Ok((Rc::new(CoverParenthesizedExpressionAndArrowParameterList::Empty), after_rparen))
             })
             .otherwise(|| {
                 // ( ... BindingIdentifier )
                 // ( ... BindingPattern )
                 let (_, after_ellipsis) =
-                    scan_for_punct(after_lparen, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+                    scan_for_punct(after_lparen, parser.source, InputElementGoal::RegExp, Punctuator::Ellipsis)?;
                 Err(ParseError::new(PECode::BindingIdOrPatternExpected, after_ellipsis)).otherwise(|| {
                     BindingIdentifier::parse(parser, after_ellipsis, yield_flag, await_flag)
                         .map(|(bi, scan)| (BndType::Id(bi), scan))
@@ -3653,20 +3677,18 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                                 .map(|(bp, scan)| (BndType::Pat(bp), scan))
                         })
                         .and_then(|(bnd, scan)| {
-                            scan_for_punct(scan, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)
+                            scan_for_punct(scan, parser.source, InputElementGoal::Div, Punctuator::RightParen)
                                 .map(|after_rp| (bnd, after_rp))
                         })
-                        .map(|(bnd, (close_loc, scan))| {
+                        .map(|(bnd, (_, scan))| {
                             (
                                 Rc::new(match bnd {
-                                    BndType::Id(id) => CoverParenthesizedExpressionAndArrowParameterList::Ident {
-                                        bi: id,
-                                        location: open_loc.merge(&close_loc),
-                                    },
-                                    BndType::Pat(pat) => CoverParenthesizedExpressionAndArrowParameterList::Pattern {
-                                        bp: pat,
-                                        location: open_loc.merge(&close_loc),
-                                    },
+                                    BndType::Id(id) => {
+                                        CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: id }
+                                    }
+                                    BndType::Pat(pat) => {
+                                        CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: pat }
+                                    }
                                 }),
                                 scan,
                             )
@@ -3681,15 +3703,15 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                     SpreadPat(Rc<BindingPattern>),
                 }
                 let (exp, after_exp) = Expression::parse(parser, after_lparen, true, yield_flag, await_flag)?;
-                scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)
+                scan_for_punct(after_exp, parser.source, InputElementGoal::Div, Punctuator::RightParen)
                     .map(|(close_loc, after_rparen)| (AfterExp::Empty, close_loc, after_rparen))
                     .otherwise(|| {
-                        scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
+                        scan_for_punct(after_exp, parser.source, InputElementGoal::Div, Punctuator::Comma).and_then(
                             |(_, after_comma)| {
                                 scan_for_punct(
                                     after_comma,
                                     parser.source,
-                                    ScanGoal::InputElementDiv,
+                                    InputElementGoal::Div,
                                     Punctuator::RightParen,
                                 )
                                 .map(|(close_loc, after_rparen)| (AfterExp::Comma, close_loc, after_rparen))
@@ -3697,7 +3719,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                                     scan_for_punct(
                                         after_comma,
                                         parser.source,
-                                        ScanGoal::InputElementDiv,
+                                        InputElementGoal::Div,
                                         Punctuator::Ellipsis,
                                     )
                                     .and_then(|(_, after_ellipsis)| {
@@ -3706,7 +3728,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                                                 scan_for_punct(
                                                     after,
                                                     parser.source,
-                                                    ScanGoal::InputElementDiv,
+                                                    InputElementGoal::Div,
                                                     Punctuator::RightParen,
                                                 )
                                                 .map(
@@ -3721,7 +3743,7 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                                                         scan_for_punct(
                                                             after,
                                                             parser.source,
-                                                            ScanGoal::InputElementDiv,
+                                                            InputElementGoal::Div,
                                                             Punctuator::RightParen,
                                                         )
                                                         .map(
@@ -3736,28 +3758,18 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
                             },
                         )
                     })
-                    .map(|(aftexp, close_loc, scan)| {
+                    .map(|(aftexp, _, scan)| {
                         (
                             Rc::new(match aftexp {
-                                AfterExp::Empty => CoverParenthesizedExpressionAndArrowParameterList::Expression {
-                                    exp,
-                                    location: open_loc.merge(&close_loc),
-                                },
-                                AfterExp::Comma => CoverParenthesizedExpressionAndArrowParameterList::ExpComma {
-                                    exp,
-                                    location: open_loc.merge(&close_loc),
-                                },
-                                AfterExp::SpreadId(id) => CoverParenthesizedExpressionAndArrowParameterList::ExpIdent {
-                                    exp,
-                                    bi: id,
-                                    location: open_loc.merge(&close_loc),
-                                },
+                                AfterExp::Empty => {
+                                    CoverParenthesizedExpressionAndArrowParameterList::Expression { exp }
+                                }
+                                AfterExp::Comma => CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp },
+                                AfterExp::SpreadId(id) => {
+                                    CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id }
+                                }
                                 AfterExp::SpreadPat(pat) => {
-                                    CoverParenthesizedExpressionAndArrowParameterList::ExpPattern {
-                                        exp,
-                                        bp: pat,
-                                        location: open_loc.merge(&close_loc),
-                                    }
+                                    CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { exp, bp: pat }
                                 }
                             }),
                             scan,
@@ -3766,7 +3778,12 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
             })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.cpeaapl_cache.get(&key) {
             Some(result) => result.clone(),
@@ -3778,63 +3795,63 @@ impl CoverParenthesizedExpressionAndArrowParameterList {
         }
     }
 
-    pub fn location(&self) -> Location {
-        match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Expression { location, .. }
-            | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { location, .. }
-            | CoverParenthesizedExpressionAndArrowParameterList::Empty { location, .. }
-            | CoverParenthesizedExpressionAndArrowParameterList::Ident { location, .. }
-            | CoverParenthesizedExpressionAndArrowParameterList::Pattern { location, .. }
-            | CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { location, .. }
-            | CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { location, .. } => *location,
-        }
-    }
-
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
-            | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => false,
-            CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => node.contains(kind),
-            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id, .. } => {
-                exp.contains(kind) || id.contains(kind)
-            }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { exp, bp: pat, .. } => {
-                exp.contains(kind) || pat.contains(kind)
-            }
-        }
-    }
-
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
-        match self {
-            CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
-            | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
-                node.early_errors(errs, strict);
-            }
-            CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => {}
-            CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
-                node.early_errors(errs, strict);
-            }
-            CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => {
-                node.early_errors(errs, strict);
-            }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id, .. } => {
-                exp.early_errors(errs, strict);
-                id.early_errors(errs, strict);
-            }
-            CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { exp, bp: pat, .. } => {
-                exp.early_errors(errs, strict);
-                pat.early_errors(errs, strict);
-            }
-        }
-    }
-
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //pub(crate) fn location(&self) -> Location {
+    //    match self {
+    //        CoverParenthesizedExpressionAndArrowParameterList::Expression { location, .. }
+    //        | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { location, .. }
+    //        | CoverParenthesizedExpressionAndArrowParameterList::Empty { location, .. }
+    //        | CoverParenthesizedExpressionAndArrowParameterList::Ident { location, .. }
+    //        | CoverParenthesizedExpressionAndArrowParameterList::Pattern { location, .. }
+    //        | CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { location, .. }
+    //        | CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { location, .. } => *location,
+    //    }
+    //}
+    //
+    //pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
+    //    match self {
+    //        CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
+    //        | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => node.contains(kind),
+    //        CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => false,
+    //        CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => node.contains(kind),
+    //        CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => node.contains(kind),
+    //        CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id, .. } => {
+    //            exp.contains(kind) || id.contains(kind)
+    //        }
+    //        CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { exp, bp: pat, .. } => {
+    //            exp.contains(kind) || pat.contains(kind)
+    //        }
+    //    }
+    //}
+    //
+    //pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    //    match self {
+    //        CoverParenthesizedExpressionAndArrowParameterList::Expression { exp: node, .. }
+    //        | CoverParenthesizedExpressionAndArrowParameterList::ExpComma { exp: node, .. } => {
+    //            node.early_errors(errs, strict);
+    //        }
+    //        CoverParenthesizedExpressionAndArrowParameterList::Empty { .. } => {}
+    //        CoverParenthesizedExpressionAndArrowParameterList::Ident { bi: node, .. } => {
+    //            node.early_errors(errs, strict);
+    //        }
+    //        CoverParenthesizedExpressionAndArrowParameterList::Pattern { bp: node, .. } => {
+    //            node.early_errors(errs, strict);
+    //        }
+    //        CoverParenthesizedExpressionAndArrowParameterList::ExpIdent { exp, bi: id, .. } => {
+    //            exp.early_errors(errs, strict);
+    //            id.early_errors(errs, strict);
+    //        }
+    //        CoverParenthesizedExpressionAndArrowParameterList::ExpPattern { exp, bp: pat, .. } => {
+    //            exp.early_errors(errs, strict);
+    //            pat.early_errors(errs, strict);
+    //        }
+    //    }
+    //}
+    //
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 #[cfg(test)]

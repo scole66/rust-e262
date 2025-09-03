@@ -25,7 +25,7 @@ use std::rc::Rc;
 const ARRAY_INDEX_LIMIT: f64 = 9_007_199_254_740_991.0; // (2 ^ 53) - 1
 
 #[derive(Debug)]
-pub struct ArrayObject {
+pub(crate) struct ArrayObject {
     common: RefCell<CommonObjectData>,
 }
 
@@ -136,6 +136,7 @@ impl ObjectInterface for ArrayObject {
     fn is_array_object(&self) -> bool {
         true
     }
+    #[cfg(test)]
     fn to_array_object(&self) -> Option<&ArrayObject> {
         Some(self)
     }
@@ -165,7 +166,7 @@ impl ObjectInterface for ArrayObject {
 /// ```rust
 /// let array = array_create(5.0, None)?; // Creates array with length 5 and default prototype
 /// ```
-pub fn array_create(length: f64, proto: Option<Object>) -> Completion<Object> {
+pub(crate) fn array_create(length: f64, proto: Option<Object>) -> Completion<Object> {
     ArrayObject::create(length, proto)
 }
 
@@ -200,7 +201,7 @@ impl ArrayObject {
     /// * Prototype initialization
     /// * Length property setup with attributes { \[\[Value]]: length, \[\[Writable]]: true, \[\[Enumerable]]: false,
     ///   \[\[Configurable]]: false }
-    pub fn create(length: f64, proto: Option<Object>) -> Completion<Object> {
+    pub(crate) fn create(length: f64, proto: Option<Object>) -> Completion<Object> {
         // ArrayCreate ( length [ , proto ] )
         //
         // The abstract operation ArrayCreate takes argument length (a non-negative integer) and optional argument
@@ -250,7 +251,7 @@ impl ArrayObject {
     /// ```rust
     /// let array = ArrayObject::new(None); // Creates array with default prototype
     /// ```
-    pub fn new(prototype: Option<Object>) -> Self {
+    pub(crate) fn new(prototype: Option<Object>) -> Self {
         Self { common: RefCell::new(CommonObjectData::new(prototype, true, ARRAY_OBJECT_SLOTS)) }
     }
     /// Creates a new Array exotic object wrapped in a shared reference.
@@ -275,7 +276,7 @@ impl ArrayObject {
     /// ```rust
     /// let array = ArrayObject::object(None); // Creates reference-counted array with default prototype
     /// ```
-    pub fn object(prototype: Option<Object>) -> Object {
+    pub(crate) fn object(prototype: Option<Object>) -> Object {
         Object { o: Rc::new(Self::new(prototype)) }
     }
 
@@ -457,7 +458,7 @@ impl Object {
     /// Note: If the original array was created using the standard Array constructor from a different realm,
     /// a new Array is created using the current realm's Array constructor. This maintains compatibility
     /// with web browsers' historical behavior for Array.prototype methods.
-    pub fn array_species_create(&self, length: f64) -> Completion<ECMAScriptValue> {
+    pub(crate) fn array_species_create(&self, length: f64) -> Completion<ECMAScriptValue> {
         // ArraySpeciesCreate ( originalArray, length )
         //
         // The abstract operation ArraySpeciesCreate takes arguments originalArray and length (a non-negative integer).
@@ -517,7 +518,7 @@ impl Object {
     }
 }
 
-pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -725,7 +726,7 @@ pub fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
         Object::try_from(array_prototype_values).expect("values should be an object");
 }
 
-pub fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // The %ArrayIteratorPrototype% Object
     //
     // * has properties that are inherited by all Array Iterator Objects.
@@ -1214,7 +1215,7 @@ fn array_prototype_concat(
 }
 
 impl ECMAScriptValue {
-    pub fn is_concat_spreadable(&self) -> Completion<bool> {
+    pub(crate) fn is_concat_spreadable(&self) -> Completion<bool> {
         // IsConcatSpreadable ( O )
         // The abstract operation IsConcatSpreadable takes argument O (an ECMAScript language value) and returns either
         // a normal completion containing a Boolean or a throw completion. It performs the following steps when called:
@@ -1402,7 +1403,7 @@ fn array_prototype_every(
             let k_value = o.get(&pk)?;
             let test_result =
                 call(&callback, &this_arg, &[k_value, ECMAScriptValue::from(k), ECMAScriptValue::from(o.clone())])?
-                    .to_boolean();
+                    .into_boolean();
             if !test_result {
                 return Ok(ECMAScriptValue::Boolean(false));
             }
@@ -1538,7 +1539,7 @@ fn array_prototype_filter(
                 &this_arg,
                 &[k_value.clone(), ECMAScriptValue::from(k), ECMAScriptValue::from(o.clone())],
             )?
-            .to_boolean();
+            .into_boolean();
             if selected {
                 a_obj.create_data_property_or_throw(PropertyKey::from(to), k_value)?;
                 to += 1.0;
@@ -1754,7 +1755,7 @@ impl Object {
                 this_arg,
                 &[k_value.clone(), ECMAScriptValue::from(k), ECMAScriptValue::from(self.clone())],
             )?
-            .to_boolean();
+            .into_boolean();
             if test_result {
                 return Ok(FindResult { value: k_value, index: k });
             }
@@ -1794,13 +1795,13 @@ fn array_prototype_flat(
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum FlattenOpts<'a> {
+pub(crate) enum FlattenOpts<'a> {
     Depth(f64),
     Mapper { mapper_function: &'a ECMAScriptValue, this_arg: &'a ECMAScriptValue },
 }
 
 impl Object {
-    pub fn flatten_into_array(
+    pub(crate) fn flatten_into_array(
         &self,
         source: &Object,
         source_len: f64,
@@ -2841,7 +2842,7 @@ fn array_prototype_some(
             let k_value = o.get(&pk)?;
             let test_result =
                 call(&callback, &this_arg, &[k_value, ECMAScriptValue::Number(k), ECMAScriptValue::Object(o.clone())])?
-                    .to_boolean();
+                    .into_boolean();
             if test_result {
                 return Ok(ECMAScriptValue::Boolean(true));
             }
@@ -3375,7 +3376,7 @@ fn array_iterator_prototype_next(
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum KeyValueKind {
+pub(crate) enum KeyValueKind {
     Key,
     Value,
     KeyValue,
@@ -3431,7 +3432,7 @@ async fn array_iterator(
     }
 }
 
-pub fn create_array_iterator(array: Object, kind: KeyValueKind) -> Object {
+pub(crate) fn create_array_iterator(array: Object, kind: KeyValueKind) -> Object {
     // CreateArrayIterator ( array, kind )
     // The abstract operation CreateArrayIterator takes arguments array (an Object) and kind (key+value, key,
     // or value) and returns a Generator. It is used to create iterator objects for Array methods that return

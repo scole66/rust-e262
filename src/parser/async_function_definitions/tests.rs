@@ -191,30 +191,6 @@ fn async_function_declaration_test_conciseerrors_2() {
     concise_error_validate(&*item);
 }
 #[test]
-fn async_function_declaration_test_contains_01() {
-    let (item, _) = AsyncFunctionDeclaration::parse(
-        &mut newparser("async function bob() { return 11; }"),
-        Scanner::new(),
-        true,
-        true,
-        true,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn async_function_declaration_test_contains_02() {
-    let (item, _) = AsyncFunctionDeclaration::parse(
-        &mut newparser("async function () { return 10; }"),
-        Scanner::new(),
-        true,
-        true,
-        true,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
 fn async_function_declaration_test_bound_names_01() {
     let (item, _) = AsyncFunctionDeclaration::parse(
         &mut newparser("async function a() { return 10; }"),
@@ -296,11 +272,6 @@ mod async_function_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).async_function_declaration().bound_name().into()
     }
-
-    #[test_case("async function foo () {}" => false; "typical")]
-    fn is_constant_declaration(src: &str) -> bool {
-        Maker::new(src).async_function_declaration().is_constant_declaration()
-    }
 }
 
 // ASYNC FUNCTION EXPRESSION
@@ -332,7 +303,6 @@ fn async_function_expression_test_01() {
         ],
     );
     assert_ne!(format!("{node:?}"), "");
-    assert!(node.is_function_definition());
 }
 #[test]
 fn async_function_expression_test_02() {
@@ -361,7 +331,6 @@ fn async_function_expression_test_02() {
         ],
     );
     assert_ne!(format!("{node:?}"), "");
-    assert!(node.is_function_definition());
 }
 #[test]
 fn async_function_expression_test_err_01() {
@@ -446,18 +415,6 @@ fn async_function_expression_test_conciseerrors_2() {
     )
     .unwrap();
     concise_error_validate(&*item);
-}
-#[test]
-fn async_function_expression_test_contains_01() {
-    let (item, _) =
-        AsyncFunctionExpression::parse(&mut newparser("async function bob() { return 11; }"), Scanner::new()).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn async_function_expression_test_contains_02() {
-    let (item, _) =
-        AsyncFunctionExpression::parse(&mut newparser("async function () { return 10; }"), Scanner::new()).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("async function x(arg=item.#valid){}" => true; "Params valid")]
 #[test_case("async function x(arg) { arg.#valid(); }" => true; "Body valid")]

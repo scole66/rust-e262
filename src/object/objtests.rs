@@ -4611,25 +4611,6 @@ mod define_property_or_throw {
     }
 }
 
-#[test_case(|| ECMAScriptValue::from(99) => None; "not a constructor")]
-#[test_case(
-    || {
-        let cstr = intrinsic(IntrinsicId::Object);
-        cstr.set("sentinel", "test response", true).unwrap();
-        ECMAScriptValue::from(cstr)
-    }
-    => Some("test response".to_string());
-    "constructor object")]
-#[test_case(|| intrinsic(IntrinsicId::ObjectPrototype).into() => None; "object but not cstr")]
-fn to_constructor(make_val: impl FnOnce() -> ECMAScriptValue) -> Option<String> {
-    setup_test_agent();
-    let val = make_val();
-    super::to_constructor(&val).map(|cstr| {
-        let key = PropertyKey::from("sentinel");
-        cstr.get(&key, &val).unwrap().test_result_string()
-    })
-}
-
 mod ordinary_object {
     use super::*;
 

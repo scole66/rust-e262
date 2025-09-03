@@ -25,7 +25,7 @@ use std::cell::RefCell;
 // internal slot.
 
 #[derive(Debug)]
-pub struct StringObject {
+pub(crate) struct StringObject {
     common: RefCell<CommonObjectData>,
     string_data: JSString,
 }
@@ -188,7 +188,7 @@ impl ObjectInterface for StringObject {
     }
 }
 
-pub fn string_create(value: JSString, prototype: Option<Object>) -> Object {
+pub(crate) fn string_create(value: JSString, prototype: Option<Object>) -> Object {
     StringObject::object(value, prototype)
 }
 impl From<JSString> for Object {
@@ -204,11 +204,11 @@ impl From<&str> for Object {
 }
 
 impl StringObject {
-    pub fn new(value: JSString, prototype: Option<Object>) -> Self {
+    pub(crate) fn new(value: JSString, prototype: Option<Object>) -> Self {
         Self { common: RefCell::new(CommonObjectData::new(prototype, true, STRING_OBJECT_SLOTS)), string_data: value }
     }
 
-    pub fn object(value: JSString, prototype: Option<Object>) -> Object {
+    pub(crate) fn object(value: JSString, prototype: Option<Object>) -> Object {
         // StringCreate ( value, prototype )
         //
         // The abstract operation StringCreate takes arguments value (a String) and prototype and returns a
@@ -237,7 +237,7 @@ impl StringObject {
         s
     }
 
-    pub fn string_get_own_property(&self, key: &PropertyKey) -> Option<PropertyDescriptor> {
+    pub(crate) fn string_get_own_property(&self, key: &PropertyKey) -> Option<PropertyDescriptor> {
         // StringGetOwnProperty ( S, P )
         //
         // The abstract operation StringGetOwnProperty takes arguments S (an Object that has a [[StringData]]
@@ -278,7 +278,7 @@ impl StringObject {
     }
 }
 
-pub fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -685,14 +685,15 @@ fn string_prototype_pad_start(
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum PadPlacement {
+pub(crate) enum PadPlacement {
     Start,
+    #[expect(dead_code)]
     End,
 }
 
 impl JSString {
     #[must_use]
-    pub fn string_pad(&self, max_length: usize, fill_string: &JSString, placement: PadPlacement) -> JSString {
+    pub(crate) fn string_pad(&self, max_length: usize, fill_string: &JSString, placement: PadPlacement) -> JSString {
         // StringPad ( S, maxLength, fillString, placement )
         // The abstract operation StringPad takes arguments S (a String), maxLength (a non-negative integer), fillString
         // (a String), and placement (start or end) and returns a String. It performs the following steps when called:
@@ -730,7 +731,7 @@ impl JSString {
     }
 }
 
-pub fn to_zero_padded_decimal_string(n: usize, min_length: usize) -> JSString {
+pub(crate) fn to_zero_padded_decimal_string(n: usize, min_length: usize) -> JSString {
     // ToZeroPaddedDecimalString ( n, minLength )
     // The abstract operation ToZeroPaddedDecimalString takes arguments n (a non-negative integer) and minLength (a
     // non-negative integer) and returns a String. It performs the following steps when called:
@@ -1228,13 +1229,13 @@ fn string_prototype_trim(
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub enum TrimHint {
+pub(crate) enum TrimHint {
     Start,
     End,
     Both,
 }
 
-pub fn trim_string(string: ECMAScriptValue, hint: TrimHint) -> Completion<JSString> {
+pub(crate) fn trim_string(string: ECMAScriptValue, hint: TrimHint) -> Completion<JSString> {
     // TrimString ( string, where )
     // The abstract operation TrimString takes arguments string (an ECMAScript language value) and where
     // (start, end, or start+end) and returns either a normal completion containing a String or a throw
@@ -1365,7 +1366,7 @@ fn string_prototype_iterator(
     )))
 }
 
-pub fn provision_string_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_string_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
     // The %StringIteratorPrototype% object:
     //
     //  * has properties that are inherited by all String Iterator Objects.

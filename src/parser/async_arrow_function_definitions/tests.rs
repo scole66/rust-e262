@@ -245,7 +245,6 @@ fn async_arrow_function_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 
 #[test]
-#[should_panic(expected = "not yet implemented")]
 fn async_arrow_function_test_early_errors() {
     AsyncArrowFunction::parse(&mut newparser("async x => x"), Scanner::new(), true, true, true)
         .unwrap()
@@ -350,7 +349,6 @@ fn async_concise_body_test_all_private_identifiers_valid(src: &str) -> bool {
 }
 
 #[test]
-#[should_panic(expected = "not yet implemented")]
 fn async_concise_body_test_early_errors() {
     AsyncConciseBody::parse(&mut newparser("x"), Scanner::new(), true).unwrap().0.early_errors(&mut vec![], true);
 }
@@ -396,14 +394,8 @@ fn async_arrow_binding_identifier_test_conciseerrors_1() {
     let (item, _) = AsyncArrowBindingIdentifier::parse(&mut newparser("identifier"), Scanner::new(), false).unwrap();
     concise_error_validate(&*item);
 }
-#[test]
-fn async_arrow_binding_identifier_test_contains_01() {
-    let (item, _) = AsyncArrowBindingIdentifier::parse(&mut newparser("identifier"), Scanner::new(), true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
 
 #[test]
-#[should_panic(expected = "not yet implemented")]
 fn async_arrow_binding_identifier_test_early_errors() {
     AsyncArrowBindingIdentifier::parse(&mut newparser("x"), Scanner::new(), true)
         .unwrap()
@@ -470,32 +462,6 @@ fn cceaaah_test_conciseerrors_1() {
             .unwrap();
     concise_error_validate(&*item);
 }
-#[test]
-fn cceaaah_test_contains_01() {
-    let (item, _) =
-        CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("this.a(10)"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn cceaaah_test_contains_02() {
-    let (item, _) =
-        CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("big[30]()"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), true);
-}
-#[test]
-fn cceaaah_test_contains_03() {
-    let (item, _) =
-        CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("a()"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-#[should_panic(expected = "not yet implemented")]
-fn cceaaah_test_early_errors() {
-    CoverCallExpressionAndAsyncArrowHead::parse(&mut newparser("x()"), Scanner::new(), true, true)
-        .unwrap()
-        .0
-        .early_errors(&mut vec![], true);
-}
 
 // ASYNC ARROW HEAD
 #[test]
@@ -545,7 +511,6 @@ fn async_arrow_head_test_all_private_identifiers_valid(src: &str) -> bool {
     item.all_private_identifiers_valid(&[JSString::from("#valid")])
 }
 #[test]
-#[should_panic(expected = "not yet implemented")]
 fn async_arrow_head_test_early_errors() {
     AsyncArrowHead::parse(&mut newparser("async(a)"), Scanner::new()).unwrap().0.early_errors(&mut vec![], true);
 }

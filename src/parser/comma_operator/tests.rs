@@ -1,4 +1,3 @@
-#![expect(clippy::bool_assert_comparison)]
 use super::testhelp::*;
 use super::*;
 use crate::prettyprint::pp_testhelp::*;
@@ -15,7 +14,6 @@ fn expression_test_01() {
     pretty_check(&*se, "Expression: a", &["AssignmentExpression: a"]);
     concise_check(&*se, "IdentifierName: a", &[]);
     assert_ne!(format!("{se:?}"), "");
-    assert_eq!(se.is_function_definition(), false);
 }
 #[test]
 fn expression_test_02() {
@@ -25,7 +23,6 @@ fn expression_test_02() {
     pretty_check(&*se, "Expression: a , b", &["Expression: a", "AssignmentExpression: b"]);
     concise_check(&*se, "Expression: a , b", &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
     assert_ne!(format!("{se:?}"), "");
-    assert_eq!(se.is_function_definition(), false);
 }
 #[test]
 fn expression_test_cache_01() {
@@ -127,12 +124,12 @@ mod expression {
         Maker::new(src).expression().contains(target)
     }
 
-    #[test_case("a,b" => false; "comma")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).expression().is_named_function()
-    }
+    //#[test_case("a,b" => false; "comma")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).expression().is_named_function()
+    //}
 
     #[test_case("  a,b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "comma")]
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]

@@ -9,11 +9,11 @@ use num_enum::TryFromPrimitive;
 use std::fmt;
 use std::rc::Rc;
 
-pub type Opcode = u16;
+pub(crate) type Opcode = u16;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
-pub enum Insn {
+pub(crate) enum Insn {
     Add,
     AddMappedArgument,
     AppendList,
@@ -413,7 +413,7 @@ impl fmt::Display for Insn {
 /// parent compilation step about whether that's possible or not. The values are "Might leave a reference on top of the
 /// stack" and "Will never leave a reference on the top of the stack".
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RefResult {
+pub(crate) enum RefResult {
     Maybe,
     Never,
 }
@@ -434,7 +434,7 @@ impl From<bool> for RefResult {
 /// the parent compilation step about whether that's possible or not. The values are "Might leave an abrupt completion
 /// on top of the stack" and "Will never leave an abrupt completion on top of the stack".
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AbruptResult {
+pub(crate) enum AbruptResult {
     Maybe,
     Never,
 }
@@ -476,26 +476,26 @@ impl AbruptResult {
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub struct CompilerStatusFlags {
-    pub can_be_abrupt: AbruptResult,
-    pub can_be_reference: RefResult,
+pub(crate) struct CompilerStatusFlags {
+    pub(crate) can_be_abrupt: AbruptResult,
+    pub(crate) can_be_reference: RefResult,
 }
 impl CompilerStatusFlags {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::default()
     }
     #[must_use]
-    pub fn abrupt(self, potentially_abrupt: bool) -> Self {
+    pub(crate) fn abrupt(self, potentially_abrupt: bool) -> Self {
         Self { can_be_abrupt: potentially_abrupt.into(), ..self }
     }
     #[must_use]
-    pub fn reference(self, potentially_reference: bool) -> Self {
+    pub(crate) fn reference(self, potentially_reference: bool) -> Self {
         Self { can_be_reference: potentially_reference.into(), ..self }
     }
-    pub fn maybe_abrupt(&self) -> bool {
+    pub(crate) fn maybe_abrupt(self) -> bool {
         self.can_be_abrupt == AbruptResult::Maybe
     }
-    pub fn maybe_ref(&self) -> bool {
+    pub(crate) fn maybe_ref(self) -> bool {
         self.can_be_reference == RefResult::Maybe
     }
 }
@@ -513,7 +513,7 @@ impl From<RefResult> for CompilerStatusFlags {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct AlwaysAbruptResult;
+pub(crate) struct AlwaysAbruptResult;
 impl From<AlwaysAbruptResult> for CompilerStatusFlags {
     fn from(_: AlwaysAbruptResult) -> Self {
         Self::new().abrupt(true)
@@ -527,7 +527,7 @@ impl AlwaysAbruptResult {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct AlwaysRefResult;
+pub(crate) struct AlwaysRefResult;
 impl From<AlwaysRefResult> for CompilerStatusFlags {
     fn from(_: AlwaysRefResult) -> Self {
         Self::new().reference(true)
@@ -535,7 +535,7 @@ impl From<AlwaysRefResult> for CompilerStatusFlags {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct AlwaysAbruptRefResult;
+pub(crate) struct AlwaysAbruptRefResult;
 impl From<AlwaysAbruptRefResult> for CompilerStatusFlags {
     fn from(_: AlwaysAbruptRefResult) -> Self {
         Self::new().reference(true).abrupt(true)
@@ -543,7 +543,7 @@ impl From<AlwaysAbruptRefResult> for CompilerStatusFlags {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct NeverAbruptRefResult;
+pub(crate) struct NeverAbruptRefResult;
 impl From<NeverAbruptRefResult> for CompilerStatusFlags {
     fn from(_: NeverAbruptRefResult) -> Self {
         Self::new()
@@ -551,7 +551,7 @@ impl From<NeverAbruptRefResult> for CompilerStatusFlags {
 }
 
 #[derive(Debug)]
-pub enum NameableProduction {
+pub(crate) enum NameableProduction {
     Function(Rc<FunctionExpression>),
     Generator(Rc<GeneratorExpression>),
     AsyncFunction(Rc<AsyncFunctionExpression>),
@@ -857,7 +857,7 @@ impl NameableProduction {
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
+    pub(crate) fn is_named_function(&self) -> bool {
         match self {
             NameableProduction::Function(node) => node.is_named_function(),
             NameableProduction::Generator(node) => node.is_named_function(),
@@ -868,7 +868,8 @@ impl NameableProduction {
         }
     }
 
-    pub fn params(&self) -> ParamSource {
+    #[cfg(test)]
+    pub(crate) fn params(&self) -> ParamSource {
         match self {
             NameableProduction::Function(node) => node.params.clone().into(),
             NameableProduction::Generator(node) => node.params.clone().into(),
@@ -880,7 +881,8 @@ impl NameableProduction {
         }
     }
 
-    pub fn body(&self) -> BodySource {
+    #[cfg(test)]
+    pub(crate) fn body(&self) -> BodySource {
         match self {
             NameableProduction::Function(node) => node.body.clone().into(),
             NameableProduction::Generator(node) => node.body.clone().into(),
@@ -894,14 +896,16 @@ impl NameableProduction {
 }
 
 impl AsyncArrowFunction {
-    pub fn params(&self) -> ParamSource {
+    #[cfg(test)]
+    pub(crate) fn params(&self) -> ParamSource {
         match self {
             AsyncArrowFunction::IdentOnly(id, _, _) => id.clone().into(),
             AsyncArrowFunction::Formals(ah, _) => ah.params.clone().into(),
         }
     }
 
-    pub fn body(&self) -> BodySource {
+    #[cfg(test)]
+    pub(crate) fn body(&self) -> BodySource {
         match self {
             AsyncArrowFunction::IdentOnly(_, body, _) | AsyncArrowFunction::Formals(_, body) => body.clone().into(),
         }
@@ -909,7 +913,7 @@ impl AsyncArrowFunction {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum EnvUsage {
+pub(crate) enum EnvUsage {
     UsePutValue,
     UseCurrentLexical,
 }
@@ -918,7 +922,7 @@ impl IdentifierReference {
     /// Generate the code for IdentifierReference
     ///
     /// See [IdentifierReference Evaluation](https://tc39.es/ecma262/#sec-identifiers-runtime-semantics-evaluation) from ECMA-262.
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AlwaysAbruptRefResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool) -> anyhow::Result<AlwaysAbruptRefResult> {
         // Runtime Semantics: Evaluation
         //  IdentifierReference : Identifier
         //      1. Return ? ResolveBinding(StringValue of Identifier).
@@ -950,7 +954,12 @@ impl PrimaryExpression {
     /// References from ECMA-262:
     /// * [Evaluation of the `this` keyword](https://tc39.es/ecma262/#sec-this-keyword-runtime-semantics-evaluation)
     #[expect(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             PrimaryExpression::IdentifierReference { node: id } => {
                 id.compile(chunk, strict).map(CompilerStatusFlags::from)
@@ -1059,26 +1068,26 @@ impl Literal {
     /// Generate the code for Literal
     ///
     /// See [Evaluation for Literal](https://tc39.es/ecma262/#sec-literals-runtime-semantics-evaluation) from ECMA-262.
-    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
         match self {
-            Literal::NullLiteral { .. } => {
+            Literal::Null { .. } => {
                 // Literal : NullLiteral
                 //  1. Return null.
                 chunk.op(Insn::Null);
             }
-            Literal::BooleanLiteral { val: is_true, .. } => {
+            Literal::Boolean { val: is_true, .. } => {
                 // Literal : BooleanLiteral
                 //  1. If BooleanLiteral is the token false, return false.
                 //  2. If BooleanLiteral is the token true, return true.
                 chunk.op(if *is_true { Insn::True } else { Insn::False });
             }
-            Literal::StringLiteral { val: s, .. } => {
+            Literal::String { val: s, .. } => {
                 // Literal : StringLiteral
                 //  1. Return the SV of StringLiteral as defined in [12.8.4.2](https://tc39.es/ecma262/#sec-static-semantics-sv).
                 let idx = chunk.add_to_string_pool(s.value.clone())?;
                 chunk.op_plus_arg(Insn::String, idx);
             }
-            Literal::NumericLiteral { val: numeric, .. } => {
+            Literal::Numeric { val: numeric, .. } => {
                 // Literal : NumericLiteral
                 //  1. Return the NumericValue of NumericLiteral as defined in [12.8.3.3](https://tc39.es/ecma262/#sec-numericvalue).
                 match numeric {
@@ -1092,7 +1101,7 @@ impl Literal {
                     }
                 }
             }
-            Literal::DebugLiteral { val: ch, .. } => {
+            Literal::Debug { val: ch, .. } => {
                 compile_debug_lit(chunk, ch)?;
             }
         }
@@ -1104,7 +1113,12 @@ impl ParenthesizedExpression {
     /// Generate the code for ParenthesizedExpression
     ///
     /// See [Evaluation for Grouping Operator](https://tc39.es/ecma262/#sec-grouping-operator-runtime-semantics-evaluation) from ECMA-262.
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         // Runtime Semantics: Evaluation
         //  ParenthesizedExpression : ( Expression )
         //      1. Return the result of evaluating Expression. This may be of type Reference.
@@ -1117,7 +1131,7 @@ impl ParenthesizedExpression {
 }
 
 impl Elisions {
-    pub fn array_accumulation(&self, chunk: &mut Chunk) -> anyhow::Result<AlwaysAbruptResult> {
+    pub(crate) fn array_accumulation(&self, chunk: &mut Chunk) -> anyhow::Result<AlwaysAbruptResult> {
         // start:               next_index array
         // FLOAT self.count     count next_index array
         // ADD                  next_index array
@@ -1175,7 +1189,7 @@ impl Elisions {
         Ok(AlwaysAbruptResult)
     }
 
-    pub fn iterator_destructuring_assignment_evaluation(
+    pub(crate) fn iterator_destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
     ) -> anyhow::Result<AlwaysAbruptResult> {
@@ -1217,7 +1231,7 @@ impl Elisions {
 }
 
 impl ElementList {
-    pub fn array_accumulation(
+    pub(crate) fn array_accumulation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -1316,7 +1330,7 @@ impl ElementList {
                 // Stack: (next_index array) or (err)
                 Ok(AbruptResult::Maybe)
             }
-            ElementList::ElementListAssignmentExpression { el, elision, ae } => {
+            ElementList::ListAssignmentExpression { el, elision, ae } => {
                 // start:               next_index array
                 // <el>                 (next_index array) or (err)
                 // JUMP_IF_ABRUPT exit
@@ -1386,7 +1400,7 @@ impl ElementList {
                 // Stack: (err) or (next_index array) ...
                 Ok(exit_status)
             }
-            ElementList::ElementListSpreadElement { el, elision, se } => {
+            ElementList::ListSpreadElement { el, elision, se } => {
                 // start:               next_index array
                 // <el>                 (next_index array) or (err)
                 // JUMP_IF_ABRUPT exit
@@ -1417,7 +1431,7 @@ impl ElementList {
 }
 
 impl SpreadElement {
-    pub fn array_accumulation(
+    pub(crate) fn array_accumulation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -1461,7 +1475,7 @@ impl SpreadElement {
 }
 
 impl ArrayLiteral {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match self {
             ArrayLiteral::Empty { elision, .. } => {
                 // start:
@@ -1552,7 +1566,7 @@ impl ArrayLiteral {
 }
 
 impl TemplateLiteral {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match self {
             TemplateLiteral::NoSubstitutionTemplate { data, .. } => {
                 // Runtime Semantics: Evaluation
@@ -1569,7 +1583,12 @@ impl TemplateLiteral {
 }
 
 impl SubstitutionTemplate {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // SubstitutionTemplate : TemplateHead Expression TemplateSpans
         //  1. Let head be the TV of TemplateHead as defined in 12.9.6.
         //  2. Let subRef be ? Evaluation of Expression.
@@ -1627,7 +1646,7 @@ impl SubstitutionTemplate {
 }
 
 impl TemplateSpans {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match self {
             TemplateSpans::Tail { data, .. } => {
                 // TemplateSpans : TemplateTail
@@ -1665,7 +1684,12 @@ impl TemplateSpans {
 }
 
 impl TemplateMiddleList {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         match self {
             TemplateMiddleList::ListHead { data, exp, .. } => {
                 // TemplateMiddleList : TemplateMiddle Expression
@@ -1771,7 +1795,7 @@ impl TemplateMiddleList {
 }
 
 impl ObjectLiteral {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match self {
             ObjectLiteral::Empty { .. } => {
                 chunk.op(Insn::Object);
@@ -1788,7 +1812,7 @@ impl ObjectLiteral {
 }
 
 impl PropertyDefinitionList {
-    pub fn property_definition_evaluation(
+    pub(crate) fn property_definition_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -1813,7 +1837,7 @@ impl PropertyDefinitionList {
 }
 
 impl PropertyDefinition {
-    pub fn property_definition_evaluation(
+    pub(crate) fn property_definition_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -1950,14 +1974,14 @@ impl PropertyDefinition {
 }
 
 impl PropertyName {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match self {
             PropertyName::LiteralPropertyName(lpn) => lpn.compile(chunk).map(AbruptResult::from),
             PropertyName::ComputedPropertyName(cpn) => cpn.compile(chunk, strict, source).map(AbruptResult::from),
         }
     }
 
-    pub fn is_literal_proto(&self) -> bool {
+    pub(crate) fn is_literal_proto(&self) -> bool {
         match self {
             PropertyName::LiteralPropertyName(lpn) => lpn.is_literal_proto(),
             PropertyName::ComputedPropertyName(_) => false,
@@ -1966,7 +1990,7 @@ impl PropertyName {
 }
 
 impl LiteralPropertyName {
-    pub fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
         match self {
             LiteralPropertyName::IdentifierName { data: id, .. } => {
                 let idx = chunk.add_to_string_pool(id.string_value.clone())?;
@@ -1987,7 +2011,7 @@ impl LiteralPropertyName {
         }
     }
 
-    pub fn is_literal_proto(&self) -> bool {
+    pub(crate) fn is_literal_proto(&self) -> bool {
         match self {
             LiteralPropertyName::IdentifierName { data: id, .. } => id.string_value == "__proto__",
             LiteralPropertyName::StringLiteral { data: sl, .. } => sl.value == "__proto__",
@@ -1997,7 +2021,12 @@ impl LiteralPropertyName {
 }
 
 impl ComputedPropertyName {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         let mut exits = vec![];
         // Stack: ...
         let status = self.ae.compile(chunk, strict, source)?;
@@ -2079,7 +2108,12 @@ fn evaluate_property_access_with_identifier_key(
 }
 
 impl MemberExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             MemberExpression::PrimaryExpression(pe) => pe.compile(chunk, strict, source),
             MemberExpression::IdentifierName(me, id, ..) => {
@@ -2166,7 +2200,12 @@ impl MemberExpression {
 
 impl MetaProperty {
     #[expect(unused_variables)]
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             MetaProperty::NewTarget { .. } => {
                 // Runtime Semantics: Evaluation
@@ -2181,7 +2220,12 @@ impl MetaProperty {
 }
 
 impl NewExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             NewExpression::MemberExpression(me) => me.compile(chunk, strict, source),
             NewExpression::NewExpression(ne, ..) => {
@@ -2296,14 +2340,19 @@ fn compile_new_evaluator(
 }
 
 impl CallExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             CallExpression::CallMemberExpression(cme) => {
                 cme.compile(chunk, strict, source).map(CompilerStatusFlags::from)
             }
             CallExpression::SuperCall(sc) => sc.compile(chunk, strict, source).map(CompilerStatusFlags::from),
             CallExpression::ImportCall(_) => todo!(),
-            CallExpression::CallExpressionArguments(ce, args) => {
+            CallExpression::CallThenArguments(ce, args) => {
                 // CallExpression : CallExpression Arguments
                 //  1. Let ref be ? Evaluation of CallExpression.
                 //  2. Let func be ? GetValue(ref).
@@ -2333,7 +2382,7 @@ impl CallExpression {
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AlwaysAbruptResult.into())
             }
-            CallExpression::CallExpressionExpression(ce, exp, _) => {
+            CallExpression::CallThenExpression(ce, exp, _) => {
                 // CallExpression : CallExpression [ Expression ]
                 //  1. Let baseReference be ? Evaluation of CallExpression.
                 //  2. Let baseValue be ? GetValue(baseReference).
@@ -2357,7 +2406,7 @@ impl CallExpression {
 
                 Ok(AlwaysAbruptRefResult.into())
             }
-            CallExpression::CallExpressionIdentifierName(ce, id, _) => {
+            CallExpression::CallThenName(ce, id, _) => {
                 // CallExpression : CallExpression . IdentifierName
                 //  1. Let baseReference be ? Evaluation of CallExpression.
                 //  2. Let baseValue be ? GetValue(baseReference).
@@ -2381,13 +2430,13 @@ impl CallExpression {
 
                 Ok(AlwaysAbruptRefResult.into())
             }
-            CallExpression::CallExpressionTemplateLiteral(_, _) => todo!(),
-            CallExpression::CallExpressionPrivateId(_, _, _) => todo!(),
+            CallExpression::CallThenTemplateLiteral(_, _) => todo!(),
+            CallExpression::CallThenPrivateId(_, _, _) => todo!(),
         }
     }
 }
 
-pub fn compile_call(
+pub(crate) fn compile_call(
     chunk: &mut Chunk,
     strict: bool,
     source: &SourceTree,
@@ -2449,7 +2498,12 @@ pub fn compile_call(
 }
 
 impl CallMemberExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // On return: top of stack might be an abrupt completion, but will never be a reference.
         let mut exit = None;
         // Stack: ...
@@ -2516,7 +2570,12 @@ impl OptionalExpression {
             .abrupt(chain_status.maybe_abrupt() || status.maybe_abrupt()))
     }
 
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             OptionalExpression::Member(me, oc) => {
                 // OptionalExpression :
@@ -2701,7 +2760,12 @@ impl OptionalChain {
 }
 
 impl LeftHandSideExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             LeftHandSideExpression::New(ne) => ne.compile(chunk, strict, source),
             LeftHandSideExpression::Call(ce) => ce.compile(chunk, strict, source),
@@ -2711,13 +2775,13 @@ impl LeftHandSideExpression {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub struct ArgListSizeHint {
+pub(crate) struct ArgListSizeHint {
     fixed_len: u16,
     has_variable: bool, // If true, the list is appended with another stack list (length included)
 }
 
 impl Arguments {
-    pub fn argument_list_evaluation(
+    pub(crate) fn argument_list_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -2794,7 +2858,7 @@ impl Arguments {
 }
 
 impl ArgumentList {
-    pub fn argument_list_evaluation(
+    pub(crate) fn argument_list_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -2853,7 +2917,7 @@ impl ArgumentList {
                 }
                 Ok((ArgListSizeHint { fixed_len: 0, has_variable: true }, AlwaysAbruptResult.into()))
             }
-            ArgumentList::ArgumentList(lst, item) => {
+            ArgumentList::List(lst, item) => {
                 // ArgumentList : ArgumentList , AssignmentExpression
                 //  1. Let precedingArgs be ? ArgumentListEvaluation of ArgumentList.
                 //  2. Let ref be ? Evaluation of AssignmentExpression.
@@ -2901,7 +2965,7 @@ impl ArgumentList {
                     (status == AbruptResult::Maybe || status2.maybe_abrupt() || status2.maybe_ref()).into(),
                 ))
             }
-            ArgumentList::ArgumentListDots(list, ae) => {
+            ArgumentList::ListDots(list, ae) => {
                 // ArgumentList : ArgumentList , ... AssignmentExpression
                 //  1. Let precedingArgs be ? ArgumentListEvaluation of ArgumentList.
                 //  2. Let spreadRef be ? Evaluation of AssignmentExpression.
@@ -3043,7 +3107,12 @@ impl UpdateExpression {
         Ok(AlwaysAbruptResult)
     }
 
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             UpdateExpression::LeftHandSideExpression(lhse) => lhse.compile(chunk, strict, source),
             UpdateExpression::PostIncrement { lhs: exp, .. } => {
@@ -3063,7 +3132,12 @@ impl UpdateExpression {
 }
 
 impl UnaryExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         fn unary_op(
             exp: &Rc<UnaryExpression>,
             chunk: &mut Chunk,
@@ -3151,7 +3225,12 @@ macro_rules! compile_binary_expression {
 }
 
 impl ExponentiationExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ExponentiationExpression::UnaryExpression(ue) => ue.compile(chunk, strict, source),
             ExponentiationExpression::Exponentiation(left, right) => {
@@ -3163,7 +3242,12 @@ impl ExponentiationExpression {
 }
 
 impl MultiplicativeExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             MultiplicativeExpression::ExponentiationExpression(ee) => ee.compile(chunk, strict, source),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(left, op, right) => {
@@ -3186,7 +3270,12 @@ impl MultiplicativeExpression {
 }
 
 impl AdditiveExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         let (insn, left, right) = match self {
             AdditiveExpression::MultiplicativeExpression(me) => return me.compile(chunk, strict, source),
             AdditiveExpression::Add(left, right) => (Insn::Add, left, right),
@@ -3197,7 +3286,12 @@ impl AdditiveExpression {
 }
 
 impl ShiftExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         let (insn, left, right) = match self {
             ShiftExpression::AdditiveExpression(ae) => return ae.compile(chunk, strict, source),
             ShiftExpression::LeftShift(left, right) => (Insn::LeftShift, left, right),
@@ -3221,7 +3315,12 @@ impl RelationalExpression {
         })
     }
 
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             RelationalExpression::ShiftExpression(se) => se.compile(chunk, strict, source),
             RelationalExpression::Less(left, right)
@@ -3239,7 +3338,12 @@ impl RelationalExpression {
 }
 
 impl EqualityExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         fn equality_binary(
             chunk: &mut Chunk,
             strict: bool,
@@ -3267,7 +3371,12 @@ impl EqualityExpression {
 }
 
 impl BitwiseANDExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.compile(chunk, strict, source),
             BitwiseANDExpression::BitwiseAND(left, right) => {
@@ -3279,7 +3388,12 @@ impl BitwiseANDExpression {
 }
 
 impl BitwiseXORExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(bae) => bae.compile(chunk, strict, source),
             BitwiseXORExpression::BitwiseXOR(left, right) => {
@@ -3291,7 +3405,12 @@ impl BitwiseXORExpression {
 }
 
 impl BitwiseORExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.compile(chunk, strict, source),
             BitwiseORExpression::BitwiseOR(left, right) => {
@@ -3303,7 +3422,12 @@ impl BitwiseORExpression {
 }
 
 impl LogicalANDExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             LogicalANDExpression::BitwiseORExpression(boe) => boe.compile(chunk, strict, source),
             LogicalANDExpression::LogicalAND(left, right) => {
@@ -3346,7 +3470,12 @@ impl LogicalANDExpression {
 }
 
 impl LogicalORExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             LogicalORExpression::LogicalANDExpression(lae) => lae.compile(chunk, strict, source),
             LogicalORExpression::LogicalOR(left, right) => {
@@ -3389,7 +3518,12 @@ impl LogicalORExpression {
 }
 
 impl CoalesceExpressionHead {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             CoalesceExpressionHead::CoalesceExpression(coal) => coal.compile(chunk, strict, source),
             CoalesceExpressionHead::BitwiseORExpression(bor) => bor.compile(chunk, strict, source),
@@ -3398,7 +3532,12 @@ impl CoalesceExpressionHead {
 }
 
 impl CoalesceExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         let mut first_exit = None;
         // Stack ...
         let head_status = self.head.compile(chunk, strict, source)?;
@@ -3434,7 +3573,12 @@ impl CoalesceExpression {
 }
 
 impl ShortCircuitExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ShortCircuitExpression::LogicalORExpression(loe) => loe.compile(chunk, strict, source),
             ShortCircuitExpression::CoalesceExpression(coal) => coal.compile(chunk, strict, source),
@@ -3443,7 +3587,12 @@ impl ShortCircuitExpression {
 }
 
 impl ConditionalExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ConditionalExpression::FallThru(sce) => sce.compile(chunk, strict, source),
             ConditionalExpression::Conditional(expr, truthy, falsey) => {
@@ -3498,7 +3647,12 @@ impl ConditionalExpression {
 }
 
 impl YieldExpression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             Self::Simple { .. } => {
                 // YieldExpression : yield
@@ -3650,7 +3804,12 @@ impl AssignmentExpression {
         Ok(AlwaysAbruptResult)
     }
 
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             AssignmentExpression::FallThru(ce) => ce.compile(chunk, strict, source),
             AssignmentExpression::Assignment(lhse, ae) => {
@@ -4553,7 +4712,7 @@ impl ArrayAssignmentPattern {
 }
 
 impl AssignmentRestElement {
-    pub fn iterator_destructuring_assignment_evaluation(
+    pub(crate) fn iterator_destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -4649,7 +4808,7 @@ impl AssignmentRestElement {
 }
 
 impl AssignmentElementList {
-    pub fn iterator_destructuring_assignment_evaluation(
+    pub(crate) fn iterator_destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -4693,7 +4852,7 @@ impl AssignmentElementList {
 }
 
 impl AssignmentElisionElement {
-    pub fn iterator_destructuring_assignment_evaluation(
+    pub(crate) fn iterator_destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -4734,7 +4893,7 @@ impl AssignmentElisionElement {
 }
 
 impl AssignmentElement {
-    pub fn iterator_destructuring_assignment_evaluation(
+    pub(crate) fn iterator_destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -5086,13 +5245,18 @@ impl<'a> TryFrom<&'a DestructuringAssignmentTarget> for &'a Rc<AssignmentPattern
 }
 
 impl DestructuringAssignmentTarget {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             DestructuringAssignmentTarget::LeftHandSideExpression(lhse) => lhse.compile(chunk, strict, source),
             DestructuringAssignmentTarget::AssignmentPattern(_) => unreachable!(),
         }
     }
-    pub fn destructuring_assignment_evaluation(
+    pub(crate) fn destructuring_assignment_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -5104,7 +5268,12 @@ impl DestructuringAssignmentTarget {
 }
 
 impl Expression {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             Expression::FallThru(ae) => ae.compile(chunk, strict, source),
             Expression::Comma(e, ae) => {
@@ -5142,7 +5311,7 @@ impl Expression {
 }
 
 impl ExpressionStatement {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         let status = self.exp.compile(chunk, strict, source)?;
         if status.maybe_ref() {
             chunk.op(Insn::GetValue);
@@ -5152,7 +5321,7 @@ impl ExpressionStatement {
 }
 
 impl StatementList {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         let mut status = self.list[0].compile(chunk, strict, source)?;
         let mut exits = vec![];
         for item in &self.list[1..] {
@@ -5171,7 +5340,7 @@ impl StatementList {
 }
 
 impl StatementListItem {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match self {
             StatementListItem::Statement(stmt) => stmt.compile(chunk, strict, source),
             StatementListItem::Declaration(decl) => decl.compile(chunk, strict, source),
@@ -5180,7 +5349,7 @@ impl StatementListItem {
 }
 
 impl Statement {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match self {
             Statement::Expression(exp) => exp.compile(chunk, strict, source),
             Statement::Block(bs) => bs.compile(chunk, strict, source),
@@ -5199,7 +5368,7 @@ impl Statement {
         }
     }
 
-    pub fn labelled_compile(
+    pub(crate) fn labelled_compile(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -5227,7 +5396,7 @@ impl Statement {
 }
 
 impl Declaration {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match self {
             Declaration::Class(cls) => cls.compile(chunk, source),
             Declaration::Hoistable(_) => {
@@ -5263,14 +5432,14 @@ impl BreakableStatement {
 }
 
 impl BlockStatement {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         let BlockStatement::Block(block) = self;
         block.compile(chunk, strict, source)
     }
 }
 
 impl FcnDef {
-    pub fn compile_fo_instantiation(
+    pub(crate) fn compile_fo_instantiation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -5312,7 +5481,7 @@ fn block_declaration_instantiation(
 }
 
 impl Block {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match &self.statements {
             None => {
                 chunk.op(Insn::Empty);
@@ -5334,7 +5503,12 @@ impl Block {
 }
 
 impl LexicalDeclaration {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         self.list.compile(chunk, strict, source)?;
         let mark = chunk.op_jump(Insn::JumpIfAbrupt);
         chunk.op(Insn::Pop);
@@ -5345,7 +5519,12 @@ impl LexicalDeclaration {
 }
 
 impl BindingList {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         match self {
             BindingList::Item(item) => item.compile(chunk, strict, source),
             BindingList::List(lst, item) => {
@@ -5361,7 +5540,12 @@ impl BindingList {
 }
 
 impl LexicalBinding {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         match self {
             LexicalBinding::Identifier(bi, init) => {
                 let id = chunk.add_to_string_pool(bi.string_value())?;
@@ -5440,13 +5624,13 @@ impl LexicalBinding {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum CompileMod {
+pub(crate) enum CompileMod {
     Unmodified,
     AsFunction,
 }
 
 impl Initializer {
-    pub fn compile(
+    pub(crate) fn compile(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -5479,7 +5663,7 @@ impl Initializer {
 }
 
 impl VariableStatement {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: Evaluation
         //      VariableStatement : var VariableDeclarationList ;
         //  1. Let next be the result of evaluating VariableDeclarationList.
@@ -5493,7 +5677,7 @@ impl VariableStatement {
 }
 
 impl VariableDeclarationList {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         // Stack: ...
         let mut status = self.list[0].compile(chunk, strict, source)?;
         // Stack: empty/err ...
@@ -5519,7 +5703,7 @@ impl VariableDeclarationList {
 }
 
 impl VariableDeclaration {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: Evaluation
         match self {
             VariableDeclaration::Identifier(_, None) => {
@@ -6194,7 +6378,7 @@ impl ForInOfLHSExpr<'_> {
     fn is_destructuring(&self) -> bool {
         match self {
             ForInOfLHSExpr::LeftHandSideExpression(lhs) => lhs.is_destructuring(),
-            ForInOfLHSExpr::AssignmentPattern(ap) => ap.is_destructuring(),
+            ForInOfLHSExpr::AssignmentPattern(_) => true,
             ForInOfLHSExpr::ForBinding(fb) => fb.is_destructuring(),
             ForInOfLHSExpr::ForDeclaration(fd) => fd.is_destructuring(),
         }
@@ -6626,7 +6810,7 @@ impl ForInOfStatement {
         Ok(AlwaysAbruptResult)
     }
 
-    pub fn for_in_of_evaluation(
+    pub(crate) fn for_in_of_evaluation(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -7308,7 +7492,12 @@ impl ThrowStatement {
     /// The instruction sequence will always leave a Throw completion on the stack.
     ///
     /// See [ThrowStatement evaluation](https://tc39.es/ecma262/#sec-throw-statement-runtime-semantics-evaluation) in ECMA-262.
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: Evaluation
         // ThrowStatement : throw Expression ;
         // 1. Let exprRef be the result of evaluating Expression.
@@ -7332,7 +7521,7 @@ impl TryStatement {
     /// Compile the TryStatement production
     ///
     /// See [TryStatement evaluation](https://tc39.es/ecma262/#sec-try-statement-runtime-semantics-evaluation)
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match self {
             TryStatement::Catch { block, catch, .. } => {
                 // TryStatement : try Block Catch
@@ -7485,7 +7674,7 @@ impl Catch {
 }
 
 impl Finally {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         self.block.compile(chunk, strict, source)
     }
 }
@@ -7575,7 +7764,7 @@ impl FunctionDeclaration {
 }
 
 impl Script {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match &self.body {
             None => Ok(AbruptResult::Never),
             Some(sb) => sb.compile(chunk, strict, source),
@@ -7584,14 +7773,14 @@ impl Script {
 }
 
 impl ScriptBody {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         let strict = strict || self.contains_use_strict();
         self.statement_list.compile(chunk, strict, source)
     }
 }
 
 #[derive(Copy, Clone)]
-pub enum NameLoc {
+pub(crate) enum NameLoc {
     OnStack,
     Index(u16),
 }
@@ -7674,7 +7863,7 @@ impl FunctionExpression {
     /// Generate the code to evaluate a [`FunctionExpression`].
     ///
     /// See [FunctionExpression Evaluation](https://tc39.es/ecma262/#sec-function-definitions-runtime-semantics-evaluation) from ECMA-262.
-    pub fn compile(
+    pub(crate) fn compile(
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
@@ -7703,7 +7892,11 @@ impl FunctionExpression {
 }
 
 /// Generates the code necessary to set up function execution
-pub fn compile_fdi(chunk: &mut Chunk, source: &SourceTree, info: &StashedFunctionData) -> anyhow::Result<AbruptResult> {
+pub(crate) fn compile_fdi(
+    chunk: &mut Chunk,
+    source: &SourceTree,
+    info: &StashedFunctionData,
+) -> anyhow::Result<AbruptResult> {
     // FunctionDeclarationInstantiation ( func, argumentsList )
     //
     // The abstract operation FunctionDeclarationInstantiation takes arguments func (a function object) and
@@ -8051,7 +8244,7 @@ impl ArrowFunction {
         Ok(AlwaysAbruptResult)
     }
 
-    pub fn compile(
+    pub(crate) fn compile(
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
@@ -8060,7 +8253,7 @@ impl ArrowFunction {
         self.instantiate_arrow_function_expression(chunk, strict, source, None)
     }
 
-    pub fn compile_named_evaluation(
+    pub(crate) fn compile_named_evaluation(
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
@@ -8072,7 +8265,7 @@ impl ArrowFunction {
 }
 
 impl ConciseBody {
-    pub fn compile_body(
+    pub(crate) fn compile_body(
         &self,
         chunk: &mut Chunk,
         source: &SourceTree,
@@ -8136,7 +8329,7 @@ impl ExpressionBody {
 }
 
 impl ParamSource {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8159,7 +8352,7 @@ impl ParamSource {
 }
 
 impl PropertySetParameterList {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8171,7 +8364,7 @@ impl PropertySetParameterList {
 }
 
 impl FormalParameters {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8205,7 +8398,7 @@ impl FormalParameters {
 }
 
 impl ArrowParameters {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8276,7 +8469,7 @@ fn compile_initialize_bound_name(chunk: &mut Chunk, strict: bool, env: EnvUsage,
 }
 
 impl BindingIdentifier {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8317,7 +8510,7 @@ impl BindingIdentifier {
 }
 
 impl FormalParameterList {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8345,7 +8538,7 @@ impl FormalParameterList {
 }
 
 impl FormalParameter {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8357,7 +8550,7 @@ impl FormalParameter {
 }
 
 impl BindingElement {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8431,7 +8624,7 @@ impl BindingElement {
         }
     }
 
-    pub fn keyed_binding_initialization(
+    pub(crate) fn keyed_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8502,7 +8695,7 @@ impl BindingElement {
         }
     }
 
-    pub fn iterator_binding_initialization(
+    pub(crate) fn iterator_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8600,7 +8793,7 @@ impl BindingElement {
 }
 
 impl SingleNameBinding {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8665,7 +8858,7 @@ impl SingleNameBinding {
         Ok(AbruptResult::from(exit.is_some()))
     }
 
-    pub fn keyed_binding_initialization(
+    pub(crate) fn keyed_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8775,7 +8968,7 @@ impl SingleNameBinding {
         }
     }
 
-    pub fn iterator_binding_initialization(
+    pub(crate) fn iterator_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8908,7 +9101,7 @@ impl SingleNameBinding {
 }
 
 impl BindingPattern {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -8969,7 +9162,7 @@ impl BindingPattern {
 }
 
 impl ObjectBindingPattern {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -9065,7 +9258,7 @@ impl ObjectBindingPattern {
 }
 
 impl BindingPropertyList {
-    pub fn property_binding_initialization(
+    pub(crate) fn property_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -9132,7 +9325,7 @@ impl BindingPropertyList {
 }
 
 impl BindingProperty {
-    pub fn property_binding_initialization(
+    pub(crate) fn property_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -9215,7 +9408,7 @@ impl BindingProperty {
 }
 
 impl BindingRestProperty {
-    pub fn rest_binding_initialization(
+    pub(crate) fn rest_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -9279,7 +9472,7 @@ impl BindingRestProperty {
 }
 
 impl ArrayBindingPattern {
-    pub fn iterator_binding_initialization(
+    pub(crate) fn iterator_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -9413,7 +9606,7 @@ impl ArrayBindingPattern {
 }
 
 impl BindingElementList {
-    pub fn iterator_binding_initialization(
+    pub(crate) fn iterator_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -9467,7 +9660,7 @@ impl BindingElementList {
 }
 
 impl BindingElisionElement {
-    pub fn iterator_binding_initialization(
+    pub(crate) fn iterator_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -9520,7 +9713,7 @@ impl BindingElisionElement {
 }
 
 impl BindingRestElement {
-    pub fn iterator_binding_initialization(
+    pub(crate) fn iterator_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -9651,7 +9844,7 @@ impl BindingRestElement {
         }
     }
 
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -9759,7 +9952,7 @@ impl BindingRestElement {
 }
 
 impl FunctionRestParameter {
-    pub fn compile_binding_initialization(
+    pub(crate) fn compile_binding_initialization(
         &self,
         chunk: &mut Chunk,
         strict: bool,
@@ -9773,7 +9966,7 @@ impl FunctionRestParameter {
 }
 
 impl FunctionBody {
-    pub fn compile_body(
+    pub(crate) fn compile_body(
         &self,
         chunk: &mut Chunk,
         source: &SourceTree,
@@ -9820,7 +10013,7 @@ impl FunctionBody {
 }
 
 impl FunctionStatementList {
-    pub fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match self {
             FunctionStatementList::Statements(s) => s.compile(chunk, strict, source),
             FunctionStatementList::Empty(_) => {
@@ -10453,7 +10646,7 @@ impl ClassElementName {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum Static {
+pub(crate) enum Static {
     No,
     Yes,
 }
@@ -10537,7 +10730,7 @@ impl FieldDefinition {
 }
 
 impl ClassStaticBlock {
-    pub fn class_static_block_definition_evaluation(
+    pub(crate) fn class_static_block_definition_evaluation(
         self: &Rc<Self>,
         chunk: &mut Chunk,
     ) -> anyhow::Result<NeverAbruptRefResult> {
@@ -10574,7 +10767,7 @@ impl ClassStaticBlock {
 }
 
 impl ClassStaticBlockBody {
-    pub fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         chunk.op(Insn::FinishArgs);
         self.0.compile(chunk, source)?;
         chunk.op(Insn::EndFunction);
@@ -10583,7 +10776,7 @@ impl ClassStaticBlockBody {
 }
 
 impl ClassStaticBlockStatementList {
-    pub fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         match self {
             ClassStaticBlockStatementList::Statements(sl) => sl.compile(chunk, true, source),
             ClassStaticBlockStatementList::Empty(_) => {
@@ -10597,7 +10790,7 @@ impl ClassStaticBlockStatementList {
 }
 
 impl MethodDefinition {
-    pub fn define_method(
+    pub(crate) fn define_method(
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
@@ -10918,7 +11111,7 @@ impl GeneratorExpression {
 }
 
 impl GeneratorDeclaration {
-    pub fn compile_go_instantiation(
+    pub(crate) fn compile_go_instantiation(
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
@@ -11035,7 +11228,7 @@ impl GeneratorMethod {
 }
 
 impl GeneratorBody {
-    pub fn evaluate_generator_body(
+    pub(crate) fn evaluate_generator_body(
         &self,
         chunk: &mut Chunk,
         source: &SourceTree,
@@ -11110,7 +11303,7 @@ impl GeneratorBody {
 }
 
 impl SuperProperty {
-    pub fn compile(
+    pub(crate) fn compile(
         &self,
         chunk: &mut Chunk,
         strict: bool,

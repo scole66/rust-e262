@@ -7,7 +7,7 @@ use std::io::Write;
 //      ShortCircuitExpression[?In, ?Yield, ?Await]
 //      ShortCircuitExpression[?In, ?Yield, ?Await] ? AssignmentExpression[+In, ?Yield, ?Await] : AssignmentExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum ConditionalExpression {
+pub(crate) enum ConditionalExpression {
     FallThru(Rc<ShortCircuitExpression>),
     Conditional(Rc<ShortCircuitExpression>, Rc<AssignmentExpression>, Rc<AssignmentExpression>),
 }
@@ -58,18 +58,9 @@ impl PrettyPrint for ConditionalExpression {
     }
 }
 
-impl IsFunctionDefinition for ConditionalExpression {
-    fn is_function_definition(&self) -> bool {
-        match &self {
-            ConditionalExpression::Conditional(_, _, _) => false,
-            ConditionalExpression::FallThru(node) => node.is_function_definition(),
-        }
-    }
-}
-
 impl ConditionalExpression {
     // no need to cache
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -77,10 +68,10 @@ impl ConditionalExpression {
         await_flag: bool,
     ) -> ParseResult<Self> {
         let (left, after_left) = ShortCircuitExpression::parse(parser, scanner, in_flag, yield_flag, await_flag)?;
-        match scan_for_punct(after_left, parser.source, ScanGoal::InputElementDiv, Punctuator::Question)
+        match scan_for_punct(after_left, parser.source, InputElementGoal::Div, Punctuator::Question)
             .and_then(|(_, after_q)| AssignmentExpression::parse(parser, after_q, true, yield_flag, await_flag))
             .and_then(|(ae1, after_ae1)| {
-                scan_for_punct(after_ae1, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)
+                scan_for_punct(after_ae1, parser.source, InputElementGoal::Div, Punctuator::Colon)
                     .and_then(|(_, after_colon)| {
                         AssignmentExpression::parse(parser, after_colon, in_flag, yield_flag, await_flag)
                     })
@@ -93,14 +84,14 @@ impl ConditionalExpression {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ConditionalExpression::FallThru(exp) => exp.location(),
             ConditionalExpression::Conditional(left, _, right) => left.location().merge(&right.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ConditionalExpression::FallThru(node) => node.contains(kind),
             ConditionalExpression::Conditional(cond, truthy, falsey) => {
@@ -109,14 +100,14 @@ impl ConditionalExpression {
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             ConditionalExpression::FallThru(node) => node.as_string_literal(),
             ConditionalExpression::Conditional(..) => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -137,7 +128,7 @@ impl ConditionalExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -152,7 +143,7 @@ impl ConditionalExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ConditionalExpression::FallThru(node) => node.early_errors(errs, strict),
             ConditionalExpression::Conditional(a, b, c) => {
@@ -163,7 +154,7 @@ impl ConditionalExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             ConditionalExpression::FallThru(node) => node.is_strictly_deletable(),
             ConditionalExpression::Conditional(..) => true,
@@ -173,21 +164,21 @@ impl ConditionalExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match &self {
             ConditionalExpression::Conditional(_, _, _) => ATTKind::Invalid,
             ConditionalExpression::FallThru(node) => node.assignment_target_type(strict),
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            ConditionalExpression::Conditional(..) => false,
-            ConditionalExpression::FallThru(node) => node.is_named_function(),
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        ConditionalExpression::Conditional(..) => false,
+    //        ConditionalExpression::FallThru(node) => node.is_named_function(),
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -202,7 +193,7 @@ impl ConditionalExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

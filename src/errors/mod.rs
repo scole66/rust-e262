@@ -52,70 +52,74 @@ fn create_native_error_object(
     create_native_error_object_internal(message, error_constructor, proto_id, location)
 }
 
-pub fn create_type_error_object(message: impl Into<JSString>) -> Object {
+pub(crate) fn create_type_error_object(message: impl Into<JSString>) -> Object {
     let error_constructor = intrinsic(IntrinsicId::TypeError);
     create_native_error_object(message, &error_constructor, IntrinsicId::TypeErrorPrototype, None)
 }
 
-pub fn create_type_error(message: impl Into<JSString>) -> AbruptCompletion {
+pub(crate) fn create_type_error(message: impl Into<JSString>) -> AbruptCompletion {
     AbruptCompletion::Throw { value: ECMAScriptValue::Object(create_type_error_object(message)) }
 }
 
-pub fn create_reference_error_object(message: impl Into<JSString>) -> Object {
+pub(crate) fn create_reference_error_object(message: impl Into<JSString>) -> Object {
     let cstr = intrinsic(IntrinsicId::ReferenceError);
     create_native_error_object(message, &cstr, IntrinsicId::ReferenceErrorPrototype, None)
 }
 
-pub fn create_reference_error(message: impl Into<JSString>) -> AbruptCompletion {
+pub(crate) fn create_reference_error(message: impl Into<JSString>) -> AbruptCompletion {
     AbruptCompletion::Throw { value: ECMAScriptValue::Object(create_reference_error_object(message)) }
 }
 
-pub fn create_syntax_error_object(message: impl Into<JSString>, location: Option<Location>) -> Object {
+pub(crate) fn create_syntax_error_object(message: impl Into<JSString>, location: Option<Location>) -> Object {
     let cstr = intrinsic(IntrinsicId::SyntaxError);
     create_native_error_object(message, &cstr, IntrinsicId::SyntaxErrorPrototype, location)
 }
 
-pub fn create_syntax_error(message: impl Into<JSString>, location: Option<Location>) -> AbruptCompletion {
+pub(crate) fn create_syntax_error(message: impl Into<JSString>, location: Option<Location>) -> AbruptCompletion {
     AbruptCompletion::Throw { value: ECMAScriptValue::Object(create_syntax_error_object(message, location)) }
 }
 
-pub fn create_range_error_object(message: impl Into<JSString>) -> Object {
+pub(crate) fn create_range_error_object(message: impl Into<JSString>) -> Object {
     let cstr = intrinsic(IntrinsicId::RangeError);
     create_native_error_object(message, &cstr, IntrinsicId::RangeErrorPrototype, None)
 }
 
-pub fn create_range_error(message: impl Into<JSString>) -> AbruptCompletion {
+pub(crate) fn create_range_error(message: impl Into<JSString>) -> AbruptCompletion {
     AbruptCompletion::Throw { value: ECMAScriptValue::Object(create_range_error_object(message)) }
 }
 
-pub fn create_eval_error_object(message: impl Into<JSString>) -> Object {
+#[cfg(test)]
+pub(crate) fn create_eval_error_object(message: impl Into<JSString>) -> Object {
     let cstr = intrinsic(IntrinsicId::EvalError);
     create_native_error_object(message, &cstr, IntrinsicId::EvalErrorPrototype, None)
 }
 
-pub fn create_eval_error(message: impl Into<JSString>) -> AbruptCompletion {
+#[cfg(test)]
+pub(crate) fn create_eval_error(message: impl Into<JSString>) -> AbruptCompletion {
     AbruptCompletion::Throw { value: ECMAScriptValue::Object(create_eval_error_object(message)) }
 }
 
-pub fn create_uri_error_object(message: impl Into<JSString>) -> Object {
+#[cfg(test)]
+pub(crate) fn create_uri_error_object(message: impl Into<JSString>) -> Object {
     let cstr = intrinsic(IntrinsicId::URIError);
     create_native_error_object(message, &cstr, IntrinsicId::URIErrorPrototype, None)
 }
 
-pub fn create_uri_error(message: impl Into<JSString>) -> AbruptCompletion {
+#[cfg(test)]
+pub(crate) fn create_uri_error(message: impl Into<JSString>) -> AbruptCompletion {
     AbruptCompletion::Throw { value: ECMAScriptValue::Object(create_uri_error_object(message)) }
 }
 
 #[derive(Debug)]
-pub struct ErrorObject {
+pub(crate) struct ErrorObject {
     common: RefCell<CommonObjectData>,
 }
 
 impl ErrorObject {
-    pub fn new(prototype: Option<Object>) -> Self {
+    pub(crate) fn new(prototype: Option<Object>) -> Self {
         Self { common: RefCell::new(CommonObjectData::new(prototype, true, ERROR_OBJECT_SLOTS)) }
     }
-    pub fn object(prototype: Option<Object>) -> Object {
+    pub(crate) fn object(prototype: Option<Object>) -> Object {
         Object { o: Rc::new(Self::new(prototype)) }
     }
 }
@@ -175,7 +179,7 @@ impl ObjectInterface for ErrorObject {
     }
 }
 
-pub fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -308,7 +312,7 @@ pub fn provision_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
 //             [[Configurable]]: true }.
 //          c. Perform ! DefinePropertyOrThrow(O, "message", msgDesc).
 //      4. Return O.
-pub fn error_constructor_function(
+pub(crate) fn error_constructor_function(
     this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
@@ -329,7 +333,7 @@ pub fn error_constructor_function(
 //      7. If name is the empty String, return msg.
 //      8. If msg is the empty String, return name.
 //      9. Return the string-concatenation of name, the code unit 0x003A (COLON), the code unit 0x0020 (SPACE), and msg.
-pub fn error_prototype_tostring(
+pub(crate) fn error_prototype_tostring(
     this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -537,56 +541,56 @@ fn uri_error_constructor_function(
     native_error_constructor_function(this_value, new_target, arguments, IntrinsicId::URIErrorPrototype)
 }
 
-pub fn provision_type_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_type_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let (constructor, prototype) =
         provision_native_error_intrinsics(realm, "TypeError", type_error_constructor_function);
     realm.borrow_mut().intrinsics.type_error = constructor;
     realm.borrow_mut().intrinsics.type_error_prototype = prototype;
 }
-pub fn provision_eval_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_eval_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let (constructor, prototype) =
         provision_native_error_intrinsics(realm, "EvalError", eval_error_constructor_function);
     realm.borrow_mut().intrinsics.eval_error = constructor;
     realm.borrow_mut().intrinsics.eval_error_prototype = prototype;
 }
-pub fn provision_range_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_range_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let (constructor, prototype) =
         provision_native_error_intrinsics(realm, "RangeError", range_error_constructor_function);
     realm.borrow_mut().intrinsics.range_error = constructor;
     realm.borrow_mut().intrinsics.range_error_prototype = prototype;
 }
-pub fn provision_reference_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_reference_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let (constructor, prototype) =
         provision_native_error_intrinsics(realm, "ReferenceError", reference_error_constructor_function);
     realm.borrow_mut().intrinsics.reference_error = constructor;
     realm.borrow_mut().intrinsics.reference_error_prototype = prototype;
 }
-pub fn provision_syntax_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_syntax_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let (constructor, prototype) =
         provision_native_error_intrinsics(realm, "SyntaxError", syntax_error_constructor_function);
     realm.borrow_mut().intrinsics.syntax_error = constructor;
     realm.borrow_mut().intrinsics.syntax_error_prototype = prototype;
 }
-pub fn provision_uri_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_uri_error_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let (constructor, prototype) = provision_native_error_intrinsics(realm, "URIError", uri_error_constructor_function);
     realm.borrow_mut().intrinsics.uri_error = constructor;
     realm.borrow_mut().intrinsics.uri_error_prototype = prototype;
 }
 
 /// Transform an ECMAScript Error object into a Rust string
-pub fn unwind_any_error_value(err: ECMAScriptValue) -> String {
+pub(crate) fn unwind_any_error_value(err: ECMAScriptValue) -> String {
     to_string(err).unwrap().into()
 }
 
 /// Transform an ECMAScript Throw Completion into a Rust string
-pub fn unwind_any_error(completion: AbruptCompletion) -> String {
+pub(crate) fn unwind_any_error(completion: AbruptCompletion) -> String {
     match completion {
         AbruptCompletion::Throw { value: err } => unwind_any_error_value(err),
         _ => panic!("Improper completion for error: {completion:?}"),
     }
 }
 
-pub fn unwind_any_error_object(o: &Object) -> String {
+pub(crate) fn unwind_any_error_object(o: &Object) -> String {
     let name_prop = o.get(&"name".into()).unwrap_or(ECMAScriptValue::Undefined);
     let name = if name_prop.is_undefined() { String::from("Error") } else { name_prop.to_string() };
     let msg_prop = o.get(&"message".into()).unwrap_or(ECMAScriptValue::Undefined);

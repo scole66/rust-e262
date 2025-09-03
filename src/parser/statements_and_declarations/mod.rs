@@ -19,7 +19,7 @@ use std::io::Write;
 //      TryStatement[?Yield, ?Await, ?Return]
 //      DebuggerStatement
 #[derive(Debug)]
-pub enum Statement {
+pub(crate) enum Statement {
     Block(Rc<BlockStatement>),
     Variable(Rc<VariableStatement>),
     Empty(Rc<EmptyStatement>),
@@ -178,7 +178,7 @@ impl Statement {
             })
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -196,7 +196,7 @@ impl Statement {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             Statement::Block(node) => node.location(),
             Statement::Variable(node) => node.location(),
@@ -215,7 +215,7 @@ impl Statement {
         }
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match &self {
             Statement::Block(node) => node.var_declared_names(),
             Statement::Variable(node) => node.var_declared_names(),
@@ -234,7 +234,7 @@ impl Statement {
         }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             Statement::Variable(_)
             | Statement::Empty(_)
@@ -253,26 +253,26 @@ impl Statement {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             Statement::Block(n) => kind == ParseNodeKind::BlockStatement || n.contains(kind),
             Statement::Variable(n) => kind == ParseNodeKind::VariableStatement || n.contains(kind),
-            Statement::Empty(n) => kind == ParseNodeKind::EmptyStatement || n.contains(kind),
+            Statement::Empty(_) => kind == ParseNodeKind::EmptyStatement,
             Statement::Expression(n) => kind == ParseNodeKind::ExpressionStatement || n.contains(kind),
             Statement::If(n) => kind == ParseNodeKind::IfStatement || n.contains(kind),
             Statement::Breakable(n) => kind == ParseNodeKind::BreakableStatement || n.contains(kind),
-            Statement::Continue(n) => kind == ParseNodeKind::ContinueStatement || n.contains(kind),
-            Statement::Break(n) => kind == ParseNodeKind::BreakStatement || n.contains(kind),
+            Statement::Continue(_) => kind == ParseNodeKind::ContinueStatement,
+            Statement::Break(_) => kind == ParseNodeKind::BreakStatement,
             Statement::With(n) => kind == ParseNodeKind::WithStatement || n.contains(kind),
             Statement::Labelled(n) => kind == ParseNodeKind::LabelledStatement || n.contains(kind),
             Statement::Throw(n) => kind == ParseNodeKind::ThrowStatement || n.contains(kind),
             Statement::Try(n) => kind == ParseNodeKind::TryStatement || n.contains(kind),
-            Statement::Debugger(n) => kind == ParseNodeKind::DebuggerStatement || n.contains(kind),
+            Statement::Debugger(_) => kind == ParseNodeKind::DebuggerStatement,
             Statement::Return(n) => kind == ParseNodeKind::ReturnStatement || n.contains(kind),
         }
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             Statement::Block(n) => n.contains_duplicate_labels(label_set),
             Statement::Breakable(n) => n.contains_duplicate_labels(label_set),
@@ -291,7 +291,11 @@ impl Statement {
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(
+        &self,
+        iteration_set: &[JSString],
+        label_set: &[JSString],
+    ) -> bool {
         match self {
             Statement::Block(n) => n.contains_undefined_continue_target(iteration_set, &[]),
             Statement::Break(_)
@@ -310,7 +314,7 @@ impl Statement {
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             Statement::Block(_)
             | Statement::Break(_)
@@ -329,7 +333,7 @@ impl Statement {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -351,7 +355,13 @@ impl Statement {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub(crate) fn early_errors(
+        &self,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         match self {
             Statement::Block(node) => node.early_errors(errs, strict, within_iteration, within_switch),
             Statement::Break(node) => node.early_errors(errs, strict, within_iteration || within_switch),
@@ -369,7 +379,8 @@ impl Statement {
         }
     }
 
-    pub fn is_labelled_function(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn is_labelled_function(&self) -> bool {
         // Static Semantics: IsLabelledFunction ( stmt )
         //
         // The abstract operation IsLabelledFunction takes argument stmt and returns a Boolean. It performs the
@@ -390,7 +401,7 @@ impl Statement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -415,7 +426,7 @@ impl Statement {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             Statement::Empty(_)
             | Statement::Debugger(_)
@@ -434,13 +445,12 @@ impl Statement {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
                 Statement::Block(node) => node.body_containing_location(location),
                 Statement::Variable(node) => node.body_containing_location(location),
-                Statement::Empty(node) => node.body_containing_location(location),
                 Statement::Expression(node) => node.body_containing_location(location),
                 Statement::If(node) => node.body_containing_location(location),
                 Statement::Breakable(node) => node.body_containing_location(location),
@@ -451,14 +461,14 @@ impl Statement {
                 Statement::Labelled(node) => node.body_containing_location(location),
                 Statement::Throw(node) => node.body_containing_location(location),
                 Statement::Try(node) => node.body_containing_location(location),
-                Statement::Debugger(node) => node.body_containing_location(location),
+                Statement::Empty(_) | Statement::Debugger(_) => None,
             }
         } else {
             None
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -518,7 +528,7 @@ impl Statement {
 //      ClassDeclaration[?Yield, ?Await, ~Default]
 //      LexicalDeclaration[+In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum Declaration {
+pub(crate) enum Declaration {
     Hoistable(Rc<HoistableDeclaration>),
     Class(Rc<ClassDeclaration>),
     Lexical(Rc<LexicalDeclaration>),
@@ -561,55 +571,55 @@ impl PrettyPrint for Declaration {
 }
 
 #[derive(Debug, Clone)]
-pub enum HoistableDeclPart {
-    FunctionDeclaration(Rc<FunctionDeclaration>),
-    GeneratorDeclaration(Rc<GeneratorDeclaration>),
-    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
-    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
+pub(crate) enum HoistableDeclPart {
+    Function(Rc<FunctionDeclaration>),
+    Generator(Rc<GeneratorDeclaration>),
+    AsyncFunction(Rc<AsyncFunctionDeclaration>),
+    AsyncGenerator(Rc<AsyncGeneratorDeclaration>),
 }
 impl fmt::Display for HoistableDeclPart {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            HoistableDeclPart::FunctionDeclaration(fd) => fd.fmt(f),
-            HoistableDeclPart::GeneratorDeclaration(gd) => gd.fmt(f),
-            HoistableDeclPart::AsyncFunctionDeclaration(afd) => afd.fmt(f),
-            HoistableDeclPart::AsyncGeneratorDeclaration(agd) => agd.fmt(f),
+            HoistableDeclPart::Function(fd) => fd.fmt(f),
+            HoistableDeclPart::Generator(gd) => gd.fmt(f),
+            HoistableDeclPart::AsyncFunction(afd) => afd.fmt(f),
+            HoistableDeclPart::AsyncGenerator(agd) => agd.fmt(f),
         }
     }
 }
 #[derive(Debug, Clone)]
-pub enum DeclPart {
-    FunctionDeclaration(Rc<FunctionDeclaration>),
-    GeneratorDeclaration(Rc<GeneratorDeclaration>),
-    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
-    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
-    ClassDeclaration(Rc<ClassDeclaration>),
-    LexicalDeclaration(Rc<LexicalDeclaration>),
+pub(crate) enum DeclPart {
+    Function(Rc<FunctionDeclaration>),
+    Generator(Rc<GeneratorDeclaration>),
+    AsyncFunction(Rc<AsyncFunctionDeclaration>),
+    AsyncGenerator(Rc<AsyncGeneratorDeclaration>),
+    Class(Rc<ClassDeclaration>),
+    Lexical(Rc<LexicalDeclaration>),
 }
 impl From<HoistableDeclPart> for DeclPart {
     fn from(src: HoistableDeclPart) -> Self {
         match src {
-            HoistableDeclPart::FunctionDeclaration(fd) => DeclPart::FunctionDeclaration(fd),
-            HoistableDeclPart::GeneratorDeclaration(gd) => DeclPart::GeneratorDeclaration(gd),
-            HoistableDeclPart::AsyncFunctionDeclaration(afd) => DeclPart::AsyncFunctionDeclaration(afd),
-            HoistableDeclPart::AsyncGeneratorDeclaration(agd) => DeclPart::AsyncGeneratorDeclaration(agd),
+            HoistableDeclPart::Function(fd) => DeclPart::Function(fd),
+            HoistableDeclPart::Generator(gd) => DeclPart::Generator(gd),
+            HoistableDeclPart::AsyncFunction(afd) => DeclPart::AsyncFunction(afd),
+            HoistableDeclPart::AsyncGenerator(agd) => DeclPart::AsyncGenerator(agd),
         }
     }
 }
 impl From<Rc<FunctionDeclaration>> for DeclPart {
     fn from(src: Rc<FunctionDeclaration>) -> Self {
-        Self::FunctionDeclaration(src)
+        Self::Function(src)
     }
 }
 impl fmt::Display for DeclPart {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            DeclPart::FunctionDeclaration(fd) => fd.fmt(f),
-            DeclPart::GeneratorDeclaration(gd) => gd.fmt(f),
-            DeclPart::AsyncFunctionDeclaration(afd) => afd.fmt(f),
-            DeclPart::AsyncGeneratorDeclaration(agd) => agd.fmt(f),
-            DeclPart::ClassDeclaration(cd) => cd.fmt(f),
-            DeclPart::LexicalDeclaration(ld) => ld.fmt(f),
+            DeclPart::Function(fd) => fd.fmt(f),
+            DeclPart::Generator(gd) => gd.fmt(f),
+            DeclPart::AsyncFunction(afd) => afd.fmt(f),
+            DeclPart::AsyncGenerator(agd) => agd.fmt(f),
+            DeclPart::Class(cd) => cd.fmt(f),
+            DeclPart::Lexical(ld) => ld.fmt(f),
         }
     }
 }
@@ -619,31 +629,36 @@ impl From<&DeclPart> for String {
     }
 }
 impl DeclPart {
-    pub fn is_constant_declaration(&self) -> bool {
+    pub(crate) fn is_constant_declaration(&self) -> bool {
         match self {
-            DeclPart::FunctionDeclaration(fd) => fd.is_constant_declaration(),
-            DeclPart::GeneratorDeclaration(gd) => gd.is_constant_declaration(),
-            DeclPart::AsyncFunctionDeclaration(afd) => afd.is_constant_declaration(),
-            DeclPart::AsyncGeneratorDeclaration(agd) => agd.is_constant_declaration(),
-            DeclPart::ClassDeclaration(cd) => cd.is_constant_declaration(),
-            DeclPart::LexicalDeclaration(ld) => ld.is_constant_declaration(),
+            DeclPart::Generator(_)
+            | DeclPart::Function(_)
+            | DeclPart::AsyncFunction(_)
+            | DeclPart::AsyncGenerator(_)
+            | DeclPart::Class(_) => false,
+            DeclPart::Lexical(ld) => ld.is_constant_declaration(),
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
-            DeclPart::FunctionDeclaration(fd) => fd.bound_names(),
-            DeclPart::GeneratorDeclaration(gd) => gd.bound_names(),
-            DeclPart::AsyncFunctionDeclaration(afd) => afd.bound_names(),
-            DeclPart::AsyncGeneratorDeclaration(agd) => agd.bound_names(),
-            DeclPart::ClassDeclaration(cd) => cd.bound_names(),
-            DeclPart::LexicalDeclaration(ld) => ld.bound_names(),
+            DeclPart::Function(fd) => fd.bound_names(),
+            DeclPart::Generator(gd) => gd.bound_names(),
+            DeclPart::AsyncFunction(afd) => afd.bound_names(),
+            DeclPart::AsyncGenerator(agd) => agd.bound_names(),
+            DeclPart::Class(cd) => cd.bound_names(),
+            DeclPart::Lexical(ld) => ld.bound_names(),
         }
     }
 }
 
 impl Declaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::Declaration), scanner))
             .otherwise(|| {
                 let (hoist, after_hoist) = HoistableDeclaration::parse(parser, scanner, yield_flag, await_flag, false)?;
@@ -659,7 +674,7 @@ impl Declaration {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             Declaration::Hoistable(h) => h.location(),
             Declaration::Class(c) => c.location(),
@@ -667,7 +682,7 @@ impl Declaration {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             Declaration::Hoistable(node) => node.bound_names(),
             Declaration::Class(node) => node.bound_names(),
@@ -675,15 +690,15 @@ impl Declaration {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            Declaration::Hoistable(node) => node.contains(kind),
+            Declaration::Hoistable(_) => false,
             Declaration::Class(node) => node.contains(kind),
             Declaration::Lexical(node) => node.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -707,7 +722,7 @@ impl Declaration {
     /// See [Early Errors][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#early-error
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             Declaration::Hoistable(node) => node.early_errors(errs, strict),
             Declaration::Class(node) => node.early_errors(errs),
@@ -719,7 +734,7 @@ impl Declaration {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -736,18 +751,18 @@ impl Declaration {
     /// Returns the parse node corresponding to the declaration of this node.
     ///
     /// See [DeclarationPart](https://tc39.es/ecma262/#sec-static-semantics-declarationpart) from ECMA-262.
-    pub fn declaration_part(&self) -> DeclPart {
+    pub(crate) fn declaration_part(&self) -> DeclPart {
         match self {
             Declaration::Hoistable(h) => h.declaration_part().into(),
-            Declaration::Class(cd) => DeclPart::ClassDeclaration(cd.clone()),
-            Declaration::Lexical(ld) => DeclPart::LexicalDeclaration(ld.clone()),
+            Declaration::Class(cd) => DeclPart::Class(cd.clone()),
+            Declaration::Lexical(ld) => DeclPart::Lexical(ld.clone()),
         }
     }
 
     /// Returns the lexically-scoped declarations of this node (as if this node was at global scope)
     ///
     /// See [TopLevelLexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevellexicallyscopeddeclarations) in ECMA-262.
-    pub fn top_level_lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn top_level_lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         match self {
             Declaration::Hoistable(_) => vec![],
             Declaration::Class(_) | Declaration::Lexical(_) => {
@@ -756,7 +771,7 @@ impl Declaration {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -776,7 +791,7 @@ impl Declaration {
 //      AsyncFunctionDeclaration[?Yield, ?Await, ?Default]
 //      AsyncGeneratorDeclaration[?Yield, ?Await, ?Default]
 #[derive(Debug)]
-pub enum HoistableDeclaration {
+pub(crate) enum HoistableDeclaration {
     Function(Rc<FunctionDeclaration>),
     Generator(Rc<GeneratorDeclaration>),
     AsyncFunction(Rc<AsyncFunctionDeclaration>),
@@ -823,7 +838,7 @@ impl PrettyPrint for HoistableDeclaration {
 }
 
 impl HoistableDeclaration {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -862,7 +877,7 @@ impl HoistableDeclaration {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             HoistableDeclaration::Function(node) => node.bound_names(),
             HoistableDeclaration::Generator(node) => node.bound_names(),
@@ -871,16 +886,7 @@ impl HoistableDeclaration {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            HoistableDeclaration::Function(node) => node.contains(kind),
-            HoistableDeclaration::Generator(node) => node.contains(kind),
-            HoistableDeclaration::AsyncFunction(node) => node.contains(kind),
-            HoistableDeclaration::AsyncGenerator(node) => node.contains(kind),
-        }
-    }
-
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -895,7 +901,7 @@ impl HoistableDeclaration {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             HoistableDeclaration::Function(node) => node.early_errors(errs, strict),
             HoistableDeclaration::Generator(node) => node.early_errors(errs, strict),
@@ -907,16 +913,16 @@ impl HoistableDeclaration {
     /// Returns the parse node corresponding to the declaration of this node.
     ///
     /// See [DeclarationPart](https://tc39.es/ecma262/#sec-static-semantics-declarationpart) from ECMA-262.
-    pub fn declaration_part(&self) -> HoistableDeclPart {
+    pub(crate) fn declaration_part(&self) -> HoistableDeclPart {
         match self {
-            HoistableDeclaration::Function(fd) => HoistableDeclPart::FunctionDeclaration(Rc::clone(fd)),
-            HoistableDeclaration::Generator(gd) => HoistableDeclPart::GeneratorDeclaration(Rc::clone(gd)),
-            HoistableDeclaration::AsyncFunction(afd) => HoistableDeclPart::AsyncFunctionDeclaration(Rc::clone(afd)),
-            HoistableDeclaration::AsyncGenerator(agd) => HoistableDeclPart::AsyncGeneratorDeclaration(Rc::clone(agd)),
+            HoistableDeclaration::Function(fd) => HoistableDeclPart::Function(Rc::clone(fd)),
+            HoistableDeclaration::Generator(gd) => HoistableDeclPart::Generator(Rc::clone(gd)),
+            HoistableDeclaration::AsyncFunction(afd) => HoistableDeclPart::AsyncFunction(Rc::clone(afd)),
+            HoistableDeclaration::AsyncGenerator(agd) => HoistableDeclPart::AsyncGenerator(Rc::clone(agd)),
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -935,7 +941,7 @@ impl HoistableDeclaration {
 //      IterationStatement[?Yield, ?Await, ?Return]
 //      SwitchStatement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub enum BreakableStatement {
+pub(crate) enum BreakableStatement {
     Iteration(Rc<IterationStatement>),
     Switch(Rc<SwitchStatement>),
 }
@@ -974,7 +980,7 @@ impl PrettyPrint for BreakableStatement {
 }
 
 impl BreakableStatement {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -994,42 +1000,46 @@ impl BreakableStatement {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             BreakableStatement::Iteration(i) => i.location(),
             BreakableStatement::Switch(s) => s.location(),
         }
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             BreakableStatement::Iteration(node) => node.var_declared_names(),
             BreakableStatement::Switch(node) => node.var_declared_names(),
         }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             BreakableStatement::Iteration(node) => node.contains_undefined_break_target(label_set),
             BreakableStatement::Switch(node) => node.contains_undefined_break_target(label_set),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             BreakableStatement::Iteration(node) => node.contains(kind),
             BreakableStatement::Switch(node) => node.contains(kind),
         }
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             BreakableStatement::Iteration(node) => node.contains_duplicate_labels(label_set),
             BreakableStatement::Switch(node) => node.contains_duplicate_labels(label_set),
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(
+        &self,
+        iteration_set: &[JSString],
+        label_set: &[JSString],
+    ) -> bool {
         match self {
             BreakableStatement::Iteration(node) => {
                 let mut new_iteration_set: Vec<JSString> = Vec::new();
@@ -1041,7 +1051,7 @@ impl BreakableStatement {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1058,7 +1068,7 @@ impl BreakableStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1071,7 +1081,13 @@ impl BreakableStatement {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub(crate) fn early_errors(
+        &self,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         match self {
             BreakableStatement::Iteration(node) => node.early_errors(errs, strict, within_switch),
             BreakableStatement::Switch(node) => node.early_errors(errs, strict, within_iteration),
@@ -1081,14 +1097,14 @@ impl BreakableStatement {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             BreakableStatement::Iteration(node) => node.var_scoped_declarations(),
             BreakableStatement::Switch(node) => node.var_scoped_declarations(),
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -1102,7 +1118,7 @@ impl BreakableStatement {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

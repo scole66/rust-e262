@@ -15,7 +15,6 @@ fn shift_expression_test_01() {
     pretty_check(&*se, "ShiftExpression: a", &["AdditiveExpression: a"]);
     concise_check(&*se, "IdentifierName: a", &[]);
     assert_ne!(format!("{se:?}"), "");
-    assert_eq!(se.is_function_definition(), false);
 }
 #[test]
 fn shift_expression_test_02() {
@@ -25,7 +24,6 @@ fn shift_expression_test_02() {
     pretty_check(&*se, "ShiftExpression: a << b", &["ShiftExpression: a", "AdditiveExpression: b"]);
     concise_check(&*se, "ShiftExpression: a << b", &["IdentifierName: a", "Punctuator: <<", "IdentifierName: b"]);
     assert_ne!(format!("{se:?}"), "");
-    assert_eq!(se.is_function_definition(), false);
 }
 #[test]
 fn shift_expression_test_03() {
@@ -35,7 +33,6 @@ fn shift_expression_test_03() {
     pretty_check(&*se, "ShiftExpression: a >> b", &["ShiftExpression: a", "AdditiveExpression: b"]);
     concise_check(&*se, "ShiftExpression: a >> b", &["IdentifierName: a", "Punctuator: >>", "IdentifierName: b"]);
     assert_ne!(format!("{se:?}"), "");
-    assert_eq!(se.is_function_definition(), false);
 }
 #[test]
 fn shift_expression_test_04() {
@@ -45,7 +42,6 @@ fn shift_expression_test_04() {
     pretty_check(&*se, "ShiftExpression: a >>> b", &["ShiftExpression: a", "AdditiveExpression: b"]);
     concise_check(&*se, "ShiftExpression: a >>> b", &["IdentifierName: a", "Punctuator: >>>", "IdentifierName: b"]);
     assert_ne!(format!("{se:?}"), "");
-    assert_eq!(se.is_function_definition(), false);
 }
 #[test]
 fn shift_expression_test_05() {
@@ -61,7 +57,6 @@ fn shift_expression_test_06() {
     let (se, scanner) = check(ShiftExpression::parse(&mut newparser("a >>> @"), Scanner::new(), false, false));
     chk_scan(&scanner, 1);
     assert!(matches!(&*se, ShiftExpression::AdditiveExpression(_)));
-    assert_eq!(se.is_function_definition(), false);
 }
 #[test]
 fn shift_expression_test_prettyerrors_1() {
@@ -234,12 +229,12 @@ mod shift_expression {
         Maker::new(src).shift_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a<<b" => false; "expr")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).shift_expression().is_named_function()
-    }
+    //#[test_case("a<<b" => false; "expr")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).shift_expression().is_named_function()
+    //}
 
     #[test_case("  a<<b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "shl")]
     #[test_case("  a>>b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "sshr")]

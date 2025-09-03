@@ -1,10 +1,6 @@
 #![allow(clippy::wildcard_imports)]
 #![expect(clippy::doc_markdown)]
 #![expect(clippy::float_cmp)]
-#![expect(clippy::missing_errors_doc)]
-#![expect(clippy::missing_panics_doc)]
-#![expect(clippy::module_name_repetitions)]
-#![expect(clippy::must_use_candidate)]
 #![expect(clippy::similar_names)]
 #![expect(clippy::single_match_else)]
 #![expect(clippy::too_many_lines)]
@@ -46,40 +42,40 @@ mod strings;
 mod symbol_object;
 mod values;
 
-pub use crate::agent::*;
-pub use crate::arguments_object::*;
-pub use crate::arrays::*;
-pub use crate::bigint_object::*;
-pub use crate::boolean_object::*;
-pub use crate::bound_function::*;
-pub use crate::chunk::*;
-pub use crate::comparison::*;
-pub use crate::compiler::*;
-pub use crate::control_abstraction::*;
-pub use crate::cr::*;
-pub use crate::date_object::*;
-pub use crate::dtoa_r::*;
-pub use crate::environment_record::*;
-pub use crate::errors::*;
-pub use crate::execution_context::*;
-pub use crate::function_object::*;
-pub use crate::map::*;
-pub use crate::math::*;
-pub use crate::number_object::*;
-pub use crate::object::*;
-pub use crate::object_object::*;
-pub use crate::parser::*;
-pub use crate::prettyprint::*;
-pub use crate::proxy_object::*;
-pub use crate::realm::*;
-pub use crate::reference::*;
-pub use crate::reflect::*;
-pub use crate::regexp::*;
-pub use crate::scanner::*;
-pub use crate::string_object::*;
-pub use crate::strings::*;
-pub use crate::symbol_object::*;
-pub use crate::values::*;
+pub(crate) use crate::agent::*;
+pub(crate) use crate::arguments_object::*;
+pub(crate) use crate::arrays::*;
+pub(crate) use crate::bigint_object::*;
+pub(crate) use crate::boolean_object::*;
+pub(crate) use crate::bound_function::*;
+pub(crate) use crate::chunk::*;
+pub(crate) use crate::comparison::*;
+pub(crate) use crate::compiler::*;
+pub(crate) use crate::control_abstraction::*;
+pub(crate) use crate::cr::*;
+pub(crate) use crate::date_object::*;
+pub(crate) use crate::dtoa_r::*;
+pub(crate) use crate::environment_record::*;
+pub(crate) use crate::errors::*;
+pub(crate) use crate::execution_context::*;
+pub(crate) use crate::function_object::*;
+pub(crate) use crate::map::*;
+pub(crate) use crate::math::*;
+pub(crate) use crate::number_object::*;
+pub(crate) use crate::object::*;
+pub(crate) use crate::object_object::*;
+pub(crate) use crate::parser::*;
+pub(crate) use crate::prettyprint::*;
+pub(crate) use crate::proxy_object::*;
+pub(crate) use crate::realm::*;
+pub(crate) use crate::reference::*;
+pub(crate) use crate::reflect::*;
+pub(crate) use crate::regexp::*;
+pub(crate) use crate::scanner::*;
+pub(crate) use crate::string_object::*;
+pub(crate) use crate::strings::*;
+pub(crate) use crate::symbol_object::*;
+pub(crate) use crate::values::*;
 
 use std::cell::RefCell;
 use std::env;
@@ -191,5 +187,5 @@ fn main() {
 }
 
 #[cfg(test)]
-#[expect(hidden_glob_reexports)]
+//#[expect(hidden_glob_reexports)]
 mod tests;

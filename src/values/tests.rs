@@ -227,29 +227,10 @@ mod ecmascript_value {
         assert_eq!(ECMAScriptValue::Null.is_null(), true);
     }
     #[test]
-    fn is_boolean() {
-        assert_eq!(ECMAScriptValue::Undefined.is_boolean(), false);
-        assert_eq!(ECMAScriptValue::Boolean(true).is_boolean(), true);
-        assert_eq!(ECMAScriptValue::Null.is_boolean(), false);
-    }
-    #[test]
-    fn is_number() {
-        assert_eq!(ECMAScriptValue::Undefined.is_number(), false);
-        assert_eq!(ECMAScriptValue::from(99).is_number(), true);
-        assert_eq!(ECMAScriptValue::Null.is_number(), false);
-    }
-    #[test]
     fn is_string() {
         assert_eq!(ECMAScriptValue::Undefined.is_string(), false);
         assert_eq!(ECMAScriptValue::from("alice").is_string(), true);
         assert_eq!(ECMAScriptValue::Null.is_string(), false);
-    }
-    #[test]
-    fn is_symbol() {
-        setup_test_agent();
-        assert_eq!(ECMAScriptValue::Undefined.is_symbol(), false);
-        assert_eq!(ECMAScriptValue::from(Symbol::new(Some(JSString::from("Test Symbol")))).is_symbol(), true);
-        assert_eq!(ECMAScriptValue::Null.is_symbol(), false);
     }
     #[test]
     fn is_bigint() {
@@ -264,13 +245,6 @@ mod ecmascript_value {
         assert_eq!(ECMAScriptValue::Undefined.is_object(), false);
         assert_eq!(ECMAScriptValue::from(o).is_object(), true);
         assert_eq!(ECMAScriptValue::Null.is_object(), false);
-    }
-    #[test]
-    fn is_numeric() {
-        assert_eq!(ECMAScriptValue::Undefined.is_numeric(), false);
-        assert_eq!(ECMAScriptValue::from(99).is_numeric(), true);
-        assert_eq!(ECMAScriptValue::Null.is_numeric(), false);
-        assert_eq!(ECMAScriptValue::from(BigInt::from(10)).is_numeric(), true);
     }
     #[test]
     fn concise() {
@@ -535,33 +509,33 @@ mod ecmascript_value {
         ECMAScriptValue::to_obj_or_null(inp).test_result_string()
     }
 
-    #[test_case(f64::NAN => Ok(0); "NaN")]
-    #[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
-    #[test_case(f64::INFINITY => Ok(0); "inf")]
-    #[test_case(0.0 => Ok(0); "zero")]
-    #[test_case(-0.0 => Ok(0); "neg zero")]
-    #[test_case(f64::from(0x7FFF) => Ok(0x7FFF); "upper limit")]
-    #[test_case(32768.0 => Ok(-32768); "lower rollover")]
-    #[test_case(-32768.0 => Ok(-32768); "lower limit")]
-    #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
-    fn to_int16(arg: impl Into<ECMAScriptValue>) -> Result<i16, String> {
-        setup_test_agent();
-        arg.into().to_int16().map_err(unwind_any_error)
-    }
+    //#[test_case(f64::NAN => Ok(0); "NaN")]
+    //#[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
+    //#[test_case(f64::INFINITY => Ok(0); "inf")]
+    //#[test_case(0.0 => Ok(0); "zero")]
+    //#[test_case(-0.0 => Ok(0); "neg zero")]
+    //#[test_case(f64::from(0x7FFF) => Ok(0x7FFF); "upper limit")]
+    //#[test_case(32768.0 => Ok(-32768); "lower rollover")]
+    //#[test_case(-32768.0 => Ok(-32768); "lower limit")]
+    //#[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
+    //fn to_int16(arg: impl Into<ECMAScriptValue>) -> Result<i16, String> {
+    //    setup_test_agent();
+    //    arg.into().to_int16().map_err(unwind_any_error)
+    //}
 
-    #[test_case(f64::NAN => Ok(0); "NaN")]
-    #[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
-    #[test_case(f64::INFINITY => Ok(0); "inf")]
-    #[test_case(0.0 => Ok(0); "zero")]
-    #[test_case(-0.0 => Ok(0); "neg zero")]
-    #[test_case(f64::from(0x7F) => Ok(0x7F); "upper limit")]
-    #[test_case(128.0 => Ok(-128); "lower rollover")]
-    #[test_case(-128.0 => Ok(-128); "lower limit")]
-    #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
-    fn to_int8(arg: impl Into<ECMAScriptValue>) -> Result<i8, String> {
-        setup_test_agent();
-        arg.into().to_int8().map_err(unwind_any_error)
-    }
+    //#[test_case(f64::NAN => Ok(0); "NaN")]
+    //#[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
+    //#[test_case(f64::INFINITY => Ok(0); "inf")]
+    //#[test_case(0.0 => Ok(0); "zero")]
+    //#[test_case(-0.0 => Ok(0); "neg zero")]
+    //#[test_case(f64::from(0x7F) => Ok(0x7F); "upper limit")]
+    //#[test_case(128.0 => Ok(-128); "lower rollover")]
+    //#[test_case(-128.0 => Ok(-128); "lower limit")]
+    //#[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
+    //fn to_int8(arg: impl Into<ECMAScriptValue>) -> Result<i8, String> {
+    //    setup_test_agent();
+    //    arg.into().to_int8().map_err(unwind_any_error)
+    //}
 
     #[test_case(f64::NAN => Ok(0); "NaN")]
     #[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
@@ -606,19 +580,19 @@ mod ecmascript_value {
         arg.into().to_uint16().map_err(unwind_any_error)
     }
 
-    #[test_case(f64::NAN => Ok(0); "NaN")]
-    #[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
-    #[test_case(f64::INFINITY => Ok(0); "inf")]
-    #[test_case(0.0 => Ok(0); "zero")]
-    #[test_case(-0.0 => Ok(0); "neg zero")]
-    #[test_case(255.0 => Ok(0xFF); "upper limit")]
-    #[test_case(256.0 => Ok(0); "rollover")]
-    #[test_case(-200.0 => Ok(56); "negative inputs")]
-    #[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
-    fn to_uint8(arg: impl Into<ECMAScriptValue>) -> Result<u8, String> {
-        setup_test_agent();
-        arg.into().to_uint8().map_err(unwind_any_error)
-    }
+    //#[test_case(f64::NAN => Ok(0); "NaN")]
+    //#[test_case(f64::NEG_INFINITY => Ok(0); "neg inf")]
+    //#[test_case(f64::INFINITY => Ok(0); "inf")]
+    //#[test_case(0.0 => Ok(0); "zero")]
+    //#[test_case(-0.0 => Ok(0); "neg zero")]
+    //#[test_case(255.0 => Ok(0xFF); "upper limit")]
+    //#[test_case(256.0 => Ok(0); "rollover")]
+    //#[test_case(-200.0 => Ok(56); "negative inputs")]
+    //#[test_case(BigInt::from(10) => Err("TypeError: BigInt values cannot be converted to Number values".to_string()); "throw")]
+    //fn to_uint8(arg: impl Into<ECMAScriptValue>) -> Result<u8, String> {
+    //    setup_test_agent();
+    //    arg.into().to_uint8().map_err(unwind_any_error)
+    //}
 
     #[test]
     fn to_number_01() {
@@ -807,7 +781,7 @@ mod ecmascript_value {
     fn to_boolean(make_val: impl FnOnce() -> ECMAScriptValue) -> bool {
         setup_test_agent();
         let val = make_val();
-        val.to_boolean()
+        val.into_boolean()
     }
 
     #[test_case(|| ECMAScriptValue::from(10.0) => false; "not an object")]
@@ -1381,17 +1355,17 @@ mod jsstring {
         s.to_number()
     }
 
-    #[test_case("0" => using check_value(0.0); "zero")]
-    #[test_case("-0" => using check_value(0.0); "neg-zero")]
-    #[test_case("not-a-number" => using check_value(0.0); "nan")]
-    #[test_case("Infinity" => using check_value(0.0); "Infinity")]
-    #[test_case("10" => using check_value(10.0); "ten")]
-    #[test_case("257" => using check_value(1.0); "one over the modulo")]
-    #[test_case("-513" => using check_value(255.0); "negative, one beyond")]
-    fn to_core_int(s: &str) -> f64 {
-        let s = JSString::from(s);
-        s.to_core_int(256.0)
-    }
+    //#[test_case("0" => using check_value(0.0); "zero")]
+    //#[test_case("-0" => using check_value(0.0); "neg-zero")]
+    //#[test_case("not-a-number" => using check_value(0.0); "nan")]
+    //#[test_case("Infinity" => using check_value(0.0); "Infinity")]
+    //#[test_case("10" => using check_value(10.0); "ten")]
+    //#[test_case("257" => using check_value(1.0); "one over the modulo")]
+    //#[test_case("-513" => using check_value(255.0); "negative, one beyond")]
+    //fn to_core_int(s: &str) -> f64 {
+    //    let s = JSString::from(s);
+    //    s.to_core_int(256.0)
+    //}
 
     #[test_case("0" => 0; "zero")]
     #[test_case("-1" => 0xFFFF_FFFF; "neg one")]
@@ -1748,7 +1722,7 @@ fn make_test_obj(valueof: FauxKind, tostring: FauxKind) -> Object {
 
     target
 }
-pub fn make_tostring_getter_error() -> Object {
+pub(crate) fn make_tostring_getter_error() -> Object {
     // valueOf returns 123456; tostring is a getter that errors
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
@@ -1803,7 +1777,7 @@ pub fn make_tostring_getter_error() -> Object {
 
     target
 }
-pub fn make_test_obj_uncallable() -> Object {
+pub(crate) fn make_test_obj_uncallable() -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let target = ordinary_object_create(Some(object_prototype));
@@ -2538,16 +2512,6 @@ fn exponentiate(base: f64, exponent: f64) -> f64 {
     super::exponentiate(base, exponent)
 }
 
-#[test_case(|| ECMAScriptValue::from("bob"), None => vok("bob"); "to string")]
-fn to_primitive(
-    make_val: impl Fn() -> ECMAScriptValue,
-    hint: Option<ConversionHint>,
-) -> Result<ECMAScriptValue, String> {
-    setup_test_agent();
-    let val = make_val();
-    super::to_primitive(&val, hint).map_err(unwind_any_error).map(ECMAScriptValue::from)
-}
-
 mod primitive_value {
     use super::*;
     use test_case::test_case;
@@ -2557,7 +2521,7 @@ mod primitive_value {
     fn to_string(make_val: impl FnOnce() -> PrimitiveValue) -> Result<String, String> {
         setup_test_agent();
         let val = make_val();
-        val.to_string().map(String::from).map_err(unwind_any_error)
+        val.into_string().map(String::from).map_err(unwind_any_error)
     }
 
     #[test_case(|| PrimitiveValue::Undefined => using check_value_result(f64::NAN); "undefined")]

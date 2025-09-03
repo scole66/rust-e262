@@ -2,7 +2,7 @@ use super::*;
 use num::{BigInt, FromPrimitive, Integer};
 use std::rc::Rc;
 
-pub fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_big_int_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -260,7 +260,7 @@ fn bigint_value_of(
 }
 
 #[derive(Debug)]
-pub struct BigIntObject {
+pub(crate) struct BigIntObject {
     common: RefCell<CommonObjectData>,
     bigint_data: Rc<BigInt>,
 }
@@ -284,6 +284,7 @@ impl ObjectInterface for BigIntObject {
     fn to_bigint_object(&self) -> Option<&BigIntObject> {
         Some(self)
     }
+    #[cfg(test)]
     fn is_bigint_object(&self) -> bool {
         true
     }
@@ -398,14 +399,15 @@ impl BigIntObject {
         &self.bigint_data
     }
 
-    pub fn new(prototype: Option<Object>, value: Rc<BigInt>) -> Self {
+    pub(crate) fn new(prototype: Option<Object>, value: Rc<BigInt>) -> Self {
         Self { common: RefCell::new(CommonObjectData::new(prototype, true, BIGINT_OBJECT_SLOTS)), bigint_data: value }
     }
-    pub fn object(prototype: Option<Object>, value: Rc<BigInt>) -> Object {
+    pub(crate) fn object(prototype: Option<Object>, value: Rc<BigInt>) -> Object {
         Object { o: Rc::new(Self::new(prototype, value)) }
     }
 
-    pub fn value(&self) -> Rc<BigInt> {
+    #[cfg(test)]
+    pub(crate) fn value(&self) -> Rc<BigInt> {
         Rc::clone(&self.bigint_data)
     }
 }
@@ -459,7 +461,7 @@ fn number_to_big_int(number: f64) -> Completion<Rc<BigInt>> {
 }
 
 impl PrimitiveValue {
-    pub fn to_big_int(&self) -> Completion<Rc<BigInt>> {
+    pub(crate) fn to_big_int(&self) -> Completion<Rc<BigInt>> {
         match self {
             PrimitiveValue::Undefined
             | PrimitiveValue::Null

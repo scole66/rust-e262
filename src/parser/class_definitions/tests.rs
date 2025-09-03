@@ -160,11 +160,6 @@ mod class_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).class_declaration().bound_name().into()
     }
-
-    #[test_case("class x {}" => false; "typical")]
-    fn is_constant_declaration(src: &str) -> bool {
-        Maker::new(src).class_declaration().is_constant_declaration()
-    }
 }
 
 // CLASS EXPRESSION
@@ -175,7 +170,6 @@ fn class_expression_test_01() {
     pretty_check(&*node, "ClassExpression: class a { }", &["BindingIdentifier: a", "ClassTail: { }"]);
     concise_check(&*node, "ClassExpression: class a { }", &["Keyword: class", "IdentifierName: a", "ClassTail: { }"]);
     assert_ne!(format!("{node:?}"), "");
-    assert!(node.is_function_definition());
 }
 #[test]
 fn class_expression_test_02() {
@@ -184,7 +178,6 @@ fn class_expression_test_02() {
     pretty_check(&*node, "ClassExpression: class { }", &["ClassTail: { }"]);
     concise_check(&*node, "ClassExpression: class { }", &["Keyword: class", "ClassTail: { }"]);
     assert_ne!(format!("{node:?}"), "");
-    assert!(node.is_function_definition());
 }
 #[test]
 fn class_expression_test_err_01() {
@@ -1506,11 +1499,6 @@ mod class_static_block {
     #[test_case("static {", "‘}’ expected", 9; "Missing Trailing Brace")]
     fn err(src: &str, expected_error: &str, err_column: u32) {
         check_err(ClassStaticBlock::parse(&mut newparser(src), Scanner::new()), expected_error, 1, err_column);
-    }
-    #[test]
-    fn contains() {
-        let (node, _) = check(ClassStaticBlock::parse(&mut newparser("static { 0; }"), Scanner::new()));
-        assert_eq!(node.contains(), false);
     }
     #[test]
     fn prettyerrors() {

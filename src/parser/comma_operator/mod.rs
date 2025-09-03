@@ -7,7 +7,7 @@ use std::io::Write;
 //      AssignmentExpression[?In, ?Yield, ?Await]
 //      Expression[?In, ?Yield, ?Await] , AssignmentExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum Expression {
+pub(crate) enum Expression {
     FallThru(Rc<AssignmentExpression>),
     Comma(Rc<Expression>, Rc<AssignmentExpression>),
 }
@@ -53,15 +53,6 @@ impl PrettyPrint for Expression {
     }
 }
 
-impl IsFunctionDefinition for Expression {
-    fn is_function_definition(&self) -> bool {
-        match &self {
-            Expression::FallThru(node) => node.is_function_definition(),
-            Expression::Comma(_, _) => false,
-        }
-    }
-}
-
 impl Expression {
     fn parse_core(
         parser: &mut Parser,
@@ -75,10 +66,11 @@ impl Expression {
                 let mut current = Rc::new(Expression::FallThru(left));
                 let mut current_scanner = after_left;
                 while let Ok((right, after_right)) =
-                    scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
-                        .and_then(|(_, after_token)| {
+                    scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Comma).and_then(
+                        |(_, after_token)| {
                             AssignmentExpression::parse(parser, after_token, in_flag, yield_flag, await_flag)
-                        })
+                        },
+                    )
                 {
                     current = Rc::new(Expression::Comma(current, right));
                     current_scanner = after_right;
@@ -88,7 +80,7 @@ impl Expression {
         })
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -106,14 +98,14 @@ impl Expression {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             Expression::FallThru(exp) => exp.location(),
             Expression::Comma(left, right) => left.location().merge(&right.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             Expression::FallThru(node) => kind == ParseNodeKind::AssignmentExpression || node.contains(kind),
             Expression::Comma(left, right) => {
@@ -124,14 +116,14 @@ impl Expression {
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             Expression::FallThru(node) => node.as_string_literal(),
             Expression::Comma(..) => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -150,7 +142,7 @@ impl Expression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -163,7 +155,7 @@ impl Expression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             Expression::FallThru(node) => node.early_errors(errs, strict),
             Expression::Comma(left, right) => {
@@ -173,7 +165,7 @@ impl Expression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             Expression::FallThru(node) => node.is_strictly_deletable(),
             Expression::Comma(..) => true,
@@ -183,21 +175,21 @@ impl Expression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match &self {
             Expression::FallThru(node) => node.assignment_target_type(strict),
             Expression::Comma(_, _) => ATTKind::Invalid,
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            Expression::FallThru(node) => node.is_named_function(),
-            Expression::Comma(..) => false,
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        Expression::FallThru(node) => node.is_named_function(),
+    //        Expression::Comma(..) => false,
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -211,7 +203,7 @@ impl Expression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

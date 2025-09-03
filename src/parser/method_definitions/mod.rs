@@ -11,7 +11,7 @@ use std::io::Write;
 //      get ClassElementName[?Yield, ?Await] ( ) { FunctionBody[~Yield, ~Await] }
 //      set ClassElementName[?Yield, ?Await] ( PropertySetParameterList ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
-pub enum MethodDefinition {
+pub(crate) enum MethodDefinition {
     NamedFunction(Rc<ClassElementName>, Rc<UniqueFormalParameters>, Rc<FunctionBody>, Location),
     Generator(Rc<GeneratorMethod>),
     Async(Rc<AsyncMethod>),
@@ -131,7 +131,7 @@ impl PrettyPrint for MethodDefinition {
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum MethodType {
+pub(crate) enum MethodType {
     Normal,
     Setter,
     Getter,
@@ -142,36 +142,36 @@ impl MethodDefinition {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::MethodDefinition), scanner))
             .otherwise(|| {
                 let (get_loc, after_get) =
-                    scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Get)?;
+                    scan_for_keyword(scanner, parser.source, InputElementGoal::Div, Keyword::Get)?;
                 let (pn, after_pn) = ClassElementName::parse(parser, after_get, yield_flag, await_flag)?;
                 let (_, after_open) =
-                    scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+                    scan_for_punct(after_pn, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
                 let (_, after_close) =
-                    scan_for_punct(after_open, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                    scan_for_punct(after_open, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                 let (_, after_lb) =
-                    scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+                    scan_for_punct(after_close, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
                 let (body, after_body) =
-                    FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::FunctionBody);
+                    FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::Function);
                 let (rb_loc, after_rb) =
-                    scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                    scan_for_punct(after_body, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
                 let location = get_loc.merge(&rb_loc);
                 Ok((Rc::new(MethodDefinition::Getter(pn, body, location)), after_rb))
             })
             .otherwise(|| {
                 let (set_loc, after_set) =
-                    scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Set)?;
+                    scan_for_keyword(scanner, parser.source, InputElementGoal::Div, Keyword::Set)?;
                 let (pn, after_pn) = ClassElementName::parse(parser, after_set, yield_flag, await_flag)?;
                 let (_, after_open) =
-                    scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+                    scan_for_punct(after_pn, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
                 let (args, after_args) = PropertySetParameterList::parse(parser, after_open)?;
                 let (_, after_close) =
-                    scan_for_punct(after_args, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                    scan_for_punct(after_args, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                 let (_, after_lb) =
-                    scan_for_punct(after_close, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+                    scan_for_punct(after_close, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
                 let (body, after_body) =
-                    FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::FunctionBody);
+                    FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::Function);
                 let (rb_loc, after_rb) =
-                    scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                    scan_for_punct(after_body, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
                 let location = set_loc.merge(&rb_loc);
                 Ok((Rc::new(MethodDefinition::Setter(pn, args, body, location)), after_rb))
             })
@@ -190,22 +190,27 @@ impl MethodDefinition {
             .otherwise(|| {
                 let (name, after_name) = ClassElementName::parse(parser, scanner, yield_flag, await_flag)?;
                 let (_, after_lp) =
-                    scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+                    scan_for_punct(after_name, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
                 let (ufp, after_ufp) = UniqueFormalParameters::parse(parser, after_lp, false, false);
                 let (_, after_rp) =
-                    scan_for_punct(after_ufp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                    scan_for_punct(after_ufp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                 let (_, after_lb) =
-                    scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+                    scan_for_punct(after_rp, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
                 let (body, after_body) =
-                    FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::FunctionBody);
+                    FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::Function);
                 let (rb_loc, after_rb) =
-                    scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                    scan_for_punct(after_body, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
                 let location = name.location().merge(&rb_loc);
                 Ok((Rc::new(MethodDefinition::NamedFunction(name, ufp, body, location)), after_rb))
             })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.method_definition_cache.get(&key) {
             Some(result) => result.clone(),
@@ -217,7 +222,7 @@ impl MethodDefinition {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             MethodDefinition::Generator(node) => node.location(),
             MethodDefinition::Async(node) => node.location(),
@@ -228,7 +233,8 @@ impl MethodDefinition {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    #[cfg(test)]
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             MethodDefinition::NamedFunction(name, params, body, _) => {
                 name.contains(kind) || params.contains(kind) || body.contains(kind)
@@ -243,7 +249,7 @@ impl MethodDefinition {
         }
     }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             MethodDefinition::NamedFunction(name, ..) => name.computed_property_contains(kind),
             MethodDefinition::Generator(node) => node.computed_property_contains(kind),
@@ -255,7 +261,7 @@ impl MethodDefinition {
         }
     }
 
-    pub fn private_bound_identifier(&self) -> Option<(JSString, MethodType)> {
+    pub(crate) fn private_bound_identifier(&self) -> Option<(JSString, MethodType)> {
         // Static Semantics: PrivateBoundIdentifiers
         match self {
             // MethodDefinition : ClassElementName ( UniqueFormalParameters ) { FunctionBody }
@@ -282,7 +288,7 @@ impl MethodDefinition {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -313,7 +319,7 @@ impl MethodDefinition {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  MethodDefinition :
@@ -331,7 +337,7 @@ impl MethodDefinition {
         }
     }
 
-    pub fn has_direct_super(&self) -> bool {
+    pub(crate) fn has_direct_super(&self) -> bool {
         // Static Semantics: HasDirectSuper
         // The syntax-directed operation HasDirectSuper takes no arguments.
         match self {
@@ -358,7 +364,7 @@ impl MethodDefinition {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             MethodDefinition::NamedFunction(cen, ufp, fb, _) => {
@@ -420,7 +426,7 @@ impl MethodDefinition {
         }
     }
 
-    pub fn prop_name(&self) -> Option<JSString> {
+    pub(crate) fn prop_name(&self) -> Option<JSString> {
         // Static Semantics: PropName
         // The syntax-directed operation PropName takes no arguments and returns a String or empty.
         match self {
@@ -445,11 +451,11 @@ impl MethodDefinition {
     /// "Special" methods are asychronous functions, generators, or property setters or getters.
     ///
     /// See [SpecialMethod](https://tc39.es/ecma262/#sec-static-semantics-specialmethod) in ECMA-262.
-    pub fn special_method(&self) -> bool {
+    pub(crate) fn special_method(&self) -> bool {
         !matches!(self, MethodDefinition::NamedFunction(..))
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -477,8 +483,8 @@ impl MethodDefinition {
 // PropertySetParameterList :
 //      FormalParameter[~Yield, ~Await]
 #[derive(Debug)]
-pub struct PropertySetParameterList {
-    pub node: Rc<FormalParameter>,
+pub(crate) struct PropertySetParameterList {
+    pub(crate) node: Rc<FormalParameter>,
 }
 
 impl fmt::Display for PropertySetParameterList {
@@ -506,20 +512,20 @@ impl PrettyPrint for PropertySetParameterList {
 }
 
 impl PropertySetParameterList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         FormalParameter::parse(parser, scanner, false, false)
             .map(|(node, scanner)| (Rc::new(PropertySetParameterList { node }), scanner))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.node.location()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.node.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -529,15 +535,15 @@ impl PropertySetParameterList {
         self.node.all_private_identifiers_valid(names)
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         self.node.bound_names()
     }
 
-    pub fn is_simple_parameter_list(&self) -> bool {
+    pub(crate) fn is_simple_parameter_list(&self) -> bool {
         self.node.is_simple_parameter_list()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.node.early_errors(errs, strict);
     }
 
@@ -549,7 +555,7 @@ impl PropertySetParameterList {
     /// undefined as their default value.
     ///
     /// See [ExpectedArgumentCount](https://tc39.es/ecma262/#sec-static-semantics-expectedargumentcount) from ECMA-262.
-    pub fn expected_argument_count(&self) -> f64 {
+    pub(crate) fn expected_argument_count(&self) -> f64 {
         // PropertySetParameterList : FormalParameter
         //  1. If HasInitializer of FormalParameter is true, return 0.
         //  2. Return 1.
@@ -559,12 +565,12 @@ impl PropertySetParameterList {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         self.node.contains_expression()
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }

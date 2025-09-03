@@ -11,7 +11,7 @@ use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 
-pub fn provision_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -64,7 +64,7 @@ pub fn provision_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
     realm.borrow_mut().intrinsics.iterator_prototype = iterator_prototype;
 }
 
-pub fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_generator_function_intrinsics(realm: &Rc<RefCell<Realm>>) {
     let function = realm.borrow().intrinsics.function.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
     let iterator_prototype = realm.borrow().intrinsics.iterator_prototype.clone();
@@ -294,12 +294,12 @@ fn generator_prototype_throw(
     generator_resume_abrupt(this_value, AbruptCompletion::Throw { value: exception }, "")
 }
 
-pub type ECMAClosure = Box<
+pub(crate) type ECMAClosure = Box<
     dyn Coroutine<Yield = ECMAScriptValue, Resume = Completion<ECMAScriptValue>, Return = Completion<ECMAScriptValue>>
         + Unpin,
 >;
 
-pub fn create_iter_result_object(value: ECMAScriptValue, done: bool) -> Object {
+pub(crate) fn create_iter_result_object(value: ECMAScriptValue, done: bool) -> Object {
     // CreateIterResultObject ( value, done )
     //
     // The abstract operation CreateIterResultObject takes arguments value (an ECMAScript language value)
@@ -318,6 +318,7 @@ pub fn create_iter_result_object(value: ECMAScriptValue, done: bool) -> Object {
     obj
 }
 
+#[cfg(test)]
 async fn list_iterator(
     co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
     data: Vec<ECMAScriptValue>,
@@ -332,7 +333,8 @@ async fn list_iterator(
     Ok(ECMAScriptValue::Undefined)
 }
 
-pub fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord {
+#[cfg(test)]
+pub(crate) fn create_list_iterator_record(data: Vec<ECMAScriptValue>) -> IteratorRecord {
     // CreateListIteratorRecord ( list )
     // The abstract operation CreateListIteratorRecord takes argument list (a List) and returns an
     // Iterator Record. It creates an Iterator (27.1.1.2) object record whose next method returns the
@@ -365,7 +367,7 @@ async fn gen_caller(
 ) -> Completion<ECMAScriptValue> {
     let result = closure(co).await;
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut().pop());
-    generator.o.to_generator_object().unwrap().generator_data.borrow_mut().generator_state = GeneratorState::Completed;
+    generator.o.to_generator_object().unwrap().generator_data.borrow_mut().state = GeneratorState::Completed;
     let result_value = match &result {
         Ok(_) => ECMAScriptValue::Undefined,
         Err(e) => match e {
@@ -383,7 +385,7 @@ type AsyncFnPtr = Box<
         Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
     ) -> LocalBoxFuture<'static, Completion<ECMAScriptValue>>,
 >;
-pub fn asyncfn_wrap<F, Fut>(func: F) -> AsyncFnPtr
+pub(crate) fn asyncfn_wrap<F, Fut>(func: F) -> AsyncFnPtr
 where
     F: 'static,
     F: FnOnce(Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> Fut,
@@ -393,7 +395,7 @@ where
     Box::new(|context| Box::pin(func(context)))
 }
 
-pub fn create_iterator_from_closure(
+pub(crate) fn create_iterator_from_closure(
     closure: AsyncFnPtr,
     generator_brand: &str,
     generator_prototype: Option<Object>,
@@ -431,7 +433,7 @@ pub fn create_iterator_from_closure(
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum GeneratorState {
+pub(crate) enum GeneratorState {
     Undefined,
     SuspendedStart,
     SuspendedYield,
@@ -439,15 +441,15 @@ pub enum GeneratorState {
     Completed,
 }
 #[derive(Debug)]
-pub struct GeneratorData {
-    pub generator_state: GeneratorState,
-    pub generator_context: Option<ExecutionContext>,
-    pub generator_brand: String,
+pub(crate) struct GeneratorData {
+    pub(crate) state: GeneratorState,
+    pub(crate) context: Option<ExecutionContext>,
+    pub(crate) brand: String,
 }
 #[derive(Debug)]
-pub struct GeneratorObject {
+pub(crate) struct GeneratorObject {
     common: RefCell<CommonObjectData>,
-    pub generator_data: RefCell<GeneratorData>,
+    pub(crate) generator_data: RefCell<GeneratorData>,
 }
 
 impl<'a> From<&'a GeneratorObject> for &'a dyn ObjectInterface {
@@ -466,6 +468,7 @@ impl ObjectInterface for GeneratorObject {
     fn id(&self) -> usize {
         self.common.borrow().objid
     }
+    #[cfg(test)]
     fn is_generator_object(&self) -> bool {
         true
     }
@@ -578,7 +581,7 @@ impl ObjectInterface for GeneratorObject {
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum GeneratorError {
+pub(crate) enum GeneratorError {
     BrandMismatch,
     AlreadyActive,
     NotAGenerator,
@@ -597,21 +600,17 @@ impl fmt::Display for GeneratorError {
 impl Error for GeneratorError {}
 
 impl GeneratorObject {
-    pub fn new(prototype: Option<Object>, state: GeneratorState, brand: &str) -> Self {
+    pub(crate) fn new(prototype: Option<Object>, state: GeneratorState, brand: &str) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(prototype, true, GENERATOR_OBJECT_SLOTS)),
-            generator_data: RefCell::new(GeneratorData {
-                generator_state: state,
-                generator_context: None,
-                generator_brand: brand.to_owned(),
-            }),
+            generator_data: RefCell::new(GeneratorData { state, context: None, brand: brand.to_owned() }),
         }
     }
-    pub fn object(prototype: Option<Object>, state: GeneratorState, brand: &str) -> Object {
+    pub(crate) fn object(prototype: Option<Object>, state: GeneratorState, brand: &str) -> Object {
         Object { o: Rc::new(Self::new(prototype, state, brand)) }
     }
 
-    pub fn validate(&self, generator_brand: &str) -> Result<GeneratorState, GeneratorError> {
+    pub(crate) fn validate(&self, generator_brand: &str) -> Result<GeneratorState, GeneratorError> {
         // GeneratorValidate ( generator, generatorBrand )
         // The abstract operation GeneratorValidate takes arguments generator and generatorBrand and returns
         // either a normal completion containing either suspendedStart, suspendedYield, or completed, or a
@@ -629,17 +628,17 @@ impl GeneratorObject {
         // This is steps 3-7. (If you want to call the function GeneratorValidate like the specification does,
         // use generator_validate.)
         let data = self.generator_data.borrow();
-        if data.generator_brand != generator_brand {
+        if data.brand != generator_brand {
             Err(GeneratorError::BrandMismatch)
-        } else if data.generator_state == GeneratorState::Executing {
+        } else if data.state == GeneratorState::Executing {
             Err(GeneratorError::AlreadyActive)
         } else {
-            Ok(data.generator_state)
+            Ok(data.state)
         }
     }
 }
 
-pub fn generator_validate(generator: &ECMAScriptValue, generator_brand: &str) -> Completion<GeneratorState> {
+pub(crate) fn generator_validate(generator: &ECMAScriptValue, generator_brand: &str) -> Completion<GeneratorState> {
     // GeneratorValidate ( generator, generatorBrand )
     // The abstract operation GeneratorValidate takes arguments generator and generatorBrand and returns
     // either a normal completion containing either suspendedStart, suspendedYield, or completed, or a
@@ -664,12 +663,11 @@ pub fn generator_validate(generator: &ECMAScriptValue, generator_brand: &str) ->
     .map_err(|e| create_type_error(e.to_string()))
 }
 
-pub fn generator_start_from_function_body(generator: &Object, func: &dyn FunctionInterface, source: &SourceTree) {
+pub(crate) fn generator_start_from_function_body(generator: &Object, source: &SourceTree) {
     // This is like generator_start_from_closure, except that our "closure" performs:
     //    i. Let result be Completion(Evaluation of generatorBody).
     // where that evaluation is an asynchronous routine that might relinquish control during its execution.
-    let fd = func.function_data();
-    let closure = fd.borrow().into_async_closure(source);
+    let closure = FunctionObjectData::into_async_closure(source);
     let generator_in_closure = generator.clone();
     let gen_closure = Box::new(Gen::new(|co| gen_caller(generator_in_closure, co, closure)));
     generator_start_from_closure(generator, gen_closure);
@@ -677,14 +675,14 @@ pub fn generator_start_from_function_body(generator: &Object, func: &dyn Functio
 }
 
 impl FunctionObjectData {
-    pub fn into_async_closure(&self, source: &SourceTree) -> AsyncFnPtr {
+    pub(crate) fn into_async_closure(source: &SourceTree) -> AsyncFnPtr {
         let source = source.clone();
         let closure = move |co| execute(co, source);
         asyncfn_wrap(closure)
     }
 }
 
-pub fn generator_start_from_closure(generator: &Object, generator_body: ECMAClosure) {
+pub(crate) fn generator_start_from_closure(generator: &Object, generator_body: ECMAClosure) {
     // GeneratorStart ( generator, generatorBody )
     // The abstract operation GeneratorStart takes arguments generator and generatorBody (a FunctionBody
     // Parse Node or an Abstract Closure with no parameters) and returns unused. It performs the following
@@ -728,16 +726,16 @@ pub fn generator_start_from_closure(generator: &Object, generator_body: ECMAClos
     // Something else will need to happen for user-constructed generators.
     let inner_generator = generator.o.to_generator_object().unwrap();
     let mut gdata = inner_generator.generator_data.borrow_mut();
-    assert_eq!(gdata.generator_state, GeneratorState::Undefined);
-    assert!(gdata.generator_context.is_none());
-    AGENT.with(|agent| gdata.generator_context = agent.execution_context_stack.borrow_mut().pop());
-    gdata.generator_state = GeneratorState::SuspendedStart;
-    let gc = gdata.generator_context.as_mut().expect("Unstarted generators should already have their contexts");
+    assert_eq!(gdata.state, GeneratorState::Undefined);
+    assert!(gdata.context.is_none());
+    AGENT.with(|agent| gdata.context = agent.execution_context_stack.borrow_mut().pop());
+    gdata.state = GeneratorState::SuspendedStart;
+    let gc = gdata.context.as_mut().expect("Unstarted generators should already have their contexts");
     gc.generator = Some(generator.clone());
     gc.gen_closure = Some(generator_body);
 }
 
-pub fn generator_resume(
+pub(crate) fn generator_resume(
     generator: &ECMAScriptValue,
     value: ECMAScriptValue,
     generator_brand: &str,
@@ -770,10 +768,10 @@ pub fn generator_resume(
     let mut co = {
         let mut gdata =
             obj.o.to_generator_object().expect("generator previously validated").generator_data.borrow_mut();
-        let gen_context = gdata.generator_context.take().expect("suspended generators hold their context");
+        let gen_context = gdata.context.take().expect("suspended generators hold their context");
         AGENT.with(|agent| {
             agent.execution_context_stack.borrow_mut().push(gen_context);
-            gdata.generator_state = GeneratorState::Executing;
+            gdata.state = GeneratorState::Executing;
             let ec_stack_len = agent.execution_context_stack.borrow().len();
             {
                 let mut ec_stack = agent.execution_context_stack.borrow_mut();
@@ -787,7 +785,7 @@ pub fn generator_resume(
     };
     // If we get back here, the generator has been suspended.
     let mut gdata = obj.o.to_generator_object().expect("generator previously validated").generator_data.borrow_mut();
-    if let Some(gen_context) = gdata.generator_context.as_mut() {
+    if let Some(gen_context) = gdata.context.as_mut() {
         gen_context.gen_closure = Some(co);
     }
 
@@ -797,7 +795,7 @@ pub fn generator_resume(
     }
 }
 
-pub fn generator_resume_abrupt(
+pub(crate) fn generator_resume_abrupt(
     generator: &ECMAScriptValue,
     abrupt_completion: AbruptCompletion,
     generator_brand: &str,
@@ -839,8 +837,8 @@ pub fn generator_resume_abrupt(
             let obj = Object::try_from(generator).expect("generator previously validated");
             let mut gdata =
                 obj.o.to_generator_object().expect("generator previously validated").generator_data.borrow_mut();
-            gdata.generator_state = GeneratorState::Completed;
-            gdata.generator_context = None;
+            gdata.state = GeneratorState::Completed;
+            gdata.context = None;
         }
         if let AbruptCompletion::Return { value } = abrupt_completion {
             return Ok(create_iter_result_object(value, true).into());
@@ -852,10 +850,10 @@ pub fn generator_resume_abrupt(
     let mut co = {
         let mut gdata =
             obj.o.to_generator_object().expect("generator previously validated").generator_data.borrow_mut();
-        let gen_context = gdata.generator_context.take().expect("suspended generators hold their context");
+        let gen_context = gdata.context.take().expect("suspended generators hold their context");
         AGENT.with(|agent| {
             agent.execution_context_stack.borrow_mut().push(gen_context);
-            gdata.generator_state = GeneratorState::Executing;
+            gdata.state = GeneratorState::Executing;
             let ec_stack_len = agent.execution_context_stack.borrow().len();
             {
                 let mut ec_stack = agent.execution_context_stack.borrow_mut();
@@ -869,7 +867,7 @@ pub fn generator_resume_abrupt(
     };
     // If we get back here, the generator has been suspended.
     let mut gdata = obj.o.to_generator_object().expect("generator previously validated").generator_data.borrow_mut();
-    if let Some(gen_context) = gdata.generator_context.as_mut() {
+    if let Some(gen_context) = gdata.context.as_mut() {
         gen_context.gen_closure = Some(co);
     }
 
@@ -879,7 +877,7 @@ pub fn generator_resume_abrupt(
     }
 }
 
-pub async fn generator_yield(
+pub(crate) async fn generator_yield(
     co: &Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
     iter_next_obj: ECMAScriptValue,
 ) -> Completion<ECMAScriptValue> {
@@ -909,8 +907,8 @@ pub async fn generator_yield(
     let inner_generator = generator.o.to_generator_object().expect("object must be a generator");
     {
         let mut gdata = inner_generator.generator_data.borrow_mut();
-        gdata.generator_state = GeneratorState::SuspendedYield;
-        gdata.generator_context = Some(gen_context);
+        gdata.state = GeneratorState::SuspendedYield;
+        gdata.context = Some(gen_context);
     }
     co.yield_(iter_next_obj).await
 }
@@ -933,10 +931,10 @@ pub async fn generator_yield(
 // +----------------+----------------+---------------------------------------------------------------------+
 // | [[Done]]       | a Boolean      | Whether the iterator has been closed.                               |
 // +----------------+----------------+---------------------------------------------------------------------+
-pub struct IteratorRecord {
-    pub iterator: Object,
-    pub next_method: ECMAScriptValue,
-    pub done: Cell<bool>,
+pub(crate) struct IteratorRecord {
+    pub(crate) iterator: Object,
+    pub(crate) next_method: ECMAScriptValue,
+    pub(crate) done: Cell<bool>,
 }
 
 impl fmt::Debug for IteratorRecord {
@@ -961,13 +959,21 @@ impl<'a> From<&'a ECMAScriptValue> for ConciseValue<'a> {
     }
 }
 
+#[cfg(not(test))]
 #[derive(Copy, Clone, PartialEq, Eq)]
-pub enum IteratorKind {
+pub(crate) enum IteratorKind {
+    Sync,
+    #[expect(dead_code)]
+    Async,
+}
+#[cfg(test)]
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) enum IteratorKind {
     Sync,
     Async,
 }
 
-pub fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> Completion<IteratorRecord> {
+pub(crate) fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue) -> Completion<IteratorRecord> {
     // GetIteratorFromMethod ( obj, method )
     //
     // The abstract operation GetIteratorFromMethod takes arguments obj (an
@@ -990,7 +996,7 @@ pub fn get_iterator_from_method(obj: &ECMAScriptValue, method: &ECMAScriptValue)
     Ok(IteratorRecord { iterator, next_method, done: Cell::new(false) })
 }
 
-pub fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<IteratorRecord> {
+pub(crate) fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<IteratorRecord> {
     // GetIterator ( obj, kind )
     //
     // The abstract operation GetIterator takes arguments obj (an ECMAScript
@@ -1022,7 +1028,7 @@ pub fn get_iterator(obj: &ECMAScriptValue, kind: IteratorKind) -> Completion<Ite
 }
 
 impl IteratorRecord {
-    pub fn concise(&self) -> String {
+    pub(crate) fn concise(&self) -> String {
         format!(
             "IR(iter: {:?}; next: {:?}; {})",
             ConciseObject::from(&self.iterator),
@@ -1054,7 +1060,7 @@ impl IteratorRecord {
         Object::try_from(result).map_err(|_| create_type_error("not an iterator result"))
     }
 
-    pub fn step(&self) -> Completion<Option<Object>> {
+    pub(crate) fn step(&self) -> Completion<Option<Object>> {
         // IteratorStep ( iteratorRecord )
         //
         // The abstract operation IteratorStep takes argument iteratorRecord (an
@@ -1075,7 +1081,7 @@ impl IteratorRecord {
         if done { Ok(None) } else { Ok(Some(result)) }
     }
 
-    pub fn close<X>(&self, completion: Completion<X>) -> Completion<X>
+    pub(crate) fn close<X>(&self, completion: Completion<X>) -> Completion<X>
     where
         X: From<ECMAScriptValue>,
     {
@@ -1119,7 +1125,7 @@ impl IteratorRecord {
         completion
     }
 
-    pub fn step_value(&self) -> Completion<Option<ECMAScriptValue>> {
+    pub(crate) fn step_value(&self) -> Completion<Option<ECMAScriptValue>> {
         // IteratorStepValue ( iteratorRecord )
         // The abstract operation IteratorStepValue takes argument iteratorRecord (an Iterator Record) and returns
         // either a normal completion containing either an ECMAScript language value or done, or a throw completion. It
@@ -1148,7 +1154,7 @@ impl IteratorRecord {
     }
 }
 
-pub fn iterator_complete(iter_result: &Object) -> Completion<bool> {
+pub(crate) fn iterator_complete(iter_result: &Object) -> Completion<bool> {
     // IteratorComplete ( iterResult )
     //
     // The abstract operation IteratorComplete takes argument iterResult (an
@@ -1159,7 +1165,7 @@ pub fn iterator_complete(iter_result: &Object) -> Completion<bool> {
     Ok(to_boolean(iter_result.get(&"done".into())?))
 }
 
-pub fn iterator_value(iter_result: &Object) -> Completion<ECMAScriptValue> {
+pub(crate) fn iterator_value(iter_result: &Object) -> Completion<ECMAScriptValue> {
     // IteratorValue ( iterResult )
     //
     // The abstract operation IteratorValue takes argument iterResult (an
@@ -1171,18 +1177,18 @@ pub fn iterator_value(iter_result: &Object) -> Completion<ECMAScriptValue> {
     iter_result.get(&"value".into())
 }
 
-pub fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Object>> {
+pub(crate) fn iterator_step(iterator_record: &IteratorRecord) -> Completion<Option<Object>> {
     iterator_record.step()
 }
 
-pub fn iterator_close<X>(iterator_record: &IteratorRecord, completion: Completion<X>) -> Completion<X>
+pub(crate) fn iterator_close<X>(iterator_record: &IteratorRecord, completion: Completion<X>) -> Completion<X>
 where
     X: From<ECMAScriptValue>,
 {
     iterator_record.close(completion)
 }
 
-pub fn iterator_step_value(iterator_record: &IteratorRecord) -> Completion<Option<ECMAScriptValue>> {
+pub(crate) fn iterator_step_value(iterator_record: &IteratorRecord) -> Completion<Option<ECMAScriptValue>> {
     iterator_record.step_value()
 }
 

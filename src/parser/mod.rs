@@ -10,44 +10,47 @@ use std::fmt;
 use std::rc::Rc;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default)]
-pub enum YieldAllowed {
+pub(crate) enum YieldAllowed {
     Yes,
     #[default]
     No,
 }
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default)]
-pub enum AwaitAllowed {
+pub(crate) enum AwaitAllowed {
     Yes,
     #[default]
     No,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Default)]
-pub enum ParseGoal {
+pub(crate) enum ParseGoal {
     #[default]
     Script,
     Module,
     FormalParameters(YieldAllowed, AwaitAllowed),
     FunctionBody(YieldAllowed, AwaitAllowed),
     GeneratorBody,
-    AsyncFunctionBody,
-    AsyncGeneratorBody,
     FunctionExpression,
     GeneratorExpression,
+    // These are all as-yet-to-be-used, so I'm hiding them behind #[cfg(test)] for the time being
+    #[cfg(test)]
+    AsyncFunctionBody,
+    #[cfg(test)]
+    AsyncGeneratorBody,
+    #[cfg(test)]
     AsyncFunctionExpression,
+    #[cfg(test)]
     AsyncGeneratorExpression,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
-pub enum ParseNodeKind {
+pub(crate) enum ParseNodeKind {
     ArrowFunction,
     AssignmentExpression,
     AssignmentOperator,
     AssignmentPattern,
     AsyncArrowFunction,
     AsyncConciseBody,
-    AsyncFunctionBody,
-    AsyncGeneratorBody,
     AwaitExpression,
     BindingElement,
     BindingPattern,
@@ -57,10 +60,8 @@ pub enum ParseNodeKind {
     BreakStatement,
     CallExpression,
     CatchParameter,
-    ClassBody,
     ClassElement,
     ClassElementName,
-    ClassHeritage,
     ConciseBody,
     ConditionalExpression,
     ContinueStatement,
@@ -73,9 +74,7 @@ pub enum ParseNodeKind {
     ExpressionBody,
     ExpressionStatement,
     ForBinding,
-    GeneratorBody,
     HoistableDeclaration,
-    IdentifierName,
     IfStatement,
     IterationStatement,
     LabelledItem,
@@ -95,7 +94,6 @@ pub enum ParseNodeKind {
     RegularExpression,
     RelationalExpression,
     ReturnStatement,
-    ScriptBody,
     Statement,
     StatementList,
     StatementListItem,
@@ -116,6 +114,17 @@ pub enum ParseNodeKind {
     VariableStatement,
     WithStatement,
     YieldExpression,
+
+    // Still unused, these are getting hidden behind #[cfg(test)], if in the tests, else commented out
+    // AsyncFunctionBody,
+    // AsyncGeneratorBody,
+    #[cfg(test)]
+    ClassBody,
+    #[cfg(test)]
+    ClassHeritage,
+    //GeneratorBody,
+    #[cfg(test)]
+    ScriptBody,
 }
 impl fmt::Display for ParseNodeKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -126,8 +135,8 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::AssignmentPattern => "AssignmentPattern",
             ParseNodeKind::AsyncArrowFunction => "AsyncArrowFunction",
             ParseNodeKind::AsyncConciseBody => "AsyncConciseBody",
-            ParseNodeKind::AsyncFunctionBody => "AsyncFunctionBody",
-            ParseNodeKind::AsyncGeneratorBody => "AsyncGeneratorBody",
+            //ParseNodeKind::AsyncFunctionBody => "AsyncFunctionBody",
+            //ParseNodeKind::AsyncGeneratorBody => "AsyncGeneratorBody",
             ParseNodeKind::AwaitExpression => "AwaitExpression",
             ParseNodeKind::BindingElement => "BindingElement",
             ParseNodeKind::BindingPattern => "BindingPattern",
@@ -137,9 +146,11 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::BreakStatement => "BreakStatement",
             ParseNodeKind::CallExpression => "CallExpression",
             ParseNodeKind::CatchParameter => "CatchParameter",
+            #[cfg(test)]
             ParseNodeKind::ClassBody => "ClassBody",
             ParseNodeKind::ClassElement => "ClassElement",
             ParseNodeKind::ClassElementName => "ClassElementName",
+            #[cfg(test)]
             ParseNodeKind::ClassHeritage => "ClassHeritage",
             ParseNodeKind::ConciseBody => "ConciseBody",
             ParseNodeKind::ConditionalExpression => "ConditionalExpression",
@@ -153,9 +164,8 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::ExpressionBody => "ExpressionBody",
             ParseNodeKind::ExpressionStatement => "ExpressionStatement",
             ParseNodeKind::ForBinding => "ForBinding",
-            ParseNodeKind::GeneratorBody => "GeneratorBody",
+            //ParseNodeKind::GeneratorBody => "GeneratorBody",
             ParseNodeKind::HoistableDeclaration => "HoistableDeclaration",
-            ParseNodeKind::IdentifierName => "IdentifierName",
             ParseNodeKind::IfStatement => "IfStatement",
             ParseNodeKind::IterationStatement => "IterationStatement",
             ParseNodeKind::LabelledItem => "LabelledItem",
@@ -175,6 +185,7 @@ impl fmt::Display for ParseNodeKind {
             ParseNodeKind::RegularExpression => "RegularExpression",
             ParseNodeKind::RelationalExpression => "RelationalExpression",
             ParseNodeKind::ReturnStatement => "ReturnStatement",
+            #[cfg(test)]
             ParseNodeKind::ScriptBody => "ScriptBody",
             ParseNodeKind::Statement => "Statement",
             ParseNodeKind::StatementList => "StatementList",
@@ -201,14 +212,14 @@ impl fmt::Display for ParseNodeKind {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub struct YieldAwaitKey {
+pub(crate) struct YieldAwaitKey {
     scanner: Scanner,
     yield_flag: bool,
     await_flag: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub struct YieldAwaitTaggedKey {
+pub(crate) struct YieldAwaitTaggedKey {
     scanner: Scanner,
     yield_flag: bool,
     await_flag: bool,
@@ -216,42 +227,42 @@ pub struct YieldAwaitTaggedKey {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub struct InYieldAwaitKey {
+pub(crate) struct InYieldAwaitKey {
     scanner: Scanner,
     in_flag: bool,
     yield_flag: bool,
     await_flag: bool,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub struct InKey {
-    scanner: Scanner,
-    in_flag: bool,
-}
+//#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+//pub(crate) struct InKey {
+//    scanner: Scanner,
+//    in_flag: bool,
+//}
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub struct InAwaitKey {
+pub(crate) struct InAwaitKey {
     scanner: Scanner,
     in_flag: bool,
     await_flag: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub struct YieldAwaitReturnKey {
+pub(crate) struct YieldAwaitReturnKey {
     scanner: Scanner,
     yield_flag: bool,
     await_flag: bool,
     return_flag: bool,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub struct YieldKey {
-    scanner: Scanner,
-    yield_flag: bool,
-}
+//#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
+//pub(crate) struct YieldKey {
+//    scanner: Scanner,
+//    yield_flag: bool,
+//}
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub struct YieldAwaitDefaultKey {
+pub(crate) struct YieldAwaitDefaultKey {
     scanner: Scanner,
     yield_flag: bool,
     await_flag: bool,
@@ -261,77 +272,80 @@ pub struct YieldAwaitDefaultKey {
 type ParseResult<T> = Result<(Rc<T>, Scanner), ParseError>;
 
 #[derive(Default)]
-pub struct Parser<'a> {
-    pub source: &'a str,
-    pub direct: bool,
-    pub goal: ParseGoal,
-    pub arguments_cache: AHashMap<YieldAwaitKey, ParseResult<Arguments>, RandomState>,
-    pub arrow_formal_parameters_cache: AHashMap<YieldAwaitKey, ParseResult<ArrowFormalParameters>, RandomState>,
-    pub assignment_expression_cache: AHashMap<InYieldAwaitKey, ParseResult<AssignmentExpression>, RandomState>,
-    pub async_function_body_cache: AHashMap<Scanner, (Rc<AsyncFunctionBody>, Scanner), RandomState>,
-    pub async_generator_body_cache: AHashMap<Scanner, (Rc<AsyncGeneratorBody>, Scanner), RandomState>,
-    pub binding_element_cache: AHashMap<YieldAwaitKey, ParseResult<BindingElement>, RandomState>,
-    pub binding_identifier_cache: AHashMap<YieldAwaitKey, ParseResult<BindingIdentifier>, RandomState>,
-    pub binding_pattern_cache: AHashMap<YieldAwaitKey, ParseResult<BindingPattern>, RandomState>,
-    pub binding_rest_element_cache: AHashMap<YieldAwaitKey, ParseResult<BindingRestElement>, RandomState>,
-    pub binding_rest_property_cache: AHashMap<YieldAwaitKey, ParseResult<BindingRestProperty>, RandomState>,
-    pub bitwise_or_expression_cache: AHashMap<InYieldAwaitKey, ParseResult<BitwiseORExpression>, RandomState>,
-    pub block_cache: AHashMap<YieldAwaitReturnKey, ParseResult<Block>, RandomState>,
-    pub call_expression_cache: AHashMap<YieldAwaitKey, ParseResult<CallExpression>, RandomState>,
-    pub catch_parameter_cache: AHashMap<YieldAwaitKey, ParseResult<CatchParameter>, RandomState>,
-    pub class_tail_cache: AHashMap<YieldAwaitKey, ParseResult<ClassTail>, RandomState>,
-    pub coalesce_expression_cache: AHashMap<InYieldAwaitKey, ParseResult<CoalesceExpression>, RandomState>,
-    pub cover_call_expression_and_async_arrow_head_cache:
+pub(crate) struct Parser<'a> {
+    pub(crate) source: &'a str,
+    pub(crate) direct: bool,
+    pub(crate) goal: ParseGoal,
+    pub(crate) arguments_cache: AHashMap<YieldAwaitKey, ParseResult<Arguments>, RandomState>,
+    pub(crate) arrow_formal_parameters_cache: AHashMap<YieldAwaitKey, ParseResult<ArrowFormalParameters>, RandomState>,
+    pub(crate) assignment_expression_cache: AHashMap<InYieldAwaitKey, ParseResult<AssignmentExpression>, RandomState>,
+    pub(crate) async_function_body_cache: AHashMap<Scanner, (Rc<AsyncFunctionBody>, Scanner), RandomState>,
+    pub(crate) async_generator_body_cache: AHashMap<Scanner, (Rc<AsyncGeneratorBody>, Scanner), RandomState>,
+    pub(crate) binding_element_cache: AHashMap<YieldAwaitKey, ParseResult<BindingElement>, RandomState>,
+    pub(crate) binding_identifier_cache: AHashMap<YieldAwaitKey, ParseResult<BindingIdentifier>, RandomState>,
+    pub(crate) binding_pattern_cache: AHashMap<YieldAwaitKey, ParseResult<BindingPattern>, RandomState>,
+    pub(crate) binding_rest_element_cache: AHashMap<YieldAwaitKey, ParseResult<BindingRestElement>, RandomState>,
+    pub(crate) binding_rest_property_cache: AHashMap<YieldAwaitKey, ParseResult<BindingRestProperty>, RandomState>,
+    pub(crate) bitwise_or_expression_cache: AHashMap<InYieldAwaitKey, ParseResult<BitwiseORExpression>, RandomState>,
+    pub(crate) block_cache: AHashMap<YieldAwaitReturnKey, ParseResult<Block>, RandomState>,
+    pub(crate) call_expression_cache: AHashMap<YieldAwaitKey, ParseResult<CallExpression>, RandomState>,
+    pub(crate) catch_parameter_cache: AHashMap<YieldAwaitKey, ParseResult<CatchParameter>, RandomState>,
+    pub(crate) class_tail_cache: AHashMap<YieldAwaitKey, ParseResult<ClassTail>, RandomState>,
+    pub(crate) coalesce_expression_cache: AHashMap<InYieldAwaitKey, ParseResult<CoalesceExpression>, RandomState>,
+    pub(crate) cover_call_expression_and_async_arrow_head_cache:
         AHashMap<YieldAwaitKey, ParseResult<CoverCallExpressionAndAsyncArrowHead>, RandomState>,
-    pub cpeaapl_cache:
+    pub(crate) cpeaapl_cache:
         AHashMap<YieldAwaitKey, ParseResult<CoverParenthesizedExpressionAndArrowParameterList>, RandomState>,
-    pub elision_cache: AHashMap<Scanner, ParseResult<Elisions>, RandomState>,
-    pub expression_body_cache: AHashMap<InAwaitKey, ParseResult<ExpressionBody>, RandomState>,
-    pub expression_cache: AHashMap<InYieldAwaitKey, ParseResult<Expression>, RandomState>,
-    pub for_binding_cache: AHashMap<YieldAwaitKey, ParseResult<ForBinding>, RandomState>,
-    pub formal_parameter_cache: AHashMap<YieldAwaitKey, ParseResult<FormalParameter>, RandomState>,
-    pub formal_parameters_cache: AHashMap<YieldAwaitKey, (Rc<FormalParameters>, Scanner), RandomState>,
-    pub function_body_cache: AHashMap<YieldAwaitKey, (Rc<FunctionBody>, Scanner), RandomState>,
-    pub function_declaration_cache: AHashMap<YieldAwaitDefaultKey, ParseResult<FunctionDeclaration>, RandomState>,
-    pub generator_body_cache: AHashMap<Scanner, (Rc<GeneratorBody>, Scanner), RandomState>,
-    pub identifier_cache: AHashMap<Scanner, ParseResult<Identifier>, RandomState>,
-    pub identifier_reference_cache: AHashMap<YieldAwaitKey, ParseResult<IdentifierReference>, RandomState>,
-    pub initializer_cache: AHashMap<InYieldAwaitKey, ParseResult<Initializer>, RandomState>,
-    pub label_identifier_cache: AHashMap<YieldAwaitKey, ParseResult<LabelIdentifier>, RandomState>,
-    pub lexical_declaration_cache: AHashMap<InYieldAwaitKey, ParseResult<LexicalDeclaration>, RandomState>,
-    pub lhs_cache: AHashMap<YieldAwaitKey, ParseResult<LeftHandSideExpression>, RandomState>,
-    pub lpn_cache: AHashMap<Scanner, ParseResult<LiteralPropertyName>, RandomState>,
-    pub member_expression_cache: AHashMap<YieldAwaitKey, ParseResult<MemberExpression>, RandomState>,
-    pub meta_property_cache: AHashMap<Scanner, ParseResult<MetaProperty>, RandomState>,
-    pub method_definition_cache: AHashMap<YieldAwaitKey, ParseResult<MethodDefinition>, RandomState>,
-    pub property_name_cache: AHashMap<YieldAwaitKey, ParseResult<PropertyName>, RandomState>,
-    pub single_name_binding_cache: AHashMap<YieldAwaitKey, ParseResult<SingleNameBinding>, RandomState>,
-    pub statement_cache: AHashMap<YieldAwaitReturnKey, ParseResult<Statement>, RandomState>,
-    pub statement_list_cache: AHashMap<YieldAwaitReturnKey, ParseResult<StatementList>, RandomState>,
-    pub template_literal_cache: AHashMap<YieldAwaitTaggedKey, ParseResult<TemplateLiteral>, RandomState>,
-    pub unary_expression_cache: AHashMap<YieldAwaitKey, ParseResult<UnaryExpression>, RandomState>,
-    pub unique_formal_parameters_cache: AHashMap<YieldAwaitKey, (Rc<UniqueFormalParameters>, Scanner), RandomState>,
-    pub update_expression_cache: AHashMap<YieldAwaitKey, ParseResult<UpdateExpression>, RandomState>,
-    pub variable_declaration_list_cache: AHashMap<InYieldAwaitKey, ParseResult<VariableDeclarationList>, RandomState>,
+    pub(crate) elision_cache: AHashMap<Scanner, ParseResult<Elisions>, RandomState>,
+    pub(crate) expression_body_cache: AHashMap<InAwaitKey, ParseResult<ExpressionBody>, RandomState>,
+    pub(crate) expression_cache: AHashMap<InYieldAwaitKey, ParseResult<Expression>, RandomState>,
+    pub(crate) for_binding_cache: AHashMap<YieldAwaitKey, ParseResult<ForBinding>, RandomState>,
+    pub(crate) formal_parameter_cache: AHashMap<YieldAwaitKey, ParseResult<FormalParameter>, RandomState>,
+    pub(crate) formal_parameters_cache: AHashMap<YieldAwaitKey, (Rc<FormalParameters>, Scanner), RandomState>,
+    pub(crate) function_body_cache: AHashMap<YieldAwaitKey, (Rc<FunctionBody>, Scanner), RandomState>,
+    pub(crate) function_declaration_cache:
+        AHashMap<YieldAwaitDefaultKey, ParseResult<FunctionDeclaration>, RandomState>,
+    pub(crate) generator_body_cache: AHashMap<Scanner, (Rc<GeneratorBody>, Scanner), RandomState>,
+    pub(crate) identifier_cache: AHashMap<Scanner, ParseResult<Identifier>, RandomState>,
+    pub(crate) identifier_reference_cache: AHashMap<YieldAwaitKey, ParseResult<IdentifierReference>, RandomState>,
+    pub(crate) initializer_cache: AHashMap<InYieldAwaitKey, ParseResult<Initializer>, RandomState>,
+    pub(crate) label_identifier_cache: AHashMap<YieldAwaitKey, ParseResult<LabelIdentifier>, RandomState>,
+    pub(crate) lexical_declaration_cache: AHashMap<InYieldAwaitKey, ParseResult<LexicalDeclaration>, RandomState>,
+    pub(crate) lhs_cache: AHashMap<YieldAwaitKey, ParseResult<LeftHandSideExpression>, RandomState>,
+    //pub(crate) lpn_cache: AHashMap<Scanner, ParseResult<LiteralPropertyName>, RandomState>,
+    pub(crate) member_expression_cache: AHashMap<YieldAwaitKey, ParseResult<MemberExpression>, RandomState>,
+    //pub(crate) meta_property_cache: AHashMap<Scanner, ParseResult<MetaProperty>, RandomState>,
+    pub(crate) method_definition_cache: AHashMap<YieldAwaitKey, ParseResult<MethodDefinition>, RandomState>,
+    pub(crate) property_name_cache: AHashMap<YieldAwaitKey, ParseResult<PropertyName>, RandomState>,
+    pub(crate) single_name_binding_cache: AHashMap<YieldAwaitKey, ParseResult<SingleNameBinding>, RandomState>,
+    pub(crate) statement_cache: AHashMap<YieldAwaitReturnKey, ParseResult<Statement>, RandomState>,
+    pub(crate) statement_list_cache: AHashMap<YieldAwaitReturnKey, ParseResult<StatementList>, RandomState>,
+    pub(crate) template_literal_cache: AHashMap<YieldAwaitTaggedKey, ParseResult<TemplateLiteral>, RandomState>,
+    pub(crate) unary_expression_cache: AHashMap<YieldAwaitKey, ParseResult<UnaryExpression>, RandomState>,
+    pub(crate) unique_formal_parameters_cache:
+        AHashMap<YieldAwaitKey, (Rc<UniqueFormalParameters>, Scanner), RandomState>,
+    pub(crate) update_expression_cache: AHashMap<YieldAwaitKey, ParseResult<UpdateExpression>, RandomState>,
+    pub(crate) variable_declaration_list_cache:
+        AHashMap<InYieldAwaitKey, ParseResult<VariableDeclarationList>, RandomState>,
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(source: &'a str, direct: bool, goal: ParseGoal) -> Self {
+    pub(crate) fn new(source: &'a str, direct: bool, goal: ParseGoal) -> Self {
         Self { source, direct, goal, ..Default::default() }
     }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Copy, Clone, Default)]
-pub struct Span {
-    pub starting_index: usize,
-    pub length: usize,
+pub(crate) struct Span {
+    pub(crate) starting_index: usize,
+    pub(crate) length: usize,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Copy, Clone)]
-pub struct Location {
-    pub starting_line: u32,
-    pub starting_column: u32,
-    pub span: Span,
+pub(crate) struct Location {
+    pub(crate) starting_line: u32,
+    pub(crate) starting_column: u32,
+    pub(crate) span: Span,
 }
 
 impl Default for Location {
@@ -380,7 +394,7 @@ impl Ord for Location {
 
 impl Location {
     #[must_use]
-    pub fn merge(&self, other: &Self) -> Self {
+    pub(crate) fn merge(&self, other: &Self) -> Self {
         assert!(self.span.starting_index <= other.span.starting_index + other.span.length);
         Location {
             starting_line: self.starting_line,
@@ -392,14 +406,14 @@ impl Location {
         }
     }
 
-    pub fn contains(&self, other: &Self) -> bool {
+    pub(crate) fn contains(&self, other: &Self) -> bool {
         self.span.starting_index <= other.span.starting_index
             && (self.span.starting_index + self.span.length) >= (other.span.starting_index + other.span.length)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash, Default)]
-pub enum PECode {
+pub(crate) enum PECode {
     #[default]
     Generic,
     EoFExpected,
@@ -425,6 +439,7 @@ pub enum PECode {
     ImproperExpression,
     DeclarationOrStatementExpected,
     ParseNodeExpected(ParseNodeKind),
+    IdentifierNameExpected,
     OpenOrIdentExpected,
     ForStatementDefinitionError,
     ForInOfDefinitionError,
@@ -473,6 +488,7 @@ impl fmt::Display for PECode {
             PECode::ImproperExpression => f.write_str("Improper Expression"),
             PECode::DeclarationOrStatementExpected => f.write_str("Declaration or Statement expected"),
             PECode::ParseNodeExpected(pn) => write!(f, "{pn} expected"),
+            PECode::IdentifierNameExpected => f.write_str("identifier name expected"),
             PECode::OpenOrIdentExpected => f.write_str("‘[’, ‘{’, or an identifier expected"),
             PECode::ForStatementDefinitionError => f.write_str("‘var’, LexicalDeclaration, or Expression expected"),
             PECode::ForInOfDefinitionError => f.write_str("‘let’, ‘var’, or a LeftHandSideExpression expected"),
@@ -483,7 +499,7 @@ impl fmt::Display for PECode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct ParseError {
+pub(crate) struct ParseError {
     code: PECode,
     location: Location,
 }
@@ -494,13 +510,13 @@ impl fmt::Display for ParseError {
 }
 impl Error for ParseError {}
 impl ParseError {
-    pub fn compare(left: &ParseError, right: &ParseError) -> Ordering {
+    pub(crate) fn compare(left: &ParseError, right: &ParseError) -> Ordering {
         left.location.cmp(&right.location)
     }
-    pub fn new(code: PECode, location: impl Into<Location>) -> Self {
+    pub(crate) fn new(code: PECode, location: impl Into<Location>) -> Self {
         Self { code, location: location.into() }
     }
-    pub fn compare_option(left: Option<&Self>, right: Option<&Self>) -> Ordering {
+    pub(crate) fn compare_option(left: Option<&Self>, right: Option<&Self>) -> Ordering {
         let location_left = left.map(|pe| &pe.location);
         let location_right = right.map(|pe| &pe.location);
 
@@ -522,7 +538,7 @@ impl ParseError {
 //    parse_first_kind(parse_args)
 //       .otherwise(|| parse_second_kind(parse_args))
 //       .otherwise(|| parse_third_kind(parse_args))
-pub trait Otherwise<T, E> {
+pub(crate) trait Otherwise<T, E> {
     fn otherwise<O>(self, f: O) -> Result<T, E>
     where
         O: FnOnce() -> Result<T, E>;
@@ -537,20 +553,16 @@ impl<T> Otherwise<T, ParseError> for Result<T, ParseError> {
     }
 }
 
-pub trait IsFunctionDefinition {
-    fn is_function_definition(&self) -> bool;
-}
-
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum ATTKind {
+pub(crate) enum ATTKind {
     Invalid,
     Simple,
 }
 
-pub fn scan_for_punct(
+pub(crate) fn scan_for_punct(
     scanner: Scanner,
     src: &str,
-    goal: ScanGoal,
+    goal: InputElementGoal,
     punct: Punctuator,
 ) -> Result<(Location, Scanner), ParseError> {
     let (tok, token_loc, after_tok) = scan_token(&scanner, src, goal);
@@ -561,10 +573,10 @@ pub fn scan_for_punct(
     }
 }
 
-pub fn scan_for_punct_set(
+pub(crate) fn scan_for_punct_set(
     scanner: Scanner,
     src: &str,
-    goal: ScanGoal,
+    goal: InputElementGoal,
     punct_set: &[Punctuator],
 ) -> Result<(Punctuator, Location, Scanner), ParseError> {
     let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
@@ -575,7 +587,11 @@ pub fn scan_for_punct_set(
     }
 }
 
-pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result<(Location, Scanner), ParseError> {
+pub(crate) fn scan_for_auto_semi(
+    scanner: Scanner,
+    src: &str,
+    goal: InputElementGoal,
+) -> Result<(Location, Scanner), ParseError> {
     let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if tok.matches_punct(Punctuator::Semicolon) {
         Ok((tok_loc, after_tok))
@@ -586,10 +602,10 @@ pub fn scan_for_auto_semi(scanner: Scanner, src: &str, goal: ScanGoal) -> Result
     }
 }
 
-pub fn scan_for_keyword(
+pub(crate) fn scan_for_keyword(
     scanner: Scanner,
     src: &str,
-    goal: ScanGoal,
+    goal: InputElementGoal,
     kwd: Keyword,
 ) -> Result<(Location, Scanner), ParseError> {
     let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
@@ -600,10 +616,10 @@ pub fn scan_for_keyword(
     }
 }
 
-pub fn scan_for_keywords(
+pub(crate) fn scan_for_keywords(
     scanner: Scanner,
     src: &str,
-    goal: ScanGoal,
+    goal: InputElementGoal,
     kwds: &[Keyword],
 ) -> Result<(Keyword, Location, Scanner), ParseError> {
     let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
@@ -614,23 +630,23 @@ pub fn scan_for_keywords(
     }
 }
 
-pub fn scan_for_identifiername(
+pub(crate) fn scan_for_identifiername(
     scanner: Scanner,
     src: &str,
-    goal: ScanGoal,
+    goal: InputElementGoal,
 ) -> Result<(IdentifierData, Location, Scanner), ParseError> {
     let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if let Token::Identifier(id) = tok {
         Ok((id, tok_loc, after_tok))
     } else {
-        Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::IdentifierName), tok_loc))
+        Err(ParseError::new(PECode::IdentifierNameExpected, tok_loc))
     }
 }
 
-pub fn scan_for_private_identifier(
+pub(crate) fn scan_for_private_identifier(
     scanner: Scanner,
     src: &str,
-    goal: ScanGoal,
+    goal: InputElementGoal,
 ) -> Result<(IdentifierData, Location, Scanner), ParseError> {
     let (tok, tok_loc, after_tok) = scan_token(&scanner, src, goal);
     if let Token::PrivateIdentifier(id) = tok {
@@ -640,16 +656,16 @@ pub fn scan_for_private_identifier(
     }
 }
 
-pub fn scan_for_eof(scanner: Scanner, src: &str) -> Result<(Location, Scanner), ParseError> {
-    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
+pub(crate) fn scan_for_eof(scanner: Scanner, src: &str) -> Result<(Location, Scanner), ParseError> {
+    let (tok, tok_loc, after_tok) = scan_token(&scanner, src, InputElementGoal::Div);
     if tok == Token::Eof { Ok((tok_loc, after_tok)) } else { Err(ParseError::new(PECode::EoFExpected, tok_loc)) }
 }
 
 //no_line_terminator(after_cont, parser.source)?;
 // If there is no newline sequence between the scanner's spot and the start of the next token, return Ok
 // else return Err.
-pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError> {
-    let (_, tok_loc, _) = scan_token(&scanner, src, ScanGoal::InputElementDiv);
+pub(crate) fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError> {
+    let (_, tok_loc, _) = scan_token(&scanner, src, InputElementGoal::Div);
     if tok_loc.starting_line == scanner.line { Ok(()) } else { Err(ParseError::new(PECode::ImproperNewline, scanner)) }
 }
 
@@ -667,171 +683,330 @@ pub fn no_line_terminator(scanner: Scanner, src: &str) -> Result<(), ParseError>
 //    implementation-defined, but at least one must be present.
 
 #[derive(Debug, Clone)]
-pub enum ParsedText {
+pub(crate) enum ParsedText {
     Errors(Vec<Object>),
     Empty,
-    AdditiveExpression(Rc<AdditiveExpression>),
-    ArgumentList(Rc<ArgumentList>),
-    Arguments(Rc<Arguments>),
-    ArrayAssignmentPattern(Rc<ArrayAssignmentPattern>),
-    ArrayBindingPattern(Rc<ArrayBindingPattern>),
-    ArrayLiteral(Rc<ArrayLiteral>),
-    ArrowFormalParameters(Rc<ArrowFormalParameters>),
-    ArrowFunction(Rc<ArrowFunction>),
-    ArrowParameters(Rc<ArrowParameters>),
-    AssignmentElement(Rc<AssignmentElement>),
-    AssignmentElementList(Rc<AssignmentElementList>),
-    AssignmentElisionElement(Rc<AssignmentElisionElement>),
-    AssignmentExpression(Rc<AssignmentExpression>),
-    AssignmentPattern(Rc<AssignmentPattern>),
-    AssignmentProperty(Rc<AssignmentProperty>),
-    AssignmentPropertyList(Rc<AssignmentPropertyList>),
-    AssignmentRestElement(Rc<AssignmentRestElement>),
-    AssignmentRestProperty(Rc<AssignmentRestProperty>),
-    AsyncArrowBindingIdentifier(Rc<AsyncArrowBindingIdentifier>),
-    AsyncArrowFunction(Rc<AsyncArrowFunction>),
-    AsyncArrowHead(Rc<AsyncArrowHead>),
-    AsyncConciseBody(Rc<AsyncConciseBody>),
-    AsyncFunctionBody(Rc<AsyncFunctionBody>),
-    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
-    AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
-    AsyncGeneratorBody(Rc<AsyncGeneratorBody>),
-    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
-    AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
-    AsyncGeneratorMethod(Rc<AsyncGeneratorMethod>),
-    AsyncMethod(Rc<AsyncMethod>),
-    AwaitExpression(Rc<AwaitExpression>),
-    BindingElement(Rc<BindingElement>),
-    BindingElementList(Rc<BindingElementList>),
-    BindingElisionElement(Rc<BindingElisionElement>),
-    BindingIdentifier(Rc<BindingIdentifier>),
-    BindingList(Rc<BindingList>),
-    BindingPattern(Rc<BindingPattern>),
-    BindingProperty(Rc<BindingProperty>),
-    BindingPropertyList(Rc<BindingPropertyList>),
-    BindingRestElement(Rc<BindingRestElement>),
-    BindingRestProperty(Rc<BindingRestProperty>),
-    BitwiseANDExpression(Rc<BitwiseANDExpression>),
-    BitwiseORExpression(Rc<BitwiseORExpression>),
-    BitwiseXORExpression(Rc<BitwiseXORExpression>),
-    Block(Rc<Block>),
-    BlockStatement(Rc<BlockStatement>),
-    BreakableStatement(Rc<BreakableStatement>),
-    BreakStatement(Rc<BreakStatement>),
-    CallExpression(Rc<CallExpression>),
-    CallMemberExpression(Rc<CallMemberExpression>),
-    CaseBlock(Rc<CaseBlock>),
-    CaseClause(Rc<CaseClause>),
-    CaseClauses(Rc<CaseClauses>),
-    Catch(Rc<Catch>),
-    CatchParameter(Rc<CatchParameter>),
-    ClassBody(Rc<ClassBody>),
-    ClassDeclaration(Rc<ClassDeclaration>),
-    ClassElement(Rc<ClassElement>),
-    ClassElementList(Rc<ClassElementList>),
-    ClassElementName(Rc<ClassElementName>),
-    ClassExpression(Rc<ClassExpression>),
-    ClassHeritage(Rc<ClassHeritage>),
-    ClassStaticBlock(Rc<ClassStaticBlock>),
-    ClassStaticBlockBody(Rc<ClassStaticBlockBody>),
-    ClassStaticBlockStatementList(Rc<ClassStaticBlockStatementList>),
-    ClassTail(Rc<ClassTail>),
-    CoalesceExpression(Rc<CoalesceExpression>),
-    CoalesceExpressionHead(Rc<CoalesceExpressionHead>),
-    ComputedPropertyName(Rc<ComputedPropertyName>),
-    ConciseBody(Rc<ConciseBody>),
-    ConditionalExpression(Rc<ConditionalExpression>),
-    ContinueStatement(Rc<ContinueStatement>),
-    CoverInitializedName(Rc<CoverInitializedName>),
-    CoverParenthesizedExpressionAndArrowParameterList(Rc<CoverParenthesizedExpressionAndArrowParameterList>),
-    DebuggerStatement(Rc<DebuggerStatement>),
-    Declaration(Rc<Declaration>),
-    DefaultClause(Rc<DefaultClause>),
-    DestructuringAssignmentTarget(Rc<DestructuringAssignmentTarget>),
-    DoWhileStatement(Rc<DoWhileStatement>),
-    ElementList(Rc<ElementList>),
-    Elisions(Rc<Elisions>),
-    EmptyStatement(Rc<EmptyStatement>),
-    EqualityExpression(Rc<EqualityExpression>),
-    ExponentiationExpression(Rc<ExponentiationExpression>),
-    Expression(Rc<Expression>),
-    ExpressionBody(Rc<ExpressionBody>),
-    ExpressionStatement(Rc<ExpressionStatement>),
-    FieldDefinition(Rc<FieldDefinition>),
-    Finally(Rc<Finally>),
-    ForBinding(Rc<ForBinding>),
-    ForDeclaration(Rc<ForDeclaration>),
-    ForInOfStatement(Rc<ForInOfStatement>),
-    FormalParameter(Rc<FormalParameter>),
-    FormalParameterList(Rc<FormalParameterList>),
     FormalParameters(Rc<FormalParameters>),
-    ForStatement(Rc<ForStatement>),
     FunctionBody(Rc<FunctionBody>),
-    FunctionDeclaration(Rc<FunctionDeclaration>),
     FunctionExpression(Rc<FunctionExpression>),
-    FunctionRestParameter(Rc<FunctionRestParameter>),
-    FunctionStatementList(Rc<FunctionStatementList>),
     GeneratorBody(Rc<GeneratorBody>),
-    GeneratorDeclaration(Rc<GeneratorDeclaration>),
     GeneratorExpression(Rc<GeneratorExpression>),
-    GeneratorMethod(Rc<GeneratorMethod>),
-    IfStatement(Rc<IfStatement>),
-    Initializer(Rc<Initializer>),
-    IterationStatement(Rc<IterationStatement>),
-    LabelledItem(Rc<LabelledItem>),
-    LabelledStatement(Rc<LabelledStatement>),
-    LeftHandSideExpression(Rc<LeftHandSideExpression>),
-    LexicalBinding(Rc<LexicalBinding>),
-    LexicalDeclaration(Rc<LexicalDeclaration>),
-    Literal(Rc<Literal>),
-    LiteralPropertyName(Rc<LiteralPropertyName>),
-    LogicalANDExpression(Rc<LogicalANDExpression>),
-    LogicalORExpression(Rc<LogicalORExpression>),
-    MemberExpression(Rc<MemberExpression>),
-    MetaProperty(Rc<MetaProperty>),
-    MethodDefinition(Rc<MethodDefinition>),
-    MultiplicativeExpression(Rc<MultiplicativeExpression>),
-    NewExpression(Rc<NewExpression>),
-    ObjectAssignmentPattern(Rc<ObjectAssignmentPattern>),
-    ObjectBindingPattern(Rc<ObjectBindingPattern>),
-    ObjectLiteral(Rc<ObjectLiteral>),
-    OptionalChain(Rc<OptionalChain>),
-    OptionalExpression(Rc<OptionalExpression>),
-    ParenthesizedExpression(Rc<ParenthesizedExpression>),
-    PrimaryExpression(Rc<PrimaryExpression>),
-    PropertyDefinition(Rc<PropertyDefinition>),
-    PropertyDefinitionList(Rc<PropertyDefinitionList>),
-    PropertyName(Rc<PropertyName>),
-    PropertySetParameterList(Rc<PropertySetParameterList>),
-    RelationalExpression(Rc<RelationalExpression>),
-    ReturnStatement(Rc<ReturnStatement>),
     Script(Rc<Script>),
+
+    // The following are all used in testing scenarios, not the actual runtime, so they all get the #[cfg(test)]
+    // treatment
+    #[cfg(test)]
+    AsyncFunctionBody(Rc<AsyncFunctionBody>),
+    #[cfg(test)]
+    AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
+    #[cfg(test)]
+    AsyncGeneratorBody(Rc<AsyncGeneratorBody>),
+    #[cfg(test)]
+    AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
+    #[cfg(test)]
+    AdditiveExpression(Rc<AdditiveExpression>),
+    #[cfg(test)]
+    ArgumentList(Rc<ArgumentList>),
+    #[cfg(test)]
+    Arguments(Rc<Arguments>),
+    #[cfg(test)]
+    ArrayAssignmentPattern(Rc<ArrayAssignmentPattern>),
+    #[cfg(test)]
+    ArrayBindingPattern(Rc<ArrayBindingPattern>),
+    #[cfg(test)]
+    ArrayLiteral(Rc<ArrayLiteral>),
+    #[cfg(test)]
+    ArrowFormalParameters(Rc<ArrowFormalParameters>),
+    #[cfg(test)]
+    ArrowFunction(Rc<ArrowFunction>),
+    #[cfg(test)]
+    ArrowParameters(Rc<ArrowParameters>),
+    #[cfg(test)]
+    AssignmentElement(Rc<AssignmentElement>),
+    #[cfg(test)]
+    AssignmentElementList(Rc<AssignmentElementList>),
+    #[cfg(test)]
+    AssignmentElisionElement(Rc<AssignmentElisionElement>),
+    #[cfg(test)]
+    AssignmentExpression(Rc<AssignmentExpression>),
+    #[cfg(test)]
+    AssignmentPattern(Rc<AssignmentPattern>),
+    #[cfg(test)]
+    AssignmentProperty(Rc<AssignmentProperty>),
+    #[cfg(test)]
+    AssignmentPropertyList(Rc<AssignmentPropertyList>),
+    #[cfg(test)]
+    AssignmentRestElement(Rc<AssignmentRestElement>),
+    #[cfg(test)]
+    AssignmentRestProperty(Rc<AssignmentRestProperty>),
+    #[cfg(test)]
+    AsyncArrowBindingIdentifier(Rc<AsyncArrowBindingIdentifier>),
+    //#[cfg(test)]
+    //AsyncArrowFunction(Rc<AsyncArrowFunction>),
+    //#[cfg(test)]
+    //AsyncArrowHead(Rc<AsyncArrowHead>),
+    //#[cfg(test)]
+    //AsyncConciseBody(Rc<AsyncConciseBody>),
+    #[cfg(test)]
+    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
+    #[cfg(test)]
+    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
+    //#[cfg(test)]
+    //AsyncGeneratorMethod(Rc<AsyncGeneratorMethod>),
+    //#[cfg(test)]
+    //AsyncMethod(Rc<AsyncMethod>),
+    //#[cfg(test)]
+    //AwaitExpression(Rc<AwaitExpression>),
+    #[cfg(test)]
+    BindingElement(Rc<BindingElement>),
+    #[cfg(test)]
+    BindingElementList(Rc<BindingElementList>),
+    #[cfg(test)]
+    BindingElisionElement(Rc<BindingElisionElement>),
+    //#[cfg(test)]
+    //BindingIdentifier(Rc<BindingIdentifier>),
+    #[cfg(test)]
+    BindingList(Rc<BindingList>),
+    #[cfg(test)]
+    BindingPattern(Rc<BindingPattern>),
+    #[cfg(test)]
+    BindingProperty(Rc<BindingProperty>),
+    #[cfg(test)]
+    BindingPropertyList(Rc<BindingPropertyList>),
+    #[cfg(test)]
+    BindingRestElement(Rc<BindingRestElement>),
+    //    #[cfg(test)]
+    //    BindingRestProperty(Rc<BindingRestProperty>),
+    #[cfg(test)]
+    BitwiseANDExpression(Rc<BitwiseANDExpression>),
+    #[cfg(test)]
+    BitwiseORExpression(Rc<BitwiseORExpression>),
+    #[cfg(test)]
+    BitwiseXORExpression(Rc<BitwiseXORExpression>),
+    #[cfg(test)]
+    Block(Rc<Block>),
+    #[cfg(test)]
+    BlockStatement(Rc<BlockStatement>),
+    #[cfg(test)]
+    BreakableStatement(Rc<BreakableStatement>),
+    //    #[cfg(test)]
+    //    BreakStatement(Rc<BreakStatement>),
+    #[cfg(test)]
+    CallExpression(Rc<CallExpression>),
+    #[cfg(test)]
+    CallMemberExpression(Rc<CallMemberExpression>),
+    #[cfg(test)]
+    CaseBlock(Rc<CaseBlock>),
+    #[cfg(test)]
+    CaseClause(Rc<CaseClause>),
+    #[cfg(test)]
+    //    CaseClauses(Rc<CaseClauses>),
+    //    #[cfg(test)]
+    Catch(Rc<Catch>),
+    #[cfg(test)]
+    CatchParameter(Rc<CatchParameter>),
+    //    #[cfg(test)]
+    //    ClassBody(Rc<ClassBody>),
+    #[cfg(test)]
+    ClassDeclaration(Rc<ClassDeclaration>),
+    //    #[cfg(test)]
+    //    ClassElement(Rc<ClassElement>),
+    //    #[cfg(test)]
+    //    ClassElementList(Rc<ClassElementList>),
+    #[cfg(test)]
+    ClassElementName(Rc<ClassElementName>),
+    //    #[cfg(test)]
+    //    ClassExpression(Rc<ClassExpression>),
+    //    #[cfg(test)]
+    //    ClassHeritage(Rc<ClassHeritage>),
+    //    #[cfg(test)]
+    //    ClassStaticBlock(Rc<ClassStaticBlock>),
+    #[cfg(test)]
+    ClassStaticBlockBody(Rc<ClassStaticBlockBody>),
+    #[cfg(test)]
+    ClassStaticBlockStatementList(Rc<ClassStaticBlockStatementList>),
+    //    #[cfg(test)]
+    //    ClassTail(Rc<ClassTail>),
+    #[cfg(test)]
+    CoalesceExpression(Rc<CoalesceExpression>),
+    #[cfg(test)]
+    CoalesceExpressionHead(Rc<CoalesceExpressionHead>),
+    #[cfg(test)]
+    ComputedPropertyName(Rc<ComputedPropertyName>),
+    //    #[cfg(test)]
+    //    ConciseBody(Rc<ConciseBody>),
+    #[cfg(test)]
+    ConditionalExpression(Rc<ConditionalExpression>),
+    //    #[cfg(test)]
+    //    ContinueStatement(Rc<ContinueStatement>),
+    //    #[cfg(test)]
+    //    CoverInitializedName(Rc<CoverInitializedName>),
+    //    #[cfg(test)]
+    //    CoverParenthesizedExpressionAndArrowParameterList(Rc<CoverParenthesizedExpressionAndArrowParameterList>),
+    //    #[cfg(test)]
+    //    DebuggerStatement(Rc<DebuggerStatement>),
+    #[cfg(test)]
+    Declaration(Rc<Declaration>),
+    #[cfg(test)]
+    DefaultClause(Rc<DefaultClause>),
+    #[cfg(test)]
+    DestructuringAssignmentTarget(Rc<DestructuringAssignmentTarget>),
+    #[cfg(test)]
+    DoWhileStatement(Rc<DoWhileStatement>),
+    #[cfg(test)]
+    ElementList(Rc<ElementList>),
+    //    #[cfg(test)]
+    //    Elisions(Rc<Elisions>),
+    //    #[cfg(test)]
+    //    EmptyStatement(Rc<EmptyStatement>),
+    #[cfg(test)]
+    EqualityExpression(Rc<EqualityExpression>),
+    #[cfg(test)]
+    ExponentiationExpression(Rc<ExponentiationExpression>),
+    #[cfg(test)]
+    Expression(Rc<Expression>),
+    #[cfg(test)]
+    ExpressionBody(Rc<ExpressionBody>),
+    #[cfg(test)]
+    ExpressionStatement(Rc<ExpressionStatement>),
+    #[cfg(test)]
+    FieldDefinition(Rc<FieldDefinition>),
+    #[cfg(test)]
+    Finally(Rc<Finally>),
+    #[cfg(test)]
+    ForBinding(Rc<ForBinding>),
+    #[cfg(test)]
+    ForDeclaration(Rc<ForDeclaration>),
+    #[cfg(test)]
+    ForInOfStatement(Rc<ForInOfStatement>),
+    #[cfg(test)]
+    FormalParameter(Rc<FormalParameter>),
+    #[cfg(test)]
+    FormalParameterList(Rc<FormalParameterList>),
+    #[cfg(test)]
+    ForStatement(Rc<ForStatement>),
+    #[cfg(test)]
+    FunctionDeclaration(Rc<FunctionDeclaration>),
+    #[cfg(test)]
+    FunctionRestParameter(Rc<FunctionRestParameter>),
+    #[cfg(test)]
+    FunctionStatementList(Rc<FunctionStatementList>),
+    #[cfg(test)]
+    GeneratorDeclaration(Rc<GeneratorDeclaration>),
+    //    #[cfg(test)]
+    //    GeneratorMethod(Rc<GeneratorMethod>),
+    #[cfg(test)]
+    IfStatement(Rc<IfStatement>),
+    #[cfg(test)]
+    Initializer(Rc<Initializer>),
+    #[cfg(test)]
+    IterationStatement(Rc<IterationStatement>),
+    #[cfg(test)]
+    LabelledItem(Rc<LabelledItem>),
+    #[cfg(test)]
+    LabelledStatement(Rc<LabelledStatement>),
+    #[cfg(test)]
+    LeftHandSideExpression(Rc<LeftHandSideExpression>),
+    #[cfg(test)]
+    LexicalBinding(Rc<LexicalBinding>),
+    #[cfg(test)]
+    LexicalDeclaration(Rc<LexicalDeclaration>),
+    //    #[cfg(test)]
+    //    Literal(Rc<Literal>),
+    //    #[cfg(test)]
+    //    LiteralPropertyName(Rc<LiteralPropertyName>),
+    #[cfg(test)]
+    LogicalANDExpression(Rc<LogicalANDExpression>),
+    #[cfg(test)]
+    LogicalORExpression(Rc<LogicalORExpression>),
+    #[cfg(test)]
+    MemberExpression(Rc<MemberExpression>),
+    //    #[cfg(test)]
+    //    MetaProperty(Rc<MetaProperty>),
+    #[cfg(test)]
+    MethodDefinition(Rc<MethodDefinition>),
+    #[cfg(test)]
+    MultiplicativeExpression(Rc<MultiplicativeExpression>),
+    #[cfg(test)]
+    NewExpression(Rc<NewExpression>),
+    #[cfg(test)]
+    ObjectAssignmentPattern(Rc<ObjectAssignmentPattern>),
+    #[cfg(test)]
+    ObjectBindingPattern(Rc<ObjectBindingPattern>),
+    #[cfg(test)]
+    ObjectLiteral(Rc<ObjectLiteral>),
+    #[cfg(test)]
+    OptionalChain(Rc<OptionalChain>),
+    #[cfg(test)]
+    OptionalExpression(Rc<OptionalExpression>),
+    #[cfg(test)]
+    ParenthesizedExpression(Rc<ParenthesizedExpression>),
+    #[cfg(test)]
+    PrimaryExpression(Rc<PrimaryExpression>),
+    #[cfg(test)]
+    PropertyDefinition(Rc<PropertyDefinition>),
+    #[cfg(test)]
+    PropertyDefinitionList(Rc<PropertyDefinitionList>),
+    #[cfg(test)]
+    PropertyName(Rc<PropertyName>),
+    //    #[cfg(test)]
+    //    PropertySetParameterList(Rc<PropertySetParameterList>),
+    #[cfg(test)]
+    RelationalExpression(Rc<RelationalExpression>),
+    #[cfg(test)]
+    ReturnStatement(Rc<ReturnStatement>),
+    #[cfg(test)]
     ScriptBody(Rc<ScriptBody>),
+    #[cfg(test)]
     ShiftExpression(Rc<ShiftExpression>),
+    #[cfg(test)]
     ShortCircuitExpression(Rc<ShortCircuitExpression>),
+    #[cfg(test)]
     SingleNameBinding(Rc<SingleNameBinding>),
+    #[cfg(test)]
     SpreadElement(Rc<SpreadElement>),
+    #[cfg(test)]
     Statement(Rc<Statement>),
+    #[cfg(test)]
     StatementList(Rc<StatementList>),
+    #[cfg(test)]
     StatementListItem(Rc<StatementListItem>),
+    #[cfg(test)]
     SubstitutionTemplate(Rc<SubstitutionTemplate>),
-    SuperCall(Rc<SuperCall>),
-    SuperProperty(Rc<SuperProperty>),
+    //    #[cfg(test)]
+    //    SuperCall(Rc<SuperCall>),
+    //    #[cfg(test)]
+    //    SuperProperty(Rc<SuperProperty>),
+    #[cfg(test)]
     SwitchStatement(Rc<SwitchStatement>),
+    #[cfg(test)]
     TemplateLiteral(Rc<TemplateLiteral>),
+    #[cfg(test)]
     TemplateMiddleList(Rc<TemplateMiddleList>),
+    #[cfg(test)]
     TemplateSpans(Rc<TemplateSpans>),
+    #[cfg(test)]
     ThrowStatement(Rc<ThrowStatement>),
+    #[cfg(test)]
     TryStatement(Rc<TryStatement>),
+    #[cfg(test)]
     UnaryExpression(Rc<UnaryExpression>),
+    #[cfg(test)]
     UniqueFormalParameters(Rc<UniqueFormalParameters>),
+    #[cfg(test)]
     UpdateExpression(Rc<UpdateExpression>),
+    #[cfg(test)]
     VariableDeclaration(Rc<VariableDeclaration>),
+    #[cfg(test)]
     VariableDeclarationList(Rc<VariableDeclarationList>),
+    #[cfg(test)]
     VariableStatement(Rc<VariableStatement>),
+    #[cfg(test)]
     WhileStatement(Rc<WhileStatement>),
-    WithStatement(Rc<WithStatement>),
-    YieldExpression(Rc<YieldExpression>),
+    //    #[cfg(test)]
+    //    WithStatement(Rc<WithStatement>),
+    //    #[cfg(test)]
+    //    YieldExpression(Rc<YieldExpression>),
     // ... more to come
 }
 
@@ -859,11 +1034,11 @@ impl TryFrom<ParsedText> for Result<Rc<FormalParameters>, Vec<Object>> {
     }
 }
 
-pub enum ParsedBody {
-    FunctionBody(Rc<FunctionBody>),
-    GeneratorBody(Rc<GeneratorBody>),
-    AsyncFunctionBody(Rc<AsyncFunctionBody>),
-    AsyncGeneratorBody(Rc<AsyncGeneratorBody>),
+pub(crate) enum ParsedBody {
+    Function(Rc<FunctionBody>),
+    Generator(Rc<GeneratorBody>),
+    AsyncFunction(Rc<AsyncFunctionBody>),
+    AsyncGenerator(Rc<AsyncGeneratorBody>),
 }
 impl TryFrom<ParsedText> for Result<ParsedBody, Vec<Object>> {
     type Error = anyhow::Error;
@@ -871,10 +1046,12 @@ impl TryFrom<ParsedText> for Result<ParsedBody, Vec<Object>> {
     fn try_from(value: ParsedText) -> Result<Self, Self::Error> {
         match value {
             ParsedText::Errors(errs) => Ok(Err(errs)),
-            ParsedText::FunctionBody(node) => Ok(Ok(ParsedBody::FunctionBody(node))),
-            ParsedText::GeneratorBody(node) => Ok(Ok(ParsedBody::GeneratorBody(node))),
-            ParsedText::AsyncFunctionBody(node) => Ok(Ok(ParsedBody::AsyncFunctionBody(node))),
-            ParsedText::AsyncGeneratorBody(node) => Ok(Ok(ParsedBody::AsyncGeneratorBody(node))),
+            ParsedText::FunctionBody(node) => Ok(Ok(ParsedBody::Function(node))),
+            ParsedText::GeneratorBody(node) => Ok(Ok(ParsedBody::Generator(node))),
+            #[cfg(test)]
+            ParsedText::AsyncFunctionBody(node) => Ok(Ok(ParsedBody::AsyncFunction(node))),
+            #[cfg(test)]
+            ParsedText::AsyncGeneratorBody(node) => Ok(Ok(ParsedBody::AsyncGenerator(node))),
             _ => Err(anyhow!("Expected Some kind of function body or Syntax Errors")),
         }
     }
@@ -884,20 +1061,22 @@ impl TryFrom<BodySource> for ParsedBody {
 
     fn try_from(value: BodySource) -> Result<Self, Self::Error> {
         match value {
-            BodySource::Function(function_body) => Ok(Self::FunctionBody(function_body)),
-            BodySource::Generator(generator_body) => Ok(Self::GeneratorBody(generator_body)),
-            BodySource::AsyncFunction(async_function_body) => Ok(Self::AsyncFunctionBody(async_function_body)),
-            BodySource::AsyncGenerator(async_generator_body) => Ok(Self::AsyncGeneratorBody(async_generator_body)),
+            BodySource::Function(function_body) => Ok(Self::Function(function_body)),
+            BodySource::Generator(generator_body) => Ok(Self::Generator(generator_body)),
+            BodySource::AsyncFunction(async_function_body) => Ok(Self::AsyncFunction(async_function_body)),
+            BodySource::AsyncGenerator(async_generator_body) => Ok(Self::AsyncGenerator(async_generator_body)),
             _ => Err(anyhow!("Some kind of normal function body expected")),
         }
     }
 }
 
-pub enum ParsedFunctionExpression {
-    FunctionExpression(Rc<FunctionExpression>),
-    GeneratorExpression(Rc<GeneratorExpression>),
-    AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
-    AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
+pub(crate) enum ParsedFunctionExpression {
+    Function(Rc<FunctionExpression>),
+    Generator(Rc<GeneratorExpression>),
+    #[cfg(test)]
+    AsyncFunction(Rc<AsyncFunctionExpression>),
+    #[cfg(test)]
+    AsyncGenerator(Rc<AsyncGeneratorExpression>),
 }
 impl TryFrom<ParsedText> for Result<ParsedFunctionExpression, Vec<Object>> {
     type Error = anyhow::Error;
@@ -905,21 +1084,19 @@ impl TryFrom<ParsedText> for Result<ParsedFunctionExpression, Vec<Object>> {
     fn try_from(value: ParsedText) -> Result<Self, Self::Error> {
         match value {
             ParsedText::Errors(errs) => Ok(Err(errs)),
-            ParsedText::FunctionExpression(node) => Ok(Ok(ParsedFunctionExpression::FunctionExpression(node))),
-            ParsedText::GeneratorExpression(node) => Ok(Ok(ParsedFunctionExpression::GeneratorExpression(node))),
-            ParsedText::AsyncFunctionExpression(node) => {
-                Ok(Ok(ParsedFunctionExpression::AsyncFunctionExpression(node)))
-            }
-            ParsedText::AsyncGeneratorExpression(node) => {
-                Ok(Ok(ParsedFunctionExpression::AsyncGeneratorExpression(node)))
-            }
+            ParsedText::FunctionExpression(node) => Ok(Ok(ParsedFunctionExpression::Function(node))),
+            ParsedText::GeneratorExpression(node) => Ok(Ok(ParsedFunctionExpression::Generator(node))),
+            #[cfg(test)]
+            ParsedText::AsyncFunctionExpression(node) => Ok(Ok(ParsedFunctionExpression::AsyncFunction(node))),
+            #[cfg(test)]
+            ParsedText::AsyncGeneratorExpression(node) => Ok(Ok(ParsedFunctionExpression::AsyncGenerator(node))),
             _ => Err(anyhow!("Expected Some kind of function expression or Syntax Errors")),
         }
     }
 }
 
 impl ParsedText {
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         match self {
             ParsedText::Errors(_) | ParsedText::Empty => None,
@@ -927,11 +1104,15 @@ impl ParsedText {
             ParsedText::FormalParameters(formal_parameters) => formal_parameters.body_containing_location(location),
             ParsedText::FunctionBody(function_body) => function_body.body_containing_location(location),
             ParsedText::GeneratorBody(generator_body) => generator_body.body_containing_location(location),
-            ParsedText::AsyncFunctionBody(async_function_body) => {
-                async_function_body.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::AsyncFunctionBody(_) => {
+                //async_function_body.body_containing_location(location)
+                None
             }
-            ParsedText::AsyncGeneratorBody(async_generator_body) => {
-                async_generator_body.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::AsyncGeneratorBody(_) => {
+                //async_generator_body.body_containing_location(location)
+                None
             }
             ParsedText::FunctionExpression(function_expression) => {
                 function_expression.body_containing_location(location)
@@ -939,296 +1120,500 @@ impl ParsedText {
             ParsedText::GeneratorExpression(generator_expression) => {
                 generator_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::AsyncFunctionExpression(async_function_expression) => {
                 async_function_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::AsyncGeneratorExpression(async_generator_expression) => {
                 async_generator_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::FunctionDeclaration(function_declaration) => {
                 function_declaration.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::AsyncFunctionDeclaration(async_function_declaration) => {
                 async_function_declaration.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::AsyncGeneratorDeclaration(async_generator_declaration) => {
                 async_generator_declaration.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::GeneratorDeclaration(generator_declaration) => {
                 generator_declaration.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::PrimaryExpression(primary_expression) => primary_expression.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::FieldDefinition(field_definition) => field_definition.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::ParenthesizedExpression(parenthesized_expression) => {
                 parenthesized_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::ObjectLiteral(object_literal) => object_literal.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::PropertyDefinitionList(property_definition_list) => {
                 property_definition_list.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::PropertyDefinition(property_definition) => {
                 property_definition.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::ArrowFunction(arrow_function) => arrow_function.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::PropertyName(property_name) => property_name.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::ComputedPropertyName(computed_property_name) => {
                 computed_property_name.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::MemberExpression(member_expression) => member_expression.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::NewExpression(new_expression) => new_expression.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::CallExpression(call_expression) => call_expression.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::CallMemberExpression(call_member_expression) => {
                 call_member_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::LeftHandSideExpression(left_hand_side_expression) => {
                 left_hand_side_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::Arguments(arguments) => arguments.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::ArgumentList(argument_list) => argument_list.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::AdditiveExpression(additive_expression) => {
                 additive_expression.body_containing_location(location)
             }
-            ParsedText::ArrayAssignmentPattern(array_assignment_pattern) => {
-                array_assignment_pattern.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::ArrayAssignmentPattern(_) => {
+                //array_assignment_pattern.body_containing_location(location)
+                None
             }
-            ParsedText::ArrayBindingPattern(array_binding_pattern) => {
-                array_binding_pattern.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::ArrayBindingPattern(_) => {
+                //array_binding_pattern.body_containing_location(location)
+                None
             }
+            #[cfg(test)]
             ParsedText::ArrayLiteral(array_literal) => array_literal.body_containing_location(location),
-            ParsedText::ArrowFormalParameters(arrow_formal_parameters) => {
-                arrow_formal_parameters.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::ArrowFormalParameters(_) => {
+                //arrow_formal_parameters.body_containing_location(location)
+                None
             }
-            ParsedText::ArrowParameters(arrow_parameters) => arrow_parameters.body_containing_location(location),
-            ParsedText::AssignmentElement(assignment_element) => assignment_element.body_containing_location(location),
-            ParsedText::AssignmentElementList(assignment_element_list) => {
-                assignment_element_list.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::ArrowParameters(_) => {
+                //arrow_parameters.body_containing_location(location)
+                None
             }
-            ParsedText::AssignmentElisionElement(assignment_elision_element) => {
-                assignment_elision_element.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::AssignmentElement(_) => {
+                //assignment_element.body_containing_location(location)
+                None
             }
+            #[cfg(test)]
+            ParsedText::AssignmentElementList(_) => {
+                None
+                //assignment_element_list.body_containing_location(location)
+            }
+            #[cfg(test)]
+            ParsedText::AssignmentElisionElement(_) => {
+                None
+                //assignment_elision_element.body_containing_location(location)
+            }
+            #[cfg(test)]
             ParsedText::AssignmentExpression(assignment_expression) => {
                 assignment_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::AssignmentPattern(assignment_pattern) => assignment_pattern.body_containing_location(location),
-            ParsedText::AssignmentProperty(assignment_property) => {
-                assignment_property.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::AssignmentProperty(_) => {
+                //assignment_property.body_containing_location(location)
+                None
             }
-            ParsedText::AssignmentPropertyList(assignment_property_list) => {
-                assignment_property_list.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::AssignmentPropertyList(_) => {
+                //assignment_property_list.body_containing_location(location)
+                None
             }
-            ParsedText::AssignmentRestElement(assignment_rest_element) => {
-                assignment_rest_element.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::AssignmentRestElement(_) => {
+                //assignment_rest_element.body_containing_location(location)
+                None
             }
-            ParsedText::AssignmentRestProperty(assignment_rest_property) => {
-                assignment_rest_property.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::AssignmentRestProperty(_) => {
+                //assignment_rest_property.body_containing_location(location)
+                None
             }
-            ParsedText::AsyncArrowBindingIdentifier(async_arrow_binding_identifier) => {
-                async_arrow_binding_identifier.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::AsyncArrowBindingIdentifier(_) => {
+                //async_arrow_binding_identifier.body_containing_location(location)
+                None
             }
-            ParsedText::AsyncArrowFunction(async_arrow_function) => {
-                async_arrow_function.body_containing_location(location)
-            }
-            ParsedText::AsyncArrowHead(async_arrow_head) => async_arrow_head.body_containing_location(location),
-            ParsedText::AsyncConciseBody(async_concise_body) => async_concise_body.body_containing_location(location),
-            ParsedText::AsyncGeneratorMethod(async_generator_method) => {
-                async_generator_method.body_containing_location(location)
-            }
-            ParsedText::AsyncMethod(async_method) => async_method.body_containing_location(location),
-            ParsedText::AwaitExpression(await_expression) => await_expression.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::AsyncArrowFunction(async_arrow_function) => {
+            //    async_arrow_function.body_containing_location(location)
+            //}
+            //#[cfg(test)]
+            //ParsedText::AsyncArrowHead(async_arrow_head) => {
+            //    //async_arrow_head.body_containing_location(location)
+            //    None
+            //}
+            //#[cfg(test)]
+            //ParsedText::AsyncConciseBody(async_concise_body) => {
+            //    //async_concise_body.body_containing_location(location)
+            //    None
+            //}
+            //#[cfg(test)]
+            //ParsedText::AsyncGeneratorMethod(async_generator_method) => {
+            //    async_generator_method.body_containing_location(location)
+            //}
+            //#[cfg(test)]
+            //ParsedText::AsyncMethod(async_method) => async_method.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::AwaitExpression(await_expression) => await_expression.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::BindingElement(binding_element) => binding_element.body_containing_location(location),
-            ParsedText::BindingElementList(binding_element_list) => {
-                binding_element_list.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::BindingElementList(_) => {
+                //binding_element_list.body_containing_location(location)
+                None
             }
-            ParsedText::BindingElisionElement(binding_elision_element) => {
-                binding_elision_element.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::BindingElisionElement(_) => {
+                //binding_elision_element.body_containing_location(location)
+                None
             }
-            ParsedText::BindingIdentifier(binding_identifier) => binding_identifier.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::BindingIdentifier(binding_identifier) => binding_identifier.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::BindingList(binding_list) => binding_list.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::BindingPattern(binding_pattern) => binding_pattern.body_containing_location(location),
-            ParsedText::BindingProperty(binding_property) => binding_property.body_containing_location(location),
-            ParsedText::BindingPropertyList(binding_property_list) => {
-                binding_property_list.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::BindingProperty(_) => {
+                //binding_property.body_containing_location(location)
+                None
             }
-            ParsedText::BindingRestElement(binding_rest_element) => {
-                binding_rest_element.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::BindingPropertyList(_) => {
+                //binding_property_list.body_containing_location(location)
+                None
             }
-            ParsedText::BindingRestProperty(binding_rest_property) => {
-                binding_rest_property.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::BindingRestElement(_) => {
+                //binding_rest_element.body_containing_location(location)
+                None
             }
+            //#[cfg(test)]
+            //ParsedText::BindingRestProperty(binding_rest_property) => {
+            //    //binding_rest_property.body_containing_location(location)
+            //    None
+            //}
+            #[cfg(test)]
             ParsedText::BitwiseANDExpression(bitwise_andexpression) => {
                 bitwise_andexpression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::BitwiseORExpression(bitwise_orexpression) => {
                 bitwise_orexpression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::BitwiseXORExpression(bitwise_xorexpression) => {
                 bitwise_xorexpression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::Block(block) => block.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::BlockStatement(block_statement) => block_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::BreakableStatement(breakable_statement) => {
                 breakable_statement.body_containing_location(location)
             }
-            ParsedText::BreakStatement(break_statement) => break_statement.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::BreakStatement(break_statement) => break_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::CaseBlock(case_block) => case_block.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::CaseClause(case_clause) => case_clause.body_containing_location(location),
-            ParsedText::CaseClauses(case_clauses) => case_clauses.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::CaseClauses(case_clauses) => case_clauses.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::Catch(catch) => catch.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::CatchParameter(catch_parameter) => catch_parameter.body_containing_location(location),
-            ParsedText::ClassBody(class_body) => class_body.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::ClassBody(class_body) => class_body.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::ClassDeclaration(class_declaration) => class_declaration.body_containing_location(location),
-            ParsedText::ClassElement(class_element) => class_element.body_containing_location(location),
-            ParsedText::ClassElementList(class_element_list) => class_element_list.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::ClassElement(class_element) => class_element.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::ClassElementList(class_element_list) => class_element_list.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::ClassElementName(class_element_name) => class_element_name.body_containing_location(location),
-            ParsedText::ClassExpression(class_expression) => class_expression.body_containing_location(location),
-            ParsedText::ClassHeritage(class_heritage) => class_heritage.body_containing_location(location),
-            ParsedText::ClassStaticBlock(class_static_block) => class_static_block.body_containing_location(location),
-            ParsedText::ClassStaticBlockBody(class_static_block_body) => {
-                class_static_block_body.body_containing_location(location)
+            //#[cfg(test)]
+            //ParsedText::ClassExpression(class_expression) => class_expression.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::ClassHeritage(class_heritage) => {
+            //    //class_heritage.body_containing_location(location)
+            //    None
+            //}
+            //#[cfg(test)]
+            //ParsedText::ClassStaticBlock(class_static_block) => class_static_block.body_containing_location(location),
+            #[cfg(test)]
+            ParsedText::ClassStaticBlockBody(_) => {
+                //class_static_block_body.body_containing_location(location)
+                None
             }
-            ParsedText::ClassStaticBlockStatementList(class_static_block_statement_list) => {
-                class_static_block_statement_list.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::ClassStaticBlockStatementList(_) => {
+                //class_static_block_statement_list.body_containing_location(location)
+                None
             }
-            ParsedText::ClassTail(class_tail) => class_tail.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::ClassTail(class_tail) => class_tail.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::CoalesceExpression(coalesce_expression) => {
                 coalesce_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::CoalesceExpressionHead(coalesce_expression_head) => {
                 coalesce_expression_head.body_containing_location(location)
             }
-            ParsedText::ConciseBody(concise_body) => concise_body.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::ConciseBody(concise_body) => {
+            //    //concise_body.body_containing_location(location)
+            //    None
+            //}
+            #[cfg(test)]
             ParsedText::ConditionalExpression(conditional_expression) => {
                 conditional_expression.body_containing_location(location)
             }
-            ParsedText::ContinueStatement(continue_statement) => continue_statement.body_containing_location(location),
-            ParsedText::CoverInitializedName(cover_initialized_name) => {
-                cover_initialized_name.body_containing_location(location)
-            }
-            ParsedText::CoverParenthesizedExpressionAndArrowParameterList(
-                cover_parenthesized_expression_and_arrow_parameter_list,
-            ) => cover_parenthesized_expression_and_arrow_parameter_list.body_containing_location(location),
-            ParsedText::DebuggerStatement(debugger_statement) => debugger_statement.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::ContinueStatement(continue_statement) => continue_statement.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::CoverInitializedName(cover_initialized_name) => {
+            //    cover_initialized_name.body_containing_location(location)
+            //}
+            //#[cfg(test)]
+            //ParsedText::CoverParenthesizedExpressionAndArrowParameterList(
+            //    cover_parenthesized_expression_and_arrow_parameter_list,
+            //) => cover_parenthesized_expression_and_arrow_parameter_list.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::DebuggerStatement(debugger_statement) => debugger_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::Declaration(declaration) => declaration.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::DefaultClause(default_clause) => default_clause.body_containing_location(location),
-            ParsedText::DestructuringAssignmentTarget(destructuring_assignment_target) => {
-                destructuring_assignment_target.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::DestructuringAssignmentTarget(_) => {
+                //destructuring_assignment_target.body_containing_location(location)
+                None
             }
+            #[cfg(test)]
             ParsedText::DoWhileStatement(do_while_statement) => do_while_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::ElementList(element_list) => element_list.body_containing_location(location),
-            ParsedText::Elisions(elisions) => elisions.body_containing_location(location),
-            ParsedText::EmptyStatement(empty_statement) => empty_statement.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::Elisions(elisions) => elisions.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::EmptyStatement(empty_statement) => empty_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::EqualityExpression(equality_expression) => {
                 equality_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::ExponentiationExpression(exponentiation_expression) => {
                 exponentiation_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::Expression(expression) => expression.body_containing_location(location),
-            ParsedText::ExpressionBody(expression_body) => expression_body.body_containing_location(location),
+            #[cfg(test)]
+            ParsedText::ExpressionBody(_) => {
+                //expression_body.body_containing_location(location)
+                None
+            }
+            #[cfg(test)]
             ParsedText::ExpressionStatement(expression_statement) => {
                 expression_statement.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::Finally(finally) => finally.body_containing_location(location),
-            ParsedText::ForBinding(for_binding) => for_binding.body_containing_location(location),
-            ParsedText::ForDeclaration(for_declaration) => for_declaration.body_containing_location(location),
+            #[cfg(test)]
+            ParsedText::ForBinding(_) => {
+                //for_binding.body_containing_location(location)
+                None
+            }
+            #[cfg(test)]
+            ParsedText::ForDeclaration(_) => {
+                //for_declaration.body_containing_location(location)
+                None
+            }
+            #[cfg(test)]
             ParsedText::ForInOfStatement(for_in_of_statement) => for_in_of_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::FormalParameter(formal_parameter) => formal_parameter.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::FormalParameterList(formal_parameter_list) => {
                 formal_parameter_list.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::ForStatement(for_statement) => for_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::FunctionRestParameter(function_rest_parameter) => {
                 function_rest_parameter.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::FunctionStatementList(function_statement_list) => {
                 function_statement_list.body_containing_location(location)
             }
-            ParsedText::GeneratorMethod(generator_method) => generator_method.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::GeneratorMethod(generator_method) => generator_method.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::IfStatement(if_statement) => if_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::Initializer(initializer) => initializer.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::IterationStatement(iteration_statement) => {
                 iteration_statement.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::LabelledItem(labelled_item) => labelled_item.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::LabelledStatement(labelled_statement) => labelled_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::LexicalBinding(lexical_binding) => lexical_binding.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::LexicalDeclaration(lexical_declaration) => {
                 lexical_declaration.body_containing_location(location)
             }
-            ParsedText::Literal(literal) => literal.body_containing_location(location),
-            ParsedText::LiteralPropertyName(literal_property_name) => {
-                literal_property_name.body_containing_location(location)
-            }
+            //#[cfg(test)]
+            //ParsedText::Literal(literal) => literal.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::LiteralPropertyName(literal_property_name) => {
+            //    literal_property_name.body_containing_location(location)
+            //}
+            #[cfg(test)]
             ParsedText::LogicalANDExpression(logical_andexpression) => {
                 logical_andexpression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::LogicalORExpression(logical_orexpression) => {
                 logical_orexpression.body_containing_location(location)
             }
-            ParsedText::MetaProperty(meta_property) => meta_property.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::MetaProperty(meta_property) => meta_property.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::MethodDefinition(method_definition) => method_definition.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::MultiplicativeExpression(multiplicative_expression) => {
                 multiplicative_expression.body_containing_location(location)
             }
-            ParsedText::ObjectAssignmentPattern(object_assignment_pattern) => {
-                object_assignment_pattern.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::ObjectAssignmentPattern(_) => {
+                //object_assignment_pattern.body_containing_location(location)
+                None
             }
-            ParsedText::ObjectBindingPattern(object_binding_pattern) => {
-                object_binding_pattern.body_containing_location(location)
+            #[cfg(test)]
+            ParsedText::ObjectBindingPattern(_) => {
+                //object_binding_pattern.body_containing_location(location)
+                None
             }
+            #[cfg(test)]
             ParsedText::OptionalChain(optional_chain) => optional_chain.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::OptionalExpression(optional_expression) => {
                 optional_expression.body_containing_location(location)
             }
-            ParsedText::PropertySetParameterList(property_set_parameter_list) => {
-                property_set_parameter_list.body_containing_location(location)
-            }
+            //#[cfg(test)]
+            //ParsedText::PropertySetParameterList(property_set_parameter_list) => {
+            //    property_set_parameter_list.body_containing_location(location)
+            //}
+            #[cfg(test)]
             ParsedText::RelationalExpression(relational_expression) => {
                 relational_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::ReturnStatement(return_statement) => return_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::ScriptBody(script_body) => script_body.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::ShiftExpression(shift_expression) => shift_expression.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::ShortCircuitExpression(short_circuit_expression) => {
                 short_circuit_expression.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::SingleNameBinding(single_name_binding) => {
                 single_name_binding.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::SpreadElement(spread_element) => spread_element.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::Statement(statement) => statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::StatementList(statement_list) => statement_list.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::StatementListItem(statement_list_item) => {
                 statement_list_item.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::SubstitutionTemplate(substitution_template) => {
                 substitution_template.body_containing_location(location)
             }
-            ParsedText::SuperCall(super_call) => super_call.body_containing_location(location),
-            ParsedText::SuperProperty(super_property) => super_property.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::SuperCall(super_call) => super_call.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::SuperProperty(super_property) => super_property.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::SwitchStatement(switch_statement) => switch_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::TemplateLiteral(template_literal) => template_literal.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::TemplateMiddleList(template_middle_list) => {
                 template_middle_list.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::TemplateSpans(template_spans) => template_spans.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::ThrowStatement(throw_statement) => throw_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::TryStatement(try_statement) => try_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::UnaryExpression(unary_expression) => unary_expression.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::UniqueFormalParameters(unique_formal_parameters) => {
                 unique_formal_parameters.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::UpdateExpression(update_expression) => update_expression.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::VariableDeclaration(variable_declaration) => {
                 variable_declaration.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::VariableDeclarationList(variable_declaration_list) => {
                 variable_declaration_list.body_containing_location(location)
             }
+            #[cfg(test)]
             ParsedText::VariableStatement(variable_statement) => variable_statement.body_containing_location(location),
+            #[cfg(test)]
             ParsedText::WhileStatement(while_statement) => while_statement.body_containing_location(location),
-            ParsedText::WithStatement(with_statement) => with_statement.body_containing_location(location),
-            ParsedText::YieldExpression(yield_expression) => yield_expression.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::WithStatement(with_statement) => with_statement.body_containing_location(location),
+            //#[cfg(test)]
+            //ParsedText::YieldExpression(yield_expression) => yield_expression.body_containing_location(location),
         }
     }
 }
@@ -1238,11 +1623,17 @@ enum ParsedItem {
     FormalParameters(Rc<FormalParameters>),
     FunctionBody(Rc<FunctionBody>),
     GeneratorBody(Rc<GeneratorBody>),
-    AsyncFunctionBody(Rc<AsyncFunctionBody>),
-    AsyncGeneratorBody(Rc<AsyncGeneratorBody>),
     FunctionExpression(Rc<FunctionExpression>),
     GeneratorExpression(Rc<GeneratorExpression>),
+
+    // Not currently constructed; relegated to test.
+    #[cfg(test)]
+    AsyncFunctionBody(Rc<AsyncFunctionBody>),
+    #[cfg(test)]
+    AsyncGeneratorBody(Rc<AsyncGeneratorBody>),
+    #[cfg(test)]
     AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
+    #[cfg(test)]
     AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
 }
 
@@ -1253,11 +1644,15 @@ impl ParsedItem {
             ParsedItem::FormalParameters(fp) => fp.early_errors(errs, strict, false),
             ParsedItem::FunctionBody(fb) => fb.early_errors(errs, strict),
             ParsedItem::GeneratorBody(gb) => gb.early_errors(errs, strict),
-            ParsedItem::AsyncFunctionBody(body) => body.early_errors(errs, strict),
-            ParsedItem::AsyncGeneratorBody(body) => body.early_errors(errs, strict),
             ParsedItem::FunctionExpression(exp) => exp.early_errors(errs, strict),
             ParsedItem::GeneratorExpression(exp) => exp.early_errors(errs, strict),
+            #[cfg(test)]
+            ParsedItem::AsyncFunctionBody(body) => body.early_errors(errs, strict),
+            #[cfg(test)]
+            ParsedItem::AsyncGeneratorBody(body) => body.early_errors(errs, strict),
+            #[cfg(test)]
             ParsedItem::AsyncFunctionExpression(exp) => exp.early_errors(errs, strict),
+            #[cfg(test)]
             ParsedItem::AsyncGeneratorExpression(exp) => exp.early_errors(errs, strict),
         }
     }
@@ -1270,11 +1665,15 @@ impl From<ParsedItem> for ParsedText {
             ParsedItem::FormalParameters(fp) => ParsedText::FormalParameters(fp),
             ParsedItem::FunctionBody(fb) => ParsedText::FunctionBody(fb),
             ParsedItem::GeneratorBody(gb) => ParsedText::GeneratorBody(gb),
+            #[cfg(test)]
             ParsedItem::AsyncFunctionBody(body) => ParsedText::AsyncFunctionBody(body),
+            #[cfg(test)]
             ParsedItem::AsyncGeneratorBody(body) => ParsedText::AsyncGeneratorBody(body),
             ParsedItem::FunctionExpression(exp) => ParsedText::FunctionExpression(exp),
             ParsedItem::GeneratorExpression(exp) => ParsedText::GeneratorExpression(exp),
+            #[cfg(test)]
             ParsedItem::AsyncFunctionExpression(exp) => ParsedText::AsyncFunctionExpression(exp),
+            #[cfg(test)]
             ParsedItem::AsyncGeneratorExpression(exp) => ParsedText::AsyncGeneratorExpression(exp),
         }
     }
@@ -1311,7 +1710,7 @@ fn direct_parse(parser: &mut Parser, strict: bool, parse_fn: ParseClosure, name:
     }
 }
 
-pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool) -> ParsedText {
+pub(crate) fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool) -> ParsedText {
     let mut parser = Parser::new(src, direct, goal_symbol);
     let (closure, name): (ParseClosure, &str) = match goal_symbol {
         ParseGoal::Script => (
@@ -1340,7 +1739,7 @@ pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool)
                     Scanner::new(),
                     yield_state == YieldAllowed::Yes,
                     await_state == AwaitAllowed::Yes,
-                    FunctionBodyParent::FunctionBody,
+                    FunctionBodyParent::Function,
                 );
                 Ok((ParsedItem::FunctionBody(body), scanner))
             }),
@@ -1353,6 +1752,7 @@ pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool)
             }),
             "generator body",
         ),
+        #[cfg(test)]
         ParseGoal::AsyncFunctionBody => (
             Box::new(|parser: &mut Parser| {
                 let (body, scanner) = AsyncFunctionBody::parse(parser, Scanner::new());
@@ -1360,6 +1760,7 @@ pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool)
             }),
             "function body",
         ),
+        #[cfg(test)]
         ParseGoal::AsyncGeneratorBody => (
             Box::new(|parser: &mut Parser| {
                 let (body, scanner) = AsyncGeneratorBody::parse(parser, Scanner::new());
@@ -1381,6 +1782,7 @@ pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool)
             }),
             "generator expression",
         ),
+        #[cfg(test)]
         ParseGoal::AsyncFunctionExpression => (
             Box::new(|parser: &mut Parser| {
                 AsyncFunctionExpression::parse(parser, Scanner::new())
@@ -1388,6 +1790,7 @@ pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool)
             }),
             "function expression",
         ),
+        #[cfg(test)]
         ParseGoal::AsyncGeneratorExpression => (
             Box::new(|parser: &mut Parser| {
                 AsyncGeneratorExpression::parse(parser, Scanner::new())
@@ -1399,7 +1802,7 @@ pub fn parse_text(src: &str, goal_symbol: ParseGoal, strict: bool, direct: bool)
     direct_parse(&mut parser, strict, closure, name)
 }
 
-pub fn duplicates(idents: &[JSString]) -> Vec<&JSString> {
+pub(crate) fn duplicates(idents: &[JSString]) -> Vec<&JSString> {
     // Given a vector of strings (probably identifiers), produce a vector of all the duplicates. Each item in the
     // return value is unique (there are no duplicates there!), and ordered by the location of the _second_ occurence
     // within the source array.
@@ -1424,100 +1827,100 @@ pub fn duplicates(idents: &[JSString]) -> Vec<&JSString> {
 }
 
 #[derive(Debug, Clone)]
-pub enum ContainingBody {
+pub(crate) enum ContainingBody {
     FunctionBody(Rc<FunctionBody>),
     ConciseBody(Rc<ConciseBody>),
-    AsyncConciseBody(Rc<AsyncConciseBody>),
+    //AsyncConciseBody(Rc<AsyncConciseBody>), // Add back when Async goes in
 }
 
-pub mod additive_operators;
-pub mod arrow_function_definitions;
-pub mod assignment_operators;
-pub mod async_arrow_function_definitions;
-pub mod async_function_definitions;
-pub mod async_generator_function_definitions;
-pub mod binary_bitwise_operators;
-pub mod binary_logical_operators;
-pub mod bitwise_shift_operators;
-pub mod block;
-pub mod break_statement;
-pub mod class_definitions;
-pub mod comma_operator;
-pub mod conditional_operator;
-pub mod continue_statement;
-pub mod debugger_statement;
-pub mod declarations_and_variables;
-pub mod empty_statement;
-pub mod equality_operators;
-pub mod exponentiation_operator;
-pub mod expression_statement;
-pub mod function_definitions;
-pub mod generator_function_definitions;
-pub mod identifiers;
-pub mod if_statement;
-pub mod iteration_statements;
-pub mod labelled_statements;
-pub mod left_hand_side_expressions;
-pub mod method_definitions;
-pub mod multiplicative_operators;
-pub mod parameter_lists;
-pub mod primary_expressions;
-pub mod relational_operators;
-pub mod return_statement;
-pub mod scripts;
-pub mod statements_and_declarations;
-pub mod switch_statement;
-pub mod throw_statement;
-pub mod try_statement;
-pub mod unary_operators;
-pub mod update_expressions;
-pub mod with_statement;
+pub(crate) mod additive_operators;
+pub(crate) mod arrow_function_definitions;
+pub(crate) mod assignment_operators;
+pub(crate) mod async_arrow_function_definitions;
+pub(crate) mod async_function_definitions;
+pub(crate) mod async_generator_function_definitions;
+pub(crate) mod binary_bitwise_operators;
+pub(crate) mod binary_logical_operators;
+pub(crate) mod bitwise_shift_operators;
+pub(crate) mod block;
+pub(crate) mod break_statement;
+pub(crate) mod class_definitions;
+pub(crate) mod comma_operator;
+pub(crate) mod conditional_operator;
+pub(crate) mod continue_statement;
+pub(crate) mod debugger_statement;
+pub(crate) mod declarations_and_variables;
+pub(crate) mod empty_statement;
+pub(crate) mod equality_operators;
+pub(crate) mod exponentiation_operator;
+pub(crate) mod expression_statement;
+pub(crate) mod function_definitions;
+pub(crate) mod generator_function_definitions;
+pub(crate) mod identifiers;
+pub(crate) mod if_statement;
+pub(crate) mod iteration_statements;
+pub(crate) mod labelled_statements;
+pub(crate) mod left_hand_side_expressions;
+pub(crate) mod method_definitions;
+pub(crate) mod multiplicative_operators;
+pub(crate) mod parameter_lists;
+pub(crate) mod primary_expressions;
+pub(crate) mod relational_operators;
+pub(crate) mod return_statement;
+pub(crate) mod scripts;
+pub(crate) mod statements_and_declarations;
+pub(crate) mod switch_statement;
+pub(crate) mod throw_statement;
+pub(crate) mod try_statement;
+pub(crate) mod unary_operators;
+pub(crate) mod update_expressions;
+pub(crate) mod with_statement;
 
-pub use additive_operators::*;
-pub use arrow_function_definitions::*;
-pub use assignment_operators::*;
-pub use async_arrow_function_definitions::*;
-pub use async_function_definitions::*;
-pub use async_generator_function_definitions::*;
-pub use binary_bitwise_operators::*;
-pub use binary_logical_operators::*;
-pub use bitwise_shift_operators::*;
-pub use block::*;
-pub use break_statement::*;
-pub use class_definitions::*;
-pub use comma_operator::*;
-pub use conditional_operator::*;
-pub use continue_statement::*;
-pub use debugger_statement::*;
-pub use declarations_and_variables::*;
-pub use empty_statement::*;
-pub use equality_operators::*;
-pub use exponentiation_operator::*;
-pub use expression_statement::*;
-pub use function_definitions::*;
-pub use generator_function_definitions::*;
-pub use identifiers::*;
-pub use if_statement::*;
-pub use iteration_statements::*;
-pub use labelled_statements::*;
-pub use left_hand_side_expressions::*;
-pub use method_definitions::*;
-pub use multiplicative_operators::*;
-pub use parameter_lists::*;
-pub use primary_expressions::*;
-pub use relational_operators::*;
-pub use return_statement::*;
-pub use scripts::*;
-pub use statements_and_declarations::*;
-pub use switch_statement::*;
-pub use throw_statement::*;
-pub use try_statement::*;
-pub use unary_operators::*;
-pub use update_expressions::*;
-pub use with_statement::*;
+pub(crate) use additive_operators::*;
+pub(crate) use arrow_function_definitions::*;
+pub(crate) use assignment_operators::*;
+pub(crate) use async_arrow_function_definitions::*;
+pub(crate) use async_function_definitions::*;
+pub(crate) use async_generator_function_definitions::*;
+pub(crate) use binary_bitwise_operators::*;
+pub(crate) use binary_logical_operators::*;
+pub(crate) use bitwise_shift_operators::*;
+pub(crate) use block::*;
+pub(crate) use break_statement::*;
+pub(crate) use class_definitions::*;
+pub(crate) use comma_operator::*;
+pub(crate) use conditional_operator::*;
+pub(crate) use continue_statement::*;
+pub(crate) use debugger_statement::*;
+pub(crate) use declarations_and_variables::*;
+pub(crate) use empty_statement::*;
+pub(crate) use equality_operators::*;
+pub(crate) use exponentiation_operator::*;
+pub(crate) use expression_statement::*;
+pub(crate) use function_definitions::*;
+pub(crate) use generator_function_definitions::*;
+pub(crate) use identifiers::*;
+pub(crate) use if_statement::*;
+pub(crate) use iteration_statements::*;
+pub(crate) use labelled_statements::*;
+pub(crate) use left_hand_side_expressions::*;
+pub(crate) use method_definitions::*;
+pub(crate) use multiplicative_operators::*;
+pub(crate) use parameter_lists::*;
+pub(crate) use primary_expressions::*;
+pub(crate) use relational_operators::*;
+pub(crate) use return_statement::*;
+pub(crate) use scripts::*;
+pub(crate) use statements_and_declarations::*;
+pub(crate) use switch_statement::*;
+pub(crate) use throw_statement::*;
+pub(crate) use try_statement::*;
+pub(crate) use unary_operators::*;
+pub(crate) use update_expressions::*;
+pub(crate) use with_statement::*;
 
 #[cfg(test)]
-pub mod testhelp;
+pub(crate) mod testhelp;
 
 #[cfg(test)]
 mod tests;

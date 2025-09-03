@@ -9,7 +9,7 @@ use std::io::Write;
 //      ShiftExpression[?Yield, ?Await] >> AdditiveExpression[?Yield, ?Await]
 //      ShiftExpression[?Yield, ?Await] >>> AdditiveExpression[?Yield, ?Await]
 #[derive(Debug)]
-pub enum ShiftExpression {
+pub(crate) enum ShiftExpression {
     AdditiveExpression(Rc<AdditiveExpression>),
     LeftShift(Rc<ShiftExpression>, Rc<AdditiveExpression>),
     SignedRightShift(Rc<ShiftExpression>, Rc<AdditiveExpression>),
@@ -70,25 +70,21 @@ impl PrettyPrint for ShiftExpression {
     }
 }
 
-impl IsFunctionDefinition for ShiftExpression {
-    fn is_function_definition(&self) -> bool {
-        match self {
-            ShiftExpression::AdditiveExpression(child) => child.is_function_definition(),
-            _ => false,
-        }
-    }
-}
-
 impl ShiftExpression {
     // Only one parent. No need to cache.
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         AdditiveExpression::parse(parser, scanner, yield_flag, await_flag).map(|(ae, after_ae)| {
             let mut current = Rc::new(ShiftExpression::AdditiveExpression(ae));
             let mut current_scan = after_ae;
             while let Ok((make_se, ae2, after_ae2)) = scan_for_punct_set(
                 current_scan,
                 parser.source,
-                ScanGoal::InputElementDiv,
+                InputElementGoal::Div,
                 &[Punctuator::GtGt, Punctuator::GtGtGt, Punctuator::LtLt],
             )
             .and_then(|(shift_op, _, after_op)| {
@@ -107,7 +103,7 @@ impl ShiftExpression {
         })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ShiftExpression::AdditiveExpression(exp) => exp.location(),
             ShiftExpression::LeftShift(left, right)
@@ -116,7 +112,7 @@ impl ShiftExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ShiftExpression::AdditiveExpression(n) => n.contains(kind),
             ShiftExpression::LeftShift(l, r)
@@ -125,14 +121,14 @@ impl ShiftExpression {
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             ShiftExpression::AdditiveExpression(n) => n.as_string_literal(),
             _ => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -153,7 +149,7 @@ impl ShiftExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -168,7 +164,7 @@ impl ShiftExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ShiftExpression::AdditiveExpression(n) => n.early_errors(errs, strict),
             ShiftExpression::LeftShift(l, r)
@@ -180,7 +176,7 @@ impl ShiftExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             ShiftExpression::AdditiveExpression(node) => node.is_strictly_deletable(),
             _ => true,
@@ -190,21 +186,21 @@ impl ShiftExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             ShiftExpression::AdditiveExpression(child) => child.assignment_target_type(strict),
             _ => ATTKind::Invalid,
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            ShiftExpression::AdditiveExpression(node) => node.is_named_function(),
-            _ => false,
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        ShiftExpression::AdditiveExpression(node) => node.is_named_function(),
+    //        _ => false,
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -220,7 +216,7 @@ impl ShiftExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

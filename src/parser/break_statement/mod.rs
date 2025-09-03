@@ -7,7 +7,7 @@ use std::io::Write;
 //      break ;
 //      break [no LineTerminator here] LabelIdentifier[?Yield, ?Await] ;
 #[derive(Debug)]
-pub enum BreakStatement {
+pub(crate) enum BreakStatement {
     Bare { location: Location },
     Labelled { label: Rc<LabelIdentifier>, location: Location },
 }
@@ -50,41 +50,39 @@ impl PrettyPrint for BreakStatement {
 
 impl BreakStatement {
     // no cache needed
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (break_loc, after_break) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Break)?;
-        scan_for_auto_semi(after_break, parser.source, ScanGoal::InputElementDiv)
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Break)?;
+        scan_for_auto_semi(after_break, parser.source, InputElementGoal::Div)
             .map(|(semi_loc, after_semi)| {
                 (Rc::new(BreakStatement::Bare { location: break_loc.merge(&semi_loc) }), after_semi)
             })
             .otherwise(|| {
                 let (li, after_li) = LabelIdentifier::parse(parser, after_break, yield_flag, await_flag)?;
-                let (semi_loc, after_semi) = scan_for_auto_semi(after_li, parser.source, ScanGoal::InputElementDiv)?;
+                let (semi_loc, after_semi) = scan_for_auto_semi(after_li, parser.source, InputElementGoal::Div)?;
                 Ok((Rc::new(BreakStatement::Labelled { label: li, location: break_loc.merge(&semi_loc) }), after_semi))
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             BreakStatement::Bare { location } | BreakStatement::Labelled { location, .. } => *location,
         }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             BreakStatement::Bare { .. } => false,
             BreakStatement::Labelled { label, .. } => !label_set.contains(&label.string_value()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BreakStatement::Bare { .. } => false,
-            BreakStatement::Labelled { label, .. } => label.contains(kind),
-        }
-    }
-
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_breakable: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_breakable: bool) {
         // Static Semantics: Early Errors
         //  BreakStatement : break ;
         //      * It is a Syntax Error if this BreakStatement is not nested, directly or indirectly (but not crossing
@@ -104,7 +102,7 @@ impl BreakStatement {
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }

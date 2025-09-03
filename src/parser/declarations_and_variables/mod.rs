@@ -8,9 +8,9 @@ use std::io::Write;
 // LexicalDeclaration[In, Yield, Await] :
 //      LetOrConst BindingList[?In, ?Yield, ?Await] ;
 #[derive(Debug)]
-pub struct LexicalDeclaration {
-    pub style: LetOrConst,
-    pub list: Rc<BindingList>,
+pub(crate) struct LexicalDeclaration {
+    pub(crate) style: LetOrConst,
+    pub(crate) list: Rc<BindingList>,
     location: Location,
 }
 
@@ -52,17 +52,17 @@ impl LexicalDeclaration {
         await_flag: bool,
     ) -> ParseResult<Self> {
         let (kwd, kwd_loc, after_tok) =
-            scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
+            scan_for_keywords(scanner, parser.source, InputElementGoal::RegExp, &[Keyword::Let, Keyword::Const])?;
         let style = match kwd {
             Keyword::Let => LetOrConst::Let,
             _ => LetOrConst::Const,
         };
         let (list, after_bl) = BindingList::parse(parser, after_tok, in_flag, yield_flag, await_flag)?;
-        let (semi_loc, after_semi) = scan_for_auto_semi(after_bl, parser.source, ScanGoal::InputElementRegExp)?;
+        let (semi_loc, after_semi) = scan_for_auto_semi(after_bl, parser.source, InputElementGoal::RegExp)?;
         Ok((Rc::new(LexicalDeclaration { style, list, location: kwd_loc.merge(&semi_loc) }), after_semi))
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -80,19 +80,19 @@ impl LexicalDeclaration {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         self.list.bound_names()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.style.contains(kind) || self.list.contains(kind)
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.list.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -106,7 +106,7 @@ impl LexicalDeclaration {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -116,11 +116,11 @@ impl LexicalDeclaration {
         self.list.contains_arguments()
     }
 
-    pub fn is_constant_declaration(&self) -> bool {
+    pub(crate) fn is_constant_declaration(&self) -> bool {
         self.style.is_constant_declaration()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  LexicalDeclaration : LetOrConst BindingList ;
         //  * It is a Syntax Error if the BoundNames of BindingList contains "let".
@@ -147,7 +147,7 @@ impl LexicalDeclaration {
         self.list.early_errors(errs, strict, self.is_constant_declaration());
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) { self.list.body_containing_location(location) } else { None }
     }
@@ -157,7 +157,7 @@ impl LexicalDeclaration {
 //      let
 //      const
 #[derive(Debug, Copy, Clone)]
-pub enum LetOrConst {
+pub(crate) enum LetOrConst {
     Let,
     Const,
 }
@@ -189,11 +189,7 @@ impl PrettyPrint for LetOrConst {
 }
 
 impl LetOrConst {
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
-
-    pub fn is_constant_declaration(&self) -> bool {
+    pub(crate) fn is_constant_declaration(self) -> bool {
         matches!(self, LetOrConst::Const)
     }
 }
@@ -202,7 +198,7 @@ impl LetOrConst {
 //      LexicalBinding[?In, ?Yield, ?Await]
 //      BindingList[?In, ?Yield, ?Await] , LexicalBinding[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum BindingList {
+pub(crate) enum BindingList {
     Item(Rc<LexicalBinding>),
     List(Rc<BindingList>, Rc<LexicalBinding>),
 }
@@ -251,7 +247,7 @@ impl PrettyPrint for BindingList {
 
 impl BindingList {
     // no cache
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -262,7 +258,7 @@ impl BindingList {
         let mut current = Rc::new(BindingList::Item(lb));
         let mut current_scanner = after_lb;
         while let Ok((lb2, after_lb2)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Comma)
                 .and_then(|(_, after_tok)| LexicalBinding::parse(parser, after_tok, in_flag, yield_flag, await_flag))
         {
             current = Rc::new(BindingList::List(current, lb2));
@@ -271,14 +267,14 @@ impl BindingList {
         Ok((current, current_scanner))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             BindingList::Item(item) => item.location(),
             BindingList::List(list, item) => list.location().merge(&item.location()),
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             BindingList::Item(node) => node.bound_names(),
             BindingList::List(lst, node) => {
@@ -289,14 +285,14 @@ impl BindingList {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             BindingList::Item(node) => node.contains(kind),
             BindingList::List(lst, item) => lst.contains(kind) || item.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -315,7 +311,7 @@ impl BindingList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -328,7 +324,7 @@ impl BindingList {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, is_constant_declaration: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, is_constant_declaration: bool) {
         match self {
             BindingList::Item(node) => node.early_errors(errs, strict, is_constant_declaration),
             BindingList::List(lst, tail) => {
@@ -338,7 +334,7 @@ impl BindingList {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -357,7 +353,7 @@ impl BindingList {
 //      BindingIdentifier[?Yield, ?Await] Initializer[?In, ?Yield, ?Await]opt
 //      BindingPattern[?Yield, ?Await] Initializer[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum LexicalBinding {
+pub(crate) enum LexicalBinding {
     Identifier(Rc<BindingIdentifier>, Option<Rc<Initializer>>),
     Pattern(Rc<BindingPattern>, Rc<Initializer>),
 }
@@ -418,7 +414,7 @@ impl PrettyPrint for LexicalBinding {
 
 impl LexicalBinding {
     // no cache
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -441,7 +437,7 @@ impl LexicalBinding {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             LexicalBinding::Identifier(id, None) => id.location(),
             LexicalBinding::Identifier(id, Some(izer)) => id.location().merge(&izer.location()),
@@ -449,21 +445,21 @@ impl LexicalBinding {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             LexicalBinding::Identifier(bi, _) => bi.bound_names(),
             LexicalBinding::Pattern(bp, _) => bp.bound_names(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            LexicalBinding::Identifier(bi, opt) => bi.contains(kind) || opt.as_ref().is_some_and(|n| n.contains(kind)),
+            LexicalBinding::Identifier(_, opt) => opt.as_ref().is_some_and(|n| n.contains(kind)),
             LexicalBinding::Pattern(bp, i) => bp.contains(kind) || i.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -483,7 +479,7 @@ impl LexicalBinding {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -497,7 +493,7 @@ impl LexicalBinding {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, is_constant_declaration: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, is_constant_declaration: bool) {
         // Static Semantics: Early Errors
         //  LexicalBinding : BindingIdentifier Initializer[opt]
         //  * It is a Syntax Error if Initializer is not present and IsConstantDeclaration of the LexicalDeclaration containing this LexicalBinding is true.
@@ -522,14 +518,12 @@ impl LexicalBinding {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
-                LexicalBinding::Identifier(idref, Some(izer)) => {
-                    idref.body_containing_location(location).or_else(|| izer.body_containing_location(location))
-                }
-                LexicalBinding::Identifier(idref, None) => idref.body_containing_location(location),
+                LexicalBinding::Identifier(_, Some(izer)) => izer.body_containing_location(location),
+                LexicalBinding::Identifier(_, None) => None,
                 LexicalBinding::Pattern(pat, izer) => {
                     pat.body_containing_location(location).or_else(|| izer.body_containing_location(location))
                 }
@@ -543,8 +537,8 @@ impl LexicalBinding {
 // VariableStatement[Yield, Await] :
 //      var VariableDeclarationList[+In, ?Yield, ?Await] ;
 #[derive(Debug)]
-pub struct VariableStatement {
-    pub list: Rc<VariableDeclarationList>,
+pub(crate) struct VariableStatement {
+    pub(crate) list: Rc<VariableDeclarationList>,
     location: Location,
 }
 
@@ -578,27 +572,31 @@ impl PrettyPrint for VariableStatement {
 
 impl VariableStatement {
     // no cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (var_loc, after_var) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
+        let (var_loc, after_var) = scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Var)?;
         let (list, after_vdl) = VariableDeclarationList::parse(parser, after_var, true, yield_flag, await_flag)?;
-        let (semi_loc, after_semi) = scan_for_auto_semi(after_vdl, parser.source, ScanGoal::InputElementRegExp)?;
+        let (semi_loc, after_semi) = scan_for_auto_semi(after_vdl, parser.source, InputElementGoal::RegExp)?;
         Ok((Rc::new(VariableStatement { list, location: var_loc.merge(&semi_loc) }), after_semi))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.list.bound_names()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.list.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -612,7 +610,7 @@ impl VariableStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -622,18 +620,18 @@ impl VariableStatement {
         self.list.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.list.early_errors(errs, strict);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.list.var_scoped_declarations()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) { self.list.body_containing_location(location) } else { None }
     }
@@ -643,8 +641,8 @@ impl VariableStatement {
 //      VariableDeclaration[?In, ?Yield, ?Await]
 //      VariableDeclarationList[?In, ?Yield, ?Await] , VariableDeclaration[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub struct VariableDeclarationList {
-    pub list: NonEmpty<Rc<VariableDeclaration>>,
+pub(crate) struct VariableDeclarationList {
+    pub(crate) list: NonEmpty<Rc<VariableDeclaration>>,
     location: Location,
 }
 
@@ -703,7 +701,7 @@ impl VariableDeclarationList {
         let mut items = ne_vec![decl];
         let mut current_scanner = after_dcl;
         while let Ok((next, after_next)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
+            scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Comma).and_then(
                 |(_, after_comma)| VariableDeclaration::parse(parser, after_comma, in_flag, yield_flag, await_flag),
             )
         {
@@ -714,7 +712,7 @@ impl VariableDeclarationList {
         Ok((Rc::new(VariableDeclarationList { list: items, location }), current_scanner))
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -732,15 +730,15 @@ impl VariableDeclarationList {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         self.list.iter().flat_map(|item| item.bound_names()).collect()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.list.iter().any(|item| item.contains(kind))
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -754,7 +752,7 @@ impl VariableDeclarationList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -764,7 +762,7 @@ impl VariableDeclarationList {
         self.list.iter().any(|item| item.contains_arguments())
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         for item in &self.list {
             item.early_errors(errs, strict);
         }
@@ -773,15 +771,15 @@ impl VariableDeclarationList {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.list.iter().map(|item| VarScopeDecl::VariableDeclaration(item.clone())).collect()
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             self.list.iter().find_map(|item| item.body_containing_location(location))
@@ -795,7 +793,7 @@ impl VariableDeclarationList {
 //      BindingIdentifier[?Yield, ?Await] Initializer[?In, ?Yield, ?Await]opt
 //      BindingPattern[?Yield, ?Await] Initializer[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum VariableDeclaration {
+pub(crate) enum VariableDeclaration {
     Identifier(Rc<BindingIdentifier>, Option<Rc<Initializer>>),
     Pattern(Rc<BindingPattern>, Rc<Initializer>),
 }
@@ -856,7 +854,7 @@ impl PrettyPrint for VariableDeclaration {
 
 impl VariableDeclaration {
     // no cache
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -880,22 +878,22 @@ impl VariableDeclaration {
             })
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             VariableDeclaration::Identifier(bi, _) => bi.bound_names(),
             VariableDeclaration::Pattern(bp, _) => bp.bound_names(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            VariableDeclaration::Identifier(bi, None) => bi.contains(kind),
-            VariableDeclaration::Identifier(bi, Some(init)) => bi.contains(kind) || init.contains(kind),
+            VariableDeclaration::Identifier(_, None) => false,
+            VariableDeclaration::Identifier(_, Some(init)) => init.contains(kind),
             VariableDeclaration::Pattern(bp, init) => bp.contains(kind) || init.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -915,7 +913,7 @@ impl VariableDeclaration {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -929,7 +927,7 @@ impl VariableDeclaration {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             VariableDeclaration::Identifier(bi, Some(i)) => {
                 bi.early_errors(errs, strict);
@@ -943,7 +941,7 @@ impl VariableDeclaration {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             VariableDeclaration::Identifier(binding_identifier, initializer) => {
                 let id_loc = binding_identifier.location();
@@ -955,13 +953,13 @@ impl VariableDeclaration {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
-                VariableDeclaration::Identifier(binding_identifier, initializer) => binding_identifier
-                    .body_containing_location(location)
-                    .or_else(|| initializer.as_ref().and_then(|izer| izer.body_containing_location(location))),
+                VariableDeclaration::Identifier(_, initializer) => {
+                    initializer.as_ref().and_then(|izer| izer.body_containing_location(location))
+                }
                 VariableDeclaration::Pattern(binding_pattern, initializer) => binding_pattern
                     .body_containing_location(location)
                     .or_else(|| initializer.body_containing_location(location)),
@@ -976,7 +974,7 @@ impl VariableDeclaration {
 //      ObjectBindingPattern[?Yield, ?Await]
 //      ArrayBindingPattern[?Yield, ?Await]
 #[derive(Debug)]
-pub enum BindingPattern {
+pub(crate) enum BindingPattern {
     Object(Rc<ObjectBindingPattern>),
     Array(Rc<ArrayBindingPattern>),
 }
@@ -1027,7 +1025,12 @@ impl BindingPattern {
             })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.binding_pattern_cache.get(&key) {
             Some(result) => result.clone(),
@@ -1039,28 +1042,28 @@ impl BindingPattern {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             BindingPattern::Object(obp) => obp.location(),
             BindingPattern::Array(abp) => abp.location(),
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             BindingPattern::Object(node) => node.bound_names(),
             BindingPattern::Array(node) => node.bound_names(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             BindingPattern::Object(node) => node.contains(kind),
             BindingPattern::Array(node) => node.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1077,7 +1080,7 @@ impl BindingPattern {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1090,7 +1093,7 @@ impl BindingPattern {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingPattern::Object(node) => node.early_errors(errs, strict),
             BindingPattern::Array(node) => node.early_errors(errs, strict),
@@ -1100,17 +1103,23 @@ impl BindingPattern {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         match self {
             BindingPattern::Object(o) => o.contains_expression(),
             BindingPattern::Array(a) => a.contains_expression(),
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                BindingPattern::Object(obp) => obp.body_containing_location(location),
+                BindingPattern::Array(abp) => abp.body_containing_location(location),
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -1120,7 +1129,7 @@ impl BindingPattern {
 //      { BindingPropertyList[?Yield, ?Await] }
 //      { BindingPropertyList[?Yield, ?Await] , BindingRestProperty[?Yield, ?Await]opt }
 #[derive(Debug)]
-pub enum ObjectBindingPattern {
+pub(crate) enum ObjectBindingPattern {
     Empty { location: Location },
     RestOnly { brp: Rc<BindingRestProperty>, location: Location },
     ListOnly { bpl: Rc<BindingPropertyList>, location: Location },
@@ -1193,11 +1202,16 @@ impl PrettyPrint for ObjectBindingPattern {
 
 impl ObjectBindingPattern {
     // no cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ObjectBindingPattern), scanner)).otherwise(|| {
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace).and_then(
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::LeftBrace).and_then(
                 |(open_loc, after_open)| {
-                    scan_for_punct(after_open, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBrace)
+                    scan_for_punct(after_open, parser.source, InputElementGoal::RegExp, Punctuator::RightBrace)
                         .map(|(close_loc, after_close)| {
                             (Rc::new(ObjectBindingPattern::Empty { location: open_loc.merge(&close_loc) }), after_close)
                         })
@@ -1207,7 +1221,7 @@ impl ObjectBindingPattern {
                                     scan_for_punct(
                                         after_brp,
                                         parser.source,
-                                        ScanGoal::InputElementRegExp,
+                                        InputElementGoal::RegExp,
                                         Punctuator::RightBrace,
                                     )
                                     .map(|(close_loc, after_close)| {
@@ -1227,7 +1241,7 @@ impl ObjectBindingPattern {
                                 |(bpl, after_bpl)| match scan_for_punct(
                                     after_bpl,
                                     parser.source,
-                                    ScanGoal::InputElementRegExp,
+                                    InputElementGoal::RegExp,
                                     Punctuator::RightBrace,
                                 )
                                 .map(|(close_loc, after_close)| (None, close_loc, after_close))
@@ -1235,7 +1249,7 @@ impl ObjectBindingPattern {
                                     scan_for_punct(
                                         after_bpl,
                                         parser.source,
-                                        ScanGoal::InputElementRegExp,
+                                        InputElementGoal::RegExp,
                                         Punctuator::Comma,
                                     )
                                     .and_then(|(_, after_comma)| {
@@ -1251,7 +1265,7 @@ impl ObjectBindingPattern {
                                         scan_for_punct(
                                             after_brp,
                                             parser.source,
-                                            ScanGoal::InputElementRegExp,
+                                            InputElementGoal::RegExp,
                                             Punctuator::RightBrace,
                                         )
                                         .map(|(final_loc, after_final)| (Some(brp), final_loc, after_final))
@@ -1281,7 +1295,7 @@ impl ObjectBindingPattern {
         })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ObjectBindingPattern::Empty { location }
             | ObjectBindingPattern::RestOnly { location, .. }
@@ -1290,7 +1304,7 @@ impl ObjectBindingPattern {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             ObjectBindingPattern::Empty { .. } => vec![],
             ObjectBindingPattern::RestOnly { brp, .. } => brp.bound_names(),
@@ -1305,18 +1319,16 @@ impl ObjectBindingPattern {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ObjectBindingPattern::Empty { .. } => false,
-            ObjectBindingPattern::RestOnly { brp, .. } => brp.contains(kind),
-            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
+            ObjectBindingPattern::Empty { .. } | ObjectBindingPattern::RestOnly { .. } => false,
+            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, .. } => {
                 bpl.contains(kind)
             }
-            ObjectBindingPattern::ListRest { bpl, brp: Some(n), .. } => bpl.contains(kind) || n.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1335,7 +1347,7 @@ impl ObjectBindingPattern {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1350,7 +1362,7 @@ impl ObjectBindingPattern {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ObjectBindingPattern::Empty { .. } => (),
             ObjectBindingPattern::RestOnly { brp, .. } => brp.early_errors(errs, strict),
@@ -1367,7 +1379,7 @@ impl ObjectBindingPattern {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         match self {
             ObjectBindingPattern::Empty { .. } | ObjectBindingPattern::RestOnly { .. } => false,
             ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, .. } => {
@@ -1376,10 +1388,22 @@ impl ObjectBindingPattern {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                ObjectBindingPattern::Empty { .. } => None,
+                ObjectBindingPattern::RestOnly { brp, .. } => brp.body_containing_location(location),
+                ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
+                    bpl.body_containing_location(location)
+                }
+                ObjectBindingPattern::ListRest { bpl, brp: Some(brp), .. } => {
+                    bpl.body_containing_location(location).or_else(|| brp.body_containing_location(location))
+                }
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -1388,7 +1412,7 @@ impl ObjectBindingPattern {
 //      [ BindingElementList[?Yield, ?Await] ]
 //      [ BindingElementList[?Yield, ?Await] , Elisionopt BindingRestElement[?Yield, ?Await]opt ]
 #[derive(Debug)]
-pub enum ArrayBindingPattern {
+pub(crate) enum ArrayBindingPattern {
     RestOnly {
         elision: Option<Rc<Elisions>>,
         bre: Option<Rc<BindingRestElement>>,
@@ -1526,15 +1550,20 @@ impl PrettyPrint for ArrayBindingPattern {
 
 impl ArrayBindingPattern {
     // ArrayBindingPattern's only parent is BindingPattern. It doesn't need to be cached.
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (first_loc, after_first) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::LeftBracket)?;
         BindingElementList::parse(parser, after_first, yield_flag, await_flag)
             .and_then(|(bel, after_bel)| {
                 scan_for_punct_set(
                     after_bel,
                     parser.source,
-                    ScanGoal::InputElementRegExp,
+                    InputElementGoal::RegExp,
                     &[Punctuator::RightBracket, Punctuator::Comma],
                 )
                 .and_then(|(punct_next, next_loc, after_next)| match punct_next {
@@ -1555,7 +1584,7 @@ impl ArrayBindingPattern {
                         match scan_for_punct(
                             after_bre,
                             parser.source,
-                            ScanGoal::InputElementRegExp,
+                            InputElementGoal::RegExp,
                             Punctuator::RightBracket,
                         ) {
                             Ok((close_loc, after_close)) => Ok((
@@ -1588,7 +1617,7 @@ impl ArrayBindingPattern {
                         Err(err) => (None, after_elisions, Some(err)),
                         Ok((b, s)) => (Some(b), s, None),
                     };
-                match scan_for_punct(after_bre, parser.source, ScanGoal::InputElementRegExp, Punctuator::RightBracket) {
+                match scan_for_punct(after_bre, parser.source, InputElementGoal::RegExp, Punctuator::RightBracket) {
                     Ok((close_loc, after_close)) => Ok((
                         Rc::new(ArrayBindingPattern::RestOnly { elision, bre, location: first_loc.merge(&close_loc) }),
                         after_close,
@@ -1604,7 +1633,7 @@ impl ArrayBindingPattern {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ArrayBindingPattern::RestOnly { location, .. }
             | ArrayBindingPattern::ListOnly { location, .. }
@@ -1612,7 +1641,7 @@ impl ArrayBindingPattern {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             ArrayBindingPattern::RestOnly { bre: Some(node), .. } => node.bound_names(),
             ArrayBindingPattern::RestOnly { bre: None, .. } => vec![],
@@ -1626,22 +1655,22 @@ impl ArrayBindingPattern {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ArrayBindingPattern::RestOnly { elision: onode_a, bre: onode_b, .. } => {
-                onode_a.as_ref().is_some_and(|node| kind == ParseNodeKind::Elisions || node.contains(kind))
+                onode_a.as_ref().is_some_and(|_| kind == ParseNodeKind::Elisions)
                     || onode_b.as_ref().is_some_and(|node| node.contains(kind))
             }
             ArrayBindingPattern::ListOnly { bel: node, .. } => node.contains(kind),
             ArrayBindingPattern::ListRest { bel: node, elision: onode_a, bre: onode_b, .. } => {
                 node.contains(kind)
-                    || onode_a.as_ref().is_some_and(|node| kind == ParseNodeKind::Elisions || node.contains(kind))
+                    || onode_a.as_ref().is_some_and(|_| kind == ParseNodeKind::Elisions)
                     || onode_b.as_ref().is_some_and(|node| node.contains(kind))
             }
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1664,7 +1693,7 @@ impl ArrayBindingPattern {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1682,7 +1711,7 @@ impl ArrayBindingPattern {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayBindingPattern::RestOnly { bre: Some(node), .. } => node.early_errors(errs, strict),
             ArrayBindingPattern::RestOnly { bre: None, .. } => (),
@@ -1699,7 +1728,7 @@ impl ArrayBindingPattern {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         match self {
             ArrayBindingPattern::RestOnly { bre: None, .. } => false,
             ArrayBindingPattern::RestOnly { bre: Some(bre), .. } => bre.contains_expression(),
@@ -1712,17 +1741,25 @@ impl ArrayBindingPattern {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        match self {
+            ArrayBindingPattern::RestOnly { bre: None, .. } => None,
+            ArrayBindingPattern::RestOnly { bre: Some(bre), .. } => bre.body_containing_location(location),
+            ArrayBindingPattern::ListOnly { bel, .. } | ArrayBindingPattern::ListRest { bel, bre: None, .. } => {
+                bel.body_containing_location(location)
+            }
+            ArrayBindingPattern::ListRest { bel, bre: Some(bre), .. } => {
+                bel.body_containing_location(location).or_else(|| bre.body_containing_location(location))
+            }
+        }
     }
 }
 
 // BindingRestProperty[Yield, Await] :
 //      ... BindingIdentifier[?Yield, ?Await]
 #[derive(Debug)]
-pub enum BindingRestProperty {
+pub(crate) enum BindingRestProperty {
     Id(Rc<BindingIdentifier>),
 }
 
@@ -1758,12 +1795,17 @@ impl PrettyPrint for BindingRestProperty {
 
 impl BindingRestProperty {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)
+        scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Ellipsis)
             .and_then(|(_, after_dots)| BindingIdentifier::parse(parser, after_dots, yield_flag, await_flag))
             .map(|(id, after_id)| (Rc::new(BindingRestProperty::Id(id)), after_id))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.binding_rest_property_cache.get(&key) {
             Some(result) => result.clone(),
@@ -1775,23 +1817,18 @@ impl BindingRestProperty {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         let BindingRestProperty::Id(node) = self;
         node.bound_names()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let BindingRestProperty::Id(node) = self;
-        node.contains(kind)
-    }
-
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         let BindingRestProperty::Id(node) = self;
         node.early_errors(errs, strict);
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }
@@ -1801,7 +1838,7 @@ impl BindingRestProperty {
 //      BindingProperty[?Yield, ?Await]
 //      BindingPropertyList[?Yield, ?Await] , BindingProperty[?Yield, ?Await]
 #[derive(Debug)]
-pub enum BindingPropertyList {
+pub(crate) enum BindingPropertyList {
     Item(Rc<BindingProperty>),
     List(Rc<BindingPropertyList>, Rc<BindingProperty>),
 }
@@ -1850,12 +1887,17 @@ impl PrettyPrint for BindingPropertyList {
 
 impl BindingPropertyList {
     // no cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (bp, after_bp) = BindingProperty::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(BindingPropertyList::Item(bp));
         let mut current_scan = after_bp;
         while let Ok((bp2, after_bp2)) =
-            scan_for_punct(current_scan, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            scan_for_punct(current_scan, parser.source, InputElementGoal::Div, Punctuator::Comma)
                 .and_then(|(_, after_token)| BindingProperty::parse(parser, after_token, yield_flag, await_flag))
         {
             current = Rc::new(BindingPropertyList::List(current, bp2));
@@ -1864,7 +1906,7 @@ impl BindingPropertyList {
         Ok((current, current_scan))
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             BindingPropertyList::Item(node) => node.bound_names(),
             BindingPropertyList::List(lst, item) => {
@@ -1875,14 +1917,14 @@ impl BindingPropertyList {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             BindingPropertyList::Item(node) => node.contains(kind),
             BindingPropertyList::List(lst, item) => lst.contains(kind) || item.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1901,7 +1943,7 @@ impl BindingPropertyList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1914,7 +1956,7 @@ impl BindingPropertyList {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingPropertyList::Item(node) => node.early_errors(errs, strict),
             BindingPropertyList::List(lst, item) => {
@@ -1927,7 +1969,7 @@ impl BindingPropertyList {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         match self {
             BindingPropertyList::Item(node) => node.contains_expression(),
             BindingPropertyList::List(lst, item) => lst.contains_expression() || item.contains_expression(),
@@ -1935,7 +1977,7 @@ impl BindingPropertyList {
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }
@@ -1945,7 +1987,7 @@ impl BindingPropertyList {
 //      BindingElisionElement[?Yield, ?Await]
 //      BindingElementList[?Yield, ?Await] , BindingElisionElement[?Yield, ?Await]
 #[derive(Debug)]
-pub enum BindingElementList {
+pub(crate) enum BindingElementList {
     Item(Rc<BindingElisionElement>),
     List(Rc<BindingElementList>, Rc<BindingElisionElement>),
 }
@@ -1994,12 +2036,17 @@ impl PrettyPrint for BindingElementList {
 
 impl BindingElementList {
     // no cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (elem, after_elem) = BindingElisionElement::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(BindingElementList::Item(elem));
         let mut current_scanner = after_elem;
         loop {
-            match scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            match scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Comma)
                 .and_then(|(_, after_tok)| BindingElisionElement::parse(parser, after_tok, yield_flag, await_flag))
             {
                 Err(_) => {
@@ -2014,7 +2061,7 @@ impl BindingElementList {
         Ok((current, current_scanner))
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             BindingElementList::Item(node) => node.bound_names(),
             BindingElementList::List(lst, item) => {
@@ -2025,14 +2072,14 @@ impl BindingElementList {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             BindingElementList::Item(node) => node.contains(kind),
             BindingElementList::List(l, i) => l.contains(kind) || i.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2051,7 +2098,7 @@ impl BindingElementList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2064,7 +2111,7 @@ impl BindingElementList {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingElementList::Item(node) => node.early_errors(errs, strict),
             BindingElementList::List(lst, item) => {
@@ -2077,24 +2124,28 @@ impl BindingElementList {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         match self {
             BindingElementList::Item(node) => node.contains_expression(),
             BindingElementList::List(lst, item) => lst.contains_expression() || item.contains_expression(),
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        match self {
+            BindingElementList::Item(bee) => bee.body_containing_location(location),
+            BindingElementList::List(bel, bee) => {
+                bel.body_containing_location(location).or_else(|| bee.body_containing_location(location))
+            }
+        }
     }
 }
 
 // BindingElisionElement[Yield, Await] :
 //      Elisionopt BindingElement[?Yield, ?Await]
 #[derive(Debug)]
-pub enum BindingElisionElement {
+pub(crate) enum BindingElisionElement {
     Element(Option<Rc<Elisions>>, Rc<BindingElement>),
 }
 
@@ -2143,7 +2194,12 @@ impl PrettyPrint for BindingElisionElement {
 
 impl BindingElisionElement {
     // no cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (elision, after_elision) = match Elisions::parse(parser, scanner) {
             Err(_) => (None, scanner),
             Ok((e, s)) => (Some(e), s),
@@ -2152,17 +2208,17 @@ impl BindingElisionElement {
         Ok((Rc::new(BindingElisionElement::Element(elision, be)), after_be))
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         let BindingElisionElement::Element(_, elem) = self;
         elem.bound_names()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let BindingElisionElement::Element(opt, n) = self;
-        opt.as_ref().is_some_and(|n| n.contains(kind)) || n.contains(kind)
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
+        let BindingElisionElement::Element(_, n) = self;
+        n.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2177,7 +2233,7 @@ impl BindingElisionElement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2188,7 +2244,7 @@ impl BindingElisionElement {
         be.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         let BindingElisionElement::Element(_, elem) = self;
         elem.early_errors(errs, strict);
     }
@@ -2196,15 +2252,15 @@ impl BindingElisionElement {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         let BindingElisionElement::Element(_, elem) = self;
         elem.contains_expression()
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        let BindingElisionElement::Element(_, be) = self;
+        be.body_containing_location(location)
     }
 }
 
@@ -2212,7 +2268,7 @@ impl BindingElisionElement {
 //      SingleNameBinding[?Yield, ?Await]
 //      PropertyName[?Yield, ?Await] : BindingElement[?Yield, ?Await]
 #[derive(Debug)]
-pub enum BindingProperty {
+pub(crate) enum BindingProperty {
     Single(Rc<SingleNameBinding>),
     Property(Rc<PropertyName>, Rc<BindingElement>),
 }
@@ -2261,12 +2317,17 @@ impl PrettyPrint for BindingProperty {
 
 impl BindingProperty {
     // no cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::BindingProperty), scanner))
             .otherwise(|| {
                 let (pn, after_pn) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
                 let (_, after_token) =
-                    scan_for_punct(after_pn, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+                    scan_for_punct(after_pn, parser.source, InputElementGoal::Div, Punctuator::Colon)?;
                 let (be, after_be) = BindingElement::parse(parser, after_token, yield_flag, await_flag)?;
                 Ok((Rc::new(BindingProperty::Property(pn, be)), after_be))
             })
@@ -2276,21 +2337,21 @@ impl BindingProperty {
             })
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             BindingProperty::Single(node) => node.bound_names(),
             BindingProperty::Property(_, elem) => elem.bound_names(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             BindingProperty::Single(node) => node.contains(kind),
             BindingProperty::Property(node1, node2) => node1.contains(kind) || node2.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2309,7 +2370,7 @@ impl BindingProperty {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2322,7 +2383,7 @@ impl BindingProperty {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingProperty::Single(node) => node.early_errors(errs, strict),
             BindingProperty::Property(name, elem) => {
@@ -2335,25 +2396,25 @@ impl BindingProperty {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         match self {
             BindingProperty::Single(single) => single.contains_expression(),
             BindingProperty::Property(name, elem) => name.is_computed_property_key() || elem.contains_expression(),
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // BindingElement[Yield, Await] :
 //      SingleNameBinding[?Yield, ?Await]
 //      BindingPattern[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 #[derive(Debug)]
-pub enum BindingElement {
+pub(crate) enum BindingElement {
     Single(Rc<SingleNameBinding>),
     Pattern(Rc<BindingPattern>, Option<Rc<Initializer>>),
 }
@@ -2421,7 +2482,12 @@ impl BindingElement {
             })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.binding_element_cache.get(&key) {
             Some(result) => result.clone(),
@@ -2433,7 +2499,7 @@ impl BindingElement {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             BindingElement::Single(single) => single.location(),
             BindingElement::Pattern(pat, Some(izer)) => pat.location().merge(&izer.location()),
@@ -2441,21 +2507,21 @@ impl BindingElement {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             BindingElement::Single(node) => node.bound_names(),
             BindingElement::Pattern(node, _) => node.bound_names(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             BindingElement::Single(n) => n.contains(kind),
             BindingElement::Pattern(n, opt) => n.contains(kind) || opt.as_ref().is_some_and(|n| n.contains(kind)),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2475,7 +2541,7 @@ impl BindingElement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2490,7 +2556,7 @@ impl BindingElement {
         }
     }
 
-    pub fn is_simple_parameter_list(&self) -> bool {
+    pub(crate) fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
         match self {
             BindingElement::Single(single_name_binding) => {
@@ -2507,7 +2573,7 @@ impl BindingElement {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingElement::Single(node) => node.early_errors(errs, strict),
             BindingElement::Pattern(node, None) => node.early_errors(errs, strict),
@@ -2521,7 +2587,7 @@ impl BindingElement {
     /// Report whether this binding id contains an intializer
     ///
     /// See [HasInitializer](https://tc39.es/ecma262/#sec-static-semantics-hasinitializer) from ECMA-262.
-    pub fn has_initializer(&self) -> bool {
+    pub(crate) fn has_initializer(&self) -> bool {
         match self {
             BindingElement::Single(sing) => sing.has_initializer(),
             BindingElement::Pattern(_, izer) => izer.is_some(),
@@ -2531,7 +2597,7 @@ impl BindingElement {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         match self {
             BindingElement::Single(sing) => sing.contains_expression(),
             BindingElement::Pattern(_, Some(_)) => true,
@@ -2539,7 +2605,7 @@ impl BindingElement {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -2558,7 +2624,7 @@ impl BindingElement {
 // SingleNameBinding[Yield, Await] :
 //      BindingIdentifier[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 #[derive(Debug)]
-pub enum SingleNameBinding {
+pub(crate) enum SingleNameBinding {
     Id(Rc<BindingIdentifier>, Option<Rc<Initializer>>),
 }
 
@@ -2613,7 +2679,12 @@ impl SingleNameBinding {
         Ok((Rc::new(SingleNameBinding::Id(bi, init)), after_init))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.single_name_binding_cache.get(&key) {
             Some(result) => result.clone(),
@@ -2625,24 +2696,24 @@ impl SingleNameBinding {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             SingleNameBinding::Id(ident, None) => ident.location(),
             SingleNameBinding::Id(ident, Some(izer)) => ident.location().merge(&izer.location()),
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         let SingleNameBinding::Id(ident, _) = self;
         ident.bound_names()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        let SingleNameBinding::Id(ident, opt) = self;
-        ident.contains(kind) || opt.as_ref().is_some_and(|n| n.contains(kind))
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
+        let SingleNameBinding::Id(_, opt) = self;
+        opt.as_ref().is_some_and(|n| n.contains(kind))
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2657,7 +2728,7 @@ impl SingleNameBinding {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2668,7 +2739,7 @@ impl SingleNameBinding {
         oizer.as_ref().is_some_and(|izer| izer.contains_arguments())
     }
 
-    pub fn is_simple_parameter_list(&self) -> bool {
+    pub(crate) fn is_simple_parameter_list(&self) -> bool {
         // Static Semantics: IsSimpleParameterList
         // SingleNameBinding : BindingIdentifier
         //  1. Return true.
@@ -2678,7 +2749,7 @@ impl SingleNameBinding {
         initializer.is_none()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             SingleNameBinding::Id(id, Some(init)) => {
                 id.early_errors(errs, strict);
@@ -2691,7 +2762,7 @@ impl SingleNameBinding {
     /// Report whether this binding id contains an intializer
     ///
     /// See [HasInitializer](https://tc39.es/ecma262/#sec-static-semantics-hasinitializer) from ECMA-262.
-    pub fn has_initializer(&self) -> bool {
+    pub(crate) fn has_initializer(&self) -> bool {
         let SingleNameBinding::Id(_, izer) = self;
         izer.is_some()
     }
@@ -2699,11 +2770,11 @@ impl SingleNameBinding {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         self.has_initializer()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -2720,7 +2791,7 @@ impl SingleNameBinding {
 //      ... BindingIdentifier[?Yield, ?Await]
 //      ... BindingPattern[?Yield, ?Await]
 #[derive(Debug)]
-pub enum BindingRestElement {
+pub(crate) enum BindingRestElement {
     Identifier(Rc<BindingIdentifier>, Location),
     Pattern(Rc<BindingPattern>, Location),
 }
@@ -2764,7 +2835,7 @@ impl PrettyPrint for BindingRestElement {
 impl BindingRestElement {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (tok_loc, after_tok) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Ellipsis)?;
         Err(ParseError::new(PECode::OpenOrIdentExpected, after_tok))
             .otherwise(|| {
                 BindingPattern::parse(parser, after_tok, yield_flag, await_flag).map(|(bp, after_bp)| {
@@ -2780,7 +2851,12 @@ impl BindingRestElement {
             })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.binding_rest_element_cache.get(&key) {
             Some(result) => result.clone(),
@@ -2792,27 +2868,27 @@ impl BindingRestElement {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             BindingRestElement::Identifier(_, location) | BindingRestElement::Pattern(_, location) => *location,
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             BindingRestElement::Identifier(node, ..) => node.bound_names(),
             BindingRestElement::Pattern(node, ..) => node.bound_names(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            BindingRestElement::Identifier(node, ..) => node.contains(kind),
+            BindingRestElement::Identifier(..) => false,
             BindingRestElement::Pattern(node, ..) => node.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2829,7 +2905,7 @@ impl BindingRestElement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2842,7 +2918,7 @@ impl BindingRestElement {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BindingRestElement::Identifier(node, ..) => node.early_errors(errs, strict),
             BindingRestElement::Pattern(node, ..) => node.early_errors(errs, strict),
@@ -2852,17 +2928,23 @@ impl BindingRestElement {
     /// Report whether this portion of a parameter list contains an expression
     ///
     /// See [ContainsExpression](https://tc39.es/ecma262/#sec-static-semantics-containsexpression) in ECMA-262.
-    pub fn contains_expression(&self) -> bool {
+    pub(crate) fn contains_expression(&self) -> bool {
         match self {
             BindingRestElement::Identifier(..) => false,
             BindingRestElement::Pattern(node, ..) => node.contains_expression(),
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                BindingRestElement::Identifier(..) => None,
+                BindingRestElement::Pattern(bp, ..) => bp.body_containing_location(location),
+            }
+        } else {
+            None
+        }
     }
 }
 

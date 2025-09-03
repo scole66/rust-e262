@@ -254,7 +254,6 @@ fn async_generator_declaration_test_01() {
         ],
     );
     assert_ne!(format!("{node:?}"), "");
-    assert!(node.is_function_definition());
 }
 #[test]
 fn async_generator_declaration_test_02() {
@@ -285,7 +284,6 @@ fn async_generator_declaration_test_02() {
         ],
     );
     assert_ne!(format!("{node:?}"), "");
-    assert!(node.is_function_definition());
 }
 #[test]
 fn async_generator_declaration_test_03() {
@@ -471,30 +469,6 @@ fn async_generator_declaration_test_conciseerrors_2() {
     concise_error_validate(&*item);
 }
 #[test]
-fn async_generator_declaration_test_contains_01() {
-    let (item, _) = AsyncGeneratorDeclaration::parse(
-        &mut newparser("async function * a(b=10) { return 10; }"),
-        Scanner::new(),
-        true,
-        true,
-        true,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn async_generator_declaration_test_contains_02() {
-    let (item, _) = AsyncGeneratorDeclaration::parse(
-        &mut newparser("async function * (b=10) { return 10; }"),
-        Scanner::new(),
-        true,
-        true,
-        true,
-    )
-    .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
 fn async_generator_declaration_test_bound_names_01() {
     let (item, _) = AsyncGeneratorDeclaration::parse(
         &mut newparser("async function * a() { return; }"),
@@ -575,11 +549,6 @@ mod async_generator_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).async_generator_declaration().bound_name().into()
     }
-
-    #[test_case("async function *foo () {}" => false; "typical")]
-    fn is_constant_declaration(src: &str) -> bool {
-        Maker::new(src).async_generator_declaration().is_constant_declaration()
-    }
 }
 
 // ASYNC GENERATOR EXPRESSION
@@ -608,7 +577,6 @@ fn async_generator_expression_test_01() {
         ],
     );
     assert_ne!(format!("{node:?}"), "");
-    assert!(node.is_function_definition());
 }
 #[test]
 fn async_generator_expression_test_02() {
@@ -634,7 +602,6 @@ fn async_generator_expression_test_02() {
         ],
     );
     assert_ne!(format!("{node:?}"), "");
-    assert!(node.is_function_definition());
 }
 #[test]
 fn async_generator_expression_test_03() {
@@ -760,20 +727,6 @@ fn async_generator_expression_test_conciseerrors_2() {
     )
     .unwrap();
     concise_error_validate(&*item);
-}
-#[test]
-fn async_generator_expression_test_contains_01() {
-    let (item, _) =
-        AsyncGeneratorExpression::parse(&mut newparser("async function * a(b=10) { return 10; }"), Scanner::new())
-            .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn async_generator_expression_test_contains_02() {
-    let (item, _) =
-        AsyncGeneratorExpression::parse(&mut newparser("async function * (b=10) { return 10; }"), Scanner::new())
-            .unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
 }
 #[test_case("async function *f(arg=item.#valid){}" => true; "Params valid")]
 #[test_case("async function *f(arg){item.#valid;}" => true; "Body valid")]

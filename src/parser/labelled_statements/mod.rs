@@ -6,9 +6,9 @@ use std::io::Write;
 // LabelledStatement[Yield, Await, Return] :
 //      LabelIdentifier[?Yield, ?Await] : LabelledItem[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub struct LabelledStatement {
-    pub identifier: Rc<LabelIdentifier>,
-    pub item: Rc<LabelledItem>,
+pub(crate) struct LabelledStatement {
+    pub(crate) identifier: Rc<LabelIdentifier>,
+    pub(crate) item: Rc<LabelledItem>,
 }
 
 impl fmt::Display for LabelledStatement {
@@ -41,7 +41,7 @@ impl PrettyPrint for LabelledStatement {
 }
 
 impl LabelledStatement {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -49,30 +49,30 @@ impl LabelledStatement {
         return_flag: bool,
     ) -> ParseResult<Self> {
         let (identifier, after_li) = LabelIdentifier::parse(parser, scanner, yield_flag, await_flag)?;
-        let (_, after_colon) = scan_for_punct(after_li, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+        let (_, after_colon) = scan_for_punct(after_li, parser.source, InputElementGoal::Div, Punctuator::Colon)?;
         let (item, after_item) = LabelledItem::parse(parser, after_colon, yield_flag, await_flag, return_flag)?;
         Ok((Rc::new(LabelledStatement { identifier, item }), after_item))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.identifier.location().merge(&self.item.location())
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         // LabelledStatement : LabelIdentifier : LabelledItem
         //  1. Return the LexicallyDeclaredNames of LabelledItem.
         self.item.lexically_declared_names()
     }
 
-    pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn top_level_var_declared_names(&self) -> Vec<JSString> {
         self.item.top_level_var_declared_names()
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.item.var_declared_names()
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         let label = self.identifier.string_value();
         let mut new_label_set: Vec<JSString> = Vec::new();
         new_label_set.extend_from_slice(label_set);
@@ -80,11 +80,11 @@ impl LabelledStatement {
         self.item.contains_undefined_break_target(&new_label_set)
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.identifier.contains(kind) || self.item.contains(kind)
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.item.contains(kind)
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         let label = self.identifier.string_value();
         label_set.contains(&label) || {
             let mut new_label_set: Vec<JSString> = Vec::new();
@@ -94,7 +94,11 @@ impl LabelledStatement {
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(
+        &self,
+        iteration_set: &[JSString],
+        label_set: &[JSString],
+    ) -> bool {
         let label = self.identifier.string_value();
         let mut new_label_set: Vec<JSString> = Vec::new();
         new_label_set.extend_from_slice(label_set);
@@ -102,7 +106,7 @@ impl LabelledStatement {
         self.item.contains_undefined_continue_target(iteration_set, &new_label_set)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -116,7 +120,7 @@ impl LabelledStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -126,12 +130,19 @@ impl LabelledStatement {
         self.item.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub(crate) fn early_errors(
+        &self,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         self.identifier.early_errors(errs, strict);
         self.item.early_errors(errs, strict, within_iteration, within_switch);
     }
 
-    pub fn is_labelled_function(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn is_labelled_function(&self) -> bool {
         // Static Semantics: IsLabelledFunction ( stmt )
         //
         // The abstract operation IsLabelledFunction takes argument stmt and returns a Boolean. It performs the
@@ -151,26 +162,26 @@ impl LabelledStatement {
     /// as though they are declared var-style.
     ///
     /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
-    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.item.top_level_var_scoped_declarations()
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.item.var_scoped_declarations()
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.item.lexically_scoped_declarations()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         if self.location().contains(location) { self.item.body_containing_location(location) } else { None }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -190,7 +201,7 @@ impl LabelledStatement {
 //      Statement[?Yield, ?Await, ?Return]
 //      FunctionDeclaration[?Yield, ?Await, ~Default]
 #[derive(Debug)]
-pub enum LabelledItem {
+pub(crate) enum LabelledItem {
     Statement(Rc<Statement>),
     Function(Rc<FunctionDeclaration>),
 }
@@ -229,7 +240,7 @@ impl PrettyPrint for LabelledItem {
 }
 
 impl LabelledItem {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -247,14 +258,14 @@ impl LabelledItem {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             LabelledItem::Statement(node) => node.location(),
             LabelledItem::Function(node) => node.location(),
         }
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         match self {
             LabelledItem::Statement(_) => {
                 // LabelledItem : Statement
@@ -269,7 +280,7 @@ impl LabelledItem {
         }
     }
 
-    pub fn top_level_var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn top_level_var_declared_names(&self) -> Vec<JSString> {
         match self {
             LabelledItem::Statement(node) => match &**node {
                 Statement::Labelled(stmt) => stmt.top_level_var_declared_names(),
@@ -279,42 +290,46 @@ impl LabelledItem {
         }
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             LabelledItem::Statement(node) => node.var_declared_names(),
             LabelledItem::Function(..) => vec![],
         }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             LabelledItem::Statement(node) => node.contains_undefined_break_target(label_set),
             LabelledItem::Function(..) => false,
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             LabelledItem::Statement(node) => node.contains(kind),
-            LabelledItem::Function(node) => node.contains(kind),
+            LabelledItem::Function(..) => false,
         }
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             LabelledItem::Statement(node) => node.contains_duplicate_labels(label_set),
             LabelledItem::Function(..) => false,
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(
+        &self,
+        iteration_set: &[JSString],
+        label_set: &[JSString],
+    ) -> bool {
         match self {
             LabelledItem::Statement(node) => node.contains_undefined_continue_target(iteration_set, label_set),
             LabelledItem::Function(..) => false,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -331,7 +346,7 @@ impl LabelledItem {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -344,7 +359,13 @@ impl LabelledItem {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub(crate) fn early_errors(
+        &self,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         // Static Semantics: Early Errors
         //  LabelledItem : FunctionDeclaration
         //      * It is a Syntax Error if any source text is matched by this production.
@@ -360,7 +381,8 @@ impl LabelledItem {
         }
     }
 
-    pub fn is_labelled_function(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn is_labelled_function(&self) -> bool {
         // Static Semantics: IsLabelledFunction ( stmt )
         //
         // The abstract operation IsLabelledFunction takes argument stmt and returns a Boolean. It performs the
@@ -383,7 +405,7 @@ impl LabelledItem {
     /// as though they are declared var-style.
     ///
     /// See [TopLevelVarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-toplevelvarscopeddeclarations) in ECMA-262.
-    pub fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn top_level_var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             LabelledItem::Function(fd) => {
                 vec![VarScopeDecl::FunctionDeclaration(Rc::clone(fd))]
@@ -398,21 +420,21 @@ impl LabelledItem {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             LabelledItem::Function(_) => vec![],
             LabelledItem::Statement(stmt) => stmt.var_scoped_declarations(),
         }
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         match self {
             LabelledItem::Statement(_) => vec![],
             LabelledItem::Function(f) => vec![Rc::clone(f).into()],
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         if self.location().contains(location) {
             match self {
                 LabelledItem::Statement(node) => node.body_containing_location(location),
@@ -423,7 +445,7 @@ impl LabelledItem {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

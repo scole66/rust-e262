@@ -13,12 +13,12 @@ use std::rc::Rc;
 // a [[SymbolData]] internal slot. The [[SymbolData]] internal slot is the Symbol value represented by this Symbol
 // object.
 
-pub trait SymbolObjectInterface: ObjectInterface {
+pub(crate) trait SymbolObjectInterface: ObjectInterface {
     fn symbol_data(&self) -> &Symbol;
 }
 
 #[derive(Debug)]
-pub struct SymbolObject {
+pub(crate) struct SymbolObject {
     common: RefCell<CommonObjectData>,
     symbol_data: Symbol,
 }
@@ -45,6 +45,7 @@ impl ObjectInterface for SymbolObject {
     fn to_symbol_obj(&self) -> Option<&dyn SymbolObjectInterface> {
         Some(self)
     }
+    #[cfg(test)]
     fn is_symbol_object(&self) -> bool {
         true
     }
@@ -161,10 +162,10 @@ impl SymbolObjectInterface for SymbolObject {
 }
 
 impl SymbolObject {
-    pub fn new(prototype: Option<Object>, sym: Symbol) -> Self {
+    pub(crate) fn new(prototype: Option<Object>, sym: Symbol) -> Self {
         Self { common: RefCell::new(CommonObjectData::new(prototype, true, SYMBOL_OBJECT_SLOTS)), symbol_data: sym }
     }
-    pub fn object(prototype: Option<Object>, sym: Symbol) -> Object {
+    pub(crate) fn object(prototype: Option<Object>, sym: Symbol) -> Object {
         Object { o: Rc::new(Self::new(prototype, sym)) }
     }
 }
@@ -176,7 +177,7 @@ impl From<Symbol> for Object {
     }
 }
 
-pub fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -404,7 +405,7 @@ fn symbol_constructor_function(
     }
 }
 
-pub fn global_symbol(key: JSString) -> Symbol {
+pub(crate) fn global_symbol(key: JSString) -> Symbol {
     let gsm = global_symbol_registry();
     let mut registry = gsm.borrow_mut();
     let maybe_sym = registry.symbol_by_key(&key);
@@ -528,27 +529,29 @@ fn symbol_description(
 }
 
 #[derive(Debug, Default)]
-pub struct SymbolRegistry {
+pub(crate) struct SymbolRegistry {
     symbols: BiMap<Symbol, JSString>,
 }
 
 impl SymbolRegistry {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::default()
     }
-    pub fn symbol_by_key(&self, key: &JSString) -> Option<Symbol> {
+    pub(crate) fn symbol_by_key(&self, key: &JSString) -> Option<Symbol> {
         self.symbols.get_by_right(key).cloned()
     }
-    pub fn key_by_symbol(&self, sym: &Symbol) -> Option<JSString> {
+    pub(crate) fn key_by_symbol(&self, sym: &Symbol) -> Option<JSString> {
         self.symbols.get_by_left(sym).cloned()
     }
-    pub fn add(&mut self, key: JSString, sym: Symbol) {
+    pub(crate) fn add(&mut self, key: JSString, sym: Symbol) {
         self.symbols.insert_no_overwrite(sym, key).unwrap();
     }
-    pub fn len(&self) -> usize {
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
         self.symbols.len()
     }
-    pub fn is_empty(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn is_empty(&self) -> bool {
         self.symbols.is_empty()
     }
 }

@@ -15,7 +15,6 @@ fn conditional_expression_test_01() {
     pretty_check(&*se, "ConditionalExpression: a", &["ShortCircuitExpression: a"]);
     concise_check(&*se, "IdentifierName: a", &[]);
     assert_ne!(format!("{se:?}"), "");
-    assert_eq!(se.is_function_definition(), false);
 }
 #[test]
 fn conditional_expression_test_02() {
@@ -34,7 +33,6 @@ fn conditional_expression_test_02() {
         &["IdentifierName: a", "Punctuator: ?", "IdentifierName: b", "Punctuator: :", "IdentifierName: c"],
     );
     assert_ne!(format!("{se:?}"), "");
-    assert_eq!(se.is_function_definition(), false);
 }
 #[test]
 fn conditional_expression_test_03() {
@@ -170,12 +168,12 @@ mod conditional_expression {
         Maker::new(src).conditional_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a?b:c" => false; "conditional")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).conditional_expression().is_named_function()
-    }
+    //#[test_case("a?b:c" => false; "conditional")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).conditional_expression().is_named_function()
+    //}
 
     #[test_case("  a?b:c" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 }}; "conditional")]
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]

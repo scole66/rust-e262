@@ -7,7 +7,7 @@ use std::io::Write;
 //      return ;
 //      return [no LineTerminator here] Expression[+In, ?Yield, ?Await] ;
 #[derive(Debug)]
-pub enum ReturnStatement {
+pub(crate) enum ReturnStatement {
     Bare { location: Location },
     Expression { exp: Rc<Expression>, location: Location },
 }
@@ -49,34 +49,38 @@ impl PrettyPrint for ReturnStatement {
 }
 
 impl ReturnStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (ret_loc, after_ret) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Return)?;
-        scan_for_auto_semi(after_ret, parser.source, ScanGoal::InputElementRegExp)
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
+        let (ret_loc, after_ret) = scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Return)?;
+        scan_for_auto_semi(after_ret, parser.source, InputElementGoal::RegExp)
             .map(|(semi_loc, after_semi)| {
                 (Rc::new(ReturnStatement::Bare { location: ret_loc.merge(&semi_loc) }), after_semi)
             })
             .otherwise(|| {
                 let (exp, after_exp) = Expression::parse(parser, after_ret, true, yield_flag, await_flag)?;
-                let (semi_loc, after_semi) = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementDiv)?;
+                let (semi_loc, after_semi) = scan_for_auto_semi(after_exp, parser.source, InputElementGoal::Div)?;
                 Ok((Rc::new(ReturnStatement::Expression { exp, location: ret_loc.merge(&semi_loc) }), after_semi))
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ReturnStatement::Bare { location } | ReturnStatement::Expression { location, .. } => *location,
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ReturnStatement::Bare { .. } => false,
             ReturnStatement::Expression { exp, .. } => exp.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -93,7 +97,7 @@ impl ReturnStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -106,14 +110,14 @@ impl ReturnStatement {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ReturnStatement::Bare { .. } => {}
             ReturnStatement::Expression { exp, .. } => exp.early_errors(errs, strict),
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -125,7 +129,7 @@ impl ReturnStatement {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

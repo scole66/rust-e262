@@ -7,7 +7,7 @@ use std::io::Write;
 //      EqualityExpression[?In, ?Yield, ?Await]
 //      BitwiseANDExpression[?In, ?Yield, ?Await] & EqualityExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum BitwiseANDExpression {
+pub(crate) enum BitwiseANDExpression {
     EqualityExpression(Rc<EqualityExpression>),
     BitwiseAND(Rc<BitwiseANDExpression>, Rc<EqualityExpression>),
 }
@@ -53,18 +53,9 @@ impl PrettyPrint for BitwiseANDExpression {
     }
 }
 
-impl IsFunctionDefinition for BitwiseANDExpression {
-    fn is_function_definition(&self) -> bool {
-        match self {
-            BitwiseANDExpression::EqualityExpression(ee) => ee.is_function_definition(),
-            BitwiseANDExpression::BitwiseAND(..) => false,
-        }
-    }
-}
-
 impl BitwiseANDExpression {
     // No caching needed. Only one parent.
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -75,7 +66,7 @@ impl BitwiseANDExpression {
             let mut current = Rc::new(BitwiseANDExpression::EqualityExpression(ee1));
             let mut current_scanner = after_ee1;
             while let Ok((ee2, after_ee2)) =
-                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Amp).and_then(
+                scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Amp).and_then(
                     |(_, after_op)| EqualityExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
                 )
             {
@@ -86,28 +77,28 @@ impl BitwiseANDExpression {
         })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             BitwiseANDExpression::EqualityExpression(exp) => exp.location(),
             BitwiseANDExpression::BitwiseAND(left, right) => left.location().merge(&right.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             BitwiseANDExpression::EqualityExpression(n) => n.contains(kind),
             BitwiseANDExpression::BitwiseAND(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             BitwiseANDExpression::EqualityExpression(n) => n.as_string_literal(),
             BitwiseANDExpression::BitwiseAND(..) => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -126,7 +117,7 @@ impl BitwiseANDExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -139,7 +130,7 @@ impl BitwiseANDExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BitwiseANDExpression::EqualityExpression(n) => n.early_errors(errs, strict),
             BitwiseANDExpression::BitwiseAND(l, r) => {
@@ -149,7 +140,7 @@ impl BitwiseANDExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             BitwiseANDExpression::EqualityExpression(node) => node.is_strictly_deletable(),
             BitwiseANDExpression::BitwiseAND(..) => true,
@@ -159,21 +150,21 @@ impl BitwiseANDExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.assignment_target_type(strict),
             BitwiseANDExpression::BitwiseAND(..) => ATTKind::Invalid,
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            BitwiseANDExpression::EqualityExpression(node) => node.is_named_function(),
-            BitwiseANDExpression::BitwiseAND(..) => false,
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        BitwiseANDExpression::EqualityExpression(node) => node.is_named_function(),
+    //        BitwiseANDExpression::BitwiseAND(..) => false,
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -187,7 +178,7 @@ impl BitwiseANDExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -214,7 +205,7 @@ impl BitwiseANDExpression {
 //      BitwiseANDExpression[?In, ?Yield, ?Await]
 //      BitwiseXORExpression[?In, ?Yield, ?Await] ^ BitwiseANDExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum BitwiseXORExpression {
+pub(crate) enum BitwiseXORExpression {
     BitwiseANDExpression(Rc<BitwiseANDExpression>),
     BitwiseXOR(Rc<BitwiseXORExpression>, Rc<BitwiseANDExpression>),
 }
@@ -264,18 +255,9 @@ impl PrettyPrint for BitwiseXORExpression {
     }
 }
 
-impl IsFunctionDefinition for BitwiseXORExpression {
-    fn is_function_definition(&self) -> bool {
-        match self {
-            BitwiseXORExpression::BitwiseANDExpression(band) => band.is_function_definition(),
-            BitwiseXORExpression::BitwiseXOR(..) => false,
-        }
-    }
-}
-
 impl BitwiseXORExpression {
     // Only one parent. No need to cache.
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -286,7 +268,7 @@ impl BitwiseXORExpression {
             let mut current = Rc::new(BitwiseXORExpression::BitwiseANDExpression(band1));
             let mut current_scanner = after_band1;
             while let Ok((band2, after_band2)) =
-                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Caret).and_then(
+                scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Caret).and_then(
                     |(_, after_op)| BitwiseANDExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
                 )
             {
@@ -297,28 +279,28 @@ impl BitwiseXORExpression {
         })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(exp) => exp.location(),
             BitwiseXORExpression::BitwiseXOR(left, right) => left.location().merge(&right.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(n) => n.contains(kind),
             BitwiseXORExpression::BitwiseXOR(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(n) => n.as_string_literal(),
             BitwiseXORExpression::BitwiseXOR(..) => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -337,7 +319,7 @@ impl BitwiseXORExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -350,7 +332,7 @@ impl BitwiseXORExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(n) => n.early_errors(errs, strict),
             BitwiseXORExpression::BitwiseXOR(l, r) => {
@@ -360,7 +342,7 @@ impl BitwiseXORExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(node) => node.is_strictly_deletable(),
             BitwiseXORExpression::BitwiseXOR(..) => true,
@@ -370,21 +352,21 @@ impl BitwiseXORExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(band) => band.assignment_target_type(strict),
             BitwiseXORExpression::BitwiseXOR(..) => ATTKind::Invalid,
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            BitwiseXORExpression::BitwiseXOR(..) => false,
-            BitwiseXORExpression::BitwiseANDExpression(node) => node.is_named_function(),
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        BitwiseXORExpression::BitwiseXOR(..) => false,
+    //        BitwiseXORExpression::BitwiseANDExpression(node) => node.is_named_function(),
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -398,7 +380,7 @@ impl BitwiseXORExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -426,7 +408,7 @@ impl BitwiseXORExpression {
 //      BitwiseXORExpression[?In, ?Yield, ?Await]
 //      BitwiseORExpression[?In, ?Yield, ?Await] | BitwiseXORExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum BitwiseORExpression {
+pub(crate) enum BitwiseORExpression {
     BitwiseXORExpression(Rc<BitwiseXORExpression>),
     BitwiseOR(Rc<BitwiseORExpression>, Rc<BitwiseXORExpression>),
 }
@@ -476,15 +458,6 @@ impl PrettyPrint for BitwiseORExpression {
     }
 }
 
-impl IsFunctionDefinition for BitwiseORExpression {
-    fn is_function_definition(&self) -> bool {
-        match self {
-            BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.is_function_definition(),
-            BitwiseORExpression::BitwiseOR(..) => false,
-        }
-    }
-}
-
 impl BitwiseORExpression {
     fn parse_core(
         parser: &mut Parser,
@@ -497,7 +470,7 @@ impl BitwiseORExpression {
             let mut current = Rc::new(BitwiseORExpression::BitwiseXORExpression(bxor1));
             let mut current_scanner = after_bxor1;
             while let Ok((bxor2, after_bxor2)) =
-                scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Pipe).and_then(
+                scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Pipe).and_then(
                     |(_, after_op)| BitwiseXORExpression::parse(parser, after_op, in_flag, yield_flag, await_flag),
                 )
             {
@@ -508,7 +481,7 @@ impl BitwiseORExpression {
         })
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -526,28 +499,28 @@ impl BitwiseORExpression {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             BitwiseORExpression::BitwiseXORExpression(exp) => exp.location(),
             BitwiseORExpression::BitwiseOR(left, right) => left.location().merge(&right.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             BitwiseORExpression::BitwiseXORExpression(n) => n.contains(kind),
             BitwiseORExpression::BitwiseOR(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             BitwiseORExpression::BitwiseXORExpression(n) => n.as_string_literal(),
             BitwiseORExpression::BitwiseOR(..) => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -566,7 +539,7 @@ impl BitwiseORExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -579,7 +552,7 @@ impl BitwiseORExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             BitwiseORExpression::BitwiseXORExpression(n) => n.early_errors(errs, strict),
             BitwiseORExpression::BitwiseOR(l, r) => {
@@ -589,7 +562,7 @@ impl BitwiseORExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             BitwiseORExpression::BitwiseXORExpression(node) => node.is_strictly_deletable(),
             BitwiseORExpression::BitwiseOR(..) => true,
@@ -599,21 +572,21 @@ impl BitwiseORExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxor) => bxor.assignment_target_type(strict),
             BitwiseORExpression::BitwiseOR(..) => ATTKind::Invalid,
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            BitwiseORExpression::BitwiseOR(..) => false,
-            BitwiseORExpression::BitwiseXORExpression(node) => node.is_named_function(),
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        BitwiseORExpression::BitwiseOR(..) => false,
+    //        BitwiseORExpression::BitwiseXORExpression(node) => node.is_named_function(),
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -627,7 +600,7 @@ impl BitwiseORExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
