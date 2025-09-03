@@ -26,19 +26,19 @@ struct Scanner<'src> {
 }
 
 impl<'src> Scanner<'src> {
-    pub fn new(text: &'src str) -> Self {
+    pub(crate) fn new(text: &'src str) -> Self {
         Scanner { all: text, read_idx: 0 }
     }
 
-    pub fn done(&self) -> bool {
+    pub(crate) fn done(&self) -> bool {
         self.read_idx >= self.all.len()
     }
 
-    pub fn peek(&self) -> Option<char> {
+    pub(crate) fn peek(&self) -> Option<char> {
         self.all.get(self.read_idx..).and_then(|s| s.chars().next())
     }
 
-    pub fn lookahead(&self, amt: usize) -> Option<char> {
+    pub(crate) fn lookahead(&self, amt: usize) -> Option<char> {
         self.all.get(self.read_idx..).and_then(|s| {
             let mut chars = s.chars();
             for _ in 0..amt {
@@ -48,7 +48,7 @@ impl<'src> Scanner<'src> {
         })
     }
 
-    pub fn advance(&mut self) -> Option<usize> {
+    pub(crate) fn advance(&mut self) -> Option<usize> {
         self.all.get(self.read_idx..).and_then(|s| s.chars().next()).map(|ch| {
             let ch_len = ch.len_utf8();
             self.read_idx += ch_len;
@@ -56,7 +56,7 @@ impl<'src> Scanner<'src> {
         })
     }
 
-    pub fn consume(&mut self, target: char) -> Option<()> {
+    pub(crate) fn consume(&mut self, target: char) -> Option<()> {
         self.all.get(self.read_idx..).and_then(|s| s.chars().next()).and_then(|ch| {
             if ch == target {
                 let ch_len = ch.len_utf8();
@@ -68,32 +68,32 @@ impl<'src> Scanner<'src> {
         })
     }
 
-    pub fn consume_any(&mut self) -> Option<char> {
+    pub(crate) fn consume_any(&mut self) -> Option<char> {
         self.all.get(self.read_idx..).and_then(|s| s.chars().next()).inspect(|ch| {
             let ch_len = ch.len_utf8();
             self.read_idx += ch_len;
         })
     }
 
-    pub fn digit(&mut self, radix: u32) -> Option<u8> {
+    pub(crate) fn digit(&mut self, radix: u32) -> Option<u8> {
         self.all.get(self.read_idx..).and_then(|s| s.chars().next()).and_then(|ch| ch.to_digit(radix)).map(|digit| {
             self.read_idx += 1;
             u8::try_from(digit).expect("one digit fits in a u8")
         })
     }
 
-    pub fn hex_digit(&mut self) -> Option<u8> {
+    pub(crate) fn hex_digit(&mut self) -> Option<u8> {
         self.all.get(self.read_idx..).and_then(|s| s.chars().next()).and_then(|ch| ch.to_digit(16)).map(|digit| {
             self.read_idx += 1;
             u8::try_from(digit).expect("one hex digit fits in a u8")
         })
     }
 
-    pub fn advance_by_bytes(&mut self, amt: usize) {
+    pub(crate) fn advance_by_bytes(&mut self, amt: usize) {
         self.read_idx += amt;
     }
 
-    pub fn matches_at(&self, ch: char, position: usize) -> Option<usize> {
+    pub(crate) fn matches_at(&self, ch: char, position: usize) -> Option<usize> {
         self.lookahead(position).and_then(|newch| if newch == ch { Some(ch.len_utf8()) } else { None })
     }
 
@@ -133,11 +133,11 @@ impl<'src> Scanner<'src> {
         }
     }
 
-    pub fn unicode_property_name_character(&mut self) -> Option<char> {
+    pub(crate) fn unicode_property_name_character(&mut self) -> Option<char> {
         self.consume_filter(Self::is_unicode_property_name_character)
     }
 
-    pub fn unicode_property_value_character(&mut self) -> Option<char> {
+    pub(crate) fn unicode_property_value_character(&mut self) -> Option<char> {
         self.consume_filter(Self::is_unicode_property_value_character)
     }
 
@@ -149,7 +149,7 @@ impl<'src> Scanner<'src> {
         is_unicode_id_start(ch) || ch == '$' || ch == '_'
     }
 
-    pub fn identifier_start_char(&mut self) -> Option<char> {
+    pub(crate) fn identifier_start_char(&mut self) -> Option<char> {
         self.consume_filter(Self::is_identifier_start_char)
     }
 
@@ -160,7 +160,7 @@ impl<'src> Scanner<'src> {
         is_unicode_id_continue(ch) || ch == '$'
     }
 
-    pub fn identifier_part_char(&mut self) -> Option<char> {
+    pub(crate) fn identifier_part_char(&mut self) -> Option<char> {
         self.consume_filter(Self::is_identifier_part_char)
     }
 
@@ -175,7 +175,7 @@ impl<'src> Scanner<'src> {
 struct ClassSetReservedPunctuator(u32);
 
 impl ClassSetReservedPunctuator {
-    pub fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_filter(|ch| {
             ['&', '-', '!', '#', '%', ',', ':', ';', '<', '=', '>', '@', '`', '~'].contains(&ch)
@@ -190,7 +190,7 @@ impl ClassSetReservedPunctuator {
 struct ClassSetSyntaxCharacter(char);
 
 impl ClassSetSyntaxCharacter {
-    pub fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let ch = scanner.peek();
         if let Some(ch) = ch
             && ['(', ')', '[', ']', '{', '}', '/', '-', '\\', '|'].contains(&ch)
@@ -207,7 +207,7 @@ impl ClassSetSyntaxCharacter {
 struct ClassSetReservedDoublePunctuator {}
 
 impl ClassSetReservedDoublePunctuator {
-    pub fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let och_left = scanner.peek();
         let och_right = scanner.lookahead(1);
         if let (Some(ch_left), Some(ch_right)) = (och_left, och_right)
@@ -235,7 +235,7 @@ enum ClassSetCharacter {
 }
 
 impl ClassSetCharacter {
-    pub fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         if ClassSetReservedDoublePunctuator::parse(scanner).is_some() {
             None
         } else if let Some((cssc, consumed)) = ClassSetSyntaxCharacter::parse(scanner) {
@@ -342,7 +342,7 @@ impl CharacterEscape {
         None
     }
 
-    pub fn character_value(&self) -> u32 {
+    pub(crate) fn character_value(&self) -> u32 {
         match self {
             CharacterEscape::ControlEscape(ce) => match ce {
                 // CharacterEscape :: ControlEscape
@@ -891,7 +891,7 @@ impl RegExpIdentifierPart {
 // Pattern[UnicodeMode, UnicodeSetsMode, NamedCaptureGroups] ::
 //      Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Pattern(Disjunction);
+pub(crate) struct Pattern(Disjunction);
 impl Pattern {
     fn parse(
         scanner: &Scanner,
@@ -903,12 +903,12 @@ impl Pattern {
         if amt == scanner.all.len() { Some(Self(disj)) } else { None }
     }
 
-    pub fn count_left_capturing_parens_within(&self) -> usize {
+    pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         self.0.count_left_capturing_parens_within()
     }
 }
 
-pub fn parse_pattern(pattern: &str, u: bool, v: bool) -> Completion<Pattern> {
+pub(crate) fn parse_pattern(pattern: &str, u: bool, v: bool) -> Completion<Pattern> {
     let scanner = Scanner::new(pattern);
     if u && v {
         return Err(create_syntax_error("invalid regexp flags", None));
@@ -961,7 +961,7 @@ impl Disjunction {
             }
         }
     }
-    pub fn count_left_capturing_parens_within(&self) -> usize {
+    pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         self.0.iter().map(Alternative::count_left_capturing_parens_within).sum()
     }
 }
@@ -986,7 +986,7 @@ impl Alternative {
         }
         (Self(results), new_scanner.read_idx - scanner.read_idx)
     }
-    pub fn count_left_capturing_parens_within(&self) -> usize {
+    pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         self.0.iter().map(Term::count_left_capturing_parens_within).sum()
     }
 }
@@ -1022,7 +1022,7 @@ impl Term {
             None
         }
     }
-    pub fn count_left_capturing_parens_within(&self) -> usize {
+    pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         match self {
             Term::Assertion(assertion) => assertion.count_left_capturing_parens_within(),
             Term::Atom(atom, _) => atom.count_left_capturing_parens_within(),
@@ -1119,7 +1119,7 @@ impl Assertion {
             None
         }
     }
-    pub fn count_left_capturing_parens_within(&self) -> usize {
+    pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         match self {
             Assertion::Start | Assertion::End | Assertion::WordBoundary | Assertion::NotWordBoundary => 0,
             Assertion::LookAhead(d)
@@ -1297,7 +1297,7 @@ impl Atom {
         }
     }
 
-    pub fn count_left_capturing_parens_within(&self) -> usize {
+    pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         match self {
             Atom::PatternCharacter(_) | Atom::Dot | Atom::AtomEscape(_) | Atom::CharacterClass(_) => 0,
             Atom::GroupedDisjunction { group_specifier: _, disjunction } => {

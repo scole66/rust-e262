@@ -14,7 +14,7 @@ use std::io::Write;
 //      ! UnaryExpression[?Yield, ?Await]
 //      [+Await]AwaitExpression[?Yield]
 #[derive(Debug)]
-pub enum UnaryExpression {
+pub(crate) enum UnaryExpression {
     UpdateExpression(Rc<UpdateExpression>),
     Delete { ue: Rc<UnaryExpression>, location: Location },
     Void { ue: Rc<UnaryExpression>, location: Location },
@@ -86,22 +86,6 @@ impl PrettyPrint for UnaryExpression {
     }
 }
 
-impl IsFunctionDefinition for UnaryExpression {
-    fn is_function_definition(&self) -> bool {
-        match self {
-            UnaryExpression::UpdateExpression(boxed) => boxed.is_function_definition(),
-            UnaryExpression::Delete { .. }
-            | UnaryExpression::Void { .. }
-            | UnaryExpression::Typeof { .. }
-            | UnaryExpression::NoOp { .. }
-            | UnaryExpression::Negate { .. }
-            | UnaryExpression::Complement { .. }
-            | UnaryExpression::Not { .. }
-            | UnaryExpression::Await(_) => false,
-        }
-    }
-}
-
 enum UETokenType {
     Delete,
     Void,
@@ -129,7 +113,7 @@ impl TryFrom<Token> for UETokenType {
 
 impl UnaryExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (token, tok_loc, after_token) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (token, tok_loc, after_token) = scan_token(&scanner, parser.source, InputElementGoal::RegExp);
 
         if let Ok(prod_marker) = UETokenType::try_from(token) {
             let (ue, after_ue) = UnaryExpression::parse(parser, after_token, yield_flag, await_flag)?;
@@ -163,7 +147,12 @@ impl UnaryExpression {
         }
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.unary_expression_cache.get(&key) {
             Some(result) => result.clone(),
@@ -175,7 +164,7 @@ impl UnaryExpression {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             UnaryExpression::UpdateExpression(ue) => ue.location(),
             UnaryExpression::Delete { location, .. }
@@ -189,7 +178,7 @@ impl UnaryExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             UnaryExpression::UpdateExpression(n) => n.contains(kind),
             UnaryExpression::Delete { ue, .. }
@@ -203,14 +192,14 @@ impl UnaryExpression {
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             UnaryExpression::UpdateExpression(n) => n.as_string_literal(),
             _ => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -234,7 +223,7 @@ impl UnaryExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -254,14 +243,14 @@ impl UnaryExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             UnaryExpression::UpdateExpression(exp) => exp.is_strictly_deletable(),
             _ => true,
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             UnaryExpression::UpdateExpression(n) => n.early_errors(errs, strict),
             UnaryExpression::Delete { ue: n, .. } => {
@@ -304,7 +293,7 @@ impl UnaryExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             UnaryExpression::UpdateExpression(boxed) => boxed.assignment_target_type(strict),
             UnaryExpression::Delete { .. }
@@ -318,14 +307,14 @@ impl UnaryExpression {
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            UnaryExpression::UpdateExpression(node) => node.is_named_function(),
-            _ => false,
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        UnaryExpression::UpdateExpression(node) => node.is_named_function(),
+    //        _ => false,
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -344,7 +333,7 @@ impl UnaryExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

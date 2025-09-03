@@ -25,19 +25,19 @@ mod agent {
 
         // All well-known symbols initialized, and different from one another.
         let symbols = [
-            agent.symbols.async_iterator_,
-            agent.symbols.has_instance_,
-            agent.symbols.is_concat_spreadable_,
-            agent.symbols.iterator_,
+            agent.symbols.async_iterator,
+            agent.symbols.has_instance,
+            agent.symbols.is_concat_spreadable,
+            agent.symbols.iterator,
             agent.symbols.match_,
-            agent.symbols.match_all_,
-            agent.symbols.replace_,
-            agent.symbols.search_,
-            agent.symbols.species_,
-            agent.symbols.split_,
-            agent.symbols.to_primitive_,
-            agent.symbols.to_string_tag_,
-            agent.symbols.unscopables_,
+            agent.symbols.match_all,
+            agent.symbols.replace,
+            agent.symbols.search,
+            agent.symbols.species,
+            agent.symbols.split,
+            agent.symbols.to_primitive,
+            agent.symbols.to_string_tag,
+            agent.symbols.unscopables,
         ];
         let num_symbols = symbols.len();
         let symbol_set = symbols.iter().collect::<AHashSet<_>>();
@@ -57,19 +57,19 @@ mod agent {
 
         // All well-known symbols initialized, and different from one another.
         let symbols = [
-            agent.symbols.async_iterator_,
-            agent.symbols.has_instance_,
-            agent.symbols.is_concat_spreadable_,
-            agent.symbols.iterator_,
+            agent.symbols.async_iterator,
+            agent.symbols.has_instance,
+            agent.symbols.is_concat_spreadable,
+            agent.symbols.iterator,
             agent.symbols.match_,
-            agent.symbols.match_all_,
-            agent.symbols.replace_,
-            agent.symbols.search_,
-            agent.symbols.species_,
-            agent.symbols.split_,
-            agent.symbols.to_primitive_,
-            agent.symbols.to_string_tag_,
-            agent.symbols.unscopables_,
+            agent.symbols.match_all,
+            agent.symbols.replace,
+            agent.symbols.search,
+            agent.symbols.species,
+            agent.symbols.split,
+            agent.symbols.to_primitive,
+            agent.symbols.to_string_tag,
+            agent.symbols.unscopables,
         ];
         let num_symbols = symbols.len();
         let symbol_set = symbols.iter().collect::<AHashSet<_>>();
@@ -912,15 +912,15 @@ mod top_level_lex_decl {
 
     fn make_class_decl() -> MakerResult {
         let cd = Maker::new("class alice {}").class_declaration();
-        (Some(cd.clone()), None, DeclPart::ClassDeclaration(cd))
+        (Some(cd.clone()), None, DeclPart::Class(cd))
     }
     fn make_lex_decl() -> MakerResult {
         let ld = Maker::new("let alice = 999;").lexical_declaration();
-        (None, Some(ld.clone()), DeclPart::LexicalDeclaration(ld))
+        (None, Some(ld.clone()), DeclPart::Lexical(ld))
     }
     fn make_func_decl() -> MakerResult {
         let fd = Maker::new("function alice(bob) { return charlie(bob); }").function_declaration();
-        (None, None, DeclPart::FunctionDeclaration(fd))
+        (None, None, DeclPart::Function(fd))
     }
     #[test_case(make_class_decl => Ok((true, false)); "class")]
     #[test_case(make_lex_decl => Ok((false, true)); "lexical")]
@@ -1021,27 +1021,27 @@ mod fcn_def {
     );
     fn decl_func() -> MakerDeclResult {
         let fd = Maker::new("function alice(bob) { return charlie(bob); }").function_declaration();
-        (Some(fd.clone()), None, None, None, DeclPart::FunctionDeclaration(fd))
+        (Some(fd.clone()), None, None, None, DeclPart::Function(fd))
     }
     fn decl_gen() -> MakerDeclResult {
         let gd = Maker::new("function *alice(bob) { return charlie(bob); }").generator_declaration();
-        (None, Some(gd.clone()), None, None, DeclPart::GeneratorDeclaration(gd))
+        (None, Some(gd.clone()), None, None, DeclPart::Generator(gd))
     }
     fn decl_async() -> MakerDeclResult {
         let afd = Maker::new("async function alice(bob) { return charlie(bob); }").async_function_declaration();
-        (None, None, Some(afd.clone()), None, DeclPart::AsyncFunctionDeclaration(afd))
+        (None, None, Some(afd.clone()), None, DeclPart::AsyncFunction(afd))
     }
     fn decl_async_gen() -> MakerDeclResult {
         let agd = Maker::new("async function *alice(bob) { return charlie(bob); }").async_generator_declaration();
-        (None, None, None, Some(agd.clone()), DeclPart::AsyncGeneratorDeclaration(agd))
+        (None, None, None, Some(agd.clone()), DeclPart::AsyncGenerator(agd))
     }
     fn decl_class() -> MakerDeclResult {
         let cls = Maker::new("class alice {}").class_declaration();
-        (None, None, None, None, DeclPart::ClassDeclaration(cls))
+        (None, None, None, None, DeclPart::Class(cls))
     }
     fn decl_lex() -> MakerDeclResult {
         let ld = Maker::new("let alice;").lexical_declaration();
-        (None, None, None, None, DeclPart::LexicalDeclaration(ld))
+        (None, None, None, None, DeclPart::Lexical(ld))
     }
     #[test_case(decl_func => Ok(true); "Function decl")]
     #[test_case(decl_gen => Ok(true); "Generator decl")]
@@ -1213,12 +1213,8 @@ mod process_error {
 
     #[test]
     fn debug() {
-        let s = format!("{:?}", ProcessError::InternalError { reason: "random reason".into() });
+        let s = format!("{:?}", ProcessError::RuntimeError { error: "random reason".into() });
         assert_ne!(s, "");
-    }
-
-    fn internal_err() -> ProcessError {
-        ProcessError::InternalError { reason: "blue".into() }
     }
 
     fn runtime_err_obj() -> ProcessError {
@@ -1246,7 +1242,7 @@ mod process_error {
             ],
         }
     }
-    #[test_case(internal_err => "blue"; "internal error")]
+    //#[test_case(internal_err => "blue"; "internal error")]
     #[test_case(runtime_err_obj => "Thrown: TypeError: test sentinel"; "error obj runtime")]
     #[test_case(runtime_err_value => "Thrown: test sentinel"; "error value runtime")]
     #[test_case(runtime_err_non_err_obj => using matches_object; "error obj but not error")]

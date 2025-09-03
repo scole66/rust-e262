@@ -19,7 +19,6 @@ mod logical_and_expression {
         pretty_check(&*pn, "LogicalANDExpression: a", &["BitwiseORExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", &[]);
         assert_ne!(format!("{pn:?}"), "");
-        assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn parse_02() {
@@ -34,7 +33,6 @@ mod logical_and_expression {
             &["IdentifierName: a", "Punctuator: &&", "IdentifierName: b"],
         );
         assert_ne!(format!("{pn:?}"), "");
-        assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
@@ -45,7 +43,6 @@ mod logical_and_expression {
         pretty_check(&*pn, "LogicalANDExpression: a", &["BitwiseORExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", &[]);
         assert_ne!(format!("{pn:?}"), "");
-        assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn prettyerrors_1() {
@@ -156,13 +153,6 @@ mod logical_and_expression {
         Maker::new(src).logical_and_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a&&b" => false; "logical and")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).logical_and_expression().is_named_function()
-    }
-
     #[test_case("  a&&b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "logical and")]
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
     fn location(src: &str) -> Location {
@@ -183,7 +173,6 @@ mod logical_or_expression {
         pretty_check(&*pn, "LogicalORExpression: a", &["LogicalANDExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", &[]);
         assert_ne!(format!("{pn:?}"), "");
-        assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn parse_02() {
@@ -198,7 +187,6 @@ mod logical_or_expression {
             &["IdentifierName: a", "Punctuator: ||", "IdentifierName: b"],
         );
         assert_ne!(format!("{pn:?}"), "");
-        assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
@@ -209,7 +197,6 @@ mod logical_or_expression {
         pretty_check(&*pn, "LogicalORExpression: a", &["LogicalANDExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", &[]);
         assert_ne!(format!("{pn:?}"), "");
-        assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn prettyerrors_1() {
@@ -316,12 +303,12 @@ mod logical_or_expression {
         Maker::new(src).logical_or_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a||b" => false; "logical or")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).logical_or_expression().is_named_function()
-    }
+    //#[test_case("a||b" => false; "logical or")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).logical_or_expression().is_named_function()
+    //}
 
     #[test_case("  a||b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "logical or")]
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
@@ -574,7 +561,6 @@ fn short_circuit_expression_test_01() {
     pretty_check(&*pn, "ShortCircuitExpression: a ?? b", &["CoalesceExpression: a ?? b"]);
     concise_check(&*pn, "CoalesceExpression: a ?? b", &["IdentifierName: a", "Punctuator: ??", "IdentifierName: b"]);
     assert_ne!(format!("{pn:?}"), "");
-    assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
 fn short_circuit_expression_test_02() {
@@ -584,7 +570,6 @@ fn short_circuit_expression_test_02() {
     pretty_check(&*pn, "ShortCircuitExpression: 6", &["LogicalORExpression: 6"]);
     concise_check(&*pn, "Numeric: 6", &[]);
     assert_ne!(format!("{pn:?}"), "");
-    assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
 fn short_circuit_expression_test_03() {
@@ -697,12 +682,12 @@ mod short_circuit_expression {
         Maker::new(src).short_circuit_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a??b" => false; "expr")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).short_circuit_expression().is_named_function()
-    }
+    //#[test_case("a??b" => false; "expr")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).short_circuit_expression().is_named_function()
+    //}
 
     #[test_case("  a??b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "coelesce")]
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]

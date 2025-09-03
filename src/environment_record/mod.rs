@@ -104,7 +104,7 @@ use std::rc::Rc;
 // |                              | object. Otherwise, return undefined.                                               |
 // +------------------------------+------------------------------------------------------------------------------------+
 
-pub trait EnvironmentRecord: Debug {
+pub(crate) trait EnvironmentRecord: Debug {
     fn has_binding(&self, name: &JSString) -> Completion<bool>;
     fn create_mutable_binding(&self, name: JSString, deletable: bool) -> Completion<()>;
     fn create_immutable_binding(&self, name: JSString, strict: bool) -> Completion<()>;
@@ -122,7 +122,9 @@ pub trait EnvironmentRecord: Debug {
     fn bind_this_value(&self, _val: ECMAScriptValue) -> Completion<ECMAScriptValue> {
         unreachable!()
     }
+    #[cfg(test)]
     fn name(&self) -> String;
+    #[cfg(test)]
     fn binding_names(&self) -> Vec<JSString>;
     fn concise(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result;
     fn get_function_object(&self) -> Option<Object> {
@@ -139,7 +141,7 @@ pub trait EnvironmentRecord: Debug {
     }
 }
 
-pub struct ConciselyPrintedEnvironmentRecord(pub Rc<dyn EnvironmentRecord>);
+pub(crate) struct ConciselyPrintedEnvironmentRecord(pub(crate) Rc<dyn EnvironmentRecord>);
 impl fmt::Debug for ConciselyPrintedEnvironmentRecord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.concise(f)
@@ -191,7 +193,7 @@ struct Binding {
     mutability: Mutability,
 }
 
-pub struct DeclarativeEnvironmentRecord {
+pub(crate) struct DeclarativeEnvironmentRecord {
     bindings: RefCell<AHashMap<JSString, Binding, RandomState>>,
     outer_env: Option<Rc<dyn EnvironmentRecord>>,
     name: String,
@@ -409,10 +411,12 @@ impl EnvironmentRecord for DeclarativeEnvironmentRecord {
         self.outer_env.clone()
     }
 
+    #[cfg(test)]
     fn name(&self) -> String {
         self.name.clone()
     }
 
+    #[cfg(test)]
     fn binding_names(&self) -> Vec<JSString> {
         self.bindings.borrow().keys().cloned().collect()
     }
@@ -432,7 +436,7 @@ impl DeclarativeEnvironmentRecord {
     //  1. Let env be a new declarative Environment Record containing no bindings.
     //  2. Set env.[[OuterEnv]] to E.
     //  3. Return env.
-    pub fn new(env: Option<Rc<dyn EnvironmentRecord>>, name: impl Into<String>) -> Self {
+    pub(crate) fn new(env: Option<Rc<dyn EnvironmentRecord>>, name: impl Into<String>) -> Self {
         DeclarativeEnvironmentRecord { bindings: RefCell::default(), outer_env: env, name: name.into() }
     }
 }
@@ -465,7 +469,7 @@ impl DeclarativeEnvironmentRecord {
 //
 // The behaviour of the concrete specification methods for object Environment Records is defined by the following
 // algorithms.
-pub struct ObjectEnvironmentRecord {
+pub(crate) struct ObjectEnvironmentRecord {
     binding_object: Object,
     is_with_environment: bool,
     outer_env: Option<Rc<dyn EnvironmentRecord>>,
@@ -671,10 +675,12 @@ impl EnvironmentRecord for ObjectEnvironmentRecord {
         self.outer_env.clone()
     }
 
+    #[cfg(test)]
     fn name(&self) -> String {
         self.name.clone()
     }
 
+    #[cfg(test)]
     fn binding_names(&self) -> Vec<JSString> {
         self.binding_object
             .o
@@ -708,7 +714,7 @@ impl ObjectEnvironmentRecord {
     //  3. Set env.[[IsWithEnvironment]] to W.
     //  4. Set env.[[OuterEnv]] to E.
     //  5. Return env.
-    pub fn new(
+    pub(crate) fn new(
         binding_object: Object,
         is_with_environment: bool,
         outer_env: Option<Rc<dyn EnvironmentRecord>>,
@@ -745,13 +751,13 @@ impl ObjectEnvironmentRecord {
 // +-----------------------+-----------------------+-------------------------------------------------------------------+
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum BindingStatus {
+pub(crate) enum BindingStatus {
     Lexical,
     Initialized,
     Uninitialized,
 }
 
-pub struct FunctionEnvironmentRecord {
+pub(crate) struct FunctionEnvironmentRecord {
     base: DeclarativeEnvironmentRecord,
     this_value: RefCell<ECMAScriptValue>,
     this_binding_status: Cell<BindingStatus>,
@@ -874,10 +880,12 @@ impl EnvironmentRecord for FunctionEnvironmentRecord {
         }
     }
 
+    #[cfg(test)]
     fn name(&self) -> String {
         self.name.clone()
     }
 
+    #[cfg(test)]
     fn binding_names(&self) -> Vec<JSString> {
         self.base.binding_names()
     }
@@ -926,7 +934,7 @@ impl FunctionEnvironmentRecord {
     //  2. If home has the value undefined, return undefined.
     //  3. Assert: Type(home) is Object.
     //  4. Return ? home.[[GetPrototypeOf]]().
-    pub fn get_super_base(&self) -> Completion<Option<Object>> {
+    pub(crate) fn get_super_base(&self) -> Completion<Option<Object>> {
         let fo = self.function_object.o.to_function_obj().unwrap();
         let home = &fo.function_data().borrow().home_object;
         match home {
@@ -949,7 +957,7 @@ impl FunctionEnvironmentRecord {
     //  7. Set env.[[NewTarget]] to newTarget.
     //  8. Set env.[[OuterEnv]] to F.[[Environment]].
     //  9. Return env.
-    pub fn new(f: Object, new_target: Option<Object>, name: impl Into<String>) -> Self {
+    pub(crate) fn new(f: Object, new_target: Option<Object>, name: impl Into<String>) -> Self {
         let fo = f.o.to_function_obj().unwrap();
         let tbs = if fo.function_data().borrow().this_mode == ThisMode::Lexical {
             BindingStatus::Lexical
@@ -973,7 +981,7 @@ impl FunctionEnvironmentRecord {
         }
     }
 
-    pub fn get_new_target(&self) -> Option<&Object> {
+    pub(crate) fn get_new_target(&self) -> Option<&Object> {
         self.new_target.as_ref()
     }
 }
@@ -984,7 +992,7 @@ impl FunctionEnvironmentRecord {
 /// NewTarget value using the LexicalEnvironment of the running execution context.
 ///
 /// See [ECMA-262: GetNewTarget ( )](https://tc39.es/ecma262/multipage/executable-code-and-execution-contexts.html#sec-getnewtarget).
-pub fn get_new_target() -> Result<Option<Object>, InternalRuntimeError> {
+pub(crate) fn get_new_target() -> Result<Option<Object>, InternalRuntimeError> {
     //  1. Let envRec be GetThisEnvironment().
     //  2. Assert: envRec has a [[NewTarget]] field.
     //  3. Return envRec.[[NewTarget]].
@@ -1049,7 +1057,7 @@ impl<'a> TryFrom<&'a Rc<dyn EnvironmentRecord>> for &'a FunctionEnvironmentRecor
 // |                       | String      | AsyncFunctionDeclaration, AsyncGeneratorDeclaration, and                    |
 // |                       |             | VariableDeclaration declarations in global code for the associated realm.   |
 // +-----------------------+-------------+-----------------------------------------------------------------------------+
-pub struct GlobalEnvironmentRecord {
+pub(crate) struct GlobalEnvironmentRecord {
     object_record: ObjectEnvironmentRecord,
     global_this_value: Object,
     declarative_record: DeclarativeEnvironmentRecord,
@@ -1073,13 +1081,13 @@ impl fmt::Debug for GlobalEnvironmentRecord {
     }
 }
 
-pub struct ConciseGlobalEnvironmentRecord<'a>(pub &'a GlobalEnvironmentRecord);
+pub(crate) struct ConciseGlobalEnvironmentRecord<'a>(pub(crate) &'a GlobalEnvironmentRecord);
 impl fmt::Debug for ConciseGlobalEnvironmentRecord<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.concise(f)
     }
 }
-pub struct ConciseOptionalGlobalEnvironmentRecord(pub Option<Rc<GlobalEnvironmentRecord>>);
+pub(crate) struct ConciseOptionalGlobalEnvironmentRecord(pub(crate) Option<Rc<GlobalEnvironmentRecord>>);
 impl fmt::Debug for ConciseOptionalGlobalEnvironmentRecord {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {
@@ -1329,10 +1337,12 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
         Ok(ECMAScriptValue::from(self.global_this_value.clone()))
     }
 
+    #[cfg(test)]
     fn name(&self) -> String {
         self.name.clone()
     }
 
+    #[cfg(test)]
     fn binding_names(&self) -> Vec<JSString> {
         let mut result = self.lex_decls();
         result.extend(self.var_decls());
@@ -1359,7 +1369,7 @@ impl GlobalEnvironmentRecord {
     //  1. Let varDeclaredNames be envRec.[[VarNames]].
     //  2. If varDeclaredNames contains N, return true.
     //  3. Return false.
-    pub fn has_var_declaration(&self, name: &JSString) -> bool {
+    pub(crate) fn has_var_declaration(&self, name: &JSString) -> bool {
         self.var_names.borrow().contains(name)
     }
 
@@ -1371,7 +1381,7 @@ impl GlobalEnvironmentRecord {
     //
     //  1. Let DclRec be envRec.[[DeclarativeRecord]].
     //  2. Return DclRec.HasBinding(N).
-    pub fn has_lexical_declaration(&self, name: &JSString) -> bool {
+    pub(crate) fn has_lexical_declaration(&self, name: &JSString) -> bool {
         self.declarative_record.has_binding(name).unwrap()
     }
 
@@ -1392,7 +1402,7 @@ impl GlobalEnvironmentRecord {
     //          var or function declaration. A global lexical binding may not be created that has the same name as a
     //          non-configurable property of the global object. The global property "undefined" is an example of such a
     //          property.
-    pub fn has_restricted_global_property(&self, name: &JSString) -> Completion<bool> {
+    pub(crate) fn has_restricted_global_property(&self, name: &JSString) -> Completion<bool> {
         let global_object = &self.object_record.binding_object;
         let existing_prop = global_object.o.get_own_property(&name.clone().into())?;
         match existing_prop {
@@ -1413,7 +1423,7 @@ impl GlobalEnvironmentRecord {
     //  3. Let hasProperty be ? HasOwnProperty(globalObject, N).
     //  4. If hasProperty is true, return true.
     //  5. Return ? IsExtensible(globalObject).
-    pub fn can_declare_global_var(&self, name: &JSString) -> Completion<bool> {
+    pub(crate) fn can_declare_global_var(&self, name: &JSString) -> Completion<bool> {
         let global_object = &self.object_record.binding_object;
         Ok(global_object.has_own_property(&name.clone().into())? || is_extensible(global_object)?)
     }
@@ -1431,7 +1441,7 @@ impl GlobalEnvironmentRecord {
     //  5. If existingProp.[[Configurable]] is true, return true.
     //  6. If IsDataDescriptor(existingProp) is true and existingProp has attribute values { [[Writable]]: true, [[Enumerable]]: true }, return true.
     //  7. Return false.
-    pub fn can_declare_global_function(&self, name: &JSString) -> Completion<bool> {
+    pub(crate) fn can_declare_global_function(&self, name: &JSString) -> Completion<bool> {
         let global_object = &self.object_record.binding_object;
         let existing_prop = global_object.o.get_own_property(&name.clone().into())?;
         match existing_prop {
@@ -1461,7 +1471,7 @@ impl GlobalEnvironmentRecord {
     //  7. If varDeclaredNames does not contain N, then
     //      a. Append N to varDeclaredNames.
     //  8. Return NormalCompletion(empty).
-    pub fn create_global_var_binding(&self, name: JSString, deletable: bool) -> Completion<()> {
+    pub(crate) fn create_global_var_binding(&self, name: JSString, deletable: bool) -> Completion<()> {
         let global_object = &self.object_record.binding_object;
         let has_property = global_object.has_own_property(&name.clone().into())?;
         let extensible = is_extensible(global_object)?;
@@ -1499,7 +1509,7 @@ impl GlobalEnvironmentRecord {
     //          an existing own property is reconfigured to have a standard set of attribute values. Step 7 is
     //          equivalent to what calling the InitializeBinding concrete method would do and if globalObject is a Proxy
     //          will produce the same sequence of Proxy trap calls.
-    pub fn create_global_function_binding(
+    pub(crate) fn create_global_function_binding(
         &self,
         name: JSString,
         val: ECMAScriptValue,
@@ -1535,7 +1545,7 @@ impl GlobalEnvironmentRecord {
     //      7. Set env.[[VarNames]] to a new empty List.
     //      8. Set env.[[OuterEnv]] to null.
     //      9. Return env.
-    pub fn new(global: Object, this_value: Object, name: impl Into<String>) -> Self {
+    pub(crate) fn new(global: Object, this_value: Object, name: impl Into<String>) -> Self {
         let name = name.into();
         let obj_rec = ObjectEnvironmentRecord::new(global, false, None, format!("{name}-obj"));
         let dcl_rec = DeclarativeEnvironmentRecord::new(None, format!("{name}-dcl"));
@@ -1548,12 +1558,14 @@ impl GlobalEnvironmentRecord {
         }
     }
 
-    pub fn var_decls(&self) -> Vec<JSString> {
+    #[cfg(test)]
+    pub(crate) fn var_decls(&self) -> Vec<JSString> {
         let var_names = self.var_names.borrow();
         var_names.iter().cloned().collect::<Vec<JSString>>()
     }
 
-    pub fn lex_decls(&self) -> Vec<JSString> {
+    #[cfg(test)]
+    pub(crate) fn lex_decls(&self) -> Vec<JSString> {
         let bindings = self.declarative_record.bindings.borrow();
         bindings.keys().cloned().collect::<Vec<_>>()
     }
@@ -1572,7 +1584,7 @@ impl GlobalEnvironmentRecord {
 //  4. Else,
 //      a. Let outer be env.[[OuterEnv]].
 //      b. Return ? GetIdentifierReference(outer, name, strict).
-pub fn get_identifier_reference(
+pub(crate) fn get_identifier_reference(
     environment: Option<Rc<dyn EnvironmentRecord>>,
     name: JSString,
     strict: bool,
@@ -1613,9 +1625,9 @@ pub fn get_identifier_reference(
 // | [[Names]]                   | List of Private Names | The Private Names declared by this class.                   |
 // +-----------------------------+-----------------------+-------------------------------------------------------------+
 #[derive(Debug)]
-pub struct PrivateEnvironmentRecord {
-    pub outer_private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
-    pub names: Vec<PrivateName>,
+pub(crate) struct PrivateEnvironmentRecord {
+    pub(crate) outer_private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+    pub(crate) names: Vec<PrivateName>,
 }
 
 impl PrivateEnvironmentRecord {
@@ -1626,7 +1638,7 @@ impl PrivateEnvironmentRecord {
     //
     //  1. Let names be a new empty List.
     //  2. Return the PrivateEnvironment Record { [[OuterPrivateEnvironment]]: outerPrivEnv, [[Names]]: names }.
-    pub fn new(outer_priv_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>) -> Self {
+    pub(crate) fn new(outer_priv_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>) -> Self {
         PrivateEnvironmentRecord { outer_private_environment: outer_priv_env, names: vec![] }
     }
 
@@ -1643,7 +1655,7 @@ impl PrivateEnvironmentRecord {
     //      a. Let outerPrivEnv be privEnv.[[OuterPrivateEnvironment]].
     //      b. Assert: outerPrivEnv is not null.
     //      c. Return ResolvePrivateIdentifier(outerPrivEnv, identifier).
-    pub fn resolve_private_identifier(&self, identifier: &JSString) -> PrivateName {
+    pub(crate) fn resolve_private_identifier(&self, identifier: &JSString) -> PrivateName {
         match self.names.iter().find(|&item| item.description == *identifier) {
             Some(x) => x.clone(),
             None => self.outer_private_environment.as_ref().unwrap().borrow().resolve_private_identifier(identifier),

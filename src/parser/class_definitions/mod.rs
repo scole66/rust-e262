@@ -9,7 +9,7 @@ use std::rc::Rc;
 //      class BindingIdentifier[?Yield, ?Await] ClassTail[?Yield, ?Await]
 //      [+Default] class ClassTail[?Yield, ?Await]
 #[derive(Debug)]
-pub enum ClassDeclaration {
+pub(crate) enum ClassDeclaration {
     Named { ident: Rc<BindingIdentifier>, tail: Rc<ClassTail>, location: Location },
     Unnamed { tail: Rc<ClassTail>, location: Location },
 }
@@ -57,15 +57,14 @@ impl PrettyPrint for ClassDeclaration {
 }
 
 impl ClassDeclaration {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
         default_flag: bool,
     ) -> ParseResult<Self> {
-        let (class_loc, after_class) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Class)?;
+        let (class_loc, after_class) = scan_for_keyword(scanner, parser.source, InputElementGoal::Div, Keyword::Class)?;
         let pot_bi = BindingIdentifier::parse(parser, after_class, yield_flag, await_flag);
         let (bi, after_bi) = match pot_bi {
             Ok((node, scanner)) => (Some(node), scanner),
@@ -85,31 +84,30 @@ impl ClassDeclaration {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ClassDeclaration::Named { location, .. } | ClassDeclaration::Unnamed { location, .. } => *location,
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         vec![self.bound_name()]
     }
 
-    pub fn bound_name(&self) -> JSString {
+    pub(crate) fn bound_name(&self) -> JSString {
         match self {
             ClassDeclaration::Named { ident, .. } => ident.bound_name(),
             ClassDeclaration::Unnamed { .. } => JSString::from("*default*"),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ClassDeclaration::Named { ident, tail, .. } => ident.contains(kind) || tail.contains(kind),
-            ClassDeclaration::Unnamed { tail, .. } => tail.contains(kind),
+            ClassDeclaration::Named { tail, .. } | ClassDeclaration::Unnamed { tail, .. } => tail.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -127,7 +125,7 @@ impl ClassDeclaration {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -149,7 +147,7 @@ impl ClassDeclaration {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>) {
         if let ClassDeclaration::Named { ident, .. } = self {
             ident.early_errors(errs, true);
         }
@@ -159,11 +157,7 @@ impl ClassDeclaration {
         tail.early_errors(errs, true);
     }
 
-    pub fn is_constant_declaration(&self) -> bool {
-        false
-    }
-
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -180,9 +174,9 @@ impl ClassDeclaration {
 // ClassExpression[Yield, Await] :
 //      class BindingIdentifier[?Yield, ?Await]opt ClassTail[?Yield, ?Await]
 #[derive(Debug)]
-pub struct ClassExpression {
-    pub ident: Option<Rc<BindingIdentifier>>,
-    pub tail: Rc<ClassTail>,
+pub(crate) struct ClassExpression {
+    pub(crate) ident: Option<Rc<BindingIdentifier>>,
+    pub(crate) tail: Rc<ClassTail>,
     location: Location,
 }
 
@@ -222,16 +216,14 @@ impl PrettyPrint for ClassExpression {
     }
 }
 
-impl IsFunctionDefinition for ClassExpression {
-    fn is_function_definition(&self) -> bool {
-        true
-    }
-}
-
 impl ClassExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (class_loc, after_class) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Class)?;
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
+        let (class_loc, after_class) = scan_for_keyword(scanner, parser.source, InputElementGoal::Div, Keyword::Class)?;
         let pot_bi = BindingIdentifier::parse(parser, after_class, yield_flag, await_flag);
         let (ident, after_bi) = match pot_bi {
             Ok((node, scanner)) => (Some(node), scanner),
@@ -242,15 +234,15 @@ impl ClassExpression {
         Ok((Rc::new(ClassExpression { ident, tail, location }), after_ct))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.ident.as_ref().is_some_and(|n| n.contains(kind)) || self.tail.contains(kind)
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.tail.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -264,7 +256,7 @@ impl ClassExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -284,18 +276,18 @@ impl ClassExpression {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>) {
         if let Some(name) = &self.ident {
             name.early_errors(errs, true);
         }
         self.tail.early_errors(errs, true);
     }
 
-    pub fn is_named_function(&self) -> bool {
+    pub(crate) fn is_named_function(&self) -> bool {
         self.ident.is_some()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) { self.tail.body_containing_location(location) } else { None }
     }
@@ -304,9 +296,9 @@ impl ClassExpression {
 // ClassTail[Yield, Await] :
 //      ClassHeritage[?Yield, ?Await]opt { ClassBody[?Yield, ?Await]opt }
 #[derive(Debug)]
-pub struct ClassTail {
-    pub heritage: Option<Rc<ClassHeritage>>,
-    pub body: Option<Rc<ClassBody>>,
+pub(crate) struct ClassTail {
+    pub(crate) heritage: Option<Rc<ClassHeritage>>,
+    pub(crate) body: Option<Rc<ClassBody>>,
     location: Location,
 }
 
@@ -369,19 +361,24 @@ impl ClassTail {
             Err(_) => (None, scanner),
         };
         let (lb_loc, after_lb) =
-            scan_for_punct(after_heritage, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+            scan_for_punct(after_heritage, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
         let pot_body = ClassBody::parse(parser, after_lb, yield_flag, await_flag);
         let (body, after_body) = match pot_body {
             Ok((n, s)) => (Some(n), s),
             Err(_) => (None, after_lb),
         };
         let (rb_loc, after_rb) =
-            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+            scan_for_punct(after_body, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
         let location = heritage.as_ref().map_or(lb_loc, |node| node.location()).merge(&rb_loc);
         Ok((Rc::new(ClassTail { heritage, body, location }), after_rb))
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.class_tail_cache.get(&key) {
             Some(result) => result.clone(),
@@ -393,13 +390,15 @@ impl ClassTail {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match kind {
+            #[cfg(test)]
             ParseNodeKind::ClassBody => self.body.is_some(),
+            #[cfg(test)]
             ParseNodeKind::ClassHeritage => self.heritage.is_some(),
             _ => {
                 self.heritage.as_ref().is_some_and(|n| n.contains(kind))
@@ -408,7 +407,7 @@ impl ClassTail {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -423,7 +422,7 @@ impl ClassTail {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -444,7 +443,7 @@ impl ClassTail {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // ClassTail : ClassHeritageopt { ClassBody }
         //  * It is a Syntax Error if ClassHeritage is not present and the following algorithm returns true:
         //
@@ -470,7 +469,7 @@ impl ClassTail {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location.contains(location) {
             if let Some(body) = &self.body { body.body_containing_location(location) } else { None }
@@ -483,8 +482,8 @@ impl ClassTail {
 // ClassHeritage[Yield, Await] :
 //      extends LeftHandSideExpression[?Yield, ?Await]
 #[derive(Debug)]
-pub struct ClassHeritage {
-    pub exp: Rc<LeftHandSideExpression>,
+pub(crate) struct ClassHeritage {
+    pub(crate) exp: Rc<LeftHandSideExpression>,
     location: Location,
 }
 
@@ -516,23 +515,28 @@ impl PrettyPrint for ClassHeritage {
 }
 
 impl ClassHeritage {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (extends_loc, after_extends) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Extends)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::Div, Keyword::Extends)?;
         let (exp, after_lhs) = LeftHandSideExpression::parse(parser, after_extends, yield_flag, await_flag)?;
         let location = extends_loc.merge(&exp.location());
         Ok((Rc::new(ClassHeritage { exp, location }), after_lhs))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.exp.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -546,7 +550,7 @@ impl ClassHeritage {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -566,21 +570,21 @@ impl ClassHeritage {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.exp.early_errors(errs, strict);
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // ClassBody[Yield, Await] :
 //      ClassElementList[?Yield, ?Await]
 #[derive(Debug)]
-pub struct ClassBody(Rc<ClassElementList>);
+pub(crate) struct ClassBody(Rc<ClassElementList>);
 
 impl fmt::Display for ClassBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -607,27 +611,33 @@ impl PrettyPrint for ClassBody {
 }
 
 impl ClassBody {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (el, after_el) = ClassElementList::parse(parser, scanner, yield_flag, await_flag)?;
         Ok((Rc::new(ClassBody(el)), after_el))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    #[cfg(test)]
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
     }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         self.0.computed_property_contains(kind)
     }
 
-    pub fn private_bound_identifiers(&self) -> Vec<PrivateIdInfo> {
+    pub(crate) fn private_bound_identifiers(&self) -> Vec<PrivateIdInfo> {
         // Static Semantics: PrivateBoundIdentifiers
         // ClassBody : ClassElementList
         //  1. Return PrivateBoundIdentifiers of ClassElementList.
         self.0.private_bound_identifiers()
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         // ClassBody : ClassElementList
@@ -643,7 +653,7 @@ impl ClassBody {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -663,7 +673,7 @@ impl ClassBody {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         enum HowSeen {
             Completely,   // Any further use triggers "duplicate" error
             Getter,       // Saw as a non-static getter
@@ -734,18 +744,18 @@ impl ClassBody {
         self.0.early_errors(errs, strict);
     }
 
-    pub fn constructor_method(&self) -> Option<&Rc<ClassElement>> {
+    pub(crate) fn constructor_method(&self) -> Option<&Rc<ClassElement>> {
         self.0.constructor_method()
     }
 
-    pub fn non_constructor_elements(&self) -> Vec<&Rc<ClassElement>> {
+    pub(crate) fn non_constructor_elements(&self) -> Vec<&Rc<ClassElement>> {
         // Static Semantics: NonConstructorElements
         // The syntax-directed operation NonConstructorElements takes no arguments and returns a List of ClassElement
         // Parse Nodes.
         self.0.non_constructor_elements()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         self.0.body_containing_location(location)
     }
@@ -755,7 +765,7 @@ impl ClassBody {
 //      ClassElement[?Yield, ?Await]
 //      ClassElementList[?Yield, ?Await] ClassElement[?Yield, ?Await]
 #[derive(Debug)]
-pub enum ClassElementList {
+pub(crate) enum ClassElementList {
     Item(Rc<ClassElement>),
     List(Rc<ClassElementList>, Rc<ClassElement>),
 }
@@ -804,7 +814,7 @@ impl PrettyPrint for ClassElementList {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IdUsage {
+pub(crate) enum IdUsage {
     Public,
     Static,
     Getter,
@@ -813,13 +823,18 @@ pub enum IdUsage {
     StaticSetter,
 }
 #[derive(Debug, Clone)]
-pub struct PrivateIdInfo {
-    pub name: JSString,
-    pub usage: IdUsage,
+pub(crate) struct PrivateIdInfo {
+    pub(crate) name: JSString,
+    pub(crate) usage: IdUsage,
 }
 
 impl ClassElementList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (ce, mut current_scanner) = ClassElement::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(ClassElementList::Item(ce));
         while let Ok((node, after)) = ClassElement::parse(parser, current_scanner, yield_flag, await_flag) {
@@ -829,21 +844,22 @@ impl ClassElementList {
         Ok((current, current_scanner))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ClassElementList::Item(item) => item.location(),
             ClassElementList::List(list, item) => list.location().merge(&item.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    #[cfg(test)]
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ClassElementList::Item(item) => item.contains(kind),
             ClassElementList::List(list, item) => list.contains(kind) || item.contains(kind),
         }
     }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ClassElementList::Item(item) => item.computed_property_contains(kind),
             ClassElementList::List(list, item) => {
@@ -852,7 +868,7 @@ impl ClassElementList {
         }
     }
 
-    pub fn private_bound_identifiers(&self) -> Vec<PrivateIdInfo> {
+    pub(crate) fn private_bound_identifiers(&self) -> Vec<PrivateIdInfo> {
         // Static Semantics: PrivateBoundIdentifiers
         match self {
             ClassElementList::List(lst, elem) => {
@@ -874,7 +890,7 @@ impl ClassElementList {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -892,7 +908,7 @@ impl ClassElementList {
     /// Returns a reference to the ClassElement of the constructor within this node (if it exists)
     ///
     /// See [ConstructorMethod](https://tc39.es/ecma262/#sec-static-semantics-constructormethod) from ECMA-262.
-    pub fn constructor_method(&self) -> Option<&Rc<ClassElement>> {
+    pub(crate) fn constructor_method(&self) -> Option<&Rc<ClassElement>> {
         // Static Semantics: ConstructorMethod
         // The syntax-directed operation ConstructorMethod takes no arguments and returns a ClassElement Parse Node or empty.
         //
@@ -920,7 +936,7 @@ impl ClassElementList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -943,7 +959,7 @@ impl ClassElementList {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ClassElementList::Item(ce) => ce.early_errors(errs, strict),
             ClassElementList::List(cel, ce) => {
@@ -958,7 +974,7 @@ impl ClassElementList {
     /// See [PrototypePropertyNameList][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-static-semantics-prototypepropertynamelist
-    pub fn prototype_property_name_list(&self) -> Vec<JSString> {
+    pub(crate) fn prototype_property_name_list(&self) -> Vec<JSString> {
         match self {
             ClassElementList::Item(ce) => {
                 if !ce.is_static()
@@ -980,7 +996,7 @@ impl ClassElementList {
         }
     }
 
-    pub fn non_constructor_elements(&self) -> Vec<&Rc<ClassElement>> {
+    pub(crate) fn non_constructor_elements(&self) -> Vec<&Rc<ClassElement>> {
         // Static Semantics: NonConstructorElements
         // The syntax-directed operation NonConstructorElements takes no arguments and returns a List of ClassElement
         // Parse Nodes. It is defined piecewise over the following productions:
@@ -1011,7 +1027,7 @@ impl ClassElementList {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         match self {
             ClassElementList::Item(item) => item.body_containing_location(location),
@@ -1030,7 +1046,7 @@ impl ClassElementList {
 //      ClassStaticBlock
 //      ;
 #[derive(Debug)]
-pub enum ClassElement {
+pub(crate) enum ClassElement {
     Standard { method: Rc<MethodDefinition> },
     Static { method: Rc<MethodDefinition>, location: Location },
     Field { field: Rc<FieldDefinition>, location: Location },
@@ -1108,14 +1124,19 @@ impl PrettyPrint for ClassElement {
 }
 
 impl ClassElement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ClassElement), scanner))
             .otherwise(|| {
                 ClassStaticBlock::parse(parser, scanner)
                     .map(|(block, after_sb)| (Rc::new(ClassElement::StaticBlock { block }), after_sb))
             })
             .otherwise(|| {
-                scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Static)
+                scan_for_keyword(scanner, parser.source, InputElementGoal::Div, Keyword::Static)
                     .and_then(|(static_loc, after_static)| {
                         MethodDefinition::parse(parser, after_static, yield_flag, await_flag)
                             .map(|(method, after_md)| {
@@ -1125,7 +1146,7 @@ impl ClassElement {
                             .otherwise(|| {
                                 FieldDefinition::parse(parser, after_static, yield_flag, await_flag).and_then(
                                     |(field, after_fd)| {
-                                        scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv).map(
+                                        scan_for_auto_semi(after_fd, parser.source, InputElementGoal::Div).map(
                                             |(semi_loc, after_semi)| {
                                                 let location = static_loc.merge(&semi_loc);
                                                 (Rc::new(ClassElement::StaticField { field, location }), after_semi)
@@ -1136,7 +1157,7 @@ impl ClassElement {
                             })
                     })
                     .otherwise(|| {
-                        scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)
+                        scan_for_punct(scanner, parser.source, InputElementGoal::Div, Punctuator::Semicolon)
                             .map(|(location, after_semi)| (Rc::new(ClassElement::Empty { location }), after_semi))
                     })
                     .otherwise(|| {
@@ -1145,7 +1166,7 @@ impl ClassElement {
                     })
                     .otherwise(|| {
                         FieldDefinition::parse(parser, scanner, yield_flag, await_flag).and_then(|(field, after_fd)| {
-                            scan_for_auto_semi(after_fd, parser.source, ScanGoal::InputElementDiv).map(
+                            scan_for_auto_semi(after_fd, parser.source, InputElementGoal::Div).map(
                                 |(semi_loc, after_semi)| {
                                     let location = field.location().merge(&semi_loc);
                                     (Rc::new(ClassElement::Field { field, location }), after_semi)
@@ -1156,7 +1177,7 @@ impl ClassElement {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ClassElement::Standard { method } => method.location(),
             ClassElement::StaticBlock { block } => block.location(),
@@ -1167,18 +1188,18 @@ impl ClassElement {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    #[cfg(test)]
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ClassElement::Standard { method } | ClassElement::Static { method, .. } => {
                 kind == ParseNodeKind::MethodDefinition || method.contains(kind)
             }
-            ClassElement::Empty { .. } => false,
+            ClassElement::Empty { .. } | ClassElement::StaticBlock { .. } => false,
             ClassElement::Field { field, .. } | ClassElement::StaticField { field, .. } => field.contains(kind),
-            ClassElement::StaticBlock { block } => block.contains(),
         }
     }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ClassElement::Standard { method } | ClassElement::Static { method, .. } => {
                 method.computed_property_contains(kind)
@@ -1190,7 +1211,7 @@ impl ClassElement {
         }
     }
 
-    pub fn private_bound_identifier(&self) -> Option<PrivateIdInfo> {
+    pub(crate) fn private_bound_identifier(&self) -> Option<PrivateIdInfo> {
         // Static Semantics: PrivateBoundIdentifiers
         match self {
             // ClassElement : ClassStaticBlock
@@ -1232,7 +1253,7 @@ impl ClassElement {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1255,7 +1276,7 @@ impl ClassElement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1280,7 +1301,7 @@ impl ClassElement {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ClassElement::Standard { method } => {
                 // ClassElement : MethodDefinition
@@ -1354,7 +1375,7 @@ impl ClassElement {
         }
     }
 
-    pub fn class_element_kind(&self) -> Option<CEKind> {
+    pub(crate) fn class_element_kind(&self) -> Option<CEKind> {
         // Static Semantics: ClassElementKind
         // The syntax-directed operation ClassElementKind takes no arguments and returns ConstructorMethod, NonConstructorMethod, or empty.
         //  ClassElement : MethodDefinition
@@ -1380,7 +1401,7 @@ impl ClassElement {
         }
     }
 
-    pub fn prop_name(&self) -> Option<JSString> {
+    pub(crate) fn prop_name(&self) -> Option<JSString> {
         match self {
             ClassElement::Standard { method } | ClassElement::Static { method, .. } => method.prop_name(),
             ClassElement::Field { field, .. } | ClassElement::StaticField { field, .. } => field.prop_name(),
@@ -1388,14 +1409,14 @@ impl ClassElement {
         }
     }
 
-    pub fn is_static(&self) -> bool {
+    pub(crate) fn is_static(&self) -> bool {
         matches!(
             self,
             ClassElement::Static { .. } | ClassElement::StaticField { .. } | ClassElement::StaticBlock { .. }
         )
     }
 
-    pub fn has_direct_super(&self) -> bool {
+    pub(crate) fn has_direct_super(&self) -> bool {
         match self {
             ClassElement::Empty { .. }
             | ClassElement::Field { .. }
@@ -1405,7 +1426,7 @@ impl ClassElement {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         match self {
             ClassElement::Standard { method } | ClassElement::Static { method, .. } => {
@@ -1421,7 +1442,7 @@ impl ClassElement {
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum CEKind {
+pub(crate) enum CEKind {
     ConstructorMethod,
     NonConstructorMethod,
 }
@@ -1429,9 +1450,9 @@ pub enum CEKind {
 // FieldDefinition[Yield, Await] :
 //      ClassElementName[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 #[derive(Debug)]
-pub struct FieldDefinition {
-    pub name: Rc<ClassElementName>,
-    pub init: Option<Rc<Initializer>>,
+pub(crate) struct FieldDefinition {
+    pub(crate) name: Rc<ClassElementName>,
+    pub(crate) init: Option<Rc<Initializer>>,
 }
 
 impl fmt::Display for FieldDefinition {
@@ -1476,7 +1497,12 @@ impl PrettyPrint for FieldDefinition {
 }
 
 impl FieldDefinition {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         ClassElementName::parse(parser, scanner, yield_flag, await_flag).map(|(cen, after_cen)| {
             let (init, after_init) = match Initializer::parse(parser, after_cen, true, yield_flag, await_flag) {
                 Err(_) => (None, after_cen),
@@ -1486,29 +1512,30 @@ impl FieldDefinition {
         })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match &self.init {
             None => self.name.location(),
             Some(init) => self.name.location().merge(&init.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    #[cfg(test)]
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.name.contains(kind) || self.init.as_ref().is_some_and(|n| n.contains(kind))
     }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         self.name.computed_property_contains(kind)
     }
 
-    pub fn private_bound_identifier(&self) -> Option<JSString> {
+    pub(crate) fn private_bound_identifier(&self) -> Option<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
         // FieldDefinition : ClassElementName Initializer [opt]
         //  1. Return PrivateBoundIdentifiers of ClassElementName.
         self.name.private_bound_identifier()
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1523,7 +1550,7 @@ impl FieldDefinition {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1543,7 +1570,7 @@ impl FieldDefinition {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // FieldDefinition :
         //  ClassElementName Initializer[opt]
         //  * It is a Syntax Error if Initializer is present and ContainsArguments of Initializer is true.
@@ -1563,11 +1590,11 @@ impl FieldDefinition {
     /// Returns the property name (if it exists) for this node.
     ///
     /// See [PropName](https://tc39.es/ecma262/#sec-static-semantics-propname) in ECMA-262.
-    pub fn prop_name(&self) -> Option<JSString> {
+    pub(crate) fn prop_name(&self) -> Option<JSString> {
         self.name.prop_name()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         self.name
             .body_containing_location(location)
@@ -1579,7 +1606,7 @@ impl FieldDefinition {
 //      PropertyName[?Yield, ?Await]
 //      PrivateIdentifier
 #[derive(Debug)]
-pub enum ClassElementName {
+pub(crate) enum ClassElementName {
     PropertyName(Rc<PropertyName>),
     PrivateIdentifier { data: IdentifierData, location: Location },
 }
@@ -1622,12 +1649,17 @@ impl PrettyPrint for ClassElementName {
 }
 
 impl ClassElementName {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ClassElementName), scanner)).otherwise(|| {
             PropertyName::parse(parser, scanner, yield_flag, await_flag)
                 .map(|(item, scan)| (Rc::new(ClassElementName::PropertyName(item)), scan))
                 .otherwise(|| {
-                    scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementDiv).map(
+                    scan_for_private_identifier(scanner, parser.source, InputElementGoal::Div).map(
                         |(item, item_loc, scan)| {
                             (Rc::new(ClassElementName::PrivateIdentifier { data: item, location: item_loc }), scan)
                         },
@@ -1636,28 +1668,29 @@ impl ClassElementName {
         })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ClassElementName::PropertyName(pn) => pn.location(),
             ClassElementName::PrivateIdentifier { location, .. } => *location,
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    #[cfg(test)]
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ClassElementName::PropertyName(n) => n.contains(kind),
             ClassElementName::PrivateIdentifier { .. } => false,
         }
     }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ClassElementName::PropertyName(n) => n.computed_property_contains(kind),
             ClassElementName::PrivateIdentifier { .. } => false,
         }
     }
 
-    pub fn private_bound_identifier(&self) -> Option<JSString> {
+    pub(crate) fn private_bound_identifier(&self) -> Option<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
         match self {
             // ClassElementName : PropertyName
@@ -1670,7 +1703,7 @@ impl ClassElementName {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1687,7 +1720,7 @@ impl ClassElementName {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1710,7 +1743,7 @@ impl ClassElementName {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ClassElementName::PrivateIdentifier { data: pid, location } => {
                 // ClassElementName : PrivateIdentifier
@@ -1723,7 +1756,7 @@ impl ClassElementName {
         }
     }
 
-    pub fn prop_name(&self) -> Option<JSString> {
+    pub(crate) fn prop_name(&self) -> Option<JSString> {
         // Static Semantics: PropName
         // The syntax-directed operation PropName takes no arguments and returns a String or empty.
         match self {
@@ -1736,7 +1769,7 @@ impl ClassElementName {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         match self {
             ClassElementName::PropertyName(pn) => pn.body_containing_location(location),
@@ -1748,8 +1781,8 @@ impl ClassElementName {
 // ClassStaticBlock :
 //      static { ClassStaticBlockBody }
 #[derive(Debug)]
-pub struct ClassStaticBlock {
-    pub block: Rc<ClassStaticBlockBody>,
+pub(crate) struct ClassStaticBlock {
+    pub(crate) block: Rc<ClassStaticBlockBody>,
     location: Location,
 }
 
@@ -1787,27 +1820,23 @@ impl PrettyPrint for ClassStaticBlock {
 }
 
 impl ClassStaticBlock {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (static_loc, after_static) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Static)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Static)?;
         let (_, after_lb) =
-            scan_for_punct(after_static, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+            scan_for_punct(after_static, parser.source, InputElementGoal::RegExp, Punctuator::LeftBrace)?;
         let (block, after_block) = ClassStaticBlockBody::parse(parser, after_lb);
         let (close_loc, after_close) =
-            scan_for_punct(after_block, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+            scan_for_punct(after_block, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
         let location = static_loc.merge(&close_loc);
         Ok((Rc::new(ClassStaticBlock { block, location }), after_close))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self) -> bool {
-        false
-    }
-
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1821,7 +1850,7 @@ impl ClassStaticBlock {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1841,12 +1870,12 @@ impl ClassStaticBlock {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.block.early_errors(errs, strict);
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }
@@ -1855,7 +1884,7 @@ impl ClassStaticBlock {
 // ClassStaticBlockBody :
 //      ClassStaticBlockStatementList
 #[derive(Debug)]
-pub struct ClassStaticBlockBody(pub Rc<ClassStaticBlockStatementList>);
+pub(crate) struct ClassStaticBlockBody(pub(crate) Rc<ClassStaticBlockStatementList>);
 
 impl fmt::Display for ClassStaticBlockBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1882,12 +1911,12 @@ impl PrettyPrint for ClassStaticBlockBody {
 }
 
 impl ClassStaticBlockBody {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
         let (sl, after_sl) = ClassStaticBlockStatementList::parse(parser, scanner);
         (Rc::new(ClassStaticBlockBody(sl)), after_sl)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1907,7 +1936,7 @@ impl ClassStaticBlockBody {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  ClassStaticBlockBody : ClassStaticBlockStatementList
         //  * It is a Syntax Error if the LexicallyDeclaredNames of ClassStaticBlockStatementList contains any duplicate
@@ -1959,7 +1988,7 @@ impl ClassStaticBlockBody {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1969,17 +1998,17 @@ impl ClassStaticBlockBody {
         self.0.contains_arguments()
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // ClassStaticBlockStatementList :
 //      StatementList[~Yield, +Await, ~Return]opt
 #[derive(Debug)]
-pub enum ClassStaticBlockStatementList {
+pub(crate) enum ClassStaticBlockStatementList {
     //(Option<Rc<StatementList>>);
     Statements(Rc<StatementList>),
     Empty(Location),
@@ -2021,21 +2050,21 @@ impl PrettyPrint for ClassStaticBlockStatementList {
 }
 
 impl ClassStaticBlockStatementList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
         match StatementList::parse(parser, scanner, false, true, false) {
             Ok((sl, after)) => (Rc::new(ClassStaticBlockStatementList::Statements(sl)), after),
             Err(_) => (Rc::new(ClassStaticBlockStatementList::Empty(Location::from(scanner))), scanner),
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ClassStaticBlockStatementList::Statements(s) => s.location(),
             ClassStaticBlockStatementList::Empty(loc) => *loc,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2058,7 +2087,7 @@ impl ClassStaticBlockStatementList {
     /// See [Early Errors for Class Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-class-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         if let ClassStaticBlockStatementList::Statements(sl) = self {
             sl.early_errors(errs, strict, false, false);
         }
@@ -2069,7 +2098,7 @@ impl ClassStaticBlockStatementList {
     /// Note that class static blocks are treated like top-level code in that top-level function identifiers are _not_ included in this list.
     ///
     /// See [LexicallyDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-lexicallydeclarednames) in ECMA-262.
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: LexicallyDeclaredNames
         // The syntax-directed operation LexicallyDeclaredNames takes no arguments and returns a List of Strings.
         //  ClassStaticBlockStatementList : [empty]
@@ -2088,7 +2117,7 @@ impl ClassStaticBlockStatementList {
     /// of the var-declared list.
     ///
     /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: VarDeclaredNames
         // The syntax-directed operation VarDeclaredNames takes no arguments and returns a List of Strings.
         //  ClassStaticBlockStatementList : [empty]
@@ -2110,7 +2139,7 @@ impl ClassStaticBlockStatementList {
     ///   the parameters to this function).
     ///
     /// See [ContainsDuplicateLabels](https://tc39.es/ecma262/#sec-static-semantics-containsduplicatelabels) from ECMA-262.
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             ClassStaticBlockStatementList::Statements(sl) => sl.contains_duplicate_labels(label_set),
             ClassStaticBlockStatementList::Empty(_) => false,
@@ -2128,7 +2157,7 @@ impl ClassStaticBlockStatementList {
     ///
     /// See [ContainsUndefinedBreakTarget](https://tc39.es/ecma262/#sec-static-semantics-containsundefinedbreaktarget)
     /// from ECMA-262.
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             ClassStaticBlockStatementList::Statements(sl) => sl.contains_undefined_break_target(label_set),
             ClassStaticBlockStatementList::Empty(_) => false,
@@ -2151,7 +2180,11 @@ impl ClassStaticBlockStatementList {
     /// See
     /// [ContainsUndefinedContinueTarget](https://tc39.es/ecma262/#sec-static-semantics-containsundefinedcontinuetarget)
     /// from ECMA-262.
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(
+        &self,
+        iteration_set: &[JSString],
+        label_set: &[JSString],
+    ) -> bool {
         match self {
             ClassStaticBlockStatementList::Statements(sl) => {
                 sl.contains_undefined_continue_target(iteration_set, label_set)
@@ -2164,7 +2197,7 @@ impl ClassStaticBlockStatementList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2181,18 +2214,18 @@ impl ClassStaticBlockStatementList {
     /// production specified by `kind`.
     ///
     /// See [Contains](https://tc39.es/ecma262/#sec-syntax-directed-operations-contains) from ECMA-262.
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ClassStaticBlockStatementList::Statements(sl) => kind == ParseNodeKind::StatementList || sl.contains(kind),
             ClassStaticBlockStatementList::Empty(_) => false,
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 #[cfg(test)]

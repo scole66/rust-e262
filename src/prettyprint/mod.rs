@@ -3,13 +3,13 @@ use std::io::Result as IoResult;
 use std::io::Write;
 
 #[derive(Copy, Clone)]
-pub enum Spot {
+pub(crate) enum Spot {
     Initial,
     NotFinal,
     Final,
 }
 
-pub fn prettypad(pad: &str, state: Spot) -> (String, String) {
+pub(crate) fn prettypad(pad: &str, state: Spot) -> (String, String) {
     let mut first = String::from(pad);
     let mut successive = String::from(pad);
     match state {
@@ -27,7 +27,7 @@ pub fn prettypad(pad: &str, state: Spot) -> (String, String) {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum TokenType {
+pub(crate) enum TokenType {
     Keyword,
     Punctuator,
     IdentifierName,
@@ -59,7 +59,7 @@ impl fmt::Display for TokenType {
     }
 }
 
-pub fn pprint_token<T, U>(writer: &mut T, tokstr: U, kind: TokenType, pad: &str, state: Spot) -> IoResult<()>
+pub(crate) fn pprint_token<T, U>(writer: &mut T, tokstr: U, kind: TokenType, pad: &str, state: Spot) -> IoResult<()>
 where
     T: Write,
     U: fmt::Display,
@@ -68,7 +68,8 @@ where
     writeln!(writer, "{first}{kind}: {tokstr}")
 }
 
-pub trait PrettyPrint {
+pub(crate) trait PrettyPrint {
+    #[cfg(test)]
     fn pprint<T>(&self, writer: &mut T) -> IoResult<()>
     where
         T: Write,
@@ -91,7 +92,7 @@ pub trait PrettyPrint {
 }
 
 #[cfg(test)]
-pub mod pp_testhelp;
+pub(crate) mod pp_testhelp;
 
 #[cfg(test)]
-pub mod tests;
+pub(crate) mod tests;

@@ -20,14 +20,14 @@ fn split_message(msg: &str) -> Vec<String> {
     lines
 }
 
-pub fn pretty_data(item: &impl PrettyPrint) -> Vec<String> {
+pub(crate) fn pretty_data(item: &impl PrettyPrint) -> Vec<String> {
     let mut msg = Vec::new();
     item.pprint(&mut msg).unwrap();
     let whole_message = str::from_utf8(&msg).unwrap();
     split_message(whole_message)
 }
 
-pub fn concise_data(item: &impl PrettyPrint) -> Vec<String> {
+pub(crate) fn concise_data(item: &impl PrettyPrint) -> Vec<String> {
     let mut msg = Vec::new();
     item.pprint_concise(&mut msg).unwrap();
     let whole_message = str::from_utf8(&msg).unwrap();
@@ -58,7 +58,7 @@ fn check_message(msg: &str, selfstring: &str, childstrings: &[&str]) {
     assert!(expected_iter.next().is_none());
 }
 
-pub fn pretty_check<T>(item: &T, selfstring: &str, childstrings: &[&str])
+pub(crate) fn pretty_check<T>(item: &T, selfstring: &str, childstrings: &[&str])
 where
     T: PrettyPrint,
 {
@@ -68,7 +68,7 @@ where
     pp_testhelp::check_message(whole_message, selfstring, childstrings);
 }
 
-pub fn concise_check<T>(item: &T, selfstring: &str, childstrings: &[&str])
+pub(crate) fn concise_check<T>(item: &T, selfstring: &str, childstrings: &[&str])
 where
     T: PrettyPrint,
 {
@@ -78,13 +78,13 @@ where
     pp_testhelp::check_message(whole_message, selfstring, childstrings);
 }
 
-pub fn pretty_error_validate<T>(item: &T)
+pub(crate) fn pretty_error_validate<T>(item: &T)
 where
     T: PrettyPrint,
 {
     printer_validate(|w| item.pprint(w));
 }
-pub fn concise_error_validate<T>(item: &T)
+pub(crate) fn concise_error_validate<T>(item: &T)
 where
     T: PrettyPrint,
 {

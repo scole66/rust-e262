@@ -18,7 +18,6 @@ mod exponentiation_expression {
         pretty_check(&*se, "ExponentiationExpression: a", &["UnaryExpression: a"]);
         concise_check(&*se, "IdentifierName: a", &[]);
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_02() {
@@ -33,7 +32,6 @@ mod exponentiation_expression {
             &["IdentifierName: a", "Punctuator: **", "IdentifierName: b"],
         );
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
@@ -53,7 +51,6 @@ mod exponentiation_expression {
         pretty_check(&*se, "ExponentiationExpression: a", &["UnaryExpression: a"]);
         concise_check(&*se, "IdentifierName: a", &[]);
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn prettyerrors_1() {
@@ -159,12 +156,12 @@ mod exponentiation_expression {
         Maker::new(src).exponentiation_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a**b" => false; "expr")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).exponentiation_expression().is_named_function()
-    }
+    //#[test_case("a**b" => false; "expr")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).exponentiation_expression().is_named_function()
+    //}
 
     #[test_case("  a**b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "power")]
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]

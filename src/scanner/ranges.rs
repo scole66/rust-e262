@@ -1,10 +1,10 @@
 #[derive(Debug, Copy, Clone)]
-pub struct CharRange {
-    pub first: char,
-    pub last: char,
+pub(crate) struct CharRange {
+    pub(crate) first: char,
+    pub(crate) last: char,
 }
 
-pub const ID_START: &[CharRange] = &[
+pub(crate) const ID_START: &[CharRange] = &[
     CharRange { first: 'A', last: 'Z' },                 // A .. Z
     CharRange { first: 'a', last: 'z' },                 // a .. z
     CharRange { first: '\u{aa}', last: '\u{aa}' },       // ª .. ª
@@ -616,7 +616,7 @@ pub const ID_START: &[CharRange] = &[
     CharRange { first: '\u{2f800}', last: '\u{2fa1d}' }, // 丽 .. 𪘀
 ];
 
-pub const ID_CONTINUE: &[CharRange] = &[
+pub(crate) const ID_CONTINUE: &[CharRange] = &[
     CharRange { first: '0', last: '9' },                 // 0 .. 9
     CharRange { first: 'A', last: 'Z' },                 // A .. Z
     CharRange { first: '_', last: '_' },                 // _ .. _

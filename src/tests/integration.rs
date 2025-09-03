@@ -1092,7 +1092,7 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 // 2025/07/31 - destructuring broken in catch parameters
 #[test_case("try{throw[10];}catch([z]){z;}" => vok(10); "catch parameter destructuring")]
 #[test_case("try{throw 10;}catch([z]){}" => serr("Thrown: TypeError: object is not iterable"); "catch parameter bad destructuring")]
-pub fn code(src: &str) -> Result<ECMAScriptValue, String> {
+pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
 }

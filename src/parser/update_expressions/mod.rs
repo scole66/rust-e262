@@ -10,7 +10,7 @@ use std::io::Write;
 //      ++ UnaryExpression[?Yield, ?Await]
 //      -- UnaryExpression[?Yield, ?Await]
 #[derive(Debug)]
-pub enum UpdateExpression {
+pub(crate) enum UpdateExpression {
     LeftHandSideExpression(Rc<LeftHandSideExpression>),
     PostIncrement { lhs: Rc<LeftHandSideExpression>, location: Location },
     PostDecrement { lhs: Rc<LeftHandSideExpression>, location: Location },
@@ -78,24 +78,12 @@ impl PrettyPrint for UpdateExpression {
     }
 }
 
-impl IsFunctionDefinition for UpdateExpression {
-    fn is_function_definition(&self) -> bool {
-        match self {
-            UpdateExpression::LeftHandSideExpression(boxed) => boxed.is_function_definition(),
-            UpdateExpression::PostIncrement { .. }
-            | UpdateExpression::PostDecrement { .. }
-            | UpdateExpression::PreIncrement { .. }
-            | UpdateExpression::PreDecrement { .. } => false,
-        }
-    }
-}
-
 impl UpdateExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::UpdateExpression), scanner))
             .otherwise(|| {
                 let (plusses_loc, after_plusses) =
-                    scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::PlusPlus)?;
+                    scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::PlusPlus)?;
                 let (ue, after_ue) = UnaryExpression::parse(parser, after_plusses, yield_flag, await_flag)?;
                 Ok((
                     Rc::new({
@@ -107,7 +95,7 @@ impl UpdateExpression {
             })
             .otherwise(|| {
                 let (minuses_loc, after_minuses) =
-                    scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::MinusMinus)?;
+                    scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::MinusMinus)?;
                 let (ue, after_ue) = UnaryExpression::parse(parser, after_minuses, yield_flag, await_flag)?;
                 Ok((
                     Rc::new({
@@ -129,7 +117,7 @@ impl UpdateExpression {
                         let (punct, punct_loc, after_punct) = scan_for_punct_set(
                             after_lhs,
                             parser.source,
-                            ScanGoal::InputElementDiv,
+                            InputElementGoal::Div,
                             &[Punctuator::PlusPlus, Punctuator::MinusMinus],
                         )?;
                         let location = lhs.location().merge(&punct_loc);
@@ -152,7 +140,12 @@ impl UpdateExpression {
             })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.update_expression_cache.get(&key) {
             Some(result) => result.clone(),
@@ -164,7 +157,7 @@ impl UpdateExpression {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             UpdateExpression::LeftHandSideExpression(lhs) => lhs.location(),
             UpdateExpression::PostIncrement { location, .. }
@@ -174,7 +167,7 @@ impl UpdateExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             UpdateExpression::LeftHandSideExpression(lhs)
             | UpdateExpression::PostIncrement { lhs, .. }
@@ -183,14 +176,14 @@ impl UpdateExpression {
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             UpdateExpression::LeftHandSideExpression(n) => n.as_string_literal(),
             _ => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -211,7 +204,7 @@ impl UpdateExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -228,7 +221,7 @@ impl UpdateExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             UpdateExpression::LeftHandSideExpression(n) => n.early_errors(errs, strict),
@@ -255,7 +248,7 @@ impl UpdateExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             UpdateExpression::LeftHandSideExpression(x) => x.is_strictly_deletable(),
             _ => true,
@@ -265,7 +258,7 @@ impl UpdateExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             UpdateExpression::LeftHandSideExpression(boxed) => boxed.assignment_target_type(strict),
             UpdateExpression::PostIncrement { .. }
@@ -275,14 +268,14 @@ impl UpdateExpression {
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            UpdateExpression::LeftHandSideExpression(node) => node.is_named_function(),
-            _ => false,
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        UpdateExpression::LeftHandSideExpression(node) => node.is_named_function(),
+    //        _ => false,
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -299,7 +292,7 @@ impl UpdateExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

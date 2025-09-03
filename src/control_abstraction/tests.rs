@@ -178,7 +178,7 @@ mod generator_prototype_next {
     }
 
     #[test]
-    pub fn multi() {
+    pub(crate) fn multi() {
         setup_test_agent();
         let (this_value, _) = list_iterator_sample();
         let mut results = vec![];
@@ -284,11 +284,7 @@ mod generator_data {
 
     #[test]
     fn debug() {
-        let item = GeneratorData {
-            generator_state: GeneratorState::Completed,
-            generator_context: None,
-            generator_brand: "Testerino".to_owned(),
-        };
+        let item = GeneratorData { state: GeneratorState::Completed, context: None, brand: "Testerino".to_owned() };
         assert_ne!(format!("{item:?}"), "");
     }
 }
@@ -336,9 +332,9 @@ mod generator_object {
 
         let go_data = o.o.to_generator_object().unwrap().generator_data.borrow();
 
-        assert_eq!(go_data.generator_state, GeneratorState::Undefined);
-        assert!(go_data.generator_context.is_none());
-        assert_eq!(go_data.generator_brand, "TestingBrand");
+        assert_eq!(go_data.state, GeneratorState::Undefined);
+        assert!(go_data.context.is_none());
+        assert_eq!(go_data.brand, "TestingBrand");
 
         let cod = o.o.common_object_data().borrow();
         assert_eq!(cod.prototype.as_ref().unwrap().clone(), gp);
@@ -431,7 +427,7 @@ mod generator_object {
         setup_test_agent();
         let obj = make(); // brand is "TestingBrand"
         let gen_obj = obj.o.to_generator_object().unwrap();
-        gen_obj.generator_data.borrow_mut().generator_state = generator_state;
+        gen_obj.generator_data.borrow_mut().state = generator_state;
 
         gen_obj.validate(desired_brand)
     }
@@ -586,7 +582,7 @@ mod generator_resume_abrupt {
         assert_eq!(unwind_any_error(item), String::from("Testing Sentinel"));
         let obj = Object::try_from(iter).unwrap();
         let r#gen = obj.o.to_generator_object().unwrap();
-        assert_eq!(r#gen.generator_data.borrow().generator_state, GeneratorState::Completed);
+        assert_eq!(r#gen.generator_data.borrow().state, GeneratorState::Completed);
     }
 
     #[test]
@@ -599,7 +595,7 @@ mod generator_resume_abrupt {
         assert_eq!(item.get(&"done".into()).unwrap(), ECMAScriptValue::from(true));
         let obj = Object::try_from(iter).unwrap();
         let r#gen = obj.o.to_generator_object().unwrap();
-        assert_eq!(r#gen.generator_data.borrow().generator_state, GeneratorState::Completed);
+        assert_eq!(r#gen.generator_data.borrow().state, GeneratorState::Completed);
     }
 
     #[test]
@@ -639,7 +635,7 @@ mod generator_resume_abrupt {
         assert_eq!(unwind_any_error(item), String::from("Testing Sentinel"));
         let obj = Object::try_from(iter).unwrap();
         let r#gen = obj.o.to_generator_object().unwrap();
-        assert_eq!(r#gen.generator_data.borrow().generator_state, GeneratorState::Completed);
+        assert_eq!(r#gen.generator_data.borrow().state, GeneratorState::Completed);
     }
 
     #[test]
@@ -653,7 +649,7 @@ mod generator_resume_abrupt {
         assert_eq!(item.get(&"value".into()).unwrap(), ECMAScriptValue::from("Token 2: [special]"));
         let obj = Object::try_from(iter).unwrap();
         let r#gen = obj.o.to_generator_object().unwrap();
-        assert_eq!(r#gen.generator_data.borrow().generator_state, GeneratorState::SuspendedYield);
+        assert_eq!(r#gen.generator_data.borrow().state, GeneratorState::SuspendedYield);
     }
 }
 
@@ -806,10 +802,10 @@ mod generator_start_from_closure {
 
         let gen_obj = r#gen.o.to_generator_object().unwrap();
         let gen_data = gen_obj.generator_data.borrow();
-        assert_eq!(gen_data.generator_brand, "");
-        assert_eq!(gen_data.generator_state, GeneratorState::SuspendedStart);
-        assert!(gen_data.generator_context.is_some());
-        let gc = gen_data.generator_context.as_ref().unwrap();
+        assert_eq!(gen_data.brand, "");
+        assert_eq!(gen_data.state, GeneratorState::SuspendedStart);
+        assert!(gen_data.context.is_some());
+        let gc = gen_data.context.as_ref().unwrap();
         assert_eq!(gc.generator.as_ref().unwrap(), &r#gen);
         assert!(gc.gen_closure.is_some());
     }
@@ -1202,7 +1198,7 @@ mod iterator_record {
         let obj = silly_this(IRNextKind::ReturnsNonObject);
         super::get_iterator(&obj, IteratorKind::Sync).unwrap()
     }
-    pub fn makes_good_ir() -> IteratorRecord {
+    pub(crate) fn makes_good_ir() -> IteratorRecord {
         let obj = silly_this(IRNextKind::ReturnsObject);
         super::get_iterator(&obj, IteratorKind::Sync).unwrap()
     }

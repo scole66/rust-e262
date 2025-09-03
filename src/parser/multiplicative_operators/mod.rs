@@ -6,7 +6,7 @@ use std::io::Write;
 // MultiplicativeOperator : one of
 //      * / %
 #[derive(Debug)]
-pub enum MultiplicativeOperator {
+pub(crate) enum MultiplicativeOperator {
     Multiply,
     Divide,
     Modulo,
@@ -39,11 +39,14 @@ impl PrettyPrint for MultiplicativeOperator {
 }
 
 impl MultiplicativeOperator {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> Result<(Rc<MultiplicativeOperator>, Scanner), ParseError> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+    ) -> Result<(Rc<MultiplicativeOperator>, Scanner), ParseError> {
         let (op, _, after_op) = scan_for_punct_set(
             scanner,
             parser.source,
-            ScanGoal::InputElementDiv,
+            InputElementGoal::Div,
             &[Punctuator::Star, Punctuator::Slash, Punctuator::Percent],
         )?;
         match op {
@@ -52,17 +55,13 @@ impl MultiplicativeOperator {
             _ => Ok((Rc::new(MultiplicativeOperator::Modulo), after_op)),
         }
     }
-
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
 }
 
 // MultiplicativeExpression[Yield, Await] :
 //      ExponentiationExpression[?Yield, ?Await]
 //      MultiplicativeExpression[?Yield, ?Await] MultiplicativeOperator ExponentiationExpression[?Yield, ?Await]
 #[derive(Debug)]
-pub enum MultiplicativeExpression {
+pub(crate) enum MultiplicativeExpression {
     ExponentiationExpression(Rc<ExponentiationExpression>),
     MultiplicativeExpressionExponentiationExpression(
         Rc<MultiplicativeExpression>,
@@ -78,15 +77,6 @@ impl fmt::Display for MultiplicativeExpression {
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(me, mo, ee) => {
                 write!(f, "{me} {mo} {ee}")
             }
-        }
-    }
-}
-
-impl IsFunctionDefinition for MultiplicativeExpression {
-    fn is_function_definition(&self) -> bool {
-        match self {
-            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => false,
-            MultiplicativeExpression::ExponentiationExpression(ee) => ee.is_function_definition(),
         }
     }
 }
@@ -128,7 +118,12 @@ impl PrettyPrint for MultiplicativeExpression {
 }
 
 impl MultiplicativeExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (ee, after_ee) = ExponentiationExpression::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current = Rc::new(MultiplicativeExpression::ExponentiationExpression(ee));
         let mut current_scanner = after_ee;
@@ -145,7 +140,7 @@ impl MultiplicativeExpression {
         Ok((current, current_scanner))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             MultiplicativeExpression::ExponentiationExpression(exp) => exp.location(),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(first, _, last) => {
@@ -154,23 +149,23 @@ impl MultiplicativeExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             MultiplicativeExpression::ExponentiationExpression(n) => n.contains(kind),
-            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, op, r) => {
-                l.contains(kind) || op.contains(kind) || r.contains(kind)
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, _, r) => {
+                l.contains(kind) || r.contains(kind)
             }
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             MultiplicativeExpression::ExponentiationExpression(n) => n.as_string_literal(),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -189,7 +184,7 @@ impl MultiplicativeExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -204,7 +199,7 @@ impl MultiplicativeExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             MultiplicativeExpression::ExponentiationExpression(n) => n.early_errors(errs, strict),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(l, _, r) => {
@@ -214,7 +209,7 @@ impl MultiplicativeExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             MultiplicativeExpression::ExponentiationExpression(node) => node.is_strictly_deletable(),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => true,
@@ -224,21 +219,21 @@ impl MultiplicativeExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => ATTKind::Invalid,
             MultiplicativeExpression::ExponentiationExpression(ee) => ee.assignment_target_type(strict),
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            MultiplicativeExpression::ExponentiationExpression(node) => node.is_named_function(),
-            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => false,
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        MultiplicativeExpression::ExponentiationExpression(node) => node.is_named_function(),
+    //        MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => false,
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -252,7 +247,7 @@ impl MultiplicativeExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

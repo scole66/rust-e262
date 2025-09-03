@@ -7,10 +7,10 @@ use std::io::Write;
 //      function BindingIdentifier[?Yield, ?Await] ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 //      [+Default] function ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
-pub struct FunctionDeclaration {
-    pub ident: Option<Rc<BindingIdentifier>>,
-    pub params: Rc<FormalParameters>,
-    pub body: Rc<FunctionBody>,
+pub(crate) struct FunctionDeclaration {
+    pub(crate) ident: Option<Rc<BindingIdentifier>>,
+    pub(crate) params: Rc<FormalParameters>,
+    pub(crate) body: Rc<FunctionBody>,
     location: Location,
 }
 
@@ -74,7 +74,7 @@ impl FunctionDeclaration {
         default_flag: bool,
     ) -> ParseResult<Self> {
         let (func_loc, after_func) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Function)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_func, yield_flag, await_flag) {
             Ok((node, scan)) => Ok((Some(node), scan)),
             Err(e) => {
@@ -85,18 +85,18 @@ impl FunctionDeclaration {
                 }
             }
         }?;
-        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (params, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
-        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
-        let (body, after_fb) = FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::FunctionBody);
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
+        let (body, after_fb) = FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::Function);
         let (rb_loc, after_rb) =
-            scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+            scan_for_punct(after_fb, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
         let location = func_loc.merge(&rb_loc);
         Ok((Rc::new(FunctionDeclaration { ident, params, body, location }), after_rb))
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -114,26 +114,22 @@ impl FunctionDeclaration {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         vec![self.bound_name()]
     }
 
-    pub fn bound_name(&self) -> JSString {
+    pub(crate) fn bound_name(&self) -> JSString {
         match &self.ident {
             None => JSString::from("*default*"),
             Some(node) => node.bound_name(),
         }
     }
 
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
-
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -143,15 +139,11 @@ impl FunctionDeclaration {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body);
     }
 
-    pub fn is_constant_declaration(&self) -> bool {
-        false
-    }
-
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             self.params.body_containing_location(location).or_else(|| self.body.body_containing_location(location))
@@ -161,7 +153,7 @@ impl FunctionDeclaration {
     }
 }
 
-pub fn function_early_errors(
+pub(crate) fn function_early_errors(
     errs: &mut Vec<Object>,
     strict: bool,
     ident: Option<&Rc<BindingIdentifier>>,
@@ -233,10 +225,10 @@ pub fn function_early_errors(
 // FunctionExpression :
 //      function BindingIdentifier[~Yield, ~Await]opt ( FormalParameters[~Yield, ~Await] ) { FunctionBody[~Yield, ~Await] }
 #[derive(Debug)]
-pub struct FunctionExpression {
-    pub ident: Option<Rc<BindingIdentifier>>,
-    pub params: Rc<FormalParameters>,
-    pub body: Rc<FunctionBody>,
+pub(crate) struct FunctionExpression {
+    pub(crate) ident: Option<Rc<BindingIdentifier>>,
+    pub(crate) params: Rc<FormalParameters>,
+    pub(crate) body: Rc<FunctionBody>,
     location: Location,
 }
 
@@ -291,42 +283,32 @@ impl PrettyPrint for FunctionExpression {
     }
 }
 
-impl IsFunctionDefinition for FunctionExpression {
-    fn is_function_definition(&self) -> bool {
-        true
-    }
-}
-
 impl FunctionExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (func_loc, after_func) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Function)?;
         let (bi, after_bi) = match BindingIdentifier::parse(parser, after_func, false, false) {
             Ok((node, scan)) => (Some(node), scan),
             Err(_) => (None, after_func),
         };
-        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (fp, after_fp) = FormalParameters::parse(parser, after_lp, false, false);
-        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
-        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::FunctionBody);
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
+        let (fb, after_fb) = FunctionBody::parse(parser, after_lb, false, false, FunctionBodyParent::Function);
         let (rb_loc, after_rb) =
-            scan_for_punct(after_fb, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+            scan_for_punct(after_fb, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
         Ok((
             Rc::new(FunctionExpression { ident: bi, params: fp, body: fb, location: func_loc.merge(&rb_loc) }),
             after_rb,
         ))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
-
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -336,15 +318,15 @@ impl FunctionExpression {
         self.params.all_private_identifiers_valid(names) && self.body.all_private_identifiers_valid(names)
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body);
     }
 
-    pub fn is_named_function(&self) -> bool {
+    pub(crate) fn is_named_function(&self) -> bool {
         self.ident.is_some()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         if self.location().contains(location) {
             self.params.body_containing_location(location).or_else(|| self.body.body_containing_location(location))
         } else {
@@ -354,19 +336,19 @@ impl FunctionExpression {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum FunctionBodyParent {
-    GeneratorBody,
-    AsyncBody,
-    AsyncGeneratorBody,
-    FunctionBody,
+pub(crate) enum FunctionBodyParent {
+    Generator,
+    Async,
+    AsyncGenerator,
+    Function,
 }
 
 // FunctionBody[Yield, Await] :
 //      FunctionStatementList[?Yield, ?Await]
 #[derive(Debug)]
-pub struct FunctionBody {
-    pub statements: Rc<FunctionStatementList>,
-    pub parent: FunctionBodyParent,
+pub(crate) struct FunctionBody {
+    pub(crate) statements: Rc<FunctionStatementList>,
+    pub(crate) parent: FunctionBodyParent,
 }
 
 impl fmt::Display for FunctionBody {
@@ -406,7 +388,7 @@ impl FunctionBody {
         (Rc::new(FunctionBody { statements: fsl, parent }), after_fsl)
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -424,15 +406,15 @@ impl FunctionBody {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.statements.location()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.statements.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -446,7 +428,7 @@ impl FunctionBody {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -456,11 +438,11 @@ impl FunctionBody {
         self.statements.contains_arguments()
     }
 
-    pub fn directive_prologue(&self) -> Vec<StringToken> {
+    pub(crate) fn directive_prologue(&self) -> Vec<StringToken> {
         self.statements.initial_string_tokens()
     }
 
-    pub fn function_body_contains_use_strict(&self) -> bool {
+    pub(crate) fn function_body_contains_use_strict(&self) -> bool {
         // Static Semantics: FunctionBodyContainsUseStrict
         // FunctionBody : FunctionStatementList
         //  1. If the Directive Prologue of FunctionBody contains a Use Strict Directive, return true; otherwise, return false.
@@ -469,14 +451,14 @@ impl FunctionBody {
         prologue.iter().any(|string_tok| string_tok.raw.is_none() && string_tok.value == needle)
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: LexicallyDeclaredNames
         //      FunctionBody : FunctionStatementList
         //  1. Return LexicallyDeclaredNames of FunctionStatementList.
         self.statements.lexically_declared_names()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // FunctionBody : FunctionStatementList
         //  * It is a Syntax Error if the LexicallyDeclaredNames of FunctionStatementList contains any duplicate
         //    entries.
@@ -524,22 +506,22 @@ impl FunctionBody {
     /// of the var-declared list.
     ///
     /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.statements.var_declared_names()
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.statements.var_scoped_declarations()
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.statements.lexically_scoped_declarations()
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -556,7 +538,7 @@ impl FunctionBody {
         self.statements.has_call_in_tail_position(location)
     }
 
-    pub fn body_containing_location(self: &Rc<Self>, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(self: &Rc<Self>, location: &Location) -> Option<ContainingBody> {
         if self.location().contains(location) {
             self.statements
                 .body_containing_location(location)
@@ -566,23 +548,23 @@ impl FunctionBody {
         }
     }
 
-    pub fn is_generator_body(&self) -> bool {
-        matches!(self.parent, FunctionBodyParent::GeneratorBody)
+    pub(crate) fn is_generator_body(&self) -> bool {
+        matches!(self.parent, FunctionBodyParent::Generator)
     }
 
-    pub fn is_async_function_body(&self) -> bool {
-        matches!(self.parent, FunctionBodyParent::AsyncBody)
+    pub(crate) fn is_async_function_body(&self) -> bool {
+        matches!(self.parent, FunctionBodyParent::Async)
     }
 
-    pub fn is_async_generator_body(&self) -> bool {
-        matches!(self.parent, FunctionBodyParent::AsyncGeneratorBody)
+    pub(crate) fn is_async_generator_body(&self) -> bool {
+        matches!(self.parent, FunctionBodyParent::AsyncGenerator)
     }
 }
 
 // FunctionStatementList[Yield, Await] :
 //      StatementList[?Yield, ?Await, +Return]opt
 #[derive(Debug)]
-pub enum FunctionStatementList {
+pub(crate) enum FunctionStatementList {
     Statements(Rc<StatementList>),
     Empty(Location),
 }
@@ -621,7 +603,12 @@ impl PrettyPrint for FunctionStatementList {
 }
 
 impl FunctionStatementList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> (Rc<Self>, Scanner) {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> (Rc<Self>, Scanner) {
         // Can never return an error.
         let (stmts, after_stmts) = match StatementList::parse(parser, scanner, yield_flag, await_flag, true) {
             Err(_) => (FunctionStatementList::Empty(Location::from(scanner)), scanner),
@@ -630,21 +617,21 @@ impl FunctionStatementList {
         (Rc::new(stmts), after_stmts)
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             FunctionStatementList::Statements(s) => s.location(),
             FunctionStatementList::Empty(loc) => *loc,
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             FunctionStatementList::Statements(n) => n.contains(kind),
             FunctionStatementList::Empty(_) => false,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -661,7 +648,7 @@ impl FunctionStatementList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -674,14 +661,14 @@ impl FunctionStatementList {
         }
     }
 
-    pub fn initial_string_tokens(&self) -> Vec<StringToken> {
+    pub(crate) fn initial_string_tokens(&self) -> Vec<StringToken> {
         match self {
             FunctionStatementList::Statements(statement_list) => statement_list.initial_string_tokens(),
             FunctionStatementList::Empty(_) => vec![],
         }
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: LexicallyDeclaredNames
         match self {
             FunctionStatementList::Statements(statement_list) => {
@@ -697,7 +684,7 @@ impl FunctionStatementList {
         }
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         // Static Semantics: VarDeclaredNames
         match self {
             FunctionStatementList::Statements(statement_list) => {
@@ -713,28 +700,32 @@ impl FunctionStatementList {
         }
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             FunctionStatementList::Statements(sl) => sl.contains_duplicate_labels(label_set),
             FunctionStatementList::Empty(_) => false,
         }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             FunctionStatementList::Statements(sl) => sl.contains_undefined_break_target(label_set),
             FunctionStatementList::Empty(_) => false,
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString], label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(
+        &self,
+        iteration_set: &[JSString],
+        label_set: &[JSString],
+    ) -> bool {
         match self {
             FunctionStatementList::Statements(sl) => sl.contains_undefined_continue_target(iteration_set, label_set),
             FunctionStatementList::Empty(_) => false,
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         if let FunctionStatementList::Statements(sl) = self {
             sl.early_errors(errs, strict, false, false);
         }
@@ -743,21 +734,21 @@ impl FunctionStatementList {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             FunctionStatementList::Statements(s) => s.top_level_var_scoped_declarations(),
             FunctionStatementList::Empty(_) => vec![],
         }
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         match self {
             FunctionStatementList::Statements(s) => s.top_level_lexically_scoped_declarations(),
             FunctionStatementList::Empty(_) => vec![],
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         if self.location().contains(location) {
             match self {
                 FunctionStatementList::Statements(s) => s.body_containing_location(location),
@@ -768,7 +759,7 @@ impl FunctionStatementList {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

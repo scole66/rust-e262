@@ -17,7 +17,6 @@ mod unary_expression {
         assert!(matches!(*ue, UnaryExpression::UpdateExpression(_)));
         pretty_check(&*ue, "UnaryExpression: 900", &["UpdateExpression: 900"]);
         concise_check(&*ue, "Numeric: 900", &[]);
-        assert!(!ue.is_function_definition());
         assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
@@ -27,7 +26,6 @@ mod unary_expression {
         assert!(matches!(*ue, UnaryExpression::Delete { .. }));
         pretty_check(&*ue, "UnaryExpression: delete bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: delete bob", &["Keyword: delete", "IdentifierName: bob"]);
-        assert!(!ue.is_function_definition());
         assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
@@ -37,7 +35,6 @@ mod unary_expression {
         assert!(matches!(*ue, UnaryExpression::Void { .. }));
         pretty_check(&*ue, "UnaryExpression: void bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: void bob", &["Keyword: void", "IdentifierName: bob"]);
-        assert!(!ue.is_function_definition());
         assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
@@ -47,7 +44,6 @@ mod unary_expression {
         assert!(matches!(*ue, UnaryExpression::Typeof { .. }));
         pretty_check(&*ue, "UnaryExpression: typeof bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: typeof bob", &["Keyword: typeof", "IdentifierName: bob"]);
-        assert!(!ue.is_function_definition());
         assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
@@ -57,7 +53,6 @@ mod unary_expression {
         assert!(matches!(*ue, UnaryExpression::NoOp { .. }));
         pretty_check(&*ue, "UnaryExpression: + bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: + bob", &["Punctuator: +", "IdentifierName: bob"]);
-        assert!(!ue.is_function_definition());
         assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
@@ -67,7 +62,6 @@ mod unary_expression {
         assert!(matches!(*ue, UnaryExpression::Negate { .. }));
         pretty_check(&*ue, "UnaryExpression: - bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: - bob", &["Punctuator: -", "IdentifierName: bob"]);
-        assert!(!ue.is_function_definition());
         assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
@@ -77,7 +71,6 @@ mod unary_expression {
         assert!(matches!(*ue, UnaryExpression::Complement { .. }));
         pretty_check(&*ue, "UnaryExpression: ~ bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ~ bob", &["Punctuator: ~", "IdentifierName: bob"]);
-        assert!(!ue.is_function_definition());
         assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
@@ -87,7 +80,6 @@ mod unary_expression {
         assert!(matches!(*ue, UnaryExpression::Not { .. }));
         pretty_check(&*ue, "UnaryExpression: ! bob", &["UnaryExpression: bob"]);
         concise_check(&*ue, "UnaryExpression: ! bob", &["Punctuator: !", "IdentifierName: bob"]);
-        assert!(!ue.is_function_definition());
         assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
@@ -97,7 +89,6 @@ mod unary_expression {
         assert!(matches!(*ue, UnaryExpression::Await(_)));
         pretty_check(&*ue, "UnaryExpression: await bob", &["AwaitExpression: await bob"]);
         concise_check(&*ue, "AwaitExpression: await bob", &["Keyword: await", "IdentifierName: bob"]);
-        assert!(!ue.is_function_definition());
         assert_ne!(format!("{ue:?}"), "");
     }
     #[test]
@@ -459,12 +450,12 @@ mod unary_expression {
         Maker::new(src).unary_expression().assignment_target_type(strict)
     }
 
-    #[test_case("-a" => false; "expr")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).unary_expression().is_named_function()
-    }
+    //#[test_case("-a" => false; "expr")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).unary_expression().is_named_function()
+    //}
 
     #[test_case("  delete a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "delete")]
     #[test_case("  void a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "void")]

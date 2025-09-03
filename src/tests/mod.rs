@@ -11,14 +11,14 @@ use std::io::Write;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
-pub struct MockWriter<T>
+pub(crate) struct MockWriter<T>
 where
     T: Write,
 {
     writer: T,
-    pub count: usize,
+    pub(crate) count: usize,
     target: usize,
-    pub error_generated: bool,
+    pub(crate) error_generated: bool,
 }
 impl<T> std::io::Write for MockWriter<T>
 where
@@ -41,12 +41,12 @@ impl<T> MockWriter<T>
 where
     T: Write,
 {
-    pub fn new(writer: T, errat: usize) -> Self {
+    pub(crate) fn new(writer: T, errat: usize) -> Self {
         MockWriter { writer, count: 0, target: errat, error_generated: false }
     }
 }
 
-pub fn display_error_validate(item: impl fmt::Display) {
+pub(crate) fn display_error_validate(item: impl fmt::Display) {
     let mut target = 1;
     loop {
         let mut writer = MockWriter::new(Vec::new(), target);
@@ -59,7 +59,7 @@ pub fn display_error_validate(item: impl fmt::Display) {
     }
 }
 
-pub fn printer_validate<U>(func: U)
+pub(crate) fn printer_validate<U>(func: U)
 where
     U: Fn(&mut MockWriter<Vec<u8>>) -> IoResult<()>,
 {
@@ -75,7 +75,7 @@ where
     }
 }
 
-pub fn unwind_error_object(kind: &str, err: &Object) -> String {
+pub(crate) fn unwind_error_object(kind: &str, err: &Object) -> String {
     assert!(err.is_error_object());
     let name = err.get(&PropertyKey::from("name")).expect("Error object was missing 'name' property");
     assert!(matches!(name, ECMAScriptValue::String(_)));
@@ -92,7 +92,7 @@ pub fn unwind_error_object(kind: &str, err: &Object) -> String {
     }
 }
 
-pub fn unwind_error(kind: &str, completion: AbruptCompletion) -> String {
+pub(crate) fn unwind_error(kind: &str, completion: AbruptCompletion) -> String {
     assert!(matches!(completion, AbruptCompletion::Throw { value: ECMAScriptValue::Object(_) }));
     match completion {
         AbruptCompletion::Throw { value: ECMAScriptValue::Object(err) } => unwind_error_object(kind, &err),
@@ -102,42 +102,42 @@ pub fn unwind_error(kind: &str, completion: AbruptCompletion) -> String {
     }
 }
 
-pub fn unwind_type_error(completion: AbruptCompletion) -> String {
+pub(crate) fn unwind_type_error(completion: AbruptCompletion) -> String {
     unwind_error("TypeError", completion)
 }
 
 #[expect(dead_code)]
-pub fn unwind_syntax_error(completion: AbruptCompletion) -> String {
+pub(crate) fn unwind_syntax_error(completion: AbruptCompletion) -> String {
     unwind_error("SyntaxError", completion)
 }
 
-pub fn unwind_syntax_error_object(err: &Object) -> String {
+pub(crate) fn unwind_syntax_error_object(err: &Object) -> String {
     unwind_error_object("SyntaxError", err)
 }
 
-pub fn unwind_reference_error(completion: AbruptCompletion) -> String {
+pub(crate) fn unwind_reference_error(completion: AbruptCompletion) -> String {
     unwind_error("ReferenceError", completion)
 }
 
 #[expect(dead_code)]
-pub fn unwind_reference_error_object(err: &Object) -> String {
+pub(crate) fn unwind_reference_error_object(err: &Object) -> String {
     unwind_error_object("ReferenceError", err)
 }
 
-pub fn unwind_range_error(completion: AbruptCompletion) -> String {
+pub(crate) fn unwind_range_error(completion: AbruptCompletion) -> String {
     unwind_error("RangeError", completion)
 }
 
 #[expect(dead_code)]
-pub fn unwind_range_error_object(err: &Object) -> String {
+pub(crate) fn unwind_range_error_object(err: &Object) -> String {
     unwind_error_object("RangeError", err)
 }
 
-pub fn calculate_hash<F: BuildHasher, T: Hash>(factory: &F, t: &T) -> u64 {
+pub(crate) fn calculate_hash<F: BuildHasher, T: Hash>(factory: &F, t: &T) -> u64 {
     factory.hash_one(t)
 }
 
-pub fn setup_test_agent() {
+pub(crate) fn setup_test_agent() {
     let sym_registry = Rc::new(RefCell::new(SymbolRegistry::new()));
     AGENT.with(|agent| {
         agent.reset();
@@ -146,7 +146,7 @@ pub fn setup_test_agent() {
     initialize_host_defined_realm(0, true);
 }
 
-pub fn setup_runnable_state() {
+pub(crate) fn setup_runnable_state() {
     setup_test_agent();
 
     let realm = current_realm_record().unwrap();
@@ -157,7 +157,7 @@ pub fn setup_runnable_state() {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ThrowsOrNot {
+pub(crate) enum ThrowsOrNot {
     Throws,
     BehavesNormally,
 }
@@ -168,7 +168,7 @@ impl From<bool> for ThrowsOrNot {
 }
 
 #[derive(Debug)]
-pub struct TestObject {
+pub(crate) struct TestObject {
     common: RefCell<CommonObjectData>,
     get_prototype_of: ThrowsOrNot,
     set_prototype_of: ThrowsOrNot,
@@ -286,7 +286,7 @@ impl ObjectInterface for TestObject {
 }
 
 #[derive(PartialEq, Eq)]
-pub enum FunctionId {
+pub(crate) enum FunctionId {
     GetPrototypeOf,
     SetPrototypeOf,
     IsExtensible,
@@ -328,7 +328,7 @@ impl TestObject {
         }
         (ThrowsOrNot::BehavesNormally, None)
     }
-    pub fn new(prototype: Option<Object>, throwers: &[FunctionId]) -> Self {
+    pub(crate) fn new(prototype: Option<Object>, throwers: &[FunctionId]) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(prototype, true, ORDINARY_OBJECT_SLOTS)),
             get_prototype_of: throwers.contains(&FunctionId::GetPrototypeOf).into(),
@@ -344,7 +344,7 @@ impl TestObject {
             own_property_keys: throwers.contains(&FunctionId::OwnPropertyKeys).into(),
         }
     }
-    pub fn object(throwers: &[FunctionId]) -> Object {
+    pub(crate) fn object(throwers: &[FunctionId]) -> Object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         Object { o: Rc::new(Self::new(Some(prototype), throwers)) }
     }
@@ -369,7 +369,7 @@ type SetFunction = fn(
 type DeleteFunction = fn(this: &AdaptableObject, key: &PropertyKey) -> Completion<bool>;
 type OwnPropertyKeysFunction = fn(this: &AdaptableObject) -> Completion<Vec<PropertyKey>>;
 
-pub struct AdaptableObject {
+pub(crate) struct AdaptableObject {
     common: RefCell<CommonObjectData>,
     get_prototype_of_override: Option<GetPrototypeOfFunction>,
     set_prototype_of_override: Option<SetPrototypeOfFunction>,
@@ -382,7 +382,7 @@ pub struct AdaptableObject {
     set_override: Option<SetFunction>,
     delete_override: Option<DeleteFunction>,
     own_property_keys_override: Option<OwnPropertyKeysFunction>,
-    pub something: Cell<u64>, // Just a place for instances of this to hold state
+    pub(crate) something: Cell<u64>, // Just a place for instances of this to hold state
 }
 
 impl fmt::Debug for AdaptableObject {
@@ -493,22 +493,22 @@ impl ObjectInterface for AdaptableObject {
 
 #[derive(Default)]
 #[expect(clippy::struct_field_names)]
-pub struct AdaptableMethods {
-    pub get_prototype_of_override: Option<GetPrototypeOfFunction>,
-    pub set_prototype_of_override: Option<SetPrototypeOfFunction>,
-    pub is_extensible_override: Option<IsExtensibleFunction>,
-    pub prevent_extensions_override: Option<PreventExtensionsFunction>,
-    pub get_own_property_override: Option<GetOwnPropertyFunction>,
-    pub define_own_property_override: Option<DefineOwnPropertyFunction>,
-    pub has_property_override: Option<HasPropertyFunction>,
-    pub get_override: Option<GetFunction>,
-    pub set_override: Option<SetFunction>,
-    pub delete_override: Option<DeleteFunction>,
-    pub own_property_keys_override: Option<OwnPropertyKeysFunction>,
+pub(crate) struct AdaptableMethods {
+    pub(crate) get_prototype_of_override: Option<GetPrototypeOfFunction>,
+    pub(crate) set_prototype_of_override: Option<SetPrototypeOfFunction>,
+    pub(crate) is_extensible_override: Option<IsExtensibleFunction>,
+    pub(crate) prevent_extensions_override: Option<PreventExtensionsFunction>,
+    pub(crate) get_own_property_override: Option<GetOwnPropertyFunction>,
+    pub(crate) define_own_property_override: Option<DefineOwnPropertyFunction>,
+    pub(crate) has_property_override: Option<HasPropertyFunction>,
+    pub(crate) get_override: Option<GetFunction>,
+    pub(crate) set_override: Option<SetFunction>,
+    pub(crate) delete_override: Option<DeleteFunction>,
+    pub(crate) own_property_keys_override: Option<OwnPropertyKeysFunction>,
 }
 
 impl AdaptableObject {
-    pub fn new(prototype: Option<Object>, methods: &AdaptableMethods) -> Self {
+    pub(crate) fn new(prototype: Option<Object>, methods: &AdaptableMethods) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(prototype, true, ORDINARY_OBJECT_SLOTS)),
             get_prototype_of_override: methods.get_prototype_of_override,
@@ -525,14 +525,14 @@ impl AdaptableObject {
             something: Cell::new(0),
         }
     }
-    pub fn object(methods: &AdaptableMethods) -> Object {
+    pub(crate) fn object(methods: &AdaptableMethods) -> Object {
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);
         Object { o: Rc::new(Self::new(Some(prototype), methods)) }
     }
 }
 
 // error
-pub fn faux_errors(
+pub(crate) fn faux_errors(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -540,7 +540,7 @@ pub fn faux_errors(
     Err(create_type_error("Test Sentinel"))
 }
 
-pub fn make_toprimitive_throw_obj() -> Object {
+pub(crate) fn make_toprimitive_throw_obj() -> Object {
     let realm = current_realm_record().unwrap();
     let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
     let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
@@ -573,7 +573,7 @@ pub fn make_toprimitive_throw_obj() -> Object {
 use crate::object::define_property_or_throw;
 use crate::realm::{Realm, create_realm};
 
-pub fn create_named_realm(name: &str) -> Rc<RefCell<Realm>> {
+pub(crate) fn create_named_realm(name: &str) -> Rc<RefCell<Realm>> {
     let r = create_realm(9999);
     let op = r.borrow().intrinsics.get(IntrinsicId::ObjectPrototype);
     define_property_or_throw(
@@ -585,39 +585,39 @@ pub fn create_named_realm(name: &str) -> Rc<RefCell<Realm>> {
 
     r
 }
-pub fn get_realm_name() -> String {
+pub(crate) fn get_realm_name() -> String {
     let op = intrinsic(IntrinsicId::ObjectPrototype);
     let name = op.get(&"name".into()).unwrap();
     to_string(name).unwrap().into()
 }
 
-pub fn serr<T>(msg: &str) -> Result<T, String> {
+pub(crate) fn serr<T>(msg: &str) -> Result<T, String> {
     Err(msg.to_string())
 }
 
 #[expect(clippy::unnecessary_wraps)]
-pub fn sok<T>(msg: &str) -> Result<String, T> {
+pub(crate) fn sok<T>(msg: &str) -> Result<String, T> {
     Ok(msg.to_string())
 }
 
 #[expect(clippy::unnecessary_wraps)]
-pub fn ssok<T>(msg: &str) -> Result<Option<String>, T> {
+pub(crate) fn ssok<T>(msg: &str) -> Result<Option<String>, T> {
     Ok(Some(msg.to_string()))
 }
 
 #[expect(clippy::unnecessary_wraps)]
-pub fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
+pub(crate) fn vok<T>(val: impl Into<ECMAScriptValue>) -> Result<ECMAScriptValue, T> {
     Ok(val.into())
 }
 
-pub fn disasm_filt(s: &str) -> Option<String> {
+pub(crate) fn disasm_filt(s: &str) -> Option<String> {
     if s.starts_with('=') {
         return None;
     }
     Some(s.split_whitespace().join(" "))
 }
 
-pub fn disasm_filter2(val: (&str, usize)) -> Option<(String, usize)> {
+pub(crate) fn disasm_filter2(val: (&str, usize)) -> Option<(String, usize)> {
     let s = val.0;
     disasm_filt(s).map(|s| (s, val.1))
 }
@@ -628,7 +628,7 @@ fn find_subslice<T: PartialEq>(haystack: &[T], needle: &[T]) -> Option<usize> {
 
 static JUMP_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(JUMP.*) (-?\d+)").unwrap());
 
-pub fn chunk_dump(outer: &Chunk, inner: &[&Chunk]) -> Vec<String> {
+pub(crate) fn chunk_dump(outer: &Chunk, inner: &[&Chunk]) -> Vec<String> {
     let mut outer_result =
         outer.repr_with_size().iter().map(|(s, n)| (s.as_str(), *n)).filter_map(disasm_filter2).collect::<Vec<_>>();
     for (index, chunk) in inner.iter().enumerate() {
@@ -687,13 +687,13 @@ pub fn chunk_dump(outer: &Chunk, inner: &[&Chunk]) -> Vec<String> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct IdealizedPropertyDescriptor {
-    pub configurable: bool,
-    pub enumerable: bool,
-    pub writable: Option<bool>,
-    pub value: Option<ECMAScriptValue>,
-    pub get: Option<ECMAScriptValue>,
-    pub set: Option<ECMAScriptValue>,
+pub(crate) struct IdealizedPropertyDescriptor {
+    pub(crate) configurable: bool,
+    pub(crate) enumerable: bool,
+    pub(crate) writable: Option<bool>,
+    pub(crate) value: Option<ECMAScriptValue>,
+    pub(crate) get: Option<ECMAScriptValue>,
+    pub(crate) set: Option<ECMAScriptValue>,
 }
 
 impl From<PropertyDescriptor> for IdealizedPropertyDescriptor {
@@ -1060,7 +1060,7 @@ macro_rules! default_own_property_keys_test {
     };
 }
 
-pub fn data_validation(
+pub(crate) fn data_validation(
     pd: PropertyDescriptor,
     writable: bool,
     enumerable: bool,
@@ -1079,7 +1079,7 @@ pub fn data_validation(
     }
 }
 
-pub fn func_validation(
+pub(crate) fn func_validation(
     pd: PropertyDescriptor,
     name: impl Into<ECMAScriptValue>,
     length: impl Into<ECMAScriptValue>,
@@ -1090,7 +1090,7 @@ pub fn func_validation(
     func
 }
 
-pub fn getter_validation(
+pub(crate) fn getter_validation(
     pd: PropertyDescriptor,
     name: impl Into<ECMAScriptValue>,
     length: impl Into<ECMAScriptValue>,
@@ -1111,7 +1111,7 @@ pub fn getter_validation(
 }
 
 impl ECMAScriptValue {
-    pub fn test_result_string(&self) -> String {
+    pub(crate) fn test_result_string(&self) -> String {
         match self {
             ECMAScriptValue::Undefined
             | ECMAScriptValue::Null
@@ -1166,16 +1166,16 @@ impl ECMAScriptValue {
 
 // This is really for debugging. It's the output structure from propdump.
 #[derive(Debug, PartialEq)]
-pub enum PropertyInfoKind {
+pub(crate) enum PropertyInfoKind {
     Accessor { getter: ECMAScriptValue, setter: ECMAScriptValue },
     Data { value: ECMAScriptValue, writable: bool },
 }
 #[derive(Debug, PartialEq)]
-pub struct PropertyInfo {
-    pub name: PropertyKey,
-    pub enumerable: bool,
-    pub configurable: bool,
-    pub kind: PropertyInfoKind,
+pub(crate) struct PropertyInfo {
+    pub(crate) name: PropertyKey,
+    pub(crate) enumerable: bool,
+    pub(crate) configurable: bool,
+    pub(crate) kind: PropertyInfoKind,
 }
 
 impl fmt::Display for PropertyInfo {
@@ -1190,7 +1190,7 @@ impl fmt::Display for PropertyInfo {
 }
 
 impl CommonObjectData {
-    pub fn propdump(&self) -> Vec<PropertyInfo> {
+    pub(crate) fn propdump(&self) -> Vec<PropertyInfo> {
         // Dump the properties as a simplified data structure, in a reproducable way. For testing, mostly.
         // (Allows for Eq style tests, heedless of the internal structure of a property descriptor; also sorted in order of addition to object.)
         let mut keys: Vec<&PropertyKey> = self.properties.keys().collect();
@@ -1242,12 +1242,12 @@ mod adaptable_object {
     none_function!(to_symbol_obj);
 }
 
-pub fn make_fer(src: &str, new_target: Option<Object>) -> (Object, FunctionEnvironmentRecord) {
+pub(crate) fn make_fer(src: &str, new_target: Option<Object>) -> (Object, FunctionEnvironmentRecord) {
     let closure = make_ecmascript_function(src);
     (closure.clone(), FunctionEnvironmentRecord::new(closure, new_target, "environment_tag".to_string()))
 }
 
-pub fn make_ecmascript_function(src: &str) -> Object {
+pub(crate) fn make_ecmascript_function(src: &str) -> Object {
     let ae = Maker::new(src).assignment_expression();
     let this_mode = if ae.contains(ParseNodeKind::ArrowFunction) || ae.contains(ParseNodeKind::AsyncArrowFunction) {
         ThisLexicality::LexicalThis
@@ -1265,4 +1265,4 @@ pub fn make_ecmascript_function(src: &str) -> Object {
     ordinary_function_create(function_prototype, src, params, body, this_mode, global_env, None, true, chunk)
 }
 
-pub mod integration;
+pub(crate) mod integration;

@@ -18,7 +18,6 @@ mod relational_expression {
         pretty_check(&*se, "RelationalExpression: a", &["ShiftExpression: a"]);
         concise_check(&*se, "IdentifierName: a", &[]);
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_02() {
@@ -33,7 +32,6 @@ mod relational_expression {
             &["IdentifierName: a", "Punctuator: <", "IdentifierName: b"],
         );
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
@@ -48,7 +46,6 @@ mod relational_expression {
             &["IdentifierName: a", "Punctuator: >", "IdentifierName: b"],
         );
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_04() {
@@ -63,7 +60,6 @@ mod relational_expression {
             &["IdentifierName: a", "Punctuator: <=", "IdentifierName: b"],
         );
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_05() {
@@ -78,7 +74,6 @@ mod relational_expression {
             &["IdentifierName: a", "Punctuator: >=", "IdentifierName: b"],
         );
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_06() {
@@ -93,7 +88,6 @@ mod relational_expression {
             &["IdentifierName: a", "Keyword: instanceof", "IdentifierName: b"],
         );
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_07() {
@@ -104,7 +98,6 @@ mod relational_expression {
         pretty_check(&*se, "RelationalExpression: a in b", &["RelationalExpression: a", "ShiftExpression: b"]);
         concise_check(&*se, "RelationalExpression: a in b", &["IdentifierName: a", "Keyword: in", "IdentifierName: b"]);
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_08() {
@@ -115,7 +108,6 @@ mod relational_expression {
         pretty_check(&*se, "RelationalExpression: a", &["ShiftExpression: a"]);
         concise_check(&*se, "IdentifierName: a", &[]);
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_09() {
@@ -126,7 +118,6 @@ mod relational_expression {
         pretty_check(&*se, "RelationalExpression: a", &["ShiftExpression: a"]);
         concise_check(&*se, "IdentifierName: a", &[]);
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_10() {
@@ -150,7 +141,6 @@ mod relational_expression {
             &["PrivateIdentifier: #a", "Keyword: in", "IdentifierName: b"],
         );
         assert_ne!(format!("{se:?}"), "");
-        assert_eq!(se.is_function_definition(), false);
     }
     #[test]
     fn parse_12() {
@@ -502,18 +492,18 @@ mod relational_expression {
         Maker::new(src).relational_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a<b" => false; "lt")]
-    #[test_case("a<=b" => false; "le")]
-    #[test_case("a>b" => false; "gt")]
-    #[test_case("a>=b" => false; "ge")]
-    #[test_case("a in b" => false; "a in b")]
-    #[test_case("a instanceof b" => false; "instanceof")]
-    #[test_case("#a in b" => false; "privateid")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).relational_expression().is_named_function()
-    }
+    //#[test_case("a<b" => false; "lt")]
+    //#[test_case("a<=b" => false; "le")]
+    //#[test_case("a>b" => false; "gt")]
+    //#[test_case("a>=b" => false; "ge")]
+    //#[test_case("a in b" => false; "a in b")]
+    //#[test_case("a instanceof b" => false; "instanceof")]
+    //#[test_case("#a in b" => false; "privateid")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).relational_expression().is_named_function()
+    //}
 
     #[test_case("  a<b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "lt")]
     #[test_case("  a<=b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "le")]

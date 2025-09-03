@@ -38,8 +38,8 @@ const RECURSION_LIMIT: usize = 90000;
 // running execution context, the execution context stack, and the Agent Record's fields.
 
 #[derive(Debug)]
-pub struct Agent {
-    pub execution_context_stack: RefCell<Vec<ExecutionContext>>,
+pub(crate) struct Agent {
+    pub(crate) execution_context_stack: RefCell<Vec<ExecutionContext>>,
     symbols: WellKnownSymbols,
     obj_id: Cell<usize>,
     symbol_id: Cell<usize>,
@@ -47,7 +47,7 @@ pub struct Agent {
 }
 
 thread_local! {
-    pub static AGENT: Agent = Agent::new();
+    pub(crate) static AGENT: Agent = Agent::new();
 }
 
 impl Default for Agent {
@@ -57,51 +57,51 @@ impl Default for Agent {
 }
 
 impl Agent {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Agent {
             obj_id: Cell::new(1),
             execution_context_stack: RefCell::new(vec![]),
             symbols: WellKnownSymbols {
-                async_iterator_: Symbol(Rc::new(SymbolInternals {
+                async_iterator: Symbol(Rc::new(SymbolInternals {
                     id: 1,
                     description: Some(JSString::from("Symbol.asyncIterator")),
                 })),
-                has_instance_: Symbol(Rc::new(SymbolInternals {
+                has_instance: Symbol(Rc::new(SymbolInternals {
                     id: 2,
                     description: Some(JSString::from("Symbol.hasInstance")),
                 })),
-                is_concat_spreadable_: Symbol(Rc::new(SymbolInternals {
+                is_concat_spreadable: Symbol(Rc::new(SymbolInternals {
                     id: 3,
                     description: Some(JSString::from("Symbol.isConcatSpreadable")),
                 })),
-                iterator_: Symbol(Rc::new(SymbolInternals {
+                iterator: Symbol(Rc::new(SymbolInternals {
                     id: 4,
                     description: Some(JSString::from("Symbol.iterator")),
                 })),
                 match_: Symbol(Rc::new(SymbolInternals { id: 5, description: Some(JSString::from("Symbol.match")) })),
-                match_all_: Symbol(Rc::new(SymbolInternals {
+                match_all: Symbol(Rc::new(SymbolInternals {
                     id: 6,
                     description: Some(JSString::from("Symbol.matchAll")),
                 })),
-                replace_: Symbol(Rc::new(SymbolInternals {
+                replace: Symbol(Rc::new(SymbolInternals {
                     id: 7,
                     description: Some(JSString::from("Symbol.replace")),
                 })),
-                search_: Symbol(Rc::new(SymbolInternals { id: 8, description: Some(JSString::from("Symbol.search")) })),
-                species_: Symbol(Rc::new(SymbolInternals {
+                search: Symbol(Rc::new(SymbolInternals { id: 8, description: Some(JSString::from("Symbol.search")) })),
+                species: Symbol(Rc::new(SymbolInternals {
                     id: 9,
                     description: Some(JSString::from("Symbol.species")),
                 })),
-                split_: Symbol(Rc::new(SymbolInternals { id: 10, description: Some(JSString::from("Symbol.split")) })),
-                to_primitive_: Symbol(Rc::new(SymbolInternals {
+                split: Symbol(Rc::new(SymbolInternals { id: 10, description: Some(JSString::from("Symbol.split")) })),
+                to_primitive: Symbol(Rc::new(SymbolInternals {
                     id: 11,
                     description: Some(JSString::from("Symbol.toPrimitive")),
                 })),
-                to_string_tag_: Symbol(Rc::new(SymbolInternals {
+                to_string_tag: Symbol(Rc::new(SymbolInternals {
                     id: 12,
                     description: Some(JSString::from("Symbol.toStringTag")),
                 })),
-                unscopables_: Symbol(Rc::new(SymbolInternals {
+                unscopables: Symbol(Rc::new(SymbolInternals {
                     id: 13,
                     description: Some(JSString::from("Symbol.unscopables")),
                 })),
@@ -111,7 +111,8 @@ impl Agent {
         }
     }
 
-    pub fn reset(&self) {
+    #[cfg(test)]
+    pub(crate) fn reset(&self) {
         self.obj_id.set(1);
         self.execution_context_stack.borrow_mut().clear();
         self.symbol_id.set(14);
@@ -119,7 +120,7 @@ impl Agent {
     }
 }
 
-pub fn active_function_object() -> Option<Object> {
+pub(crate) fn active_function_object() -> Option<Object> {
     AGENT.with(|agent| {
         let stack = agent.execution_context_stack.borrow();
         match stack.len() {
@@ -132,7 +133,7 @@ pub fn active_function_object() -> Option<Object> {
 /// Return the active script or module record associated with the current execution
 ///
 /// See [GetActiveScriptOrModule](https://tc39.es/ecma262/#sec-getactivescriptormodule) from ECMA-262.
-pub fn get_active_script_or_module() -> Option<ScriptOrModule> {
+pub(crate) fn get_active_script_or_module() -> Option<ScriptOrModule> {
     // GetActiveScriptOrModule ( )
     //
     // The abstract operation GetActiveScriptOrModule takes no arguments and returns a Script Record, a Module
@@ -153,7 +154,7 @@ pub fn get_active_script_or_module() -> Option<ScriptOrModule> {
     })
 }
 
-pub fn current_script_or_module() -> Option<ScriptOrModule> {
+pub(crate) fn current_script_or_module() -> Option<ScriptOrModule> {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
         let ec = &execution_context_stack[execution_context_stack.len() - 1];
@@ -161,7 +162,7 @@ pub fn current_script_or_module() -> Option<ScriptOrModule> {
     })
 }
 
-pub fn next_object_id() -> usize {
+pub(crate) fn next_object_id() -> usize {
     AGENT.with(|agent| {
         // Note: single threaded, so no worries about read-then-write trouble.
         let result = agent.obj_id.get();
@@ -171,7 +172,7 @@ pub fn next_object_id() -> usize {
     })
 }
 
-pub fn next_symbol_id() -> usize {
+pub(crate) fn next_symbol_id() -> usize {
     AGENT.with(|agent| {
         let result = agent.symbol_id.get();
         assert!(result < usize::MAX);
@@ -180,15 +181,15 @@ pub fn next_symbol_id() -> usize {
     })
 }
 
-pub fn push_execution_context(context: ExecutionContext) {
+pub(crate) fn push_execution_context(context: ExecutionContext) {
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut().push(context));
 }
 
-pub fn pop_execution_context() {
+pub(crate) fn pop_execution_context() {
     AGENT.with(|agent| agent.execution_context_stack.borrow_mut().pop());
 }
 
-pub fn ec_push(val: FullCompletion) {
+pub(crate) fn ec_push(val: FullCompletion) {
     AGENT.with(|agent| {
         let mut ec_stack = agent.execution_context_stack.borrow_mut();
         let len = ec_stack.len();
@@ -198,7 +199,7 @@ pub fn ec_push(val: FullCompletion) {
     });
 }
 
-pub fn ec_pop() -> Option<FullCompletion> {
+pub(crate) fn ec_pop() -> Option<FullCompletion> {
     AGENT.with(|agent| {
         let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
         let len = execution_context_stack.len();
@@ -212,7 +213,8 @@ pub fn ec_pop() -> Option<FullCompletion> {
     })
 }
 
-pub fn ec_peek(from_end: usize) -> Option<FullCompletion> {
+#[cfg(test)]
+pub(crate) fn ec_peek(from_end: usize) -> Option<FullCompletion> {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
         let len = execution_context_stack.len();
@@ -230,7 +232,8 @@ pub fn ec_peek(from_end: usize) -> Option<FullCompletion> {
     })
 }
 
-pub fn ec_pop_list() -> anyhow::Result<Vec<ECMAScriptValue>> {
+#[cfg(test)]
+pub(crate) fn ec_pop_list() -> anyhow::Result<Vec<ECMAScriptValue>> {
     AGENT.with(|agent| {
         let mut ec_stack = agent.execution_context_stack.borrow_mut();
         let ec = ec_stack.last_mut().ok_or_else(|| anyhow!("no execution context"))?;
@@ -253,14 +256,15 @@ pub fn ec_pop_list() -> anyhow::Result<Vec<ECMAScriptValue>> {
     })
 }
 
-pub fn execution_context_stack_len() -> usize {
+#[cfg(test)]
+pub(crate) fn execution_context_stack_len() -> usize {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
         execution_context_stack.len()
     })
 }
 
-pub fn ec_stack_len() -> usize {
+pub(crate) fn ec_stack_len() -> usize {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
         let len = execution_context_stack.len();
@@ -274,34 +278,34 @@ pub fn ec_stack_len() -> usize {
     })
 }
 
-pub fn wks(sym_id: WksId) -> Symbol {
+pub(crate) fn wks(sym_id: WksId) -> Symbol {
     AGENT.with(|agent| {
         match sym_id {
-            WksId::AsyncIterator => &agent.symbols.async_iterator_,
-            WksId::HasInstance => &agent.symbols.has_instance_,
-            WksId::IsConcatSpreadable => &agent.symbols.is_concat_spreadable_,
-            WksId::Iterator => &agent.symbols.iterator_,
+            WksId::AsyncIterator => &agent.symbols.async_iterator,
+            WksId::HasInstance => &agent.symbols.has_instance,
+            WksId::IsConcatSpreadable => &agent.symbols.is_concat_spreadable,
+            WksId::Iterator => &agent.symbols.iterator,
             WksId::Match => &agent.symbols.match_,
-            WksId::MatchAll => &agent.symbols.match_all_,
-            WksId::Replace => &agent.symbols.replace_,
-            WksId::Search => &agent.symbols.search_,
-            WksId::Species => &agent.symbols.species_,
-            WksId::Split => &agent.symbols.split_,
-            WksId::ToPrimitive => &agent.symbols.to_primitive_,
-            WksId::ToStringTag => &agent.symbols.to_string_tag_,
-            WksId::Unscopables => &agent.symbols.unscopables_,
+            WksId::MatchAll => &agent.symbols.match_all,
+            WksId::Replace => &agent.symbols.replace,
+            WksId::Search => &agent.symbols.search,
+            WksId::Species => &agent.symbols.species,
+            WksId::Split => &agent.symbols.split,
+            WksId::ToPrimitive => &agent.symbols.to_primitive,
+            WksId::ToStringTag => &agent.symbols.to_string_tag,
+            WksId::Unscopables => &agent.symbols.unscopables,
         }
         .clone()
     })
 }
 
-pub fn intrinsic(id: IntrinsicId) -> Object {
+pub(crate) fn intrinsic(id: IntrinsicId) -> Object {
     let realm_ref = current_realm_record().unwrap();
     let realm = realm_ref.borrow();
     realm.intrinsics.get(id)
 }
 
-pub fn current_realm_record() -> Option<Rc<RefCell<Realm>>> {
+pub(crate) fn current_realm_record() -> Option<Rc<RefCell<Realm>>> {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
         match execution_context_stack.len() {
@@ -311,7 +315,7 @@ pub fn current_realm_record() -> Option<Rc<RefCell<Realm>>> {
     })
 }
 
-pub fn current_lexical_environment() -> Option<Rc<dyn EnvironmentRecord>> {
+pub(crate) fn current_lexical_environment() -> Option<Rc<dyn EnvironmentRecord>> {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
         match execution_context_stack.len() {
@@ -321,7 +325,7 @@ pub fn current_lexical_environment() -> Option<Rc<dyn EnvironmentRecord>> {
     })
 }
 
-pub fn current_variable_environment() -> Option<Rc<dyn EnvironmentRecord>> {
+pub(crate) fn current_variable_environment() -> Option<Rc<dyn EnvironmentRecord>> {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
         match execution_context_stack.len() {
@@ -331,14 +335,14 @@ pub fn current_variable_environment() -> Option<Rc<dyn EnvironmentRecord>> {
     })
 }
 
-pub fn current_private_environment() -> Option<Rc<RefCell<PrivateEnvironmentRecord>>> {
+pub(crate) fn current_private_environment() -> Option<Rc<RefCell<PrivateEnvironmentRecord>>> {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
         execution_context_stack.last().and_then(|context| context.private_environment.clone())
     })
 }
 
-pub fn set_lexical_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
+pub(crate) fn set_lexical_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
     AGENT.with(|agent| {
         let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
         if let Some(context) = execution_context_stack.last_mut() {
@@ -347,7 +351,7 @@ pub fn set_lexical_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
     });
 }
 
-pub fn set_variable_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
+pub(crate) fn set_variable_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
     AGENT.with(|agent| {
         let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
         if let Some(context) = execution_context_stack.last_mut() {
@@ -356,7 +360,7 @@ pub fn set_variable_environment(env: Option<Rc<dyn EnvironmentRecord>>) {
     });
 }
 
-pub fn set_private_environment(env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>) {
+pub(crate) fn set_private_environment(env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>) {
     AGENT.with(|agent| {
         let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
         if let Some(context) = execution_context_stack.last_mut() {
@@ -379,7 +383,7 @@ pub fn set_private_environment(env: Option<Rc<RefCell<PrivateEnvironmentRecord>>
 //  5. Let newGlobalEnv be NewGlobalEnvironment(globalObj, thisValue).
 //  6. Set realmRec.[[GlobalEnv]] to newGlobalEnv.
 //  7. Return realmRec.
-pub fn set_realm_global_object(global_obj: Option<Object>, this_value: Option<Object>) {
+pub(crate) fn set_realm_global_object(global_obj: Option<Object>, this_value: Option<Object>) {
     let go = global_obj.unwrap_or_else(|| {
         let object_proto = intrinsic(IntrinsicId::ObjectPrototype);
         ordinary_object_create(Some(object_proto))
@@ -406,7 +410,7 @@ pub fn set_realm_global_object(global_obj: Option<Object>, this_value: Option<Ob
 //         attribute is the corresponding intrinsic object from realmRec.
 //      c. Perform ? DefinePropertyOrThrow(global, name, desc).
 //  3. Return global.
-pub fn set_default_global_bindings() {
+pub(crate) fn set_default_global_bindings() {
     let global = get_global_object().unwrap();
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -583,7 +587,7 @@ pub fn set_default_global_bindings() {
 //  10. Let globalObj be ? SetDefaultGlobalBindings(realm).
 //  11. Create any host-defined global object properties on globalObj.
 //  12. Return NormalCompletion(empty).
-pub fn initialize_host_defined_realm(id: RealmId, install_test_hooks: bool) {
+pub(crate) fn initialize_host_defined_realm(id: RealmId, install_test_hooks: bool) {
     let realm = create_realm(id);
     let new_context = ExecutionContext::new(None, realm, None);
     push_execution_context(new_context);
@@ -677,17 +681,17 @@ fn testrunner_createrealm(
     Ok(twosixtytwo)
 }
 
-pub fn global_symbol_registry() -> Rc<RefCell<SymbolRegistry>> {
+pub(crate) fn global_symbol_registry() -> Rc<RefCell<SymbolRegistry>> {
     AGENT.with(|agent| agent.gsr.borrow().as_ref().unwrap().clone())
 }
 impl Agent {
-    pub fn set_global_symbol_registry(&self, gsr: Rc<RefCell<SymbolRegistry>>) {
+    pub(crate) fn set_global_symbol_registry(&self, gsr: Rc<RefCell<SymbolRegistry>>) {
         assert!(self.gsr.borrow().is_none(), "GSR: Attempted change after having already been set");
         *self.gsr.borrow_mut() = Some(gsr);
     }
 }
 
-pub fn evaluate(chunk: Rc<Chunk>, source: &SourceTree) -> Completion<ECMAScriptValue> {
+pub(crate) fn evaluate(chunk: Rc<Chunk>, source: &SourceTree) -> Completion<ECMAScriptValue> {
     AGENT.with(|agent| {
         if agent.execution_context_stack.borrow().is_empty() {
             return Err(create_type_error("No active execution context"));
@@ -706,7 +710,7 @@ pub fn evaluate(chunk: Rc<Chunk>, source: &SourceTree) -> Completion<ECMAScriptV
     })
 }
 
-pub fn prepare_running_ec_for_execution(chunk: Rc<Chunk>) {
+pub(crate) fn prepare_running_ec_for_execution(chunk: Rc<Chunk>) {
     AGENT.with(|agent| {
         assert!(!agent.execution_context_stack.borrow().is_empty());
         let index = agent.execution_context_stack.borrow().len() - 1;
@@ -714,7 +718,7 @@ pub fn prepare_running_ec_for_execution(chunk: Rc<Chunk>) {
     });
 }
 
-pub fn prepare_for_execution(index: usize, chunk: Rc<Chunk>) {
+pub(crate) fn prepare_for_execution(index: usize, chunk: Rc<Chunk>) {
     AGENT.with(|agent| {
         let mut execution_context_stack = agent.execution_context_stack.borrow_mut();
         execution_context_stack[index].chunk = Some(chunk);
@@ -723,7 +727,7 @@ pub fn prepare_for_execution(index: usize, chunk: Rc<Chunk>) {
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Error)]
-pub enum InternalRuntimeError {
+pub(crate) enum InternalRuntimeError {
     #[error("no active execution context")]
     NoContext,
     #[error("runtime stack is empty")]
@@ -792,8 +796,6 @@ pub enum InternalRuntimeError {
     SetterMethodExpected,
     #[error("generator expected")]
     GeneratorExpected,
-    #[error("Normal, Throw, or Return completion expected")]
-    OkThrowOrReturnExpected,
     #[error("parent expected for current lexical environment")]
     NoParentLexicalEnvironment,
     #[error("PrivateElement accessor expected")]
@@ -1010,27 +1012,27 @@ mod insn_impl {
             Ok(())
         })
     }
-    pub fn nop() {
+    pub(crate) fn nop() {
         // surprise. Do Nothing.
     }
-    pub fn todo() -> ! {
+    pub(crate) fn todo() -> ! {
         // emit a todo error
         todo!()
     }
-    pub fn pop() -> anyhow::Result<()> {
+    pub(crate) fn pop() -> anyhow::Result<()> {
         // Input:  Stack: item
         // Output: Stack:
         let _ = pop_completion()?;
         Ok(())
     }
-    pub fn string(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn string(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: argument: index;
         //        stack: no input
         // Output: ECMA String value added to the stack
         let string = string_operand(chunk)?;
         push_value(ECMAScriptValue::String(string.clone()))
     }
-    pub fn float(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn float(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: argument: index;
         //        stack: no input
         // Output: ECMA Number value added to the stack
@@ -1038,7 +1040,7 @@ mod insn_impl {
         let float = chunk.floats.get(float_index as usize).ok_or(InternalRuntimeError::FloatIndexOOB)?;
         push_value(ECMAScriptValue::Number(*float))
     }
-    pub fn bigint(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn bigint(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: argument: index;
         //        stack: no input
         // Output: ECMA BigInt value added to the stack
@@ -1046,32 +1048,32 @@ mod insn_impl {
         let bigint = chunk.bigints.get(bigint_index as usize).ok_or(InternalRuntimeError::BigintIndexOOB)?;
         push_value(ECMAScriptValue::BigInt(bigint.clone()))
     }
-    pub fn null() -> anyhow::Result<()> {
+    pub(crate) fn null() -> anyhow::Result<()> {
         // Input: nothing
         // Output: ECMA value NULL on the stack
         push_value(ECMAScriptValue::Null)
     }
-    pub fn true_val() -> anyhow::Result<()> {
+    pub(crate) fn true_val() -> anyhow::Result<()> {
         // Input: Nothing
         // Output: ECMA value TRUE on the stack
         push_value(ECMAScriptValue::Boolean(true))
     }
-    pub fn false_val() -> anyhow::Result<()> {
+    pub(crate) fn false_val() -> anyhow::Result<()> {
         // Input: Nothing
         // Output: ECMA value FALSE on the stack
         push_value(ECMAScriptValue::Boolean(false))
     }
-    pub fn zero() -> anyhow::Result<()> {
+    pub(crate) fn zero() -> anyhow::Result<()> {
         // Input: Nothing
         // Output: ECMA value 0.0 on the stack
         push_value(ECMAScriptValue::Number(0.0))
     }
-    pub fn empty() -> anyhow::Result<()> {
+    pub(crate) fn empty() -> anyhow::Result<()> {
         // Input: Nothing
         // Output: [ empty ] on the stack
         push_completion(Ok(NormalCompletion::Empty))
     }
-    pub fn empty_if_not_error() -> anyhow::Result<()> {
+    pub(crate) fn empty_if_not_error() -> anyhow::Result<()> {
         // Input: Stack one item.
         // Output: On stack: item if item is an error, else [ empty ]
         let completion = pop_completion()?;
@@ -1080,12 +1082,12 @@ mod insn_impl {
             Err(_) => completion,
         })
     }
-    pub fn undefined() -> anyhow::Result<()> {
+    pub(crate) fn undefined() -> anyhow::Result<()> {
         // Input: Nothing
         // Output: Undefined on the stack
         push_value(ECMAScriptValue::Undefined)
     }
-    pub fn undefined_if_empty() -> anyhow::Result<()> {
+    pub(crate) fn undefined_if_empty() -> anyhow::Result<()> {
         // Input: err/val/empty
         // Output: err/val/undefined
         let completion = pop_completion()?;
@@ -1093,23 +1095,23 @@ mod insn_impl {
         push_completion(new_completion).expect(PUSHABLE);
         Ok(())
     }
-    pub fn function_prototype() -> anyhow::Result<()> {
+    pub(crate) fn function_prototype() -> anyhow::Result<()> {
         // Input: None
         // Output: Stack: Current realm's %Function.prototype%
         push_value(ECMAScriptValue::Object(intrinsic(IntrinsicId::FunctionPrototype)))
     }
-    pub fn object_prototype() -> anyhow::Result<()> {
+    pub(crate) fn object_prototype() -> anyhow::Result<()> {
         // Input: None
         // Output:: Stack: Current realm's %Object.prototype%
         push_value(ECMAScriptValue::Object(intrinsic(IntrinsicId::ObjectPrototype)))
     }
-    pub fn this() -> anyhow::Result<()> {
+    pub(crate) fn this() -> anyhow::Result<()> {
         // Input: Nothing
         // Output: the result of ResolveThisBinding on the stack.
         let this_resolved = resolve_this_binding().map(NormalCompletion::from);
         push_completion(this_resolved)
     }
-    pub fn resolve(strict: bool) -> anyhow::Result<()> {
+    pub(crate) fn resolve(strict: bool) -> anyhow::Result<()> {
         // Input: A string item on the stack
         // Output: A resolved binding for that string on the stack
         let name = pop_string()?;
@@ -1117,7 +1119,7 @@ mod insn_impl {
         push_completion(resolved).expect(PUSHABLE);
         Ok(())
     }
-    pub fn get_value() -> anyhow::Result<()> {
+    pub(crate) fn get_value() -> anyhow::Result<()> {
         // Input:  Stack: A reference, value, or error.
         // Output: Stack: The error, the value, or a value from dereferencing the reference
         let reference = pop_completion()?;
@@ -1125,7 +1127,7 @@ mod insn_impl {
         push_completion(value.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn put_value() -> anyhow::Result<()> {
+    pub(crate) fn put_value() -> anyhow::Result<()> {
         // Input: Stack, 2 args: the value to store, then the reference to store it in.
         // Output Stack: [empty] or error
         let wc = pop_completion()?;
@@ -1140,7 +1142,7 @@ mod insn_impl {
         Ok(())
     }
     #[expect(clippy::cast_possible_wrap)]
-    pub fn jump_if_abrupt(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn jump_if_abrupt(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any completion (NOT CONSUMED)
         // Output: nothing
         let jump = operand(chunk)? as i16;
@@ -1151,7 +1153,7 @@ mod insn_impl {
         Ok(())
     }
     #[expect(clippy::cast_possible_wrap)]
-    pub fn jump_if_normal(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn jump_if_normal(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any completion (NOT CONSUMED)
         // Output: nothing
         let jump = operand(chunk)? as i16;
@@ -1162,7 +1164,7 @@ mod insn_impl {
         Ok(())
     }
     #[expect(clippy::cast_possible_wrap)]
-    pub fn jump_referencing_bool(bool_match: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn jump_referencing_bool(bool_match: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
         // Output: nothing
         let jump = operand(chunk)? as i16;
@@ -1174,7 +1176,7 @@ mod insn_impl {
         Ok(())
     }
     #[expect(clippy::cast_possible_wrap)]
-    pub fn jump_taking_bool(bool_match: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn jump_taking_bool(bool_match: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any value
         // Output: nothing
         let jump = operand(chunk)? as i16;
@@ -1186,7 +1188,7 @@ mod insn_impl {
         Ok(())
     }
     #[expect(clippy::cast_possible_wrap)]
-    pub fn jump_nullishness(nullish: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn jump_nullishness(nullish: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
         // Output: nothing
         let jump = operand(chunk)? as i16;
@@ -1198,7 +1200,7 @@ mod insn_impl {
         Ok(())
     }
     #[expect(clippy::cast_possible_wrap)]
-    pub fn jump_undefness(undef: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn jump_undefness(undef: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
         // Output: nothing
         let jump = operand(chunk)? as i16;
@@ -1210,7 +1212,7 @@ mod insn_impl {
         Ok(())
     }
     #[expect(clippy::cast_possible_wrap)]
-    pub fn jump_throwyness(throw: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn jump_throwyness(throw: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: any value (NOT CONSUMED)
         // Output: nothing
         let jump = operand(chunk)? as i16;
@@ -1222,13 +1224,13 @@ mod insn_impl {
         Ok(())
     }
     #[expect(clippy::cast_possible_wrap)]
-    pub fn jump(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn jump(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: i16 instruction offset. Stack: nothing
         // Output: nothing
         let jump = operand(chunk)? as i16;
         bump_pc(jump)
     }
-    pub fn update_empty() -> anyhow::Result<()> {
+    pub(crate) fn update_empty() -> anyhow::Result<()> {
         // Input: on stack: newer (any completion)
         //                  older (any normal completion)
         // Output: on stack: the result of UpdateEmpty
@@ -1237,7 +1239,7 @@ mod insn_impl {
         push_completion(super::update_empty(newer, older)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn pop2push3() -> anyhow::Result<()> {
+    pub(crate) fn pop2push3() -> anyhow::Result<()> {
         // Input:  Stack: top lower
         // Output: Stack: top lower top
         let top = pop_completion()?;
@@ -1248,14 +1250,14 @@ mod insn_impl {
         push_completion(top).expect(PUSHABLE);
         Ok(())
     }
-    pub fn dup() -> anyhow::Result<()> {
+    pub(crate) fn dup() -> anyhow::Result<()> {
         // Input:  Stack: item
         // Output: Stack: item item
         let item = peek_completion(0)?;
         push_completion(item).expect(PUSHABLE);
         Ok(())
     }
-    pub fn dup_after_list() -> anyhow::Result<()> {
+    pub(crate) fn dup_after_list() -> anyhow::Result<()> {
         // stack has a list followed by a value: N item(n-1) ... item(0) value
         // output dups that value behind the list: N item(n-1) ... item(0) value value
         let list_len = peek_usize(0)?;
@@ -1274,7 +1276,7 @@ mod insn_impl {
             Ok(())
         })
     }
-    pub fn swap() -> anyhow::Result<()> {
+    pub(crate) fn swap() -> anyhow::Result<()> {
         // Input:  Stack: A B
         // Output: Stack: B A
         AGENT.with(|agent| -> anyhow::Result<()> {
@@ -1289,7 +1291,7 @@ mod insn_impl {
             }
         })
     }
-    pub fn rotate_up(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn rotate_up(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // a 1-arg instruction: take the n-th item in the stack and move it to the top, sliding the others
         // down. E.g.: with A, B, C, D on the stack (top on the left), "RotateUp 3" will produce C, A, B, D.
         let amt = operand(chunk)? as usize;
@@ -1306,7 +1308,7 @@ mod insn_impl {
             }
         })
     }
-    pub fn rotate_down(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn rotate_down(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // a 1-arg instruction: take the top item of the stack and move it down until it becomes the n-th item in the
         // stack, sliding the others up. E.g.: with A, B, C, D on the stack (top on the left), "RotateDown 3" will
         // produce B, C, A, D.
@@ -1324,7 +1326,7 @@ mod insn_impl {
             }
         })
     }
-    pub fn rotate_down_list(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn rotate_down_list(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // a 1-arg instruction (N)
         // Given a stack, ITEM LIST B C D, move ITEM down past the list plus N more items.
         let amt = operand(chunk)? as usize;
@@ -1342,7 +1344,7 @@ mod insn_impl {
             }
         })
     }
-    pub fn rotate_list_down(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn rotate_list_down(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: Operand N
         // Input: Stack: LIST item1 item2 ... itemN
         // Output Stack: item1 item2 ... itemN LIST
@@ -1361,7 +1363,7 @@ mod insn_impl {
             }
         })
     }
-    pub fn rotate_list_up(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn rotate_list_up(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: Operand: N
         // Input: Stack: item1 item2 ... itemN LIST
         // Output Stack: LIST item1 item2 ... itemN
@@ -1380,7 +1382,7 @@ mod insn_impl {
             }
         })
     }
-    pub fn make_ref(strict: bool) -> anyhow::Result<()> {
+    pub(crate) fn make_ref(strict: bool) -> anyhow::Result<()> {
         // Input:  Stack: name base
         // Output: Stack: reference
         let name = pop_value()?;
@@ -1390,7 +1392,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn make_super_property_ref(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn make_super_property_ref(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: 0 == not-strict; 1 == strict
         // Input: Stack: key this
         // Output: Stack: err/ref
@@ -1401,14 +1403,14 @@ mod insn_impl {
         push_completion(super_ref).expect(PUSHABLE);
         Ok(())
     }
-    pub fn pop_or_panic() -> anyhow::Result<()> {
+    pub(crate) fn pop_or_panic() -> anyhow::Result<()> {
         let val = pop_completion()?;
         if let Err(e) = val {
             panic!("Unhandled, unexpected error {e}");
         }
         Ok(())
     }
-    pub fn swap_list() -> anyhow::Result<()> {
+    pub(crate) fn swap_list() -> anyhow::Result<()> {
         // Input: LIST ITEM
         // Output: ITEM LIST
         let list_len = usize_at(0)?;
@@ -1426,7 +1428,7 @@ mod insn_impl {
         push_completion(item).expect(PUSHABLE);
         Ok(())
     }
-    pub fn pop_list() -> anyhow::Result<()> {
+    pub(crate) fn pop_list() -> anyhow::Result<()> {
         // Input: LIST
         // Output:
         let length = pop_usize()?;
@@ -1443,7 +1445,7 @@ mod insn_impl {
             }
         })
     }
-    pub fn pop_out_list(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn pop_out_list(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: "N"
         // Input:  Stack: item1 ... item(n-1) LIST
         // Output: Stack: item1 ... item(n-1)
@@ -1468,7 +1470,7 @@ mod insn_impl {
             }
         })
     }
-    pub fn swap_deep_list() -> anyhow::Result<()> {
+    pub(crate) fn swap_deep_list() -> anyhow::Result<()> {
         // Input: LIST_A item LIST_B
         // Output: LIST_A LIST_B item
         let a_len = usize_at(0)?;
@@ -1486,7 +1488,7 @@ mod insn_impl {
             Ok(())
         })
     }
-    pub fn list_to_array() -> anyhow::Result<()> {
+    pub(crate) fn list_to_array() -> anyhow::Result<()> {
         // On the stack at the start: N list[N-1] ... list[0]
         // Afterward: A
         let array_len = pop_usize()?;
@@ -1526,16 +1528,16 @@ mod insn_impl {
             Ok(())
         })
     }
-    pub fn unwind(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn unwind(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let vals_to_remove = usize_operand(chunk)?;
         unwind_internal(vals_to_remove)
     }
-    pub fn unwind_if_abrupt(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn unwind_if_abrupt(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let vals_to_remove = usize_operand(chunk)?;
         let top_completion = peek_completion(0)?;
         if top_completion.is_err() && vals_to_remove > 0 { unwind_internal(vals_to_remove) } else { Ok(()) }
     }
-    pub fn unwind_list() -> anyhow::Result<()> {
+    pub(crate) fn unwind_list() -> anyhow::Result<()> {
         let err_to_keep = pop_completion()?;
         let vals_to_remove = pop_usize()?;
         if vals_to_remove > 0 {
@@ -1555,7 +1557,7 @@ mod insn_impl {
         push_completion(err_to_keep).expect(PUSHABLE);
         Ok(())
     }
-    pub fn initialize_referenced_binding() -> anyhow::Result<()> {
+    pub(crate) fn initialize_referenced_binding() -> anyhow::Result<()> {
         // Input:  Stack: (value to store) (place to store)
         // Output: Stack: [empty] or error
         let value = match pop_completion().context("InitializeReferencedBinding takes two arguments (got none)")?.map(ECMAScriptValue::try_from) {
@@ -1568,32 +1570,32 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn push_new_lexical_environment() {
+    pub(crate) fn push_new_lexical_environment() {
         let current_env = current_lexical_environment();
         let new_env = DeclarativeEnvironmentRecord::new(current_env, "inner block");
         set_lexical_environment(Some(Rc::new(new_env)));
     }
-    pub fn pop_lexical_environment() -> anyhow::Result<()> {
+    pub(crate) fn pop_lexical_environment() -> anyhow::Result<()> {
         let current_env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
         let outer_env = current_env.get_outer_env();
         set_lexical_environment(outer_env);
         Ok(())
     }
-    pub fn push_new_var_env_from_lex() {
+    pub(crate) fn push_new_var_env_from_lex() {
         let current_env = current_lexical_environment();
         let new_env = DeclarativeEnvironmentRecord::new(current_env, "new var env");
         set_variable_environment(Some(Rc::new(new_env)));
     }
-    pub fn push_new_lex_env_from_var() {
+    pub(crate) fn push_new_lex_env_from_var() {
         let current_env = current_variable_environment();
         let new_env = DeclarativeEnvironmentRecord::new(current_env, "new var env");
         set_lexical_environment(Some(Rc::new(new_env)));
     }
-    pub fn set_lex_env_to_var_env() {
+    pub(crate) fn set_lex_env_to_var_env() {
         let current_env = current_variable_environment();
         set_lexical_environment(current_env);
     }
-    pub fn set_aside_lex_env() -> anyhow::Result<()> {
+    pub(crate) fn set_aside_lex_env() -> anyhow::Result<()> {
         // Input: None
         // Output on Stack: the top lexical environment (which is then popped)
         let current_env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
@@ -1601,7 +1603,7 @@ mod insn_impl {
         set_lexical_environment(Some(outer_env));
         push_completion(Ok(NormalCompletion::Environment(current_env)))
     }
-    pub fn restore_lex_env() -> anyhow::Result<()> {
+    pub(crate) fn restore_lex_env() -> anyhow::Result<()> {
         // Input on stack: Env
         // Output: None
         let completion = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
@@ -1609,20 +1611,20 @@ mod insn_impl {
         set_lexical_environment(Some(env));
         Ok(())
     }
-    pub fn push_new_private_env() {
+    pub(crate) fn push_new_private_env() {
         // Input: None; Output: None
         let outer_private_environment = current_private_environment();
         let new_private_environment = PrivateEnvironmentRecord::new(outer_private_environment);
         set_private_environment(Some(Rc::new(RefCell::new(new_private_environment))));
     }
-    pub fn pop_private_env() -> anyhow::Result<()> {
+    pub(crate) fn pop_private_env() -> anyhow::Result<()> {
         // Input: None; Output: None
         let current_private_environment = current_private_environment().ok_or(InternalRuntimeError::NoPrivateEnv)?;
         let parent = current_private_environment.borrow().outer_private_environment.clone();
         set_private_environment(parent);
         Ok(())
     }
-    pub fn push_new_with_env() -> anyhow::Result<()> {
+    pub(crate) fn push_new_with_env() -> anyhow::Result<()> {
         // Input: Stack: obj
         // Output: nothing on stack
         let obj = Object::try_from(pop_value()?)?;
@@ -1631,7 +1633,7 @@ mod insn_impl {
         set_lexical_environment(Some(Rc::new(environment)));
         Ok(())
     }
-    pub fn create_immutable_lex_binding(strict: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn create_immutable_lex_binding(strict: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
         let name = string_operand(chunk)?;
 
@@ -1647,15 +1649,15 @@ mod insn_impl {
         env.create_mutable_binding(name.clone(), deletable).or(Err(InternalRuntimeError::BindingAlreadyExists))?;
         Ok(())
     }
-    pub fn create_mutable_lexical_binding(deletable: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn create_mutable_lexical_binding(deletable: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
         create_mutable_binding(&env, deletable, chunk)
     }
-    pub fn create_mutable_var_binding(deletable: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn create_mutable_var_binding(deletable: bool, chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let env = current_variable_environment().ok_or(InternalRuntimeError::NoVarEnvironment)?;
         create_mutable_binding(&env, deletable, chunk)
     }
-    pub fn create_mutable_lexical_binding_if_missing(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn create_mutable_lexical_binding_if_missing(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         //  1. Let alreadyDeclared be ! env.HasBinding(paramName).
         //  2. If alreadyDeclared is false, then
         //        a. Perform ! env.CreateMutableBinding(paramName, false).
@@ -1669,7 +1671,9 @@ mod insn_impl {
         }
         Ok(())
     }
-    pub fn create_initialized_permanent_mutable_lexical_binding_if_missing(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn create_initialized_permanent_mutable_lexical_binding_if_missing(
+        chunk: &Rc<Chunk>,
+    ) -> anyhow::Result<()> {
         //  1. Let alreadyDeclared be ! env.HasBinding(paramName).
         //  2. If alreadyDeclared is false, then
         //      a. Perform ! env.CreateMutableBinding(paramName, false).
@@ -1692,28 +1696,28 @@ mod insn_impl {
         env.initialize_binding(name, value).or(Err(InternalRuntimeError::InitializeBindingFailure))?;
         Ok(())
     }
-    pub fn initialize_lex_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn initialize_lex_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
         initialize_binding(&env, chunk)
     }
-    pub fn initialize_var_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn initialize_var_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let env = current_variable_environment().ok_or(InternalRuntimeError::NoVarEnvironment)?;
         initialize_binding(&env, chunk)
     }
-    pub fn get_lex_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn get_lex_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
         let name = string_operand(chunk)?;
         let value = env.get_binding_value(name, false).or(Err(InternalRuntimeError::GetBindingValueFailure))?;
         push_value(value)
     }
-    pub fn set_mutable_var_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn set_mutable_var_binding(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let env = current_variable_environment().ok_or(InternalRuntimeError::NoVarEnvironment)?;
         let name = string_operand(chunk)?;
         let value = pop_value()?;
         env.set_mutable_binding(name.clone(), value, false).or(Err(InternalRuntimeError::SetMutableBindingFailure))?;
         Ok(())
     }
-    pub fn create_private_name_if_missing(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn create_private_name_if_missing(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input operand: string Index
         let name = string_operand(chunk)?;
         let pe_holder = current_private_environment().ok_or(InternalRuntimeError::NoPrivateEnv)?;
@@ -1724,7 +1728,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    pub fn create_per_iteration_environment(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn create_per_iteration_environment(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // A 1-operand instruction that takes nothing from the stack as input, and produces one
         // stack item ([empty]/error) on exit.
         let string_set = string_set_operand(chunk)?;
@@ -1732,7 +1736,7 @@ mod insn_impl {
         push_completion(res)?;
         Ok(())
     }
-    pub fn extract_thrown_value() -> anyhow::Result<()> {
+    pub(crate) fn extract_thrown_value() -> anyhow::Result<()> {
         let item = pop_completion()?;
         match item {
             Err(AbruptCompletion::Throw { value }) => {
@@ -1742,7 +1746,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    pub fn extract_arg() -> anyhow::Result<()> {
+    pub(crate) fn extract_arg() -> anyhow::Result<()> {
         // Stack: N arg[N-1] arg[N-2] ... arg[1] arg[0] (when N >= 1)
         // Out: arg[0] N-1 arg[N-1] arg[N-2] ... arg[1]
         //   --or, if N == 0 --
@@ -1769,7 +1773,7 @@ mod insn_impl {
             })
         }
     }
-    pub fn finish_args() -> anyhow::Result<()> {
+    pub(crate) fn finish_args() -> anyhow::Result<()> {
         // Stack: N arg[N-1] ... arg[0]
         // Out:
         // Remove any remaining arguments from the stack (we're at zero, or the caller gave us too much)
@@ -1787,23 +1791,23 @@ mod insn_impl {
             Ok(())
         })
     }
-    pub fn object() -> anyhow::Result<()> {
+    pub(crate) fn object() -> anyhow::Result<()> {
         let obj_proto = intrinsic(IntrinsicId::ObjectPrototype);
         let o = ordinary_object_create(Some(obj_proto));
         push_value(ECMAScriptValue::Object(o))
     }
-    pub fn object_with_proto() -> anyhow::Result<()> {
+    pub(crate) fn object_with_proto() -> anyhow::Result<()> {
         // Input on stack: proto
         // Output on stack: object
         let proto: Option<Object> = pop_value()?.try_into()?;
         let o = ordinary_object_create(proto);
         push_value(ECMAScriptValue::Object(o))
     }
-    pub fn array() -> anyhow::Result<()> {
+    pub(crate) fn array() -> anyhow::Result<()> {
         let array = array_create(0.0, None).expect("Arrays of length zero are not too large");
         push_value(ECMAScriptValue::Object(array))
     }
-    pub fn create_data_property() -> anyhow::Result<()> {
+    pub(crate) fn create_data_property() -> anyhow::Result<()> {
         let value = pop_value()?;
         let nc_name = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
         let nc_obj = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
@@ -1813,7 +1817,7 @@ mod insn_impl {
         push_value(ECMAScriptValue::Object(obj)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn set_prototype() -> anyhow::Result<()> {
+    pub(crate) fn set_prototype() -> anyhow::Result<()> {
         let value = pop_value()?;
         let nc_obj = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
         let obj = Object::try_from(nc_obj)?;
@@ -1824,43 +1828,43 @@ mod insn_impl {
         push_value(ECMAScriptValue::Object(obj)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn to_property_key() -> anyhow::Result<()> {
+    pub(crate) fn to_property_key() -> anyhow::Result<()> {
         let value_name = pop_value()?;
         let key = value_name.to_property_key();
         let fc = key.map(|pk| NormalCompletion::from(ECMAScriptValue::from(pk)));
         push_completion(fc).expect(PUSHABLE);
         Ok(())
     }
-    pub fn copy_data_props(exclusions: &[PropertyKey]) -> anyhow::Result<()> {
+    pub(crate) fn copy_data_props(exclusions: &[PropertyKey]) -> anyhow::Result<()> {
         let value = pop_value()?;
         let obj = pop_obj()?;
         let fc = obj.copy_data_properties(value, exclusions).map(|()| NormalCompletion::from(obj));
         push_completion(fc).expect(PUSHABLE);
         Ok(())
     }
-    pub fn copy_data_props_with_exclusions() -> anyhow::Result<()> {
+    pub(crate) fn copy_data_props_with_exclusions() -> anyhow::Result<()> {
         let exclusions = pop_key_list()?;
         copy_data_props(&exclusions)
     }
-    pub fn to_string() -> anyhow::Result<()> {
+    pub(crate) fn to_string() -> anyhow::Result<()> {
         let val = pop_value()?;
         let result = super::to_string(val).map(NormalCompletion::from);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn to_numeric() -> anyhow::Result<()> {
+    pub(crate) fn to_numeric() -> anyhow::Result<()> {
         let val = pop_value()?;
         let result = val.to_numeric().map(NormalCompletion::from);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn to_object() -> anyhow::Result<()> {
+    pub(crate) fn to_object() -> anyhow::Result<()> {
         let val = pop_value()?;
         let result = super::to_object(val).map(NormalCompletion::from);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn increment() -> anyhow::Result<()> {
+    pub(crate) fn increment() -> anyhow::Result<()> {
         let num = pop_numeric()?;
         let result_val = match num {
             Numeric::Number(n) => ECMAScriptValue::Number(n + 1.0),
@@ -1869,7 +1873,7 @@ mod insn_impl {
         push_value(result_val).expect(PUSHABLE);
         Ok(())
     }
-    pub fn decrement() -> anyhow::Result<()> {
+    pub(crate) fn decrement() -> anyhow::Result<()> {
         let num = pop_numeric()?;
         let result_val = match num {
             Numeric::Number(n) => ECMAScriptValue::Number(n - 1.0),
@@ -1878,37 +1882,37 @@ mod insn_impl {
         push_value(result_val).expect(PUSHABLE);
         Ok(())
     }
-    pub fn pre_increment() -> anyhow::Result<()> {
+    pub(crate) fn pre_increment() -> anyhow::Result<()> {
         let fc = pop_completion()?;
         let result = prefix_increment(fc);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn pre_decrement() -> anyhow::Result<()> {
+    pub(crate) fn pre_decrement() -> anyhow::Result<()> {
         let fc = pop_completion()?;
         let result = prefix_decrement(fc);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn delete() -> anyhow::Result<()> {
+    pub(crate) fn delete() -> anyhow::Result<()> {
         let fc = pop_completion()?;
         let result = delete_ref(fc);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn void() -> anyhow::Result<()> {
+    pub(crate) fn void() -> anyhow::Result<()> {
         let fc = pop_completion()?;
         let result = void_operator(fc);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn type_of() -> anyhow::Result<()> {
+    pub(crate) fn type_of() -> anyhow::Result<()> {
         let fc = pop_completion()?;
         let result = typeof_operator(fc);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn append_list() -> anyhow::Result<()> {
+    pub(crate) fn append_list() -> anyhow::Result<()> {
         // stack has 2 lists (N itemA(n-1) itemA(n-2) ... itemA(0)) (M itemB(m-1) ... itemB(0))
         // This routine combines them into (N+M itemA(n-1) ... itemA(0) itemB(m-1) ... itemB(0))
         // call them ListA and ListB ...
@@ -1932,7 +1936,7 @@ mod insn_impl {
         push_completion(Ok((new_len as f64).into())).expect(PUSHABLE);
         Ok(())
     }
-    pub fn require_constructor() -> anyhow::Result<()> {
+    pub(crate) fn require_constructor() -> anyhow::Result<()> {
         let val = pop_value()?;
         push_completion(if val.is_constructor() {
             Ok(NormalCompletion::Empty)
@@ -1942,7 +1946,7 @@ mod insn_impl {
         .expect(PUSHABLE);
         Ok(())
     }
-    pub fn call(strict: bool, tailcall: bool) -> anyhow::Result<()> {
+    pub(crate) fn call(strict: bool, tailcall: bool) -> anyhow::Result<()> {
         let arg_count = pop_usize()?;
         let mut arguments = Vec::with_capacity(arg_count);
         for _ in 1..=arg_count {
@@ -1983,14 +1987,14 @@ mod insn_impl {
 
         Ok(())
     }
-    pub fn end_function() -> anyhow::Result<()> {
+    pub(crate) fn end_function() -> anyhow::Result<()> {
         let result = pop_completion()?;
         let f_obj = pop_obj()?;
         let callable = f_obj.o.to_callable_obj().ok_or(InternalRuntimeError::FunctionExpected)?;
         callable.end_evaluation(result);
         Ok(())
     }
-    pub fn construct() -> anyhow::Result<()> {
+    pub(crate) fn construct() -> anyhow::Result<()> {
         // Stack: N arg[n-1] arg[n-2] ... arg[0] newtgt cstr
         let arg_count = pop_usize()?;
         let mut arguments = Vec::with_capacity(arg_count);
@@ -2006,12 +2010,12 @@ mod insn_impl {
 
         Ok(())
     }
-    pub fn return_insn() -> anyhow::Result<()> {
+    pub(crate) fn return_insn() -> anyhow::Result<()> {
         let value = pop_value()?;
         push_completion(Err(AbruptCompletion::Return { value })).expect(PUSHABLE);
         Ok(())
     }
-    pub fn unary_plus() -> anyhow::Result<()> {
+    pub(crate) fn unary_plus() -> anyhow::Result<()> {
         let exp = pop_completion()?;
         let val = super::get_value(exp);
         let result = match val {
@@ -2021,7 +2025,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn unary_minus() -> anyhow::Result<()> {
+    pub(crate) fn unary_minus() -> anyhow::Result<()> {
         let exp = pop_completion()?;
         let val = super::get_value(exp);
         let old_val = match val {
@@ -2036,7 +2040,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn unary_complement() -> anyhow::Result<()> {
+    pub(crate) fn unary_complement() -> anyhow::Result<()> {
         let exp = pop_completion()?;
         let val = super::get_value(exp);
         let old_val = match val {
@@ -2051,7 +2055,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn unary_not() -> anyhow::Result<()> {
+    pub(crate) fn unary_not() -> anyhow::Result<()> {
         let exp = pop_completion()?;
         let val = super::get_value(exp);
         let result = match val {
@@ -2061,14 +2065,17 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn binary_operation(op: BinOp) -> anyhow::Result<()> {
+    pub(crate) fn binary_operation(op: BinOp) -> anyhow::Result<()> {
         let right = pop_value()?;
         let left = pop_value()?;
         let result = apply_string_or_numeric_binary_operator(left, right, op);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn instantiate_id_free_function_expression(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_id_free_function_expression(
+        chunk: &Rc<Chunk>,
+        source: &SourceTree,
+    ) -> anyhow::Result<()> {
         // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name and
         // returns a function object. It is defined piecewise over the following productions:
         //
@@ -2127,7 +2134,10 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn instantiate_ordinary_function_expression(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_ordinary_function_expression(
+        chunk: &Rc<Chunk>,
+        source: &SourceTree,
+    ) -> anyhow::Result<()> {
         // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name
         // and returns a function object. It is defined piecewise over the following productions:
         //
@@ -2197,7 +2207,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn instantiate_arrow_function_expression(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_arrow_function_expression(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
         let info = sfd_operand(chunk)?;
         let env = current_lexical_environment().unwrap();
         let priv_env = current_private_environment();
@@ -2237,7 +2247,7 @@ mod insn_impl {
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
     }
-    pub fn instantiate_ordinary_function_object(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_ordinary_function_object(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
         let name = string_operand(chunk)?;
         let info = sfd_operand(chunk)?;
 
@@ -2277,7 +2287,7 @@ mod insn_impl {
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
     }
-    pub fn instantiate_generator_function_object(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_generator_function_object(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
         // GeneratorDeclaration : function * BindingIdentifier ( FormalParameters ) { GeneratorBody }
         //  1. Let name be the StringValue of BindingIdentifier.
         //  2. Let sourceText be the source text matched by GeneratorDeclaration.
@@ -2333,7 +2343,7 @@ mod insn_impl {
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
     }
-    pub fn instantiate_generator_method(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_generator_method(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
         // Input: Operand: function chunk id
         // Input: Operand: enumerable boolean
         // Input: Stack: propKey object
@@ -2408,13 +2418,13 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn throw() -> anyhow::Result<()> {
+    pub(crate) fn throw() -> anyhow::Result<()> {
         // Convert the NormalCompletion::Value on top of the stack into a ThrowCompletion with a matching value
         let value = pop_value()?;
         push_completion(Err(AbruptCompletion::Throw { value })).expect(PUSHABLE);
         Ok(())
     }
-    pub fn compare(swap_args: bool, invert: bool) -> anyhow::Result<()> {
+    pub(crate) fn compare(swap_args: bool, invert: bool) -> anyhow::Result<()> {
         fn compare_invert(optb: Option<bool>) -> NormalCompletion {
             NormalCompletion::from(!optb.unwrap_or(true))
         }
@@ -2430,14 +2440,14 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn instance_of() -> anyhow::Result<()> {
+    pub(crate) fn instance_of() -> anyhow::Result<()> {
         let right = pop_value()?;
         let left = pop_value()?;
         let result = instanceof_operator(left, &right).map(NormalCompletion::from);
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn in_op() -> anyhow::Result<()> {
+    pub(crate) fn in_op() -> anyhow::Result<()> {
         let right = pop_value()?;
         let left = pop_value()?;
         let result = match right {
@@ -2449,7 +2459,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn equal(invert: bool) -> anyhow::Result<()> {
+    pub(crate) fn equal(invert: bool) -> anyhow::Result<()> {
         let compute = if invert { bool::not } else { identity };
         let right = pop_value()?;
         let left = pop_value()?;
@@ -2457,7 +2467,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn strict_equal(invert: bool) -> anyhow::Result<()> {
+    pub(crate) fn strict_equal(invert: bool) -> anyhow::Result<()> {
         let compute = if invert { bool::not } else { identity };
         let right = pop_value()?;
         let left = pop_value()?;
@@ -2465,7 +2475,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn create_unmapped_arguments_object() -> anyhow::Result<()> {
+    pub(crate) fn create_unmapped_arguments_object() -> anyhow::Result<()> {
         // Stack should have n arg[n-1] arg[n-2] ... arg[0] ...
         // Those values are NOT consumed; this function assumes they'll be used again.
 
@@ -2509,7 +2519,7 @@ mod insn_impl {
         Ok(())
         // Stack at exit: AObj N arg[N-1] ... arg[0] ...
     }
-    pub fn create_mapped_arguments_object() -> anyhow::Result<()> {
+    pub(crate) fn create_mapped_arguments_object() -> anyhow::Result<()> {
         // Input: M arg(m-1) ... arg(0) func
         // Output: Obj M arg(m-1) ... arg(0) func
         let length = peek_usize(0)?;
@@ -2552,7 +2562,7 @@ mod insn_impl {
         Ok(())
         // Stack at exit: AObj N arg[N-1] ... arg[0] func ...
     }
-    pub fn add_mapped_argument(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn add_mapped_argument(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let name = string_operand(chunk)?;
         let argument_index = usize_operand(chunk)?;
         // Stack: AObj len ...
@@ -2567,7 +2577,7 @@ mod insn_impl {
         // Stack: AObj len ...
         Ok(())
     }
-    pub fn handle_empty_break() -> anyhow::Result<()> {
+    pub(crate) fn handle_empty_break() -> anyhow::Result<()> {
         let prior_result = pop_completion()?;
         let new_result = match prior_result {
             Err(AbruptCompletion::Break { value, target: None }) => match value {
@@ -2579,7 +2589,7 @@ mod insn_impl {
         push_completion(new_result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn handle_targeted_break(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn handle_targeted_break(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let label = string_operand(chunk)?;
         let prior_result = pop_completion()?;
         let new_result = match prior_result {
@@ -2589,7 +2599,7 @@ mod insn_impl {
         push_completion(new_result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn coalesce_value() -> anyhow::Result<()> {
+    pub(crate) fn coalesce_value() -> anyhow::Result<()> {
         // Stack: stmtResult V ...
         // If stmtResult.[[Value]] is not empty, set V to stmtResult.[[Value]].
         let stmt_result = pop_completion()?;
@@ -2607,7 +2617,7 @@ mod insn_impl {
         .expect(PUSHABLE);
         Ok(())
     }
-    pub fn loop_continues(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn loop_continues(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // 1-argument opcode; takes nothing on stack (but does look at the top item); output is
         // true or false on the stack.
         let label_set = string_set_operand(chunk)?;
@@ -2625,21 +2635,21 @@ mod insn_impl {
         push_value(result.into()).expect(PUSHABLE);
         Ok(())
     }
-    pub fn continue_insn() -> anyhow::Result<()> {
+    pub(crate) fn continue_insn() -> anyhow::Result<()> {
         push_completion(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: None }))
     }
-    pub fn targeted_continue(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn targeted_continue(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let label = string_operand(chunk)?.clone();
         push_completion(Err(AbruptCompletion::Continue { value: NormalCompletion::Empty, target: Some(label) }))
     }
-    pub fn break_insn() -> anyhow::Result<()> {
+    pub(crate) fn break_insn() -> anyhow::Result<()> {
         push_completion(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: None }))
     }
-    pub fn targeted_break(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn targeted_break(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let label = string_operand(chunk)?.clone();
         push_completion(Err(AbruptCompletion::Break { value: NormalCompletion::Empty, target: Some(label) }))
     }
-    pub fn iterator_accumulate() -> anyhow::Result<()> {
+    pub(crate) fn iterator_accumulate() -> anyhow::Result<()> {
         let iterable = pop_value()?;
         let starting_index = pop_value()?;
         let array = pop_obj()?;
@@ -2676,7 +2686,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    pub fn iterate_arguments() -> anyhow::Result<()> {
+    pub(crate) fn iterate_arguments() -> anyhow::Result<()> {
         // Starts with one item on the stack (an ecmascript value), returns either an error or a stack-based
         // representation of an argument list (N arg(n-1) ... arg(0)). See
         // [ArgumentListEvaluation](https://tc39.es/ecma262/#sec-runtime-semantics-argumentlistevaluation)
@@ -2731,7 +2741,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    pub fn elision_idae() -> anyhow::Result<()> {
+    pub(crate) fn elision_idae() -> anyhow::Result<()> {
         // The Elision form of IteratorDestructuringAssignmentEvaluation
         // Input on stack: <elision count as a float value> <iterator record>
         // Ouptut on stack: <iterator record>/err
@@ -2773,7 +2783,7 @@ mod insn_impl {
         push_completion(retval).expect(PUSHABLE);
         Ok(())
     }
-    pub fn embellished_iterator_step() -> anyhow::Result<()> {
+    pub(crate) fn embellished_iterator_step() -> anyhow::Result<()> {
         // Input: on stack: an iterator record (ir)
         // Output: on stack: an output value (v), and the input ir, -or- one error
         //  1. Let v be undefined.
@@ -2819,7 +2829,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    pub fn iterator_rest() -> anyhow::Result<()> {
+    pub(crate) fn iterator_rest() -> anyhow::Result<()> {
         // Input: one stack argument, an iterator record
         // Output: two stack elements: an array object, followed by the iterator record
         //     or: one stack element: an error
@@ -2876,7 +2886,7 @@ mod insn_impl {
         }
         Ok(())
     }
-    pub fn require_coercible() -> anyhow::Result<()> {
+    pub(crate) fn require_coercible() -> anyhow::Result<()> {
         // Input: one stack argument, an ECMAScriptValue
         // Output: one stack completion: either the same input value, or an error.
         let val = pop_value()?;
@@ -2888,7 +2898,7 @@ mod insn_impl {
         .expect(PUSHABLE);
         Ok(())
     }
-    pub fn get_sync_iterator() -> anyhow::Result<()> {
+    pub(crate) fn get_sync_iterator() -> anyhow::Result<()> {
         // This instruction handles the step that looks like:
         //  1. Let iteratorRecord be ? GetIterator(value, sync).
         //
@@ -2900,7 +2910,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn iterator_close() -> anyhow::Result<()> {
+    pub(crate) fn iterator_close() -> anyhow::Result<()> {
         // This instruction handles the steps that look like:
         //  1. Return ? IteratorClose(iteratorRecord, status).
 
@@ -2912,7 +2922,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn iterator_close_if_not_done() -> anyhow::Result<()> {
+    pub(crate) fn iterator_close_if_not_done() -> anyhow::Result<()> {
         // This instruction handles the step that looks like:
         //  3. If iteratorRecord.[[Done]] is false, return ? IteratorClose(iteratorRecord, result).
         //  4. Return ? result.
@@ -2926,7 +2936,7 @@ mod insn_impl {
         push_completion(right).expect(PUSHABLE);
         Ok(())
     }
-    pub fn iterator_next() -> anyhow::Result<()> {
+    pub(crate) fn iterator_next() -> anyhow::Result<()> {
         // This instruction handles the steps that look like:
         //  1. Let nextResult be ? Call(iteratorRecord.[[NextMethod]], iteratorRecord.[[Iterator]]).
         //  2. If nextResult is not an Object, throw a TypeError exception.
@@ -2949,7 +2959,7 @@ mod insn_impl {
         push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn iterator_result_complete() -> anyhow::Result<()> {
+    pub(crate) fn iterator_result_complete() -> anyhow::Result<()> {
         // This instruction handles the steps that look like:
         //  1. Let done be ? IteratorComplete(nextResult).
         //
@@ -2962,7 +2972,7 @@ mod insn_impl {
         push_completion(done.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn iterator_result_to_value() -> anyhow::Result<()> {
+    pub(crate) fn iterator_result_to_value() -> anyhow::Result<()> {
         // This instruction handles the steps that look like:
         //  1. Let nextValue be ? IteratorValue(nextResult).
         //
@@ -2973,7 +2983,7 @@ mod insn_impl {
         push_completion(value.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn getv() -> anyhow::Result<()> {
+    pub(crate) fn getv() -> anyhow::Result<()> {
         // input: key, base
         let prop_name = pop_key()?;
         let base_val = pop_value()?;
@@ -2981,7 +2991,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn enumerate_object_properties() -> anyhow::Result<()> {
+    pub(crate) fn enumerate_object_properties() -> anyhow::Result<()> {
         // input: an object
         // output: an iterator record set up to iterate over the properties of that object
         let obj = pop_obj()?;
@@ -2991,7 +3001,7 @@ mod insn_impl {
         push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
         Ok(())
     }
-    pub fn private_id_lookup(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn private_id_lookup(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Expect string id in the opcode; it refers to "privateIdentifier" in the following steps:
         // Input on the stack: nothing
         // Output on the stack: the sought-after PrivateId
@@ -3012,7 +3022,7 @@ mod insn_impl {
             .clone();
         push_completion(Ok(NormalCompletion::from(private_name)))
     }
-    pub fn evaluate_initialized_class_field_def(
+    pub(crate) fn evaluate_initialized_class_field_def(
         chunk: &Rc<Chunk>,
         source: &SourceTree,
         staticness: Static,
@@ -3037,7 +3047,7 @@ mod insn_impl {
         push_completion(Ok(completion)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn evaluate_class_static_block_def(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn evaluate_class_static_block_def(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
         // This does the runtime parts of ClassStaticBlockDefinitionEvaluation
         // Input Operand: sfd_index
         // Input Stack: homeObject
@@ -3053,7 +3063,7 @@ mod insn_impl {
         push_completion(Ok(NormalCompletion::ClassItem(block))).expect(PUSHABLE);
         Ok(())
     }
-    pub fn define_method(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn define_method(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
         // on the stack: object prototype
         let info = sfd_operand(chunk)?;
         let obj = pop_obj()?;
@@ -3100,7 +3110,7 @@ mod insn_impl {
             Err(InternalRuntimeError::ExpectedMethod)?
         }
     }
-    pub fn set_function_name() -> anyhow::Result<()> {
+    pub(crate) fn set_function_name() -> anyhow::Result<()> {
         // on stack: propertykey closure
         // but at the exit, we want them to stay there, so we just peek them from the end of the stack.
         let property_key = peek_function_name(0)?;
@@ -3108,7 +3118,7 @@ mod insn_impl {
         super::set_function_name(&closure, property_key, None);
         Ok(())
     }
-    pub fn define_method_property(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn define_method_property(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Takes one arg. 0 => enumerable:false; 1 => enumerable:true
         // Stack: propertykey closure object
         let enumerable = usize_operand(chunk)? != 0;
@@ -3119,7 +3129,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub fn define_getter(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn define_getter(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
         // Takes two args: idx into function stash and enumerable flag
         // stack input: propkey object
         // output: err/empty/PrivateElement
@@ -3192,7 +3202,7 @@ mod insn_impl {
         push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn define_setter(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn define_setter(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
         // Takes two args: idx into function stash and enumerable flag
         // stack input: propkey object
         // output: err/empty/PrivateElement
@@ -3265,7 +3275,7 @@ mod insn_impl {
         push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn generator_start_from_function(source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn generator_start_from_function(source: &SourceTree) -> anyhow::Result<()> {
         //  2. Let G be ? OrdinaryCreateFromConstructor(functionObject,
         //     "%GeneratorFunction.prototype.prototype%", « [[GeneratorState]], [[GeneratorContext]],
         //     [[GeneratorBrand]] »).
@@ -3278,16 +3288,15 @@ mod insn_impl {
         push_completion(g_res.clone().map(NormalCompletion::from)).expect(PUSHABLE);
         if let Ok(g_obj) = g_res.as_ref() {
             let g = g_obj.o.to_generator_object().ok_or(InternalRuntimeError::GeneratorExpected)?;
-            g.generator_data.borrow_mut().generator_brand = String::new();
-            generator_start_from_function_body(
-                g_obj,
-                func.o.to_function_obj().ok_or(InternalRuntimeError::FunctionExpected)?,
-                source,
-            );
+            g.generator_data.borrow_mut().brand = String::new();
+            generator_start_from_function_body(g_obj, source);
         }
         Ok(())
     }
-    pub fn instantiate_generator_function_expression(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_generator_function_expression(
+        chunk: &Rc<Chunk>,
+        source: &SourceTree,
+    ) -> anyhow::Result<()> {
         let info = sfd_operand(chunk)?;
         // Runtime Semantics: InstantiateGeneratorFunctionExpression
         // The syntax-directed operation InstantiateGeneratorFunctionExpression takes optional argument name (a property
@@ -3346,7 +3355,7 @@ mod insn_impl {
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
     }
-    pub async fn yield_insn(co: &Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> anyhow::Result<()> {
+    pub(crate) async fn yield_insn(co: &Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> anyhow::Result<()> {
         // Yield ( value )
         // The abstract operation Yield takes argument value (an ECMAScript language value) and returns either a normal
         // completion containing an ECMAScript language value or an abrupt completion. It performs the following steps
@@ -3361,7 +3370,7 @@ mod insn_impl {
         push_completion(yielded_result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
-    pub fn reg_exp_create(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn reg_exp_create(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let pattern = string_operand(chunk)?;
         let flags = string_operand(chunk)?;
         let ro = super::reg_exp_create(ECMAScriptValue::from(pattern), Some(flags.clone()))
@@ -3369,7 +3378,7 @@ mod insn_impl {
         push_completion(Ok(NormalCompletion::from(ro)))?;
         Ok(())
     }
-    pub fn get_parents_from_superclass() -> anyhow::Result<()> {
+    pub(crate) fn get_parents_from_superclass() -> anyhow::Result<()> {
         // Input Stack:   err/superclass-reference
         // Output Stack:  err/(proto-parent constructor-parent)
 
@@ -3412,7 +3421,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn create_default_constructor() -> anyhow::Result<()> {
+    pub(crate) fn create_default_constructor() -> anyhow::Result<()> {
         // Input: Stack: constructorParent className
         // Output: Stack: constructorFunctionObject
         let constructor_parent = pop_value()?.try_into()?;
@@ -3438,7 +3447,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn make_class_constructor_and_set_name() -> anyhow::Result<()> {
+    pub(crate) fn make_class_constructor_and_set_name() -> anyhow::Result<()> {
         // Input Stack: functionObject className
         // Output Stack: functionObject
         let function_object = pop_value()?.try_into()?;
@@ -3451,7 +3460,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn make_constructor() -> anyhow::Result<()> {
+    pub(crate) fn make_constructor() -> anyhow::Result<()> {
         // Input Stack: func-object
         // Output Stack: func-object
         let function_object = pop_value()?.try_into()?;
@@ -3460,7 +3469,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn make_constructor_with_proto() -> anyhow::Result<()> {
+    pub(crate) fn make_constructor_with_proto() -> anyhow::Result<()> {
         // Input Stack: func-object proto
         // Output Stack: func-object proto
         let function_object = pop_obj()?;
@@ -3471,7 +3480,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn set_derived() -> anyhow::Result<()> {
+    pub(crate) fn set_derived() -> anyhow::Result<()> {
         // Input Stack: func-object
         // Output Stack: func-object
         let function_object: Object = pop_obj()?;
@@ -3491,7 +3500,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn attach_elements(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn attach_elements(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: Operand: count: the number of elements to process; count can be zero
         // Input: Stack: FunctionObject element1 element2 ... elementN
         // Output: Stack: err/FunctionObject
@@ -3622,7 +3631,7 @@ mod insn_impl {
         }
     }
 
-    pub fn attach_source_text(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn attach_source_text(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: string
         // Input stack: obj
         // Output stack: obj
@@ -3645,7 +3654,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn name_only_field_record(staticness: Static) -> anyhow::Result<()> {
+    pub(crate) fn name_only_field_record(staticness: Static) -> anyhow::Result<()> {
         // Input: Stack: name (which is a string, symbol, or private name)
         // Output: Stack: fieldRecord
         let name = pop_classname()?.ok_or(InternalRuntimeError::ClassNameExpected)?;
@@ -3659,7 +3668,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn make_private_reference(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+    pub(crate) fn make_private_reference(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand : string index
         // Input: Stack: baseValue
         // Output: Stack: privateReference
@@ -3671,7 +3680,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn get_new_target() -> anyhow::Result<()> {
+    pub(crate) fn get_new_target() -> anyhow::Result<()> {
         // Input: nothing
         // Output: Stack: newTarget
         let nt = super::get_new_target()?;
@@ -3682,13 +3691,13 @@ mod insn_impl {
         push_value(val)
     }
 
-    pub fn get_super_constructor() -> anyhow::Result<()> {
+    pub(crate) fn get_super_constructor() -> anyhow::Result<()> {
         // Input: nothing
         // Output Stack: func
         push_value(super::get_super_constructor()?)
     }
 
-    pub fn constructor_check() -> anyhow::Result<()> {
+    pub(crate) fn constructor_check() -> anyhow::Result<()> {
         // Input: value
         // Output: err/value
         let value = pop_value()?;
@@ -3700,7 +3709,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn bind_this_and_init() -> anyhow::Result<()> {
+    pub(crate) fn bind_this_and_init() -> anyhow::Result<()> {
         //  7. Let thisER be GetThisEnvironment().
         //  8. Perform ? thisER.BindThisValue(result).
         //  9. Let F be thisER.[[FunctionObject]].
@@ -3727,7 +3736,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub fn static_class_item() -> anyhow::Result<()> {
+    pub(crate) fn static_class_item() -> anyhow::Result<()> {
         // Take what's on top of the stack and transform it to a static class item
 
         // Input: empty/classitem/privatelement/err
@@ -3765,14 +3774,14 @@ mod insn_impl {
     }
 }
 
-pub fn execute_synchronously(source: &SourceTree) -> Completion<ECMAScriptValue> {
+pub(crate) fn execute_synchronously(source: &SourceTree) -> Completion<ECMAScriptValue> {
     match Gen::new(|co| execute(co, source.clone())).resume_with(Ok(ECMAScriptValue::Undefined)) {
         genawaiter::GeneratorState::Yielded(val) => panic!("Yielded from synchronous context with value {val}"),
         genawaiter::GeneratorState::Complete(val) => val,
     }
 }
 
-pub async fn execute(
+pub(crate) async fn execute(
     co: Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
     source: SourceTree,
 ) -> Completion<ECMAScriptValue> {
@@ -4474,7 +4483,7 @@ fn define_method_property(
 }
 
 impl ECMAScriptValue {
-    pub fn is_less_than(&self, other: &ECMAScriptValue, self_first: bool) -> Completion<Option<bool>> {
+    pub(crate) fn is_less_than(&self, other: &ECMAScriptValue, self_first: bool) -> Completion<Option<bool>> {
         let (px, py) = if self_first {
             let px = self.to_primitive(None)?;
             let py = other.to_primitive(None)?;
@@ -4544,7 +4553,7 @@ impl ECMAScriptValue {
     }
 }
 
-pub fn instanceof_operator(v: ECMAScriptValue, target: &ECMAScriptValue) -> Completion<bool> {
+pub(crate) fn instanceof_operator(v: ECMAScriptValue, target: &ECMAScriptValue) -> Completion<bool> {
     // InstanceofOperator ( V, target )
     //
     // The abstract operation InstanceofOperator takes arguments V (an ECMAScript language value) and target (an
@@ -4603,7 +4612,7 @@ enum BinOp {
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum WksId {
+pub(crate) enum WksId {
     AsyncIterator,
     HasInstance,
     IsConcatSpreadable,
@@ -4620,35 +4629,35 @@ pub enum WksId {
 }
 
 #[derive(Debug)]
-pub struct WellKnownSymbols {
-    pub async_iterator_: Symbol,
-    pub has_instance_: Symbol,
-    pub is_concat_spreadable_: Symbol,
-    pub iterator_: Symbol,
-    pub match_: Symbol,
-    pub match_all_: Symbol,
-    pub replace_: Symbol,
-    pub search_: Symbol,
-    pub species_: Symbol,
-    pub split_: Symbol,
-    pub to_primitive_: Symbol,
-    pub to_string_tag_: Symbol,
-    pub unscopables_: Symbol,
+pub(crate) struct WellKnownSymbols {
+    pub(crate) async_iterator: Symbol,
+    pub(crate) has_instance: Symbol,
+    pub(crate) is_concat_spreadable: Symbol,
+    pub(crate) iterator: Symbol,
+    pub(crate) match_: Symbol,
+    pub(crate) match_all: Symbol,
+    pub(crate) replace: Symbol,
+    pub(crate) search: Symbol,
+    pub(crate) species: Symbol,
+    pub(crate) split: Symbol,
+    pub(crate) to_primitive: Symbol,
+    pub(crate) to_string_tag: Symbol,
+    pub(crate) unscopables: Symbol,
 }
 
 #[derive(Debug, Clone)]
-pub struct SourceTree {
-    pub ast: ParsedText,
-    pub text: String,
+pub(crate) struct SourceTree {
+    pub(crate) ast: ParsedText,
+    pub(crate) text: String,
 }
 
 impl SourceTree {
-    pub fn empty() -> Self {
+    pub(crate) fn empty() -> Self {
         SourceTree { ast: ParsedText::Empty, text: String::new() }
     }
 }
 
-pub fn parse_script(source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<ScriptRecord, Vec<Object>> {
+pub(crate) fn parse_script(source_text: &str, realm: Rc<RefCell<Realm>>) -> Result<ScriptRecord, Vec<Object>> {
     let ast = parse_text(source_text, ParseGoal::Script, false, false);
     let script: Result<Rc<Script>, Vec<Object>> = ast
         .clone()
@@ -4678,14 +4687,14 @@ impl TryFrom<DeclPart> for TopLevelLexDecl {
     type Error = anyhow::Error;
     fn try_from(src: DeclPart) -> anyhow::Result<Self> {
         match src {
-            DeclPart::ClassDeclaration(cd) => Ok(Self::Class(cd)),
-            DeclPart::LexicalDeclaration(ld) => Ok(Self::Lex(ld)),
+            DeclPart::Class(cd) => Ok(Self::Class(cd)),
+            DeclPart::Lexical(ld) => Ok(Self::Lex(ld)),
             _ => Err(anyhow!("Not a top-level lexical decl")),
         }
     }
 }
 #[derive(Debug, Clone)]
-pub enum FcnDef {
+pub(crate) enum FcnDef {
     Function(Rc<FunctionDeclaration>),
     Generator(Rc<GeneratorDeclaration>),
     AsyncFun(Rc<AsyncFunctionDeclaration>),
@@ -4708,16 +4717,16 @@ impl TryFrom<DeclPart> for FcnDef {
     type Error = anyhow::Error;
     fn try_from(value: DeclPart) -> anyhow::Result<Self> {
         match value {
-            DeclPart::FunctionDeclaration(fd) => Ok(Self::Function(fd)),
-            DeclPart::GeneratorDeclaration(gd) => Ok(Self::Generator(gd)),
-            DeclPart::AsyncFunctionDeclaration(afd) => Ok(Self::AsyncFun(afd)),
-            DeclPart::AsyncGeneratorDeclaration(agd) => Ok(Self::AsyncGen(agd)),
-            DeclPart::ClassDeclaration(_) | DeclPart::LexicalDeclaration(_) => Err(anyhow!("Not a function def")),
+            DeclPart::Function(fd) => Ok(Self::Function(fd)),
+            DeclPart::Generator(gd) => Ok(Self::Generator(gd)),
+            DeclPart::AsyncFunction(afd) => Ok(Self::AsyncFun(afd)),
+            DeclPart::AsyncGenerator(agd) => Ok(Self::AsyncGen(agd)),
+            DeclPart::Class(_) | DeclPart::Lexical(_) => Err(anyhow!("Not a function def")),
         }
     }
 }
 impl FcnDef {
-    pub fn bound_name(&self) -> JSString {
+    pub(crate) fn bound_name(&self) -> JSString {
         match self {
             FcnDef::Function(x) => x.bound_name(),
             FcnDef::Generator(x) => x.bound_name(),
@@ -4725,7 +4734,7 @@ impl FcnDef {
             FcnDef::AsyncGen(x) => x.bound_name(),
         }
     }
-    pub fn instantiate_function_object(
+    pub(crate) fn instantiate_function_object(
         &self,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
@@ -4767,7 +4776,7 @@ impl TryFrom<VarScopeDecl> for TopLevelVarDecl {
     }
 }
 
-pub fn global_declaration_instantiation(
+pub(crate) fn global_declaration_instantiation(
     script: &Rc<Script>,
     env: &Rc<GlobalEnvironmentRecord>,
     strict: bool,
@@ -4862,7 +4871,7 @@ pub fn global_declaration_instantiation(
     Ok(())
 }
 
-pub fn script_evaluation(sr: ScriptRecord) -> Completion<ECMAScriptValue> {
+pub(crate) fn script_evaluation(sr: ScriptRecord) -> Completion<ECMAScriptValue> {
     let global_env = sr.realm.borrow().global_env.clone();
     let mut script_context =
         ExecutionContext::new(None, Rc::clone(&sr.realm), Some(ScriptOrModule::Script(Rc::new(sr.clone()))));
@@ -4886,10 +4895,10 @@ pub fn script_evaluation(sr: ScriptRecord) -> Completion<ECMAScriptValue> {
 }
 
 #[derive(Debug)]
-pub enum ProcessError {
+pub(crate) enum ProcessError {
     RuntimeError { error: ECMAScriptValue },
     CompileErrors { values: Vec<Object> },
-    InternalError { reason: String },
+    //InternalError { reason: String },
 }
 
 impl error::Error for ProcessError {}
@@ -4921,13 +4930,12 @@ impl fmt::Display for ProcessError {
                     write!(f, "[{}]", unwind_any_error_object(err_obj))?;
                 }
                 Ok(())
-            }
-            ProcessError::InternalError { reason } => write!(f, "{reason}"),
+            } //ProcessError::InternalError { reason } => write!(f, "{reason}"),
         }
     }
 }
 
-pub fn process_ecmascript(source_text: &str) -> Result<ECMAScriptValue, ProcessError> {
+pub(crate) fn process_ecmascript(source_text: &str) -> Result<ECMAScriptValue, ProcessError> {
     let realm = current_realm_record().unwrap();
     let x = parse_script(source_text, realm).map_err(|errs| ProcessError::CompileErrors { values: errs })?;
 
@@ -4940,11 +4948,11 @@ pub fn process_ecmascript(source_text: &str) -> Result<ECMAScriptValue, ProcessE
     }
 }
 
-pub fn bigint_leftshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow::Error> {
+pub(crate) fn bigint_leftshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow::Error> {
     if right < &BigInt::zero() { bigint_rightshift(left, &-right) } else { Ok(left << u32::try_from(right)?) }
 }
 
-pub fn bigint_rightshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow::Error> {
+pub(crate) fn bigint_rightshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow::Error> {
     if right < &BigInt::zero() {
         bigint_leftshift(left, &-right)
     } else {
@@ -4963,7 +4971,7 @@ pub fn bigint_rightshift(left: &BigInt, right: &BigInt) -> Result<BigInt, anyhow
 ///
 /// See [CreatePerIterationEnvironment](https://tc39.es/ecma262/#sec-createperiterationenvironment) in
 /// ECMA-262.
-pub fn create_per_iteration_environment(per_iteration_bindings: &AHashSet<JSString>) -> Completion<()> {
+pub(crate) fn create_per_iteration_environment(per_iteration_bindings: &AHashSet<JSString>) -> Completion<()> {
     // CreatePerIterationEnvironment ( perIterationBindings )
     // The abstract operation CreatePerIterationEnvironment takes argument perIterationBindings (a List of
     // Strings) and returns either a normal completion containing unused or a throw completion. It performs
@@ -5015,13 +5023,13 @@ struct ForInIteratorInternals {
 }
 
 #[derive(Debug)]
-pub struct ForInIteratorObject {
+pub(crate) struct ForInIteratorObject {
     common: RefCell<CommonObjectData>,
     internals: RefCell<ForInIteratorInternals>,
 }
 
 impl ForInIteratorObject {
-    pub fn new(proto: Option<Object>, obj: Object) -> Self {
+    pub(crate) fn new(proto: Option<Object>, obj: Object) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(proto, true, FOR_IN_ITERATOR_SLOTS)),
             internals: RefCell::new(ForInIteratorInternals {
@@ -5173,7 +5181,7 @@ fn create_for_in_iterator(obj: Object) -> Object {
     ForInIteratorObject::object(Some(prototype), obj)
 }
 
-pub fn provision_for_in_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_for_in_iterator_prototype(realm: &Rc<RefCell<Realm>>) {
     // The %ForInIteratorPrototype% Object
     //
     //  * has properties that are inherited by all For-In Iterator Objects.
@@ -5285,7 +5293,7 @@ fn for_in_iterator_prototype_next(
     }
 }
 
-pub fn default_constructor(
+pub(crate) fn default_constructor(
     _this_value: &ECMAScriptValue,
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],

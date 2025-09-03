@@ -6,7 +6,7 @@ use std::io::Write;
 // EmptyStatement :
 //      ;
 #[derive(Debug)]
-pub struct EmptyStatement {
+pub(crate) struct EmptyStatement {
     location: Location,
 }
 
@@ -34,23 +34,14 @@ impl PrettyPrint for EmptyStatement {
 }
 
 impl EmptyStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (semi_loc, after_semi) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Semicolon)?;
         Ok((Rc::new(EmptyStatement { location: semi_loc }), after_semi))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
-    }
-
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
-
-    pub fn body_containing_location(&self, _: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        None
     }
 }
 

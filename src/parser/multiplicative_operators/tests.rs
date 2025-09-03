@@ -72,11 +72,6 @@ fn multiplicative_operator_test_concisecheck_3() {
     let (item, _) = MultiplicativeOperator::parse(&mut newparser("%"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
-#[test]
-fn multiplicative_operator_test_contains_01() {
-    let (item, _) = MultiplicativeOperator::parse(&mut newparser("*"), Scanner::new()).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), false);
-}
 
 // MULTIPLICATIVE EXPRESSION
 mod multiplicative_expression {
@@ -91,7 +86,6 @@ mod multiplicative_expression {
         pretty_check(&*me, "MultiplicativeExpression: a", &["ExponentiationExpression: a"]);
         concise_check(&*me, "IdentifierName: a", &[]);
         assert_ne!(format!("{me:?}"), "");
-        assert_eq!(me.is_function_definition(), false);
     }
     #[test]
     fn parse_02() {
@@ -109,7 +103,6 @@ mod multiplicative_expression {
             &["IdentifierName: a", "Punctuator: /", "IdentifierName: b"],
         );
         assert_ne!(format!("{me:?}"), "");
-        assert_eq!(me.is_function_definition(), false);
     }
     #[test]
     fn parse_04() {
@@ -245,12 +238,12 @@ mod multiplicative_expression {
         Maker::new(src).multiplicative_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a*b" => false; "expr")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).multiplicative_expression().is_named_function()
-    }
+    //#[test_case("a*b" => false; "expr")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).multiplicative_expression().is_named_function()
+    //}
 
     #[test_case("  a*b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "expr")]
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]

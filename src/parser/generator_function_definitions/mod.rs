@@ -6,10 +6,10 @@ use std::io::Write;
 // GeneratorMethod[Yield, Await] :
 //      * ClassElementName[?Yield, ?Await] ( UniqueFormalParameters[+Yield, ~Await] ) { GeneratorBody }
 #[derive(Debug)]
-pub struct GeneratorMethod {
-    pub name: Rc<ClassElementName>,
-    pub params: Rc<UniqueFormalParameters>,
-    pub body: Rc<GeneratorBody>,
+pub(crate) struct GeneratorMethod {
+    pub(crate) name: Rc<ClassElementName>,
+    pub(crate) params: Rc<UniqueFormalParameters>,
+    pub(crate) body: Rc<GeneratorBody>,
     location: Location,
 }
 
@@ -57,43 +57,47 @@ impl PrettyPrint for GeneratorMethod {
 }
 
 impl GeneratorMethod {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (star_loc, after_star) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Star)?;
         let (name, after_name) = ClassElementName::parse(parser, after_star, yield_flag, await_flag)?;
-        let (_, after_lp) =
-            scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_name, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (params, after_params) = UniqueFormalParameters::parse(parser, after_lp, true, false);
-        let (_, after_rp) =
-            scan_for_punct(after_params, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_params, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
-            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+            scan_for_punct(after_body, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
         let location = star_loc.merge(&rb_loc);
         Ok((Rc::new(GeneratorMethod { name, params, body, location }), after_rb))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    #[cfg(test)]
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.name.contains(kind) || self.params.contains(kind) || self.body.contains(kind)
     }
 
-    pub fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn computed_property_contains(&self, kind: ParseNodeKind) -> bool {
         self.name.computed_property_contains(kind)
     }
 
-    pub fn private_bound_identifier(&self) -> Option<JSString> {
+    pub(crate) fn private_bound_identifier(&self) -> Option<JSString> {
         // Static Semantics: PrivateBoundIdentifiers
         // GeneratorMethod : * ClassElementName ( UniqueFormalParameters ) { GeneratorBody }
         //  1. Return PrivateBoundIdentifiers of ClassElementName.
         self.name.private_bound_identifier()
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -109,14 +113,14 @@ impl GeneratorMethod {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. Return ContainsArguments of ClassElementName.
         self.name.contains_arguments()
     }
 
-    pub fn has_direct_super(&self) -> bool {
+    pub(crate) fn has_direct_super(&self) -> bool {
         // Static Semantics: HasDirectSuper
         //      The syntax-directed operation HasDirectSuper takes no arguments.
         // GeneratorMethod : * ClassElementName ( UniqueFormalParameters ) { GeneratorBody }
@@ -135,7 +139,7 @@ impl GeneratorMethod {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  GeneratorMethod : * ClassElementName ( UniqueFormalParameters ) { GeneratorBody }
         //  * It is a Syntax Error if HasDirectSuper of GeneratorMethod is true.
@@ -172,7 +176,7 @@ impl GeneratorMethod {
         self.body.early_errors(errs, strict_func);
     }
 
-    pub fn prop_name(&self) -> Option<JSString> {
+    pub(crate) fn prop_name(&self) -> Option<JSString> {
         // Static Semantics: PropName
         // The syntax-directed operation PropName takes no arguments and returns a String or empty.
         //      GeneratorMethod : * ClassElementName ( UniqueFormalParameters ) { GeneratorBody }
@@ -181,7 +185,7 @@ impl GeneratorMethod {
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         todo!()
     }
 }
@@ -190,10 +194,10 @@ impl GeneratorMethod {
 //      function * BindingIdentifier[?Yield, ?Await] ( FormalParameters[+Yield, ~Await] ) { GeneratorBody }
 //      [+Default] function * ( FormalParameters[+Yield, ~Await] ) { GeneratorBody }
 #[derive(Debug)]
-pub struct GeneratorDeclaration {
-    pub ident: Option<Rc<BindingIdentifier>>,
-    pub params: Rc<FormalParameters>,
-    pub body: Rc<GeneratorBody>,
+pub(crate) struct GeneratorDeclaration {
+    pub(crate) ident: Option<Rc<BindingIdentifier>>,
+    pub(crate) params: Rc<FormalParameters>,
+    pub(crate) body: Rc<GeneratorBody>,
     location: Location,
 }
 
@@ -250,7 +254,7 @@ impl PrettyPrint for GeneratorDeclaration {
 }
 
 impl GeneratorDeclaration {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -258,8 +262,8 @@ impl GeneratorDeclaration {
         default_flag: bool,
     ) -> ParseResult<Self> {
         let (func_loc, after_func) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let (_, after_star) = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Function)?;
+        let (_, after_star) = scan_for_punct(after_func, parser.source, InputElementGoal::Div, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, yield_flag, await_flag) {
             Err(err) => {
                 if default_flag {
@@ -270,37 +274,33 @@ impl GeneratorDeclaration {
             }
             Ok((node, scan)) => Ok((Some(node), scan)),
         }?;
-        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, false);
-        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
-            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+            scan_for_punct(after_body, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
         let location = func_loc.merge(&rb_loc);
         Ok((Rc::new(GeneratorDeclaration { ident, params, body, location }), after_rb))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         vec![self.bound_name()]
     }
 
-    pub fn bound_name(&self) -> JSString {
+    pub(crate) fn bound_name(&self) -> JSString {
         match &self.ident {
             None => JSString::from("*default*"),
             Some(node) => node.bound_name(),
         }
     }
 
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
-
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -320,7 +320,7 @@ impl GeneratorDeclaration {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  GeneratorDeclaration :
         //      function * BindingIdentifier ( FormalParameters ) { GeneratorBody }
@@ -347,12 +347,8 @@ impl GeneratorDeclaration {
         function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
     }
 
-    pub fn is_constant_declaration(&self) -> bool {
-        false
-    }
-
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }
@@ -361,10 +357,10 @@ impl GeneratorDeclaration {
 // GeneratorExpression :
 //      function * BindingIdentifier[+Yield, ~Await]opt ( FormalParameters[+Yield, ~Await] ) { GeneratorBody }
 #[derive(Debug)]
-pub struct GeneratorExpression {
-    pub ident: Option<Rc<BindingIdentifier>>,
-    pub params: Rc<FormalParameters>,
-    pub body: Rc<GeneratorBody>,
+pub(crate) struct GeneratorExpression {
+    pub(crate) ident: Option<Rc<BindingIdentifier>>,
+    pub(crate) params: Rc<FormalParameters>,
+    pub(crate) body: Rc<GeneratorBody>,
     location: Location,
 }
 
@@ -420,41 +416,31 @@ impl PrettyPrint for GeneratorExpression {
     }
 }
 
-impl IsFunctionDefinition for GeneratorExpression {
-    fn is_function_definition(&self) -> bool {
-        true
-    }
-}
-
 impl GeneratorExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (func_loc, after_func) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Function)?;
-        let (_, after_star) = scan_for_punct(after_func, parser.source, ScanGoal::InputElementDiv, Punctuator::Star)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Function)?;
+        let (_, after_star) = scan_for_punct(after_func, parser.source, InputElementGoal::Div, Punctuator::Star)?;
         let (ident, after_bi) = match BindingIdentifier::parse(parser, after_star, true, false) {
             Err(_) => (None, after_star),
             Ok((node, scan)) => (Some(node), scan),
         };
-        let (_, after_lp) = scan_for_punct(after_bi, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_lp) = scan_for_punct(after_bi, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (params, after_fp) = FormalParameters::parse(parser, after_lp, true, false);
-        let (_, after_rp) = scan_for_punct(after_fp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
-        let (_, after_lb) = scan_for_punct(after_rp, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+        let (_, after_rp) = scan_for_punct(after_fp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
+        let (_, after_lb) = scan_for_punct(after_rp, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
         let (body, after_body) = GeneratorBody::parse(parser, after_lb);
         let (rb_loc, after_rb) =
-            scan_for_punct(after_body, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+            scan_for_punct(after_body, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
         let location = func_loc.merge(&rb_loc);
         Ok((Rc::new(GeneratorExpression { ident, params, body, location }), after_rb))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
-
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -474,7 +460,7 @@ impl GeneratorExpression {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         //  GeneratorExpression :
         //      function * BindingIdentifier[opt] ( FormalParameters ) { GeneratorBody }
@@ -500,11 +486,11 @@ impl GeneratorExpression {
         function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
     }
 
-    pub fn is_named_function(&self) -> bool {
+    pub(crate) fn is_named_function(&self) -> bool {
         self.ident.is_some()
     }
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         todo!()
     }
 }
@@ -512,7 +498,7 @@ impl GeneratorExpression {
 // GeneratorBody :
 //      FunctionBody[+Yield, ~Await]
 #[derive(Debug)]
-pub struct GeneratorBody(pub Rc<FunctionBody>);
+pub(crate) struct GeneratorBody(pub(crate) Rc<FunctionBody>);
 
 impl fmt::Display for GeneratorBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -540,11 +526,11 @@ impl PrettyPrint for GeneratorBody {
 
 impl GeneratorBody {
     fn parse_core(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
-        let (fb, after_fb) = FunctionBody::parse(parser, scanner, true, false, FunctionBodyParent::GeneratorBody);
+        let (fb, after_fb) = FunctionBody::parse(parser, scanner, true, false, FunctionBodyParent::Generator);
         (Rc::new(GeneratorBody(fb)), after_fb)
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> (Rc<Self>, Scanner) {
         match parser.generator_body_cache.get(&scanner) {
             Some(result) => result.clone(),
             None => {
@@ -555,15 +541,15 @@ impl GeneratorBody {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.0.location()
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -583,15 +569,15 @@ impl GeneratorBody {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.0.early_errors(errs, strict);
     }
 
-    pub fn function_body_contains_use_strict(&self) -> bool {
+    pub(crate) fn function_body_contains_use_strict(&self) -> bool {
         self.0.function_body_contains_use_strict()
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         self.0.lexically_declared_names()
     }
 
@@ -601,22 +587,22 @@ impl GeneratorBody {
     /// of the var-declared list.
     ///
     /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.0.var_declared_names()
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.0.var_scoped_declarations()
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.0.lexically_scoped_declarations()
     }
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         todo!()
     }
 }
@@ -626,7 +612,7 @@ impl GeneratorBody {
 //      yield [no LineTerminator here] AssignmentExpression[?In, +Yield, ?Await]
 //      yield [no LineTerminator here] * AssignmentExpression[?In, +Yield, ?Await]
 #[derive(Debug)]
-pub enum YieldExpression {
+pub(crate) enum YieldExpression {
     Simple { location: Location },
     Expression { exp: Rc<AssignmentExpression>, location: Location },
     From { exp: Rc<AssignmentExpression>, location: Location },
@@ -691,8 +677,7 @@ impl YieldExpression {
         yield_loc: Location,
     ) -> ParseResult<Self> {
         (|| {
-            let (_, after_star) =
-                scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Star)?;
+            let (_, after_star) = scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Star)?;
             let (exp, after_ae) = AssignmentExpression::parse(parser, after_star, in_flag, true, await_flag)?;
             let location = yield_loc.merge(&exp.location());
             Ok((Rc::new(YieldExpression::From { exp, location }), after_ae))
@@ -704,15 +689,15 @@ impl YieldExpression {
         })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner, in_flag: bool, await_flag: bool) -> ParseResult<Self> {
         let (yield_loc, after_yield) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Yield)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Yield)?;
         no_line_terminator(after_yield, parser.source)
             .and_then(|()| Self::parse_after_nlt(parser, after_yield, in_flag, await_flag, yield_loc))
             .otherwise(|| Ok((Rc::new(YieldExpression::Simple { location: yield_loc }), after_yield)))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             YieldExpression::Simple { location }
             | YieldExpression::Expression { location, .. }
@@ -720,7 +705,7 @@ impl YieldExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         kind == ParseNodeKind::YieldExpression
             || match self {
                 YieldExpression::Simple { .. } => false,
@@ -728,7 +713,7 @@ impl YieldExpression {
             }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -747,7 +732,7 @@ impl YieldExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -770,7 +755,7 @@ impl YieldExpression {
     /// See [Early Errors for Generator Function Definitions][1] from ECMA-262.
     ///
     /// [1]: https://tc39.es/ecma262/#sec-generator-function-definitions-static-semantics-early-errors
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => {
                 exp.early_errors(errs, strict);
@@ -780,7 +765,7 @@ impl YieldExpression {
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }

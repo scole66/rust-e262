@@ -93,16 +93,6 @@ fn break_statement_test_contains_undefined_break_target_02() {
     assert_eq!(item.contains_undefined_break_target(&[]), false);
     assert_eq!(item.contains_undefined_break_target(&[JSString::from("label")]), false);
 }
-#[test]
-fn break_statement_test_contains_01() {
-    let (item, _) = BreakStatement::parse(&mut newparser("break label;"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
-#[test]
-fn break_statement_test_contains_02() {
-    let (item, _) = BreakStatement::parse(&mut newparser("break;"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
 mod break_statement {
     use super::*;
     use test_case::test_case;

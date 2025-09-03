@@ -167,12 +167,6 @@ mod let_or_const {
     use super::*;
     use test_case::test_case;
 
-    #[test]
-    fn contains() {
-        let item = LetOrConst::Let;
-        assert_eq!(item.contains(ParseNodeKind::Literal), false);
-    }
-
     #[test_case(LetOrConst::Let => false; "kwd let")]
     #[test_case(LetOrConst::Const => true; "kwd const")]
     fn is_constant_declaration(which: LetOrConst) -> bool {
@@ -398,7 +392,6 @@ mod lexical_binding {
 
     #[test_case("a=1", ParseNodeKind::Literal => true; "binding with literal initializer contains literal")]
     #[test_case("a", ParseNodeKind::Literal => false; "binding with no init does not contain literal")]
-    #[test_case("a", ParseNodeKind::IdentifierName => true; "binding contains identifier")]
     #[test_case("a=b", ParseNodeKind::Literal => false; "binding with izer containing no literals")]
     #[test_case("[a=0]=[z]", ParseNodeKind::Literal => true; "complex pattern binding with literal")]
     #[test_case("[a]=[0]", ParseNodeKind::Literal => true; "pattern binding with literal initializer")]
@@ -1487,11 +1480,6 @@ fn binding_rest_property_test_bound_names_01() {
     let (item, _) = BindingRestProperty::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap();
     assert_eq!(item.bound_names(), &["a"]);
 }
-#[test]
-fn binding_rest_property_test_contains_01() {
-    let (item, _) = BindingRestProperty::parse(&mut newparser("...a"), Scanner::new(), true, true).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::Literal), false);
-}
 mod binding_rest_property {
     use super::*;
     use test_case::test_case;
@@ -2239,7 +2227,6 @@ mod single_name_binding {
     }
 
     #[test_case("a", ParseNodeKind::Literal => false; "name doesn't have literal")]
-    #[test_case("a", ParseNodeKind::IdentifierName => true; "name has name")]
     #[test_case("a=0", ParseNodeKind::Literal => true; "name has literal initializer")]
     #[test_case("a=x", ParseNodeKind::Literal => false; "name doesn't have literal initializer")]
     fn contains(src: &str, kind: ParseNodeKind) -> bool {

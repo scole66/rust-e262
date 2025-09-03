@@ -1,4 +1,4 @@
-pub mod ranges;
+pub(crate) mod ranges;
 use super::*;
 use num::bigint::BigInt;
 use regex::Regex;
@@ -11,15 +11,15 @@ use std::str;
 use std::sync::LazyLock;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ScanGoal {
-    InputElementRegExpOrTemplateTail,
-    InputElementRegExp,
-    InputElementTemplateTail,
-    InputElementDiv,
+pub(crate) enum InputElementGoal {
+    RegExpOrTemplateTail,
+    RegExp,
+    TemplateTail,
+    Div,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone, Eq, Hash)]
-pub enum Keyword {
+pub(crate) enum Keyword {
     Await,
     Break,
     Case,
@@ -139,9 +139,9 @@ impl fmt::Display for Keyword {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct IdentifierData {
-    pub string_value: JSString,
-    pub keyword_id: Option<Keyword>,
+pub(crate) struct IdentifierData {
+    pub(crate) string_value: JSString,
+    pub(crate) keyword_id: Option<Keyword>,
 }
 
 impl fmt::Display for IdentifierData {
@@ -151,13 +151,13 @@ impl fmt::Display for IdentifierData {
 }
 
 impl IdentifierData {
-    pub fn matches(&self, kwd: Keyword) -> bool {
+    pub(crate) fn matches(&self, kwd: Keyword) -> bool {
         self.keyword_id == Some(kwd)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone, Hash)]
-pub enum Punctuator {
+pub(crate) enum Punctuator {
     LeftParen,    // (
     RightParen,   // )
     LeftBrace,    // {
@@ -218,15 +218,15 @@ pub enum Punctuator {
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum StringDelimiter {
+pub(crate) enum StringDelimiter {
     Single,
     Double,
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct StringToken {
-    pub value: JSString,
-    pub delimiter: StringDelimiter,
-    pub raw: Option<String>, // None if the string token had no escapes (in which case value == raw).
+pub(crate) struct StringToken {
+    pub(crate) value: JSString,
+    pub(crate) delimiter: StringDelimiter,
+    pub(crate) raw: Option<String>, // None if the string token had no escapes (in which case value == raw).
 }
 
 impl fmt::Display for StringToken {
@@ -244,14 +244,15 @@ impl fmt::Display for StringToken {
 }
 
 impl StringToken {
-    pub fn has_legacy_octal_escapes(&self) -> bool {
+    #[expect(clippy::unused_self)]
+    pub(crate) fn has_legacy_octal_escapes(&self) -> bool {
         // Need to implement legacy octal syntax before this makes any sense.
         false
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Token {
+pub(crate) enum Token {
     Eof,
     Punctuator(Punctuator),
     Identifier(IdentifierData),
@@ -358,22 +359,22 @@ impl fmt::Display for Token {
 }
 
 impl Token {
-    pub fn matches_keyword(&self, kwd: Keyword) -> bool {
+    pub(crate) fn matches_keyword(&self, kwd: Keyword) -> bool {
         matches!(self, Token::Identifier(id) if id.keyword_id == Some(kwd))
     }
-    pub fn matches_punct(&self, punct: Punctuator) -> bool {
+    pub(crate) fn matches_punct(&self, punct: Punctuator) -> bool {
         matches!(self, Token::Punctuator(p) if *p == punct)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct Scanner {
-    pub line: u32,
-    pub column: u32,
-    pub start_idx: usize,
+pub(crate) struct Scanner {
+    pub(crate) line: u32,
+    pub(crate) column: u32,
+    pub(crate) start_idx: usize,
 }
 impl Scanner {
-    pub fn new() -> Scanner {
+    pub(crate) fn new() -> Scanner {
         Scanner { line: 1, column: 1, start_idx: 0 }
     }
 }
@@ -448,7 +449,7 @@ fn is_escape_char(ch: char) -> bool {
 
 // Given a scanner context, return a new context (over the same source string) which begins at the first
 // character that should be matched as a token. The "line" and "column" values are updated as needed.
-pub fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scanner, String> {
+pub(crate) fn skip_skippables<'a>(scanner: &'a Scanner, source: &'a str) -> Result<Scanner, String> {
     let mut line = scanner.line;
     let mut column = scanner.column;
     let mut idx = scanner.start_idx;
@@ -747,11 +748,11 @@ fn unicode_range_checker(ch: char, range: &[ranges::CharRange]) -> bool {
     false
 }
 
-pub fn is_unicode_id_start(ch: char) -> bool {
+pub(crate) fn is_unicode_id_start(ch: char) -> bool {
     unicode_range_checker(ch, ranges::ID_START)
 }
 
-pub fn is_unicode_id_continue(ch: char) -> bool {
+pub(crate) fn is_unicode_id_continue(ch: char) -> bool {
     unicode_range_checker(ch, ranges::ID_CONTINUE)
 }
 
@@ -811,7 +812,7 @@ fn code_point_to_utf16_code_units(ch: char) -> Vec<u16> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct HexChar(char);
+pub(crate) struct HexChar(char);
 impl TryFrom<char> for HexChar {
     type Error = &'static str;
 
@@ -1055,7 +1056,7 @@ fn identifier_internal(
     )))
 }
 
-pub fn identifier_name(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
+pub(crate) fn identifier_name(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     match identifier_internal(scanner, source) {
         Err((errmsg, scan)) => Some((Token::Error(errmsg), scan)),
         Ok(Some((data, scan))) => Some((Token::Identifier(data), scan)),
@@ -1720,9 +1721,9 @@ fn string_literal(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct TemplateData {
-    pub tv: Option<JSString>,
-    pub trv: JSString,
+pub(crate) struct TemplateData {
+    pub(crate) tv: Option<JSString>,
+    pub(crate) trv: JSString,
 }
 
 impl fmt::Display for TemplateData {
@@ -1790,7 +1791,7 @@ fn template_hex_digits(
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub struct CharVal(u32);
+pub(crate) struct CharVal(u32);
 impl TryFrom<u32> for CharVal {
     type Error = &'static str;
 
@@ -2111,8 +2112,8 @@ fn common_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     })
 }
 
-fn div_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
-    if goal == ScanGoal::InputElementDiv || goal == ScanGoal::InputElementTemplateTail {
+fn div_punctuator(scanner: &Scanner, source: &str, goal: InputElementGoal) -> Option<(Token, Scanner)> {
+    if goal == InputElementGoal::Div || goal == InputElementGoal::TemplateTail {
         let mut iter = source[scanner.start_idx..].chars();
         match iter.next() {
             Some('/') => match iter.next() {
@@ -2132,8 +2133,8 @@ fn div_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(To
     }
 }
 
-fn right_brace_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
-    if goal == ScanGoal::InputElementDiv || goal == ScanGoal::InputElementRegExp {
+fn right_brace_punctuator(scanner: &Scanner, source: &str, goal: InputElementGoal) -> Option<(Token, Scanner)> {
+    if goal == InputElementGoal::Div || goal == InputElementGoal::RegExp {
         let ch = source[scanner.start_idx..].chars().next();
         if ch == Some('}') {
             Some((
@@ -2148,8 +2149,8 @@ fn right_brace_punctuator(scanner: &Scanner, source: &str, goal: ScanGoal) -> Op
     }
 }
 
-fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
-    if goal == ScanGoal::InputElementRegExp || goal == ScanGoal::InputElementRegExpOrTemplateTail {
+fn regular_expression_literal(scanner: &Scanner, source: &str, goal: InputElementGoal) -> Option<(Token, Scanner)> {
+    if goal == InputElementGoal::RegExp || goal == InputElementGoal::RegExpOrTemplateTail {
         static ESREGEX: LazyLock<Regex> = LazyLock::new(|| {
             let regular_expression_flags =
                 r"(?:(?:[\p{ID_Continue}$\u200C\u200D]|(?:\\u(?:[0-9a-fA-F]{4}|(?:\{[0-9a-fA-F]*\}))))*)";
@@ -2194,8 +2195,8 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: ScanGoal) -
     }
 }
 
-fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -> Option<(Token, Scanner)> {
-    if goal == ScanGoal::InputElementRegExpOrTemplateTail || goal == ScanGoal::InputElementTemplateTail {
+fn template_substitution_tail(scanner: &Scanner, source: &str, goal: InputElementGoal) -> Option<(Token, Scanner)> {
+    if goal == InputElementGoal::RegExpOrTemplateTail || goal == InputElementGoal::TemplateTail {
         template_token(scanner, source, TemplateStyle::MiddleOrTail)
     } else {
         None
@@ -2203,9 +2204,9 @@ fn template_substitution_tail(scanner: &Scanner, source: &str, goal: ScanGoal) -
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct RegularExpressionData {
-    pub body: String,
-    pub flags: String,
+pub(crate) struct RegularExpressionData {
+    pub(crate) body: String,
+    pub(crate) flags: String,
 }
 
 impl fmt::Display for RegularExpressionData {
@@ -2215,7 +2216,7 @@ impl fmt::Display for RegularExpressionData {
 }
 
 impl RegularExpressionData {
-    pub fn validate_regular_expression_literal(&self) -> Result<(), String> {
+    pub(crate) fn validate_regular_expression_literal(&self) -> Result<(), String> {
         // Static Semantics: IsValidRegularExpressionLiteral ( literal )
         //
         // The abstract operation IsValidRegularExpressionLiteral takes argument literal (a RegularExpressionLiteral
@@ -2269,7 +2270,7 @@ impl RegularExpressionData {
     }
 }
 
-pub fn scan_token(scanner: &Scanner, source: &str, goal: ScanGoal) -> (Token, Location, Scanner) {
+pub(crate) fn scan_token(scanner: &Scanner, source: &str, goal: InputElementGoal) -> (Token, Location, Scanner) {
     let skip_result = skip_skippables(scanner, source);
     match skip_result {
         Err(msg) => (Token::Error(msg), Location::from(scanner), *scanner),

@@ -8,31 +8,31 @@ use std::rc::Rc;
 //
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub struct JSString {
+pub(crate) struct JSString {
     s: Rc<[u16]>,
 }
 
 impl JSString {
-    pub fn as_slice(&self) -> &[u16] {
+    pub(crate) fn as_slice(&self) -> &[u16] {
         &self.s
     }
 
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.s.len()
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.s.is_empty()
     }
 
     #[must_use]
-    pub fn concat(&self, s: impl Into<JSString>) -> JSString {
+    pub(crate) fn concat(&self, s: impl Into<JSString>) -> JSString {
         let tail = s.into();
         let combined = [self.clone().s, tail.s].concat().into_boxed_slice();
         JSString { s: Rc::from(combined) }
     }
 
-    pub fn index_of(&self, search_value: &JSString, from_index: usize) -> i64 {
+    pub(crate) fn index_of(&self, search_value: &JSString, from_index: usize) -> i64 {
         let len = self.len();
         if search_value.is_empty() && from_index <= len {
             i64::try_from(from_index).unwrap()
@@ -50,11 +50,11 @@ impl JSString {
         }
     }
 
-    pub fn contains(&self, ch: u16) -> bool {
+    pub(crate) fn contains(&self, ch: u16) -> bool {
         self.s.contains(&ch)
     }
 
-    pub fn starts_with(&self, search_value: &JSString) -> bool {
+    pub(crate) fn starts_with(&self, search_value: &JSString) -> bool {
         let len = self.len();
         let search_len = search_value.len();
         if search_len > len { false } else { self.s[0..search_len] == search_value.s[..] }
@@ -168,7 +168,7 @@ impl std::cmp::PartialEq<&str> for JSString {
 //  1. Assert: lead is a leading surrogate and trail is a trailing surrogate.
 //  2. Let cp be (lead - 0xD800) × 0x400 + (trail - 0xDC00) + 0x10000.
 //  3. Return the code point cp.
-pub fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
+pub(crate) fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
     let cp: u32 = u32::from(lead - 0xD800) * 0x400 + u32::from(trail - 0xDC00) + 0x10000;
     cp
 }
@@ -193,13 +193,13 @@ pub fn utf16_surrogate_pair_to_code_point(lead: u16, trail: u16) -> u32 {
 //  9. Set cp to ! UTF16SurrogatePairToCodePoint(first, second).
 //  10. Return the Record { [[CodePoint]]: cp, [[CodeUnitCount]]: 2, [[IsUnpairedSurrogate]]: false }.
 #[derive(PartialEq, Eq)]
-pub struct CodePointAtResult {
-    pub code_point: u32,
-    pub code_unit_count: u8,
-    pub is_unpaired_surrogate: bool,
+pub(crate) struct CodePointAtResult {
+    pub(crate) code_point: u32,
+    pub(crate) code_unit_count: u8,
+    pub(crate) is_unpaired_surrogate: bool,
 }
 
-pub fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
+pub(crate) fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
     let size = string.len();
     let first = string[position];
     let cp: u32 = u32::from(first);
@@ -233,7 +233,7 @@ pub fn code_point_at(string: &JSString, position: usize) -> CodePointAtResult {
 //      c. Set position to position + cp.[[CodeUnitCount]].
 //  5. Return codePoints.
 impl JSString {
-    pub fn to_code_points(&self) -> Vec<u32> {
+    pub(crate) fn to_code_points(&self) -> Vec<u32> {
         // Note that this happily glosses over encoding errors. Storing in a Vec<u32> for now.
         let size = self.len();
         let mut code_points: Vec<u32> = Vec::with_capacity(size);
@@ -246,22 +246,22 @@ impl JSString {
         code_points
     }
 
-    pub fn is_string_well_formed_unicode(&self) -> bool {
-        let len = self.len();
-        let mut k = 0;
-        while k < len {
-            let cp = code_point_at(self, k);
-            if cp.is_unpaired_surrogate {
-                return false;
-            }
-            k += cp.code_unit_count as usize;
-        }
-        true
-    }
+    //pub(crate) fn is_string_well_formed_unicode(&self) -> bool {
+    //    let len = self.len();
+    //    let mut k = 0;
+    //    while k < len {
+    //        let cp = code_point_at(self, k);
+    //        if cp.is_unpaired_surrogate {
+    //            return false;
+    //        }
+    //        k += cp.code_unit_count as usize;
+    //    }
+    //    true
+    //}
 }
 
 #[allow(clippy::cast_possible_truncation)]
-pub fn utf16_encode_code_point(cp: u32, dst: &mut [u16; 2]) -> anyhow::Result<&mut [u16]> {
+pub(crate) fn utf16_encode_code_point(cp: u32, dst: &mut [u16; 2]) -> anyhow::Result<&mut [u16]> {
     // Static Semantics: UTF16EncodeCodePoint ( cp )
     // The abstract operation UTF16EncodeCodePoint takes argument cp (a Unicode code point) and returns a String. It performs the following steps when called:
     //
@@ -283,7 +283,7 @@ pub fn utf16_encode_code_point(cp: u32, dst: &mut [u16; 2]) -> anyhow::Result<&m
     }
 }
 
-pub fn is_str_whitespace(ch: u16) -> bool {
+pub(crate) fn is_str_whitespace(ch: u16) -> bool {
     (0x09..=0x0d).contains(&ch)
         || ch == 0x20
         || ch == 0x00a0
@@ -297,7 +297,7 @@ pub fn is_str_whitespace(ch: u16) -> bool {
         || ch == 0x3000
 }
 
-pub fn is_radix_digit(ch: u16, radix: i32) -> bool {
+pub(crate) fn is_radix_digit(ch: u16, radix: i32) -> bool {
     assert!((2..=36).contains(&radix));
     let radix = u16::try_from(radix).unwrap();
     if radix <= 10 {
@@ -310,7 +310,7 @@ pub fn is_radix_digit(ch: u16, radix: i32) -> bool {
 }
 
 impl JSString {
-    pub fn to_bigint(&self) -> Option<Rc<BigInt>> {
+    pub(crate) fn to_bigint(&self) -> Option<Rc<BigInt>> {
         // StringToBigInt ( str )
         // The abstract operation StringToBigInt takes argument str (a String) and returns a BigInt or undefined. It
         // performs the following steps when called:
@@ -356,7 +356,7 @@ impl JSString {
         BigInt::parse_bytes(&digits, radix).map(Rc::new)
     }
 
-    pub fn to_bigint_radix(&self, radix: u32) -> BigInt {
+    pub(crate) fn to_bigint_radix(&self, radix: u32) -> BigInt {
         let digits = self.as_slice().iter().map(|word| u8::try_from(*word).unwrap()).collect::<Vec<u8>>();
         BigInt::parse_bytes(digits.as_slice(), radix).unwrap()
     }
@@ -369,7 +369,7 @@ impl From<Rc<BigInt>> for JSString {
 }
 
 impl JSString {
-    pub fn string_index_of(&self, search_value: &JSString, from_index: usize) -> Option<usize> {
+    pub(crate) fn string_index_of(&self, search_value: &JSString, from_index: usize) -> Option<usize> {
         // StringIndexOf ( string, searchValue, fromIndex )
         // The abstract operation StringIndexOf takes arguments string (a String), searchValue (a String), and
         // fromIndex (a non-negative integer) and returns a non-negative integer or not-found. It performs the

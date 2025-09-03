@@ -9,7 +9,7 @@ use std::io::Write;
 //      ForStatement[?Yield, ?Await, ?Return]
 //      ForInOfStatement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub enum IterationStatement {
+pub(crate) enum IterationStatement {
     DoWhile(Rc<DoWhileStatement>),
     While(Rc<WhileStatement>),
     For(Rc<ForStatement>),
@@ -56,7 +56,7 @@ impl PrettyPrint for IterationStatement {
 }
 
 impl IterationStatement {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -84,7 +84,7 @@ impl IterationStatement {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             IterationStatement::DoWhile(node) => node.location(),
             IterationStatement::While(node) => node.location(),
@@ -93,7 +93,7 @@ impl IterationStatement {
         }
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             IterationStatement::DoWhile(node) => node.var_declared_names(),
             IterationStatement::While(node) => node.var_declared_names(),
@@ -102,7 +102,7 @@ impl IterationStatement {
         }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             IterationStatement::DoWhile(node) => node.contains_undefined_break_target(label_set),
             IterationStatement::While(node) => node.contains_undefined_break_target(label_set),
@@ -111,7 +111,7 @@ impl IterationStatement {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             IterationStatement::DoWhile(node) => node.contains(kind),
             IterationStatement::While(node) => node.contains(kind),
@@ -120,7 +120,7 @@ impl IterationStatement {
         }
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             IterationStatement::DoWhile(node) => node.contains_duplicate_labels(label_set),
             IterationStatement::While(node) => node.contains_duplicate_labels(label_set),
@@ -129,7 +129,7 @@ impl IterationStatement {
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             IterationStatement::DoWhile(node) => node.contains_undefined_continue_target(iteration_set),
             IterationStatement::While(node) => node.contains_undefined_continue_target(iteration_set),
@@ -138,7 +138,7 @@ impl IterationStatement {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -157,7 +157,7 @@ impl IterationStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -172,7 +172,7 @@ impl IterationStatement {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         match self {
             IterationStatement::DoWhile(node) => node.early_errors(errs, strict, within_switch),
             IterationStatement::While(node) => node.early_errors(errs, strict, within_switch),
@@ -184,7 +184,7 @@ impl IterationStatement {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             IterationStatement::DoWhile(node) => node.var_scoped_declarations(),
             IterationStatement::While(node) => node.var_scoped_declarations(),
@@ -193,7 +193,7 @@ impl IterationStatement {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -211,7 +211,7 @@ impl IterationStatement {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -235,9 +235,9 @@ impl IterationStatement {
 // DoWhileStatement[Yield, Await, Return] :
 //      do Statement[?Yield, ?Await, ?Return] while ( Expression[+In, ?Yield, ?Await] ) ;
 #[derive(Debug)]
-pub struct DoWhileStatement {
-    pub stmt: Rc<Statement>,
-    pub exp: Rc<Expression>,
+pub(crate) struct DoWhileStatement {
+    pub(crate) stmt: Rc<Statement>,
+    pub(crate) exp: Rc<Expression>,
     location: Location,
 }
 
@@ -274,54 +274,51 @@ impl PrettyPrint for DoWhileStatement {
 }
 
 impl DoWhileStatement {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (do_loc, after_do) = scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Do)?;
+        let (do_loc, after_do) = scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Do)?;
         let (stmt, after_stmt) = Statement::parse(parser, after_do, yield_flag, await_flag, return_flag)?;
-        let (_, after_while) =
-            scan_for_keyword(after_stmt, parser.source, ScanGoal::InputElementRegExp, Keyword::While)?;
-        let (_, after_open) =
-            scan_for_punct(after_while, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_while) = scan_for_keyword(after_stmt, parser.source, InputElementGoal::RegExp, Keyword::While)?;
+        let (_, after_open) = scan_for_punct(after_while, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-        let (_, after_close) =
-            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_close) = scan_for_punct(after_exp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
         let (semi_loc, after_semi) =
-            scan_for_punct(after_close, parser.source, ScanGoal::InputElementRegExp, Punctuator::Semicolon)
+            scan_for_punct(after_close, parser.source, InputElementGoal::RegExp, Punctuator::Semicolon)
                 .unwrap_or((Location::from(after_close), after_close));
         let location = do_loc.merge(&semi_loc);
         Ok((Rc::new(DoWhileStatement { stmt, exp, location }), after_semi))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.stmt.var_declared_names()
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         self.stmt.contains_undefined_break_target(label_set)
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.stmt.contains(kind) || self.exp.contains(kind)
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         self.stmt.contains_duplicate_labels(label_set)
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         self.stmt.contains_undefined_continue_target(iteration_set, &[])
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -335,7 +332,7 @@ impl DoWhileStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -345,7 +342,7 @@ impl DoWhileStatement {
         self.stmt.contains_arguments() || self.exp.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         self.stmt.early_errors(errs, strict, true, within_switch);
         self.exp.early_errors(errs, strict);
     }
@@ -353,11 +350,11 @@ impl DoWhileStatement {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.stmt.var_scoped_declarations()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             self.exp.body_containing_location(location).or_else(|| self.stmt.body_containing_location(location))
@@ -366,7 +363,7 @@ impl DoWhileStatement {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -385,9 +382,9 @@ impl DoWhileStatement {
 // WhileStatement[Yield, Await, Return] :
 //      while ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub struct WhileStatement {
-    pub exp: Rc<Expression>,
-    pub stmt: Rc<Statement>,
+pub(crate) struct WhileStatement {
+    pub(crate) exp: Rc<Expression>,
+    pub(crate) stmt: Rc<Statement>,
     location: Location,
 }
 
@@ -422,7 +419,7 @@ impl PrettyPrint for WhileStatement {
 }
 
 impl WhileStatement {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -430,42 +427,40 @@ impl WhileStatement {
         return_flag: bool,
     ) -> ParseResult<Self> {
         let (while_loc, after_while) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::While)?;
-        let (_, after_open) =
-            scan_for_punct(after_while, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::While)?;
+        let (_, after_open) = scan_for_punct(after_while, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-        let (_, after_close) =
-            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_close) = scan_for_punct(after_exp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
         let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
         let location = while_loc.merge(&stmt.location());
         Ok((Rc::new(WhileStatement { exp, stmt, location }), after_stmt))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.stmt.var_declared_names()
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         self.stmt.contains_undefined_break_target(label_set)
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.exp.contains(kind) || self.stmt.contains(kind)
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         self.stmt.contains_duplicate_labels(label_set)
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         self.stmt.contains_undefined_continue_target(iteration_set, &[])
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -479,7 +474,7 @@ impl WhileStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -489,7 +484,7 @@ impl WhileStatement {
         self.exp.contains_arguments() || self.stmt.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         self.exp.early_errors(errs, strict);
         self.stmt.early_errors(errs, strict, true, within_switch);
     }
@@ -497,11 +492,11 @@ impl WhileStatement {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.stmt.var_scoped_declarations()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             self.exp.body_containing_location(location).or_else(|| self.stmt.body_containing_location(location))
@@ -510,7 +505,7 @@ impl WhileStatement {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -531,7 +526,7 @@ impl WhileStatement {
 //      for ( var VariableDeclarationList[~In, ?Yield, ?Await] ; Expression[+In, ?Yield, ?Await]opt ; Expression[+In, ?Yield, ?Await]opt ) Statement[?Yield, ?Await, ?Return]
 //      for ( LexicalDeclaration[~In, ?Yield, ?Await] Expression[+In, ?Yield, ?Await]opt ; Expression[+In, ?Yield, ?Await]opt ) Statement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub enum ForStatement {
+pub(crate) enum ForStatement {
     For(Option<Rc<Expression>>, Option<Rc<Expression>>, Option<Rc<Expression>>, Rc<Statement>, Location),
     ForVar(Rc<VariableDeclarationList>, Option<Rc<Expression>>, Option<Rc<Expression>>, Rc<Statement>, Location),
     ForLex(Rc<LexicalDeclaration>, Option<Rc<Expression>>, Option<Rc<Expression>>, Rc<Statement>, Location),
@@ -661,38 +656,36 @@ impl PrettyPrint for ForStatement {
 }
 
 impl ForStatement {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (for_loc, after_for) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::For)?;
-        let (_, after_open) =
-            scan_for_punct(after_for, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (for_loc, after_for) = scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::For)?;
+        let (_, after_open) = scan_for_punct(after_for, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         Err(ParseError::new(PECode::ForStatementDefinitionError, after_open))
             .otherwise(|| {
                 // for ( var VariableDeclarationList ; Expression ; Expression ) Statement
                 let (_, after_var) =
-                    scan_for_keyword(after_open, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
+                    scan_for_keyword(after_open, parser.source, InputElementGoal::RegExp, Keyword::Var)?;
                 let (vdl, after_vdl) =
                     VariableDeclarationList::parse(parser, after_var, false, yield_flag, await_flag)?;
                 let (_, after_init) =
-                    scan_for_punct(after_vdl, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+                    scan_for_punct(after_vdl, parser.source, InputElementGoal::Div, Punctuator::Semicolon)?;
                 let (exp1, after_exp1) = match Expression::parse(parser, after_init, true, yield_flag, await_flag) {
                     Err(_) => (None, after_init),
                     Ok((node, scan)) => (Some(node), scan),
                 };
                 let (_, after_test) =
-                    scan_for_punct(after_exp1, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+                    scan_for_punct(after_exp1, parser.source, InputElementGoal::Div, Punctuator::Semicolon)?;
                 let (exp2, after_exp2) = match Expression::parse(parser, after_test, true, yield_flag, await_flag) {
                     Err(_) => (None, after_test),
                     Ok((node, scan)) => (Some(node), scan),
                 };
                 let (_, after_close) =
-                    scan_for_punct(after_exp2, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                    scan_for_punct(after_exp2, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                 let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                 let location = for_loc.merge(&stmt.location());
                 Ok((Rc::new(ForStatement::ForVar(vdl, exp1, exp2, stmt, location)), after_stmt))
@@ -705,22 +698,22 @@ impl ForStatement {
                     Err(_) => (None, after_lex),
                 };
                 let (_, after_test) =
-                    scan_for_punct(after_exp1, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+                    scan_for_punct(after_exp1, parser.source, InputElementGoal::Div, Punctuator::Semicolon)?;
                 let (exp2, after_exp2) = match Expression::parse(parser, after_test, true, yield_flag, await_flag) {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after_test),
                 };
                 let (_, after_close) =
-                    scan_for_punct(after_exp2, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                    scan_for_punct(after_exp2, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                 let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                 let location = for_loc.merge(&stmt.location());
                 Ok((Rc::new(ForStatement::ForLex(lex, exp1, exp2, stmt, location)), after_stmt))
             })
             .otherwise(|| {
                 // for ( Expression ; Expression ; Expression ) Statement
-                let (lookahead1, _, after_1) = scan_token(&after_open, parser.source, ScanGoal::InputElementRegExp);
+                let (lookahead1, _, after_1) = scan_token(&after_open, parser.source, InputElementGoal::RegExp);
                 if lookahead1.matches_keyword(Keyword::Let) {
-                    let (lookahead2, _, _) = scan_token(&after_1, parser.source, ScanGoal::InputElementRegExp);
+                    let (lookahead2, _, _) = scan_token(&after_1, parser.source, InputElementGoal::RegExp);
                     if lookahead2.matches_punct(Punctuator::LeftBracket) {
                         // We return an error here, and stop processing, but it will never be seen by our callers
                         // because the error from the Lexical Binding parse happens first, and takes precedence.
@@ -732,26 +725,26 @@ impl ForStatement {
                     Err(_) => (None, after_open),
                 };
                 let (_, after_semi1) =
-                    scan_for_punct(after_init, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+                    scan_for_punct(after_init, parser.source, InputElementGoal::Div, Punctuator::Semicolon)?;
                 let (test, after_test) = match Expression::parse(parser, after_semi1, true, yield_flag, await_flag) {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after_semi1),
                 };
                 let (_, after_semi2) =
-                    scan_for_punct(after_test, parser.source, ScanGoal::InputElementDiv, Punctuator::Semicolon)?;
+                    scan_for_punct(after_test, parser.source, InputElementGoal::Div, Punctuator::Semicolon)?;
                 let (inc, after_inc) = match Expression::parse(parser, after_semi2, true, yield_flag, await_flag) {
                     Ok((node, scan)) => (Some(node), scan),
                     Err(_) => (None, after_semi2),
                 };
                 let (_, after_close) =
-                    scan_for_punct(after_inc, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                    scan_for_punct(after_inc, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                 let (stmt, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                 let location = for_loc.merge(&stmt.location());
                 Ok((Rc::new(ForStatement::For(init, test, inc, stmt, location)), after_stmt))
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ForStatement::For(_, _, _, _, location)
             | ForStatement::ForVar(_, _, _, _, location)
@@ -759,7 +752,7 @@ impl ForStatement {
         }
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             ForStatement::ForVar(v, _, _, s, _) => {
                 let mut names = v.bound_names();
@@ -770,7 +763,7 @@ impl ForStatement {
         }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             ForStatement::For(_, _, _, s, _)
             | ForStatement::ForVar(_, _, _, s, _)
@@ -778,7 +771,7 @@ impl ForStatement {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ForStatement::For(opt1, opt2, opt3, s, _) => {
                 opt1.as_ref().is_some_and(|n| n.contains(kind))
@@ -801,7 +794,7 @@ impl ForStatement {
         }
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             ForStatement::For(_, _, _, s, _)
             | ForStatement::ForVar(_, _, _, s, _)
@@ -809,7 +802,7 @@ impl ForStatement {
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             ForStatement::For(_, _, _, s, _)
             | ForStatement::ForVar(_, _, _, s, _)
@@ -817,7 +810,7 @@ impl ForStatement {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -850,7 +843,7 @@ impl ForStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -880,7 +873,7 @@ impl ForStatement {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         if let ForStatement::ForLex(lex, _, _, stmt, _) = self {
             // ForStatement : for ( LexicalDeclaration Expression[opt] ; Expression[opt] ) Statement
@@ -927,7 +920,7 @@ impl ForStatement {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             ForStatement::For(_, _, _, s, _) | ForStatement::ForLex(_, _, _, s, _) => s.var_scoped_declarations(),
             ForStatement::ForVar(vd, _, _, s, _) => {
@@ -938,7 +931,7 @@ impl ForStatement {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -966,7 +959,7 @@ impl ForStatement {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -997,7 +990,7 @@ impl ForStatement {
 //      [+Await] for await ( var ForBinding[?Yield, ?Await] of AssignmentExpression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
 //      [+Await] for await ( ForDeclaration[?Yield, ?Await] of AssignmentExpression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub enum ForInOfStatement {
+pub(crate) enum ForInOfStatement {
     In(Rc<LeftHandSideExpression>, Rc<Expression>, Rc<Statement>, Location),
     DestructuringIn(Rc<AssignmentPattern>, Rc<Expression>, Rc<Statement>, Location),
     VarIn(Rc<ForBinding>, Rc<Expression>, Rc<Statement>, Location),
@@ -1164,49 +1157,41 @@ impl PrettyPrint for ForInOfStatement {
 }
 
 impl ForInOfStatement {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (for_loc, after_for) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::For)?;
+        let (for_loc, after_for) = scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::For)?;
         let (await_seen, after_await) = if await_flag {
-            match scan_for_keyword(after_for, parser.source, ScanGoal::InputElementDiv, Keyword::Await) {
+            match scan_for_keyword(after_for, parser.source, InputElementGoal::Div, Keyword::Await) {
                 Ok((_, scan)) => (true, scan),
                 Err(_) => (false, after_for),
             }
         } else {
             (false, after_for)
         };
-        let (_, after_open) =
-            scan_for_punct(after_await, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (_, after_open) = scan_for_punct(after_await, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         Err(ParseError::new(PECode::ForInOfDefinitionError, after_open))
             .otherwise(|| {
                 // for var
                 let (_, after_var) =
-                    scan_for_keyword(after_open, parser.source, ScanGoal::InputElementRegExp, Keyword::Var)?;
+                    scan_for_keyword(after_open, parser.source, InputElementGoal::RegExp, Keyword::Var)?;
                 let (for_binding, after_fb) = ForBinding::parse(parser, after_var, yield_flag, await_flag)?;
                 let (kwd, _, after_kwd) = if await_seen {
-                    let (loc, scan) =
-                        scan_for_keyword(after_fb, parser.source, ScanGoal::InputElementRegExp, Keyword::Of)?;
+                    let (loc, scan) = scan_for_keyword(after_fb, parser.source, InputElementGoal::RegExp, Keyword::Of)?;
                     (Keyword::Of, loc, scan)
                 } else {
-                    scan_for_keywords(
-                        after_fb,
-                        parser.source,
-                        ScanGoal::InputElementRegExp,
-                        &[Keyword::Of, Keyword::In],
-                    )?
+                    scan_for_keywords(after_fb, parser.source, InputElementGoal::RegExp, &[Keyword::Of, Keyword::In])?
                 };
                 match kwd {
                     Keyword::Of => {
                         let (ae, after_ae) =
                             AssignmentExpression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
                         let (_, after_close) =
-                            scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                            scan_for_punct(after_ae, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                         let (stmt, after_stmt) =
                             Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         let location = for_loc.merge(&stmt.location());
@@ -1218,12 +1203,8 @@ impl ForInOfStatement {
                     }
                     _ => {
                         let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
-                        let (_, after_close) = scan_for_punct(
-                            after_exp,
-                            parser.source,
-                            ScanGoal::InputElementDiv,
-                            Punctuator::RightParen,
-                        )?;
+                        let (_, after_close) =
+                            scan_for_punct(after_exp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                         let (stmt, after_stmt) =
                             Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         let location = for_loc.merge(&stmt.location());
@@ -1236,22 +1217,17 @@ impl ForInOfStatement {
                 let (decl, after_decl) = ForDeclaration::parse(parser, after_open, yield_flag, await_flag)?;
                 let (kwd, _, after_kwd) = if await_seen {
                     let (loc, scan) =
-                        scan_for_keyword(after_decl, parser.source, ScanGoal::InputElementRegExp, Keyword::Of)?;
+                        scan_for_keyword(after_decl, parser.source, InputElementGoal::RegExp, Keyword::Of)?;
                     (Keyword::Of, loc, scan)
                 } else {
-                    scan_for_keywords(
-                        after_decl,
-                        parser.source,
-                        ScanGoal::InputElementRegExp,
-                        &[Keyword::Of, Keyword::In],
-                    )?
+                    scan_for_keywords(after_decl, parser.source, InputElementGoal::RegExp, &[Keyword::Of, Keyword::In])?
                 };
                 match kwd {
                     Keyword::Of => {
                         let (ae, after_ae) =
                             AssignmentExpression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
                         let (_, after_close) =
-                            scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                            scan_for_punct(after_ae, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                         let (stmt, after_stmt) =
                             Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         let location = for_loc.merge(&stmt.location());
@@ -1263,12 +1239,8 @@ impl ForInOfStatement {
                     }
                     _ => {
                         let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
-                        let (_, after_close) = scan_for_punct(
-                            after_exp,
-                            parser.source,
-                            ScanGoal::InputElementDiv,
-                            Punctuator::RightParen,
-                        )?;
+                        let (_, after_close) =
+                            scan_for_punct(after_exp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                         let (stmt, after_stmt) =
                             Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         let location = for_loc.merge(&stmt.location());
@@ -1278,10 +1250,10 @@ impl ForInOfStatement {
             })
             .otherwise(|| {
                 // for ( LHS in/of ... )
-                let (lookahead1, _, after_lh1) = scan_token(&after_open, parser.source, ScanGoal::InputElementRegExp);
+                let (lookahead1, _, after_lh1) = scan_token(&after_open, parser.source, InputElementGoal::RegExp);
                 if lookahead1.matches_keyword(Keyword::Let)
                     && (await_seen || {
-                        let (lookahead2, _, _) = scan_token(&after_lh1, parser.source, ScanGoal::InputElementDiv);
+                        let (lookahead2, _, _) = scan_token(&after_lh1, parser.source, InputElementGoal::Div);
                         lookahead2.matches_punct(Punctuator::LeftBracket)
                     })
                 {
@@ -1291,22 +1263,17 @@ impl ForInOfStatement {
                 let (lhs, after_lhs) = LeftHandSideExpression::parse(parser, after_open, yield_flag, await_flag)?;
                 let (kwd, _, after_kwd) = if await_seen {
                     let (loc, scan) =
-                        scan_for_keyword(after_lhs, parser.source, ScanGoal::InputElementRegExp, Keyword::Of)?;
+                        scan_for_keyword(after_lhs, parser.source, InputElementGoal::RegExp, Keyword::Of)?;
                     (Keyword::Of, loc, scan)
                 } else {
-                    scan_for_keywords(
-                        after_lhs,
-                        parser.source,
-                        ScanGoal::InputElementRegExp,
-                        &[Keyword::Of, Keyword::In],
-                    )?
+                    scan_for_keywords(after_lhs, parser.source, InputElementGoal::RegExp, &[Keyword::Of, Keyword::In])?
                 };
                 match kwd {
                     Keyword::Of => {
                         let (ae, after_ae) =
                             AssignmentExpression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
                         let (_, after_close) =
-                            scan_for_punct(after_ae, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                            scan_for_punct(after_ae, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                         let (stmt, after_stmt) =
                             Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         let location = for_loc.merge(&stmt.location());
@@ -1330,12 +1297,8 @@ impl ForInOfStatement {
                     }
                     _ => {
                         let (exp, after_exp) = Expression::parse(parser, after_kwd, true, yield_flag, await_flag)?;
-                        let (_, after_close) = scan_for_punct(
-                            after_exp,
-                            parser.source,
-                            ScanGoal::InputElementDiv,
-                            Punctuator::RightParen,
-                        )?;
+                        let (_, after_close) =
+                            scan_for_punct(after_exp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
                         let (stmt, after_stmt) =
                             Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
                         let location = for_loc.merge(&stmt.location());
@@ -1352,7 +1315,7 @@ impl ForInOfStatement {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ForInOfStatement::In(_, _, _, location)
             | ForInOfStatement::DestructuringIn(_, _, _, location)
@@ -1369,7 +1332,7 @@ impl ForInOfStatement {
         }
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             ForInOfStatement::In(_, _, s, _)
             | ForInOfStatement::DestructuringIn(_, _, s, _)
@@ -1390,7 +1353,7 @@ impl ForInOfStatement {
         }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             ForInOfStatement::In(_, _, s, _)
             | ForInOfStatement::DestructuringIn(_, _, s, _)
@@ -1407,7 +1370,7 @@ impl ForInOfStatement {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ForInOfStatement::In(lhs, e, s, _) => lhs.contains(kind) || e.contains(kind) || s.contains(kind),
             ForInOfStatement::DestructuringIn(lhs, e, s, _) => {
@@ -1430,7 +1393,7 @@ impl ForInOfStatement {
         }
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             ForInOfStatement::In(_, _, s, _)
             | ForInOfStatement::DestructuringIn(_, _, s, _)
@@ -1447,7 +1410,7 @@ impl ForInOfStatement {
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             ForInOfStatement::In(_, _, s, _)
             | ForInOfStatement::DestructuringIn(_, _, s, _)
@@ -1464,7 +1427,7 @@ impl ForInOfStatement {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1519,7 +1482,7 @@ impl ForInOfStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1554,7 +1517,7 @@ impl ForInOfStatement {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_switch: bool) {
         // Static Semantics: Early Errors
         match self {
             ForInOfStatement::LexIn(fd, _, stmt, ..)
@@ -1641,7 +1604,7 @@ impl ForInOfStatement {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             ForInOfStatement::In(_, _, s, _)
             | ForInOfStatement::DestructuringIn(_, _, s, _)
@@ -1662,13 +1625,69 @@ impl ForInOfStatement {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                ForInOfStatement::In(left_hand_side_expression, expression, statement, _) => left_hand_side_expression
+                    .body_containing_location(location)
+                    .or_else(|| expression.body_containing_location(location))
+                    .or_else(|| statement.body_containing_location(location)),
+                ForInOfStatement::DestructuringIn(assignment_pattern, expression, statement, _) => assignment_pattern
+                    .body_containing_location(location)
+                    .or_else(|| expression.body_containing_location(location))
+                    .or_else(|| statement.body_containing_location(location)),
+                ForInOfStatement::VarIn(for_binding, expression, statement, _) => for_binding
+                    .body_containing_location(location)
+                    .or_else(|| expression.body_containing_location(location))
+                    .or_else(|| statement.body_containing_location(location)),
+                ForInOfStatement::LexIn(for_declaration, expression, statement, _) => for_declaration
+                    .body_containing_location(location)
+                    .or_else(|| expression.body_containing_location(location))
+                    .or_else(|| statement.body_containing_location(location)),
+                ForInOfStatement::Of(left_hand_side_expression, assignment_expression, statement, _) => {
+                    left_hand_side_expression
+                        .body_containing_location(location)
+                        .or_else(|| assignment_expression.body_containing_location(location))
+                        .or_else(|| statement.body_containing_location(location))
+                }
+                ForInOfStatement::DestructuringOf(assignment_pattern, assignment_expression, statement, _) => {
+                    assignment_pattern
+                        .body_containing_location(location)
+                        .or_else(|| assignment_expression.body_containing_location(location))
+                        .or_else(|| statement.body_containing_location(location))
+                }
+                ForInOfStatement::VarOf(for_binding, assignment_expression, statement, _) => for_binding
+                    .body_containing_location(location)
+                    .or_else(|| assignment_expression.body_containing_location(location))
+                    .or_else(|| statement.body_containing_location(location)),
+                ForInOfStatement::LexOf(for_declaration, assignment_expression, statement, _) => for_declaration
+                    .body_containing_location(location)
+                    .or_else(|| assignment_expression.body_containing_location(location))
+                    .or_else(|| statement.body_containing_location(location)),
+                #[expect(unused_variables)]
+                ForInOfStatement::AwaitOf(left_hand_side_expression, assignment_expression, statement, _) => {
+                    todo!()
+                }
+                #[expect(unused_variables)]
+                ForInOfStatement::DestructuringAwaitOf(assignment_pattern, assignment_expression, statement, _) => {
+                    todo!()
+                }
+                #[expect(unused_variables)]
+                ForInOfStatement::AwaitVarOf(for_binding, assignment_expression, statement, _) => {
+                    todo!()
+                }
+                #[expect(unused_variables)]
+                ForInOfStatement::AwaitLexOf(for_declaration, assignment_expression, statement, _) => {
+                    todo!()
+                }
+            }
+        } else {
+            None
+        }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -1745,9 +1764,9 @@ where
 // ForDeclaration[Yield, Await] :
 //      LetOrConst ForBinding[?Yield, ?Await]
 #[derive(Debug)]
-pub struct ForDeclaration {
-    pub loc: LetOrConst,
-    pub binding: Rc<ForBinding>,
+pub(crate) struct ForDeclaration {
+    pub(crate) loc: LetOrConst,
+    pub(crate) binding: Rc<ForBinding>,
     location: Location,
 }
 
@@ -1780,9 +1799,14 @@ impl PrettyPrint for ForDeclaration {
 }
 
 impl ForDeclaration {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (tok, tok_loc, after_tok) =
-            scan_for_keywords(scanner, parser.source, ScanGoal::InputElementRegExp, &[Keyword::Let, Keyword::Const])?;
+            scan_for_keywords(scanner, parser.source, InputElementGoal::RegExp, &[Keyword::Let, Keyword::Const])?;
         let loc = match tok {
             Keyword::Let => LetOrConst::Let,
             _ => LetOrConst::Const,
@@ -1792,15 +1816,15 @@ impl ForDeclaration {
         Ok((Rc::new(ForDeclaration { loc, binding, location }), after_binding))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.loc.contains(kind) || self.binding.contains(kind)
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
+        self.binding.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1814,7 +1838,7 @@ impl ForDeclaration {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1824,15 +1848,15 @@ impl ForDeclaration {
         self.binding.contains_arguments()
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         self.binding.bound_names()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.binding.early_errors(errs, strict);
     }
 
-    pub fn is_destructuring(&self) -> bool {
+    pub(crate) fn is_destructuring(&self) -> bool {
         // Static Semantics: IsDestructuring
         // The syntax-directed operation IsDestructuring takes no arguments and returns a Boolean. It is
         // defined piecewise over the following productions:
@@ -1842,10 +1866,9 @@ impl ForDeclaration {
         self.binding.is_destructuring()
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) { self.binding.body_containing_location(location) } else { None }
     }
 }
 
@@ -1853,7 +1876,7 @@ impl ForDeclaration {
 //      BindingIdentifier[?Yield, ?Await]
 //      BindingPattern[?Yield, ?Await]
 #[derive(Debug)]
-pub enum ForBinding {
+pub(crate) enum ForBinding {
     Identifier(Rc<BindingIdentifier>),
     Pattern(Rc<BindingPattern>),
 }
@@ -1904,7 +1927,12 @@ impl ForBinding {
             })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.for_binding_cache.get(&key) {
             Some(result) => result.clone(),
@@ -1916,28 +1944,28 @@ impl ForBinding {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ForBinding::Identifier(node) => node.location(),
             ForBinding::Pattern(node) => node.location(),
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             ForBinding::Identifier(node) => node.bound_names(),
             ForBinding::Pattern(node) => node.bound_names(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            ForBinding::Identifier(node) => node.contains(kind),
+            ForBinding::Identifier(_) => false,
             ForBinding::Pattern(node) => node.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1954,7 +1982,7 @@ impl ForBinding {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1967,14 +1995,14 @@ impl ForBinding {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ForBinding::Identifier(id) => id.early_errors(errs, strict),
             ForBinding::Pattern(pat) => pat.early_errors(errs, strict),
         }
     }
 
-    pub fn is_destructuring(&self) -> bool {
+    pub(crate) fn is_destructuring(&self) -> bool {
         // Static Semantics: IsDestructuring
         // The syntax-directed operation IsDestructuring takes no arguments and returns a Boolean. It is
         // defined piecewise over the following productions:
@@ -1992,10 +2020,16 @@ impl ForBinding {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                ForBinding::Identifier(_) => None,
+                ForBinding::Pattern(binding_pattern) => binding_pattern.body_containing_location(location),
+            }
+        } else {
+            None
+        }
     }
 }
 

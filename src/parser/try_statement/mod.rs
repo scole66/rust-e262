@@ -8,7 +8,7 @@ use std::io::Write;
 //      try Block[?Yield, ?Await, ?Return] Finally[?Yield, ?Await, ?Return]
 //      try Block[?Yield, ?Await, ?Return] Catch[?Yield, ?Await, ?Return] Finally[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub enum TryStatement {
+pub(crate) enum TryStatement {
     Catch { block: Rc<Block>, catch: Rc<Catch>, location: Location },
     Finally { block: Rc<Block>, finally: Rc<Finally>, location: Location },
     Full { block: Rc<Block>, catch: Rc<Catch>, finally: Rc<Finally>, location: Location },
@@ -78,7 +78,7 @@ impl PrettyPrint for TryStatement {
 }
 
 impl TryStatement {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -91,8 +91,7 @@ impl TryStatement {
             Full(Rc<Catch>, Rc<Finally>),
         }
 
-        let (try_loc, after_try) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Try)?;
+        let (try_loc, after_try) = scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Try)?;
         let (block, after_block) = Block::parse(parser, after_try, yield_flag, await_flag, return_flag)?;
         Err(ParseError::new(PECode::TryBlockError, after_block))
             .otherwise(|| {
@@ -127,7 +126,7 @@ impl TryStatement {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             TryStatement::Catch { location, .. }
             | TryStatement::Finally { location, .. }
@@ -135,7 +134,7 @@ impl TryStatement {
         }
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             TryStatement::Catch { block, catch, .. } => {
                 let mut names = block.var_declared_names();
@@ -156,7 +155,7 @@ impl TryStatement {
         }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             TryStatement::Catch { block, catch, .. } => {
                 block.contains_undefined_break_target(label_set) || catch.contains_undefined_break_target(label_set)
@@ -172,7 +171,7 @@ impl TryStatement {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             TryStatement::Catch { block, catch, .. } => block.contains(kind) || catch.contains(kind),
             TryStatement::Finally { block, finally, .. } => block.contains(kind) || finally.contains(kind),
@@ -182,7 +181,7 @@ impl TryStatement {
         }
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             TryStatement::Catch { block, catch, .. } => {
                 block.contains_duplicate_labels(label_set) || catch.contains_duplicate_labels(label_set)
@@ -198,7 +197,7 @@ impl TryStatement {
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             TryStatement::Catch { block, catch, .. } => {
                 block.contains_undefined_continue_target(iteration_set, &[])
@@ -216,7 +215,7 @@ impl TryStatement {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -242,7 +241,7 @@ impl TryStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -258,7 +257,13 @@ impl TryStatement {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub(crate) fn early_errors(
+        &self,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         let (block, catch, finally) = match self {
             TryStatement::Catch { block, catch, .. } => (block, Some(catch), None),
             TryStatement::Finally { block, finally, .. } => (block, None, Some(finally)),
@@ -276,7 +281,7 @@ impl TryStatement {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         let (block, catch, finally) = match self {
             TryStatement::Catch { block, catch, .. } => (block, Some(catch), None),
             TryStatement::Finally { block, finally, .. } => (block, None, Some(finally)),
@@ -292,7 +297,7 @@ impl TryStatement {
         list
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -312,7 +317,7 @@ impl TryStatement {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -337,9 +342,9 @@ impl TryStatement {
 //      catch ( CatchParameter[?Yield, ?Await] ) Block[?Yield, ?Await, ?Return]
 //      catch Block[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub struct Catch {
-    pub parameter: Option<Rc<CatchParameter>>,
-    pub block: Rc<Block>,
+pub(crate) struct Catch {
+    pub(crate) parameter: Option<Rc<CatchParameter>>,
+    pub(crate) block: Rc<Block>,
     location: Location,
 }
 
@@ -382,15 +387,14 @@ impl PrettyPrint for Catch {
 }
 
 impl Catch {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (catch_loc, after_catch) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Catch)?;
+        let (catch_loc, after_catch) = scan_for_keyword(scanner, parser.source, InputElementGoal::Div, Keyword::Catch)?;
         Err(ParseError::new(
             PECode::OneOfPunctuatorExpected(vec![Punctuator::LeftParen, Punctuator::LeftBrace]),
             after_catch,
@@ -402,41 +406,41 @@ impl Catch {
         })
         .otherwise(|| {
             let (_, after_open) =
-                scan_for_punct(after_catch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+                scan_for_punct(after_catch, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
             let (cp, after_cp) = CatchParameter::parse(parser, after_open, yield_flag, await_flag)?;
             let (_, after_close) =
-                scan_for_punct(after_cp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+                scan_for_punct(after_cp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
             let (block, after_block) = Block::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
             let location = catch_loc.merge(&block.location());
             Ok((Rc::new(Catch { parameter: Some(cp), block, location }), after_block))
         })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.block.var_declared_names()
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         self.block.contains_undefined_break_target(label_set)
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.parameter.as_ref().is_some_and(|n| n.contains(kind)) || self.block.contains(kind)
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         self.block.contains_duplicate_labels(label_set)
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         self.block.contains_undefined_continue_target(iteration_set, &[])
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -451,7 +455,7 @@ impl Catch {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -461,7 +465,13 @@ impl Catch {
         self.parameter.as_ref().is_some_and(|cp| cp.contains_arguments()) || self.block.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub(crate) fn early_errors(
+        &self,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         // Static Semantics: Early Errors
         //  Catch : catch ( CatchParameter ) Block
         //  * It is a Syntax Error if BoundNames of CatchParameter contains any duplicate elements.
@@ -491,16 +501,16 @@ impl Catch {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.block.var_scoped_declarations()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) { self.block.body_containing_location(location) } else { None }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -519,8 +529,8 @@ impl Catch {
 // Finally[Yield, Await, Return] :
 //      finally Block[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub struct Finally {
-    pub block: Rc<Block>,
+pub(crate) struct Finally {
+    pub(crate) block: Rc<Block>,
     location: Location,
 }
 
@@ -552,45 +562,44 @@ impl PrettyPrint for Finally {
 }
 
 impl Finally {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (fin_loc, after_fin) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Finally)?;
+        let (fin_loc, after_fin) = scan_for_keyword(scanner, parser.source, InputElementGoal::Div, Keyword::Finally)?;
         let (block, after_block) = Block::parse(parser, after_fin, yield_flag, await_flag, return_flag)?;
         let location = fin_loc.merge(&block.location());
         Ok((Rc::new(Finally { block, location }), after_block))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.block.var_declared_names()
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         self.block.contains_undefined_break_target(label_set)
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.block.contains(kind)
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         self.block.contains_duplicate_labels(label_set)
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         self.block.contains_undefined_continue_target(iteration_set, &[])
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -604,7 +613,7 @@ impl Finally {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -614,23 +623,29 @@ impl Finally {
         self.block.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub(crate) fn early_errors(
+        &self,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         self.block.early_errors(errs, strict, within_iteration, within_switch);
     }
 
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.block.var_scoped_declarations()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) { self.block.body_containing_location(location) } else { None }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -650,7 +665,7 @@ impl Finally {
 //      BindingIdentifier[?Yield, ?Await]
 //      BindingPattern[?Yield, ?Await]
 #[derive(Debug)]
-pub enum CatchParameter {
+pub(crate) enum CatchParameter {
     Ident(Rc<BindingIdentifier>),
     Pattern(Rc<BindingPattern>),
 }
@@ -701,7 +716,12 @@ impl CatchParameter {
             })
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.catch_parameter_cache.get(&key) {
             Some(result) => result.clone(),
@@ -713,14 +733,14 @@ impl CatchParameter {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            CatchParameter::Ident(node) => node.contains(kind),
+            CatchParameter::Ident(_) => false,
             CatchParameter::Pattern(node) => node.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -737,7 +757,7 @@ impl CatchParameter {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -750,24 +770,39 @@ impl CatchParameter {
         }
     }
 
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             CatchParameter::Ident(id) => id.bound_names(),
             CatchParameter::Pattern(pat) => pat.bound_names(),
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             CatchParameter::Ident(id) => id.early_errors(errs, strict),
             CatchParameter::Pattern(pat) => pat.early_errors(errs, strict),
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    #[cfg(test)]
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            CatchParameter::Ident(node) => node.location(),
+            CatchParameter::Pattern(node) => node.location(),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.location().contains(location) {
+            match self {
+                CatchParameter::Ident(..) => None,
+                CatchParameter::Pattern(bp) => bp.body_containing_location(location),
+            }
+        } else {
+            None
+        }
     }
 }
 

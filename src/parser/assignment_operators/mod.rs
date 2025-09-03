@@ -14,7 +14,7 @@ use std::io::Write;
 //      LeftHandSideExpression[?Yield, ?Await] ||= AssignmentExpression[?In, ?Yield, ?Await]
 //      LeftHandSideExpression[?Yield, ?Await] ??= AssignmentExpression[?In, ?Yield, ?Await]
 #[derive(Debug)]
-pub enum AssignmentExpression {
+pub(crate) enum AssignmentExpression {
     FallThru(Rc<ConditionalExpression>),
     Yield(Rc<YieldExpression>),
     Arrow(Rc<ArrowFunction>),
@@ -136,22 +136,6 @@ impl PrettyPrint for AssignmentExpression {
     }
 }
 
-impl IsFunctionDefinition for AssignmentExpression {
-    fn is_function_definition(&self) -> bool {
-        match self {
-            AssignmentExpression::Yield(_)
-            | AssignmentExpression::Assignment(..)
-            | AssignmentExpression::OpAssignment(..)
-            | AssignmentExpression::LandAssignment(..)
-            | AssignmentExpression::LorAssignment(..)
-            | AssignmentExpression::CoalAssignment(..)
-            | AssignmentExpression::Destructuring(..) => false,
-            AssignmentExpression::Arrow(_) | AssignmentExpression::AsyncArrow(_) => true,
-            AssignmentExpression::FallThru(node) => node.is_function_definition(),
-        }
-    }
-}
-
 impl AssignmentExpression {
     fn parse_core(
         parser: &mut Parser,
@@ -183,7 +167,7 @@ impl AssignmentExpression {
                     scan_for_punct_set(
                         after_lhs,
                         parser.source,
-                        ScanGoal::InputElementDiv,
+                        InputElementGoal::Div,
                         &[
                             Punctuator::Eq,
                             Punctuator::AmpAmpEq,
@@ -270,7 +254,7 @@ impl AssignmentExpression {
         Ok((result.0, result.1))
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -288,7 +272,7 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             AssignmentExpression::FallThru(exp) => exp.location(),
             AssignmentExpression::Yield(exp) => exp.location(),
@@ -303,7 +287,7 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             AssignmentExpression::FallThru(node) => kind == ParseNodeKind::ConditionalExpression || node.contains(kind),
             AssignmentExpression::Yield(node) => kind == ParseNodeKind::YieldExpression || node.contains(kind),
@@ -317,7 +301,7 @@ impl AssignmentExpression {
                     || left.contains(kind)
                     || right.contains(kind)
             }
-            AssignmentExpression::OpAssignment(left, op, right) => {
+            AssignmentExpression::OpAssignment(left, _, right) => {
                 [
                     ParseNodeKind::LeftHandSideExpression,
                     ParseNodeKind::AssignmentOperator,
@@ -325,7 +309,6 @@ impl AssignmentExpression {
                 ]
                 .contains(&kind)
                     || left.contains(kind)
-                    || op.contains(kind)
                     || right.contains(kind)
             }
             AssignmentExpression::Destructuring(pat, exp) => {
@@ -336,14 +319,14 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             AssignmentExpression::FallThru(node) => node.as_string_literal(),
             _ => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -372,7 +355,7 @@ impl AssignmentExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -393,7 +376,7 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentExpression :
         // LeftHandSideExpression AssignmentOperator AssignmentExpression
@@ -435,7 +418,7 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             AssignmentExpression::FallThru(node) => node.is_strictly_deletable(),
             _ => true,
@@ -445,7 +428,7 @@ impl AssignmentExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             AssignmentExpression::Yield(_)
             | AssignmentExpression::Arrow(_)
@@ -463,18 +446,14 @@ impl AssignmentExpression {
     /// Determine if this parse node is an anonymous function
     ///
     /// See [IsAnonymousFunctionDefinition](https://tc39.es/ecma262/#sec-isanonymousfunctiondefinition) in ECMA-262.
-    pub fn is_anonymous_function_definition(&self) -> bool {
-        self.is_function_definition() && !self.is_named_function()
-    }
-
-    pub fn anonymous_function_definition(&self) -> Option<NameableProduction> {
+    pub(crate) fn anonymous_function_definition(&self) -> Option<NameableProduction> {
         match self.function_definition() {
             Some(fd) if !fd.is_named_function() => Some(fd),
             Some(_) | None => None,
         }
     }
 
-    pub fn function_definition(&self) -> Option<NameableProduction> {
+    pub(crate) fn function_definition(&self) -> Option<NameableProduction> {
         match self {
             AssignmentExpression::FallThru(node) => NameableProduction::try_from(node.clone()).ok(),
             AssignmentExpression::Arrow(node) => Some(NameableProduction::Arrow(node.clone())),
@@ -489,22 +468,7 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            AssignmentExpression::Yield(_)
-            | AssignmentExpression::Assignment(..)
-            | AssignmentExpression::OpAssignment(..)
-            | AssignmentExpression::LandAssignment(..)
-            | AssignmentExpression::LorAssignment(..)
-            | AssignmentExpression::CoalAssignment(..)
-            | AssignmentExpression::Destructuring(..)
-            | AssignmentExpression::Arrow(..)
-            | AssignmentExpression::AsyncArrow(..) => false,
-            AssignmentExpression::FallThru(node) => node.is_named_function(),
-        }
-    }
-
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -540,7 +504,7 @@ impl AssignmentExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -583,7 +547,7 @@ impl AssignmentExpression {
 // AssignmentOperator : one of
 //      *= /= %= += -= <<= >>= >>>= &= ^= |= **=
 #[derive(Debug, Copy, Clone)]
-pub enum AssignmentOperator {
+pub(crate) enum AssignmentOperator {
     Multiply,
     Divide,
     Modulo,
@@ -633,17 +597,11 @@ impl PrettyPrint for AssignmentOperator {
     }
 }
 
-impl AssignmentOperator {
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
-}
-
 // AssignmentPattern[Yield, Await] :
 //      ObjectAssignmentPattern[?Yield, ?Await]
 //      ArrayAssignmentPattern[?Yield, ?Await]
 #[derive(Debug)]
-pub enum AssignmentPattern {
+pub(crate) enum AssignmentPattern {
     Object(Rc<ObjectAssignmentPattern>),
     Array(Rc<ArrayAssignmentPattern>),
 }
@@ -681,7 +639,12 @@ impl PrettyPrint for AssignmentPattern {
 }
 
 impl AssignmentPattern {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::AssignmentPattern), scanner))
             .otherwise(|| {
                 ObjectAssignmentPattern::parse(parser, scanner, yield_flag, await_flag)
@@ -693,21 +656,21 @@ impl AssignmentPattern {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             AssignmentPattern::Object(pattern) => pattern.location(),
             AssignmentPattern::Array(pattern) => pattern.location(),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             AssignmentPattern::Object(obj) => obj.contains(kind),
             AssignmentPattern::Array(ary) => ary.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -724,7 +687,7 @@ impl AssignmentPattern {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -737,19 +700,15 @@ impl AssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             AssignmentPattern::Object(obj) => obj.early_errors(errs, strict),
             AssignmentPattern::Array(ary) => ary.early_errors(errs, strict),
         }
     }
 
-    pub fn is_destructuring(&self) -> bool {
-        true
-    }
-
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }
@@ -768,7 +727,7 @@ impl AssignmentPattern {
 ///
 /// [1]: https://tc39.es/ecma262/#prod-ObjectAssignmentPattern
 #[derive(Debug)]
-pub enum ObjectAssignmentPattern {
+pub(crate) enum ObjectAssignmentPattern {
     Empty { location: Location },
     RestOnly { arp: Rc<AssignmentRestProperty>, location: Location },
     ListOnly { apl: Rc<AssignmentPropertyList>, location: Location },
@@ -834,16 +793,21 @@ impl PrettyPrint for ObjectAssignmentPattern {
 }
 
 impl ObjectAssignmentPattern {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (open_loc, after_brace) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBrace)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::LeftBrace)?;
         Err(ParseError::new(PECode::ObjectAssignmentPatternEndFailure, after_brace))
             .otherwise(|| {
                 let (apl, after_apl) = AssignmentPropertyList::parse(parser, after_brace, yield_flag, await_flag)?;
                 let (punct, punct_loc, after_punct) = scan_for_punct_set(
                     after_apl,
                     parser.source,
-                    ScanGoal::InputElementDiv,
+                    InputElementGoal::Div,
                     &[Punctuator::Comma, Punctuator::RightBrace],
                 )?;
                 match punct {
@@ -857,12 +821,8 @@ impl ObjectAssignmentPattern {
                                 Ok((node, scan)) => (Some(node), scan),
                                 Err(_) => (None, after_punct),
                             };
-                        let (rb_loc, after_close) = scan_for_punct(
-                            after_arp,
-                            parser.source,
-                            ScanGoal::InputElementDiv,
-                            Punctuator::RightBrace,
-                        )?;
+                        let (rb_loc, after_close) =
+                            scan_for_punct(after_arp, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
                         Ok((
                             Rc::new(ObjectAssignmentPattern::ListRest { apl, arp, location: open_loc.merge(&rb_loc) }),
                             after_close,
@@ -873,17 +833,17 @@ impl ObjectAssignmentPattern {
             .otherwise(|| {
                 let (arp, after_arp) = AssignmentRestProperty::parse(parser, after_brace, yield_flag, await_flag)?;
                 let (rb_loc, after_close) =
-                    scan_for_punct(after_arp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                    scan_for_punct(after_arp, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
                 Ok((Rc::new(ObjectAssignmentPattern::RestOnly { arp, location: open_loc.merge(&rb_loc) }), after_close))
             })
             .otherwise(|| {
                 let (rb_loc, after_close) =
-                    scan_for_punct(after_brace, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                    scan_for_punct(after_brace, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
                 Ok((Rc::new(ObjectAssignmentPattern::Empty { location: open_loc.merge(&rb_loc) }), after_close))
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ObjectAssignmentPattern::Empty { location }
             | ObjectAssignmentPattern::RestOnly { location, .. }
@@ -892,7 +852,7 @@ impl ObjectAssignmentPattern {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ObjectAssignmentPattern::Empty { .. } => false,
             ObjectAssignmentPattern::RestOnly { arp, .. } => arp.contains(kind),
@@ -902,7 +862,7 @@ impl ObjectAssignmentPattern {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -924,7 +884,7 @@ impl ObjectAssignmentPattern {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -942,7 +902,7 @@ impl ObjectAssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ObjectAssignmentPattern::Empty { .. } => (),
             ObjectAssignmentPattern::RestOnly { arp, .. } => arp.early_errors(errs, strict),
@@ -955,11 +915,11 @@ impl ObjectAssignmentPattern {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // ArrayAssignmentPattern[Yield, Await] :
@@ -967,7 +927,7 @@ impl ObjectAssignmentPattern {
 //      [ AssignmentElementList[?Yield, ?Await] ]
 //      [ AssignmentElementList[?Yield, ?Await] , Elision_opt AssignmentRestElement[?Yield, ?Await]opt ]
 #[derive(Debug)]
-pub enum ArrayAssignmentPattern {
+pub(crate) enum ArrayAssignmentPattern {
     RestOnly {
         elision: Option<Rc<Elisions>>,
         are: Option<Rc<AssignmentRestElement>>,
@@ -1079,16 +1039,21 @@ impl PrettyPrint for ArrayAssignmentPattern {
 }
 
 impl ArrayAssignmentPattern {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (open_loc, after_open) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::LeftBracket)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::LeftBracket)?;
         Err(ParseError::new(PECode::ArrayAssignmentPatternEndFailure, after_open))
             .otherwise(|| {
                 let (ael, after_el) = AssignmentElementList::parse(parser, after_open, yield_flag, await_flag)?;
                 let (punct, punct_loc, after_punct) = scan_for_punct_set(
                     after_el,
                     parser.source,
-                    ScanGoal::InputElementDiv,
+                    InputElementGoal::Div,
                     &[Punctuator::Comma, Punctuator::RightBracket],
                 )?;
                 match punct {
@@ -1109,12 +1074,8 @@ impl ArrayAssignmentPattern {
                                 Ok((node, scan)) => (Some(node), scan),
                                 Err(_) => (None, after_elisions),
                             };
-                        let (close_loc, after_close) = scan_for_punct(
-                            after_are,
-                            parser.source,
-                            ScanGoal::InputElementDiv,
-                            Punctuator::RightBracket,
-                        )?;
+                        let (close_loc, after_close) =
+                            scan_for_punct(after_are, parser.source, InputElementGoal::Div, Punctuator::RightBracket)?;
                         let location = open_loc.merge(&close_loc);
                         Ok((Rc::new(ArrayAssignmentPattern::ListRest { ael, elision, are, location }), after_close))
                     }
@@ -1131,13 +1092,13 @@ impl ArrayAssignmentPattern {
                         Err(_) => (None, after_elisions),
                     };
                 let (close_loc, after_close) =
-                    scan_for_punct(after_are, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBracket)?;
+                    scan_for_punct(after_are, parser.source, InputElementGoal::Div, Punctuator::RightBracket)?;
                 let location = open_loc.merge(&close_loc);
                 Ok((Rc::new(ArrayAssignmentPattern::RestOnly { elision, are, location }), after_close))
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ArrayAssignmentPattern::RestOnly { location, .. }
             | ArrayAssignmentPattern::ListOnly { location, .. }
@@ -1145,7 +1106,7 @@ impl ArrayAssignmentPattern {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ArrayAssignmentPattern::RestOnly { are: None, .. } => false,
             ArrayAssignmentPattern::RestOnly { are: Some(are), .. } => are.contains(kind),
@@ -1156,7 +1117,7 @@ impl ArrayAssignmentPattern {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1179,7 +1140,7 @@ impl ArrayAssignmentPattern {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1198,7 +1159,7 @@ impl ArrayAssignmentPattern {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ArrayAssignmentPattern::RestOnly { are: None, .. } => (),
             ArrayAssignmentPattern::RestOnly { are: Some(are), .. } => are.early_errors(errs, strict),
@@ -1212,17 +1173,17 @@ impl ArrayAssignmentPattern {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // AssignmentRestProperty[Yield, Await] :
 //      ... DestructuringAssignmentTarget[?Yield, ?Await]
 #[derive(Debug)]
-pub struct AssignmentRestProperty(pub Rc<DestructuringAssignmentTarget>);
+pub(crate) struct AssignmentRestProperty(pub(crate) Rc<DestructuringAssignmentTarget>);
 
 impl fmt::Display for AssignmentRestProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1251,17 +1212,22 @@ impl PrettyPrint for AssignmentRestProperty {
 }
 
 impl AssignmentRestProperty {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (_, after_dots) = scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Ellipsis)?;
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
+        let (_, after_dots) = scan_for_punct(scanner, parser.source, InputElementGoal::Div, Punctuator::Ellipsis)?;
         let (dat, after_dat) = DestructuringAssignmentTarget::parse(parser, after_dots, yield_flag, await_flag)?;
         Ok((Rc::new(AssignmentRestProperty(dat)), after_dat))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1275,7 +1241,7 @@ impl AssignmentRestProperty {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1285,7 +1251,7 @@ impl AssignmentRestProperty {
         self.0.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentRestProperty : ... DestructuringAssignmentTarget
         //  * It is a Syntax Error if DestructuringAssignmentTarget is an ArrayLiteral or an ObjectLiteral.
@@ -1299,18 +1265,18 @@ impl AssignmentRestProperty {
         self.0.early_errors(errs, strict);
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // AssignmentPropertyList[Yield, Await] :
 //      AssignmentProperty[?Yield, ?Await]
 //      AssignmentPropertyList[?Yield, ?Await] , AssignmentProperty[?Yield, ?Await]
 #[derive(Debug)]
-pub enum AssignmentPropertyList {
+pub(crate) enum AssignmentPropertyList {
     Item(Rc<AssignmentProperty>),
     List(Rc<AssignmentPropertyList>, Rc<AssignmentProperty>),
 }
@@ -1359,12 +1325,17 @@ impl PrettyPrint for AssignmentPropertyList {
 }
 
 impl AssignmentPropertyList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (item, after_item) = AssignmentProperty::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current_production = Rc::new(AssignmentPropertyList::Item(item));
         let mut current_scanner = after_item;
         while let Ok((next_item, after_next)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma)
+            scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Comma)
                 .and_then(|(_, after_comma)| AssignmentProperty::parse(parser, after_comma, yield_flag, await_flag))
         {
             current_production = Rc::new(AssignmentPropertyList::List(current_production, next_item));
@@ -1373,14 +1344,14 @@ impl AssignmentPropertyList {
         Ok((current_production, current_scanner))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             AssignmentPropertyList::Item(item) => item.contains(kind),
             AssignmentPropertyList::List(lst, item) => lst.contains(kind) || item.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1399,7 +1370,7 @@ impl AssignmentPropertyList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1412,7 +1383,7 @@ impl AssignmentPropertyList {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             AssignmentPropertyList::Item(item) => item.early_errors(errs, strict),
             AssignmentPropertyList::List(list, item) => {
@@ -1422,18 +1393,18 @@ impl AssignmentPropertyList {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // AssignmentElementList[Yield, Await] :
 //      AssignmentElisionElement[?Yield, ?Await]
 //      AssignmentElementList[?Yield, ?Await] , AssignmentElisionElement[?Yield, ?Await]
 #[derive(Debug)]
-pub enum AssignmentElementList {
+pub(crate) enum AssignmentElementList {
     Item(Rc<AssignmentElisionElement>),
     List(Rc<AssignmentElementList>, Rc<AssignmentElisionElement>),
 }
@@ -1482,12 +1453,17 @@ impl PrettyPrint for AssignmentElementList {
 }
 
 impl AssignmentElementList {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (item, after_item) = AssignmentElisionElement::parse(parser, scanner, yield_flag, await_flag)?;
         let mut current_production = Rc::new(AssignmentElementList::Item(item));
         let mut current_scanner = after_item;
         while let Ok((next_item, after_next)) =
-            scan_for_punct(current_scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::Comma).and_then(
+            scan_for_punct(current_scanner, parser.source, InputElementGoal::Div, Punctuator::Comma).and_then(
                 |(_, after_comma)| AssignmentElisionElement::parse(parser, after_comma, yield_flag, await_flag),
             )
         {
@@ -1497,14 +1473,14 @@ impl AssignmentElementList {
         Ok((current_production, current_scanner))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             AssignmentElementList::Item(item) => item.contains(kind),
             AssignmentElementList::List(list, item) => list.contains(kind) || item.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1523,7 +1499,7 @@ impl AssignmentElementList {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1536,7 +1512,7 @@ impl AssignmentElementList {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             AssignmentElementList::Item(item) => item.early_errors(errs, strict),
             AssignmentElementList::List(list, item) => {
@@ -1546,19 +1522,19 @@ impl AssignmentElementList {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // AssignmentElisionElement[Yield, Await] :
 //      Elision_opt AssignmentElement[?Yield, ?Await]
 #[derive(Debug)]
-pub struct AssignmentElisionElement {
-    pub elisions: Option<Rc<Elisions>>,
-    pub element: Rc<AssignmentElement>,
+pub(crate) struct AssignmentElisionElement {
+    pub(crate) elisions: Option<Rc<Elisions>>,
+    pub(crate) element: Rc<AssignmentElement>,
 }
 
 impl fmt::Display for AssignmentElisionElement {
@@ -1599,7 +1575,12 @@ impl PrettyPrint for AssignmentElisionElement {
 }
 
 impl AssignmentElisionElement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (elisions, after_elision) = match Elisions::parse(parser, scanner) {
             Ok((node, scan)) => (Some(node), scan),
             Err(_) => (None, scanner),
@@ -1608,11 +1589,11 @@ impl AssignmentElisionElement {
         Ok((Rc::new(AssignmentElisionElement { elisions, element }), after_ae))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.element.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1626,7 +1607,7 @@ impl AssignmentElisionElement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1636,22 +1617,22 @@ impl AssignmentElisionElement {
         self.element.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.element.early_errors(errs, strict);
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // AssignmentProperty[Yield, Await] :
 //      IdentifierReference[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 //      PropertyName[?Yield, ?Await] : AssignmentElement[?Yield, ?Await]
 #[derive(Debug)]
-pub enum AssignmentProperty {
+pub(crate) enum AssignmentProperty {
     Ident(Rc<IdentifierReference>, Option<Rc<Initializer>>),
     Property(Rc<PropertyName>, Rc<AssignmentElement>),
 }
@@ -1713,12 +1694,17 @@ impl PrettyPrint for AssignmentProperty {
 }
 
 impl AssignmentProperty {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::IdRefOrPropertyNameExpected, scanner))
             .otherwise(|| {
                 let (name, after_name) = PropertyName::parse(parser, scanner, yield_flag, await_flag)?;
                 let (_, after_colon) =
-                    scan_for_punct(after_name, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+                    scan_for_punct(after_name, parser.source, InputElementGoal::Div, Punctuator::Colon)?;
                 let (element, after_element) = AssignmentElement::parse(parser, after_colon, yield_flag, await_flag)?;
                 Ok((Rc::new(AssignmentProperty::Property(name, element)), after_element))
             })
@@ -1732,15 +1718,15 @@ impl AssignmentProperty {
             })
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            AssignmentProperty::Ident(id, None) => id.contains(kind),
-            AssignmentProperty::Ident(id, Some(init)) => id.contains(kind) || init.contains(kind),
+            AssignmentProperty::Ident(_, None) => false,
+            AssignmentProperty::Ident(_, Some(init)) => init.contains(kind),
             AssignmentProperty::Property(name, element) => name.contains(kind) || element.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1760,7 +1746,7 @@ impl AssignmentProperty {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1774,7 +1760,7 @@ impl AssignmentProperty {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentProperty : IdentifierReference Initializeropt
         //  * It is a Syntax Error if AssignmentTargetType of IdentifierReference is not simple.
@@ -1804,19 +1790,19 @@ impl AssignmentProperty {
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // AssignmentElement[Yield, Await] :
 //      DestructuringAssignmentTarget[?Yield, ?Await] Initializer[+In, ?Yield, ?Await]opt
 #[derive(Debug)]
-pub struct AssignmentElement {
-    pub target: Rc<DestructuringAssignmentTarget>,
-    pub initializer: Option<Rc<Initializer>>,
+pub(crate) struct AssignmentElement {
+    pub(crate) target: Rc<DestructuringAssignmentTarget>,
+    pub(crate) initializer: Option<Rc<Initializer>>,
 }
 
 impl fmt::Display for AssignmentElement {
@@ -1860,7 +1846,12 @@ impl PrettyPrint for AssignmentElement {
 }
 
 impl AssignmentElement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (target, after_target) = DestructuringAssignmentTarget::parse(parser, scanner, yield_flag, await_flag)?;
         let (initializer, after_init) = match Initializer::parse(parser, after_target, true, yield_flag, await_flag) {
             Ok((node, scan)) => (Some(node), scan),
@@ -1869,14 +1860,14 @@ impl AssignmentElement {
         Ok((Rc::new(AssignmentElement { target, initializer }), after_init))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match &self.initializer {
             Some(init) => self.target.contains(kind) || init.contains(kind),
             None => self.target.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1893,7 +1884,7 @@ impl AssignmentElement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1903,24 +1894,24 @@ impl AssignmentElement {
         self.target.contains_arguments() || self.initializer.as_ref().is_some_and(|izer| izer.contains_arguments())
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.target.early_errors(errs, strict);
         if let Some(izer) = &self.initializer {
             izer.early_errors(errs, strict);
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // AssignmentRestElement[Yield, Await] :
 //      ... DestructuringAssignmentTarget[?Yield, ?Await]
 #[derive(Debug)]
-pub struct AssignmentRestElement(pub Rc<DestructuringAssignmentTarget>);
+pub(crate) struct AssignmentRestElement(pub(crate) Rc<DestructuringAssignmentTarget>);
 
 impl fmt::Display for AssignmentRestElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -1949,18 +1940,22 @@ impl PrettyPrint for AssignmentRestElement {
 }
 
 impl AssignmentRestElement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
-        let (_, after_dots) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementRegExp, Punctuator::Ellipsis)?;
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
+        let (_, after_dots) = scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Ellipsis)?;
         let (target, after_target) = DestructuringAssignmentTarget::parse(parser, after_dots, yield_flag, await_flag)?;
         Ok((Rc::new(AssignmentRestElement(target)), after_target))
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.0.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1974,7 +1969,7 @@ impl AssignmentRestElement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1984,21 +1979,21 @@ impl AssignmentRestElement {
         self.0.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.0.early_errors(errs, strict);
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 // DestructuringAssignmentTarget[Yield, Await] :
 //      LeftHandSideExpression[?Yield, ?Await]
 #[derive(Debug)]
-pub enum DestructuringAssignmentTarget {
+pub(crate) enum DestructuringAssignmentTarget {
     LeftHandSideExpression(Rc<LeftHandSideExpression>),
     AssignmentPattern(Rc<AssignmentPattern>),
 }
@@ -2040,7 +2035,12 @@ impl PrettyPrint for DestructuringAssignmentTarget {
 }
 
 impl DestructuringAssignmentTarget {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (lhs, after_lhs) = LeftHandSideExpression::parse(parser, scanner, yield_flag, await_flag)?;
 
         if lhs.is_object_or_array_literal() {
@@ -2053,14 +2053,14 @@ impl DestructuringAssignmentTarget {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.contains(kind),
             DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.contains(kind),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -2077,7 +2077,7 @@ impl DestructuringAssignmentTarget {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -2090,7 +2090,7 @@ impl DestructuringAssignmentTarget {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // DestructuringAssignmentTarget : LeftHandSideExpression
         //  * If LeftHandSideExpression is an ObjectLiteral or an ArrayLiteral, the following Early Error rules are applied:
@@ -2108,18 +2108,18 @@ impl DestructuringAssignmentTarget {
         }
     }
 
-    pub fn identifier_ref(&self) -> Option<Rc<IdentifierReference>> {
+    pub(crate) fn identifier_ref(&self) -> Option<Rc<IdentifierReference>> {
         match self {
             DestructuringAssignmentTarget::LeftHandSideExpression(lhse) => lhse.identifier_ref(),
             DestructuringAssignmentTarget::AssignmentPattern(_) => None,
         }
     }
 
-    #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
+    //#[expect(unused_variables)]
+    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+    //    todo!()
+    //}
 }
 
 #[cfg(test)]

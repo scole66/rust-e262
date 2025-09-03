@@ -8,7 +8,7 @@ use std::io::Write;
 // Identifier:
 //      IdentifierName but not ReservedWord
 #[derive(Debug)]
-pub struct Identifier {
+pub(crate) struct Identifier {
     name: IdentifierData,
     location: Location,
 }
@@ -38,7 +38,7 @@ impl fmt::Display for Identifier {
 
 impl Identifier {
     fn parse_core(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
-        let (tok, tok_loc, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+        let (tok, tok_loc, after_tok) = scan_token(&scanner, parser.source, InputElementGoal::RegExp);
         match tok {
             Token::Identifier(id) => match id.keyword_id {
                 Some(
@@ -87,7 +87,7 @@ impl Identifier {
         }
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         match parser.identifier_cache.get(&scanner) {
             Some(result) => result.clone(),
             None => {
@@ -98,15 +98,11 @@ impl Identifier {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        kind == ParseNodeKind::IdentifierName
-    }
-
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, in_module: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, in_module: bool) {
         // Static Semantics: Early Errors
         //      Identifier : IdentifierName but not ReservedWord
         //  * It is a Syntax Error if this phrase is contained in strict mode code and the StringValue of IdentifierName
@@ -183,7 +179,7 @@ impl Identifier {
         }
     }
 
-    pub fn string_value(&self) -> JSString {
+    pub(crate) fn string_value(&self) -> JSString {
         let identifier_name = &self.name;
         identifier_name.string_value.clone()
     }
@@ -195,7 +191,7 @@ impl Identifier {
 //      [~Await]await
 
 #[derive(Debug)]
-pub struct IdRefData {
+pub(crate) struct IdRefData {
     yield_flag: bool,
     await_flag: bool,
     in_module: bool,
@@ -203,7 +199,7 @@ pub struct IdRefData {
 }
 
 #[derive(Debug)]
-pub enum IdentifierReference {
+pub(crate) enum IdentifierReference {
     Identifier { identifier: Rc<Identifier>, data: IdRefData },
     Yield { data: IdRefData },
     Await { data: IdRefData },
@@ -266,7 +262,7 @@ impl IdentifierReference {
                 scanner,
             )),
             Err(pe) => {
-                let (token, tok_loc, scan) = scan_token(&initial_scanner, parser.source, ScanGoal::InputElementRegExp);
+                let (token, tok_loc, scan) = scan_token(&initial_scanner, parser.source, InputElementGoal::RegExp);
                 match token {
                     Token::Identifier(id) if !await_flag && id.matches(Keyword::Await) => Ok((
                         Rc::new(IdentifierReference::Await {
@@ -286,7 +282,12 @@ impl IdentifierReference {
         }
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.identifier_reference_cache.get(&key) {
             Some(result) => result.clone(),
@@ -298,7 +299,7 @@ impl IdentifierReference {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             IdentifierReference::Identifier { identifier: _, data }
             | IdentifierReference::Yield { data }
@@ -306,14 +307,7 @@ impl IdentifierReference {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            IdentifierReference::Identifier { identifier, .. } => identifier.contains(kind),
-            IdentifierReference::Yield { .. } | IdentifierReference::Await { .. } => false,
-        }
-    }
-
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             IdentifierReference::Identifier { identifier: id, data } => {
@@ -362,7 +356,7 @@ impl IdentifierReference {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  IdentifierReference : Identifier
@@ -377,7 +371,7 @@ impl IdentifierReference {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         use ATTKind::{Invalid, Simple};
         use IdentifierReference::{Await, Identifier, Yield};
         match self {
@@ -393,7 +387,7 @@ impl IdentifierReference {
         }
     }
 
-    pub fn string_value(&self) -> JSString {
+    pub(crate) fn string_value(&self) -> JSString {
         use IdentifierReference::{Await, Identifier, Yield};
         match self {
             Identifier { identifier: id, .. } => id.string_value(),
@@ -409,7 +403,7 @@ impl IdentifierReference {
 //    await
 
 #[derive(Debug)]
-pub struct BIData {
+pub(crate) struct BIData {
     yield_flag: bool,
     await_flag: bool,
     in_module: bool,
@@ -417,7 +411,7 @@ pub struct BIData {
 }
 
 #[derive(Debug)]
-pub enum BindingIdentifier {
+pub(crate) enum BindingIdentifier {
     Identifier { identifier: Rc<Identifier>, data: BIData },
     Yield { data: BIData },
     Await { data: BIData },
@@ -479,7 +473,7 @@ impl BindingIdentifier {
                 scanner,
             )),
             Err(pe) => {
-                let (token, tok_loc, scan) = scan_token(&starting_scanner, parser.source, ScanGoal::InputElementRegExp);
+                let (token, tok_loc, scan) = scan_token(&starting_scanner, parser.source, InputElementGoal::RegExp);
                 match token {
                     Token::Identifier(id) if id.matches(Keyword::Await) => Ok((
                         Rc::new(BindingIdentifier::Await {
@@ -499,7 +493,12 @@ impl BindingIdentifier {
         }
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.binding_identifier_cache.get(&key) {
             Some(result) => result.clone(),
@@ -511,7 +510,7 @@ impl BindingIdentifier {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             BindingIdentifier::Identifier { identifier: _, data }
             | BindingIdentifier::Yield { data }
@@ -519,18 +518,11 @@ impl BindingIdentifier {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            BindingIdentifier::Yield { .. } | BindingIdentifier::Await { .. } => false,
-            BindingIdentifier::Identifier { identifier, .. } => identifier.contains(kind),
-        }
-    }
-
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         vec![self.bound_name()]
     }
 
-    pub fn bound_name(&self) -> JSString {
+    pub(crate) fn bound_name(&self) -> JSString {
         use BindingIdentifier::{Await, Identifier, Yield};
         match self {
             Identifier { identifier, .. } => identifier.string_value(),
@@ -539,7 +531,7 @@ impl BindingIdentifier {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             BindingIdentifier::Identifier { identifier: id, data } => {
@@ -606,18 +598,13 @@ impl BindingIdentifier {
         }
     }
 
-    pub fn string_value(&self) -> JSString {
+    pub(crate) fn string_value(&self) -> JSString {
         use BindingIdentifier::{Await, Identifier, Yield};
         match self {
             Identifier { identifier, .. } => identifier.string_value(),
             Yield { .. } => JSString::from("yield"),
             Await { .. } => JSString::from("await"),
         }
-    }
-
-    pub fn body_containing_location(&self, _: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        None
     }
 }
 
@@ -626,14 +613,14 @@ impl BindingIdentifier {
 //      [~Yield]yield
 //      [~Await]await
 #[derive(Debug)]
-pub struct LIData {
+pub(crate) struct LIData {
     in_module: bool,
     yield_flag: bool,
     await_flag: bool,
     location: Location,
 }
 #[derive(Debug)]
-pub enum LabelIdentifier {
+pub(crate) enum LabelIdentifier {
     Identifier { identifier: Rc<Identifier>, data: LIData },
     Yield { data: LIData },
     Await { data: LIData },
@@ -693,7 +680,7 @@ impl LabelIdentifier {
             )),
             Err(pe) => {
                 if !yield_flag || !await_flag {
-                    let (tok, tok_loc, after_tok) = scan_token(&scanner, parser.source, ScanGoal::InputElementRegExp);
+                    let (tok, tok_loc, after_tok) = scan_token(&scanner, parser.source, InputElementGoal::RegExp);
                     if !yield_flag && tok.matches_keyword(Keyword::Yield) {
                         Ok((
                             Rc::new(LabelIdentifier::Yield {
@@ -718,7 +705,12 @@ impl LabelIdentifier {
         }
     }
 
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let key = YieldAwaitKey { scanner, yield_flag, await_flag };
         match parser.label_identifier_cache.get(&key) {
             Some(result) => result.clone(),
@@ -730,7 +722,7 @@ impl LabelIdentifier {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             LabelIdentifier::Identifier { data, .. }
             | LabelIdentifier::Yield { data }
@@ -738,7 +730,7 @@ impl LabelIdentifier {
         }
     }
 
-    pub fn string_value(&self) -> JSString {
+    pub(crate) fn string_value(&self) -> JSString {
         match self {
             LabelIdentifier::Await { .. } => JSString::from("await"),
             LabelIdentifier::Yield { .. } => JSString::from("yield"),
@@ -746,14 +738,7 @@ impl LabelIdentifier {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
-        match self {
-            LabelIdentifier::Identifier { identifier: node, .. } => node.contains(kind),
-            LabelIdentifier::Yield { .. } | LabelIdentifier::Await { .. } => false,
-        }
-    }
-
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         match self {
             LabelIdentifier::Identifier { identifier: id, data } => {

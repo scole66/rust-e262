@@ -1,4 +1,3 @@
-#![expect(clippy::bool_assert_comparison)]
 use super::testhelp::*;
 use super::*;
 use crate::prettyprint::pp_testhelp::*;
@@ -41,11 +40,6 @@ mod debugger_statement {
     fn conciseerrors_1() {
         let (item, _) = DebuggerStatement::parse(&mut newparser("debugger;"), Scanner::new()).unwrap();
         concise_error_validate(&*item);
-    }
-    #[test]
-    fn contains_01() {
-        let (item, _) = DebuggerStatement::parse(&mut newparser("debugger;"), Scanner::new()).unwrap();
-        assert_eq!(item.contains(ParseNodeKind::Literal), false);
     }
 
     #[test_case("   debugger;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "typical")]

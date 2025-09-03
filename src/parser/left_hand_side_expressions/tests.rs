@@ -16,7 +16,6 @@ fn member_expression_test_primary_expression() {
     assert_ne!(format!("{me:?}"), "");
     pretty_check(&*me, "MemberExpression: a", &["PrimaryExpression: a"]);
     concise_check(&*me, "IdentifierName: a", &[]);
-    assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_meta_property() {
@@ -27,7 +26,6 @@ fn member_expression_test_meta_property() {
     assert_ne!(format!("{me:?}"), "");
     pretty_check(&*me, "MemberExpression: new . target", &["MetaProperty: new . target"]);
     concise_check(&*me, "MetaProperty: new . target", &["Keyword: new", "Punctuator: .", "Keyword: target"]);
-    assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_super_property() {
@@ -38,7 +36,6 @@ fn member_expression_test_super_property() {
     assert_ne!(format!("{me:?}"), "");
     pretty_check(&*me, "MemberExpression: super . ior", &["SuperProperty: super . ior"]);
     concise_check(&*me, "SuperProperty: super . ior", &["Keyword: super", "Punctuator: .", "IdentifierName: ior"]);
-    assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_new_me_args() {
@@ -58,7 +55,6 @@ fn member_expression_test_new_me_args() {
         "MemberExpression: new shoes ( 'red' , 'leather' )",
         &["Keyword: new", "IdentifierName: shoes", "Arguments: ( 'red' , 'leather' )"],
     );
-    assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_me_expression() {
@@ -73,7 +69,6 @@ fn member_expression_test_me_expression() {
         "MemberExpression: bill [ a ]",
         &["IdentifierName: bill", "Punctuator: [", "IdentifierName: a", "Punctuator: ]"],
     );
-    assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_me_ident() {
@@ -88,7 +83,6 @@ fn member_expression_test_me_ident() {
         "MemberExpression: alice . name",
         &["IdentifierName: alice", "Punctuator: .", "IdentifierName: name"],
     );
-    assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_me_private() {
@@ -103,7 +97,6 @@ fn member_expression_test_me_private() {
         "MemberExpression: alice . #name",
         &["IdentifierName: alice", "Punctuator: .", "PrivateIdentifier: #name"],
     );
-    assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_me_template() {
@@ -118,7 +111,6 @@ fn member_expression_test_me_template() {
         "MemberExpression: alice `${ a }`",
         &["IdentifierName: alice", "SubstitutionTemplate: `${ a }`"],
     );
-    assert_eq!(me.is_function_definition(), false);
 }
 #[test]
 fn member_expression_test_errs_01() {
@@ -445,31 +437,31 @@ mod member_expression {
         Maker::new(src).member_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a[b]" => false; "brackets")]
-    #[test_case("a.b" => false; "property id")]
-    #[test_case("a`${b}`" => false; "template")]
-    #[test_case("super.a" => false; "super prop")]
-    #[test_case("new.target" => false; "meta")]
-    #[test_case("new a(b)" => false; "new me")]
-    #[test_case("a.#b" => false; "private id")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).member_expression().is_named_function()
-    }
+    //#[test_case("a[b]" => false; "brackets")]
+    //#[test_case("a.b" => false; "property id")]
+    //#[test_case("a`${b}`" => false; "template")]
+    //#[test_case("super.a" => false; "super prop")]
+    //#[test_case("new.target" => false; "meta")]
+    //#[test_case("new a(b)" => false; "new me")]
+    //#[test_case("a.#b" => false; "private id")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).member_expression().is_named_function()
+    //}
 
-    #[test_case("a[b]" => false; "brackets")]
-    #[test_case("a.b" => false; "property id")]
-    #[test_case("a`${b}`" => false; "template")]
-    #[test_case("super.a" => false; "super prop")]
-    #[test_case("new.target" => false; "meta")]
-    #[test_case("new a(b)" => false; "new me")]
-    #[test_case("a.#b" => false; "private id")]
-    #[test_case("beetle" => true; "id")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_identifier_ref(src: &str) -> bool {
-        Maker::new(src).member_expression().is_identifier_ref()
-    }
+    //#[test_case("a[b]" => false; "brackets")]
+    //#[test_case("a.b" => false; "property id")]
+    //#[test_case("a`${b}`" => false; "template")]
+    //#[test_case("super.a" => false; "super prop")]
+    //#[test_case("new.target" => false; "meta")]
+    //#[test_case("new a(b)" => false; "new me")]
+    //#[test_case("a.#b" => false; "private id")]
+    //#[test_case("beetle" => true; "id")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_identifier_ref(src: &str) -> bool {
+    //    Maker::new(src).member_expression().is_identifier_ref()
+    //}
 
     #[test_case("a[b]" => None; "brackets")]
     #[test_case("a.b" => None; "property id")]
@@ -543,7 +535,7 @@ fn super_property_test_nomatch() {
 #[test]
 fn super_property_test_bad_ident() {
     let r = SuperProperty::parse(&mut newparser("super.*"), Scanner::new(), false, false);
-    check_err(r, "IdentifierName expected", 1, 7);
+    check_err(r, "identifier name expected", 1, 7);
 }
 #[test]
 fn super_property_test_bad_expression() {
@@ -910,7 +902,7 @@ fn argument_list_test_dots_ae() {
 fn argument_list_test_al_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(*al, ArgumentList::ArgumentList(..)));
+    assert!(matches!(*al, ArgumentList::List(..)));
     assert_ne!(format!("{al:?}"), "");
     pretty_check(&*al, "ArgumentList: ab , aba", &["ArgumentList: ab", "AssignmentExpression: aba"]);
     concise_check(&*al, "ArgumentList: ab , aba", &["IdentifierName: ab", "Punctuator: ,", "IdentifierName: aba"]);
@@ -919,7 +911,7 @@ fn argument_list_test_al_ae() {
 fn argument_list_test_al_dots_ae() {
     let (al, scanner) = check(ArgumentList::parse(&mut newparser("ab,...aba"), Scanner::new(), false, false));
     chk_scan(&scanner, 9);
-    assert!(matches!(*al, ArgumentList::ArgumentListDots(..)));
+    assert!(matches!(*al, ArgumentList::ListDots(..)));
     assert_ne!(format!("{al:?}"), "");
     pretty_check(&*al, "ArgumentList: ab , ... aba", &["ArgumentList: ab", "AssignmentExpression: aba"]);
     concise_check(
@@ -1114,7 +1106,6 @@ mod new_expression {
         assert_ne!(format!("{ne:?}"), "");
         pretty_check(&*ne, "NewExpression: true", &["MemberExpression: true"]);
         concise_check(&*ne, "Keyword: true", &[]);
-        assert_eq!(ne.is_function_definition(), false);
     }
     #[test]
     fn new() {
@@ -1124,7 +1115,6 @@ mod new_expression {
         assert_ne!(format!("{ne:?}"), "");
         pretty_check(&*ne, "NewExpression: new bob", &["NewExpression: bob"]);
         concise_check(&*ne, "NewExpression: new bob", &["Keyword: new", "IdentifierName: bob"]);
-        assert_eq!(ne.is_function_definition(), false);
     }
     #[test]
     fn new_me() {
@@ -1138,7 +1128,6 @@ mod new_expression {
             "MemberExpression: new bob ( )",
             &["Keyword: new", "IdentifierName: bob", "Arguments: ( )"],
         );
-        assert_eq!(ne.is_function_definition(), false);
     }
     #[test]
     fn nomatch() {
@@ -1254,19 +1243,19 @@ mod new_expression {
         Maker::new(src).new_expression().location()
     }
 
-    #[test_case("new a" => false; "new exp")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).new_expression().is_named_function()
-    }
+    //#[test_case("new a" => false; "new exp")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).new_expression().is_named_function()
+    //}
 
-    #[test_case("idref" => true; "Id Ref")]
-    #[test_case("10" => false; "literal")]
-    #[test_case("new a" => false; "other new expr")]
-    fn is_identifier_ref(src: &str) -> bool {
-        Maker::new(src).new_expression().is_identifier_ref()
-    }
+    //#[test_case("idref" => true; "Id Ref")]
+    //#[test_case("10" => false; "literal")]
+    //#[test_case("new a" => false; "other new expr")]
+    //fn is_identifier_ref(src: &str) -> bool {
+    //    Maker::new(src).new_expression().is_identifier_ref()
+    //}
 
     #[test_case("idref" => ssome("idref"); "Id Ref")]
     #[test_case("10" => None; "literal")]
@@ -1573,7 +1562,7 @@ mod call_expression {
         let (ce, scanner) =
             check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(20)"), Scanner::new(), false, false));
         chk_scan(&scanner, 23);
-        assert!(matches!(*ce, CallExpression::CallExpressionArguments(..)));
+        assert!(matches!(*ce, CallExpression::CallThenArguments(..)));
         assert_ne!(format!("{ce:?}"), "");
         pretty_check(
             &*ce,
@@ -1591,7 +1580,7 @@ mod call_expression {
         let (ce, scanner) =
             check(CallExpression::parse(&mut newparser("blue(pop)(snap)(10)(++)"), Scanner::new(), false, false));
         chk_scan(&scanner, 19);
-        assert!(matches!(*ce, CallExpression::CallExpressionArguments(..)));
+        assert!(matches!(*ce, CallExpression::CallThenArguments(..)));
         assert_ne!(format!("{ce:?}"), "");
     }
     #[test]
@@ -1599,7 +1588,7 @@ mod call_expression {
         let (ce, scanner) =
             check(CallExpression::parse(&mut newparser("blue(pop)[snap]"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
-        assert!(matches!(*ce, CallExpression::CallExpressionExpression(..)));
+        assert!(matches!(*ce, CallExpression::CallThenExpression(..)));
         assert_ne!(format!("{ce:?}"), "");
         pretty_check(
             &*ce,
@@ -1617,7 +1606,7 @@ mod call_expression {
         let (ce, scanner) =
             check(CallExpression::parse(&mut newparser("blue(pop).snap"), Scanner::new(), false, false));
         chk_scan(&scanner, 14);
-        assert!(matches!(*ce, CallExpression::CallExpressionIdentifierName(..)));
+        assert!(matches!(*ce, CallExpression::CallThenName(..)));
         assert_ne!(format!("{ce:?}"), "");
         pretty_check(&*ce, "CallExpression: blue ( pop ) . snap", &["CallExpression: blue ( pop )"]);
         concise_check(
@@ -1631,7 +1620,7 @@ mod call_expression {
         let (ce, scanner) =
             check(CallExpression::parse(&mut newparser("blue(pop).#snap"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
-        assert!(matches!(*ce, CallExpression::CallExpressionPrivateId(..)));
+        assert!(matches!(*ce, CallExpression::CallThenPrivateId(..)));
         assert_ne!(format!("{ce:?}"), "");
         pretty_check(&*ce, "CallExpression: blue ( pop ) . #snap", &["CallExpression: blue ( pop )"]);
         concise_check(
@@ -1645,7 +1634,7 @@ mod call_expression {
         let (ce, scanner) =
             check(CallExpression::parse(&mut newparser("blue(pop)`snap`"), Scanner::new(), false, false));
         chk_scan(&scanner, 15);
-        assert!(matches!(*ce, CallExpression::CallExpressionTemplateLiteral(..)));
+        assert!(matches!(*ce, CallExpression::CallThenTemplateLiteral(..)));
         assert_ne!(format!("{ce:?}"), "");
         pretty_check(
             &*ce,
@@ -2641,7 +2630,6 @@ mod left_hand_side_expression {
         assert_ne!(format!("{lhs:?}"), "");
         pretty_check(&*lhs, "LeftHandSideExpression: a", &["NewExpression: a"]);
         concise_check(&*lhs, "IdentifierName: a", &[]);
-        assert_eq!(lhs.is_function_definition(), false);
     }
     #[test]
     fn parse_02() {
@@ -2650,7 +2638,6 @@ mod left_hand_side_expression {
         assert!(matches!(*lhs, LeftHandSideExpression::Call(_)));
         pretty_check(&*lhs, "LeftHandSideExpression: a ( )", &["CallExpression: a ( )"]);
         concise_check(&*lhs, "CallMemberExpression: a ( )", &["IdentifierName: a", "Arguments: ( )"]);
-        assert_eq!(lhs.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
@@ -2660,7 +2647,6 @@ mod left_hand_side_expression {
         assert!(matches!(*lhs, LeftHandSideExpression::Optional(_)));
         pretty_check(&*lhs, "LeftHandSideExpression: a ( ) ?. b", &["OptionalExpression: a ( ) ?. b"]);
         concise_check(&*lhs, "OptionalExpression: a ( ) ?. b", &["CallMemberExpression: a ( )", "OptionalChain: ?. b"]);
-        assert_eq!(lhs.is_function_definition(), false);
     }
     #[test]
     fn prettyerrors_1() {
@@ -2795,31 +2781,31 @@ mod left_hand_side_expression {
         Maker::new(src).left_hand_side_expression().assignment_target_type(strict)
     }
 
-    #[test_case("idref" => true; "Id Ref")]
-    #[test_case("this" => false; "this kwd")]
-    #[test_case("10" => false; "literal")]
-    #[test_case("[10, 11, 12]" => false; "array literal")]
-    #[test_case("{ a: 12 }" => false; "object literal")]
-    #[test_case("function a(){}" => false; "function expression")]
-    #[test_case("function *a(){}" => false; "generator expression")]
-    #[test_case("async function () {}" => false; "async func expr")]
-    #[test_case("async function *(){}" => false; "async gen expr")]
-    #[test_case("/abcd/" => false; "regex literal")]
-    #[test_case("`template`" => false; "template literal")]
-    #[test_case("(id)" => false; "parentheszied expr")]
-    #[test_case("a[0]" => false; "expression member access")]
-    #[test_case("a.a" => false; "name member access")]
-    #[test_case("a`${b}`" => false; "tagged template")]
-    #[test_case("super.a" => false; "super prop")]
-    #[test_case("new.target" => false; "meta prop")]
-    #[test_case("new a()" => false; "new expr")]
-    #[test_case("a.#b" => false; "private member access")]
-    #[test_case("new a" => false; "other new expr")]
-    #[test_case("a()" => false; "call")]
-    #[test_case("a?.b" => false; "optional")]
-    fn is_identifier_ref(src: &str) -> bool {
-        Maker::new(src).left_hand_side_expression().is_identifier_ref()
-    }
+    //#[test_case("idref" => true; "Id Ref")]
+    //#[test_case("this" => false; "this kwd")]
+    //#[test_case("10" => false; "literal")]
+    //#[test_case("[10, 11, 12]" => false; "array literal")]
+    //#[test_case("{ a: 12 }" => false; "object literal")]
+    //#[test_case("function a(){}" => false; "function expression")]
+    //#[test_case("function *a(){}" => false; "generator expression")]
+    //#[test_case("async function () {}" => false; "async func expr")]
+    //#[test_case("async function *(){}" => false; "async gen expr")]
+    //#[test_case("/abcd/" => false; "regex literal")]
+    //#[test_case("`template`" => false; "template literal")]
+    //#[test_case("(id)" => false; "parentheszied expr")]
+    //#[test_case("a[0]" => false; "expression member access")]
+    //#[test_case("a.a" => false; "name member access")]
+    //#[test_case("a`${b}`" => false; "tagged template")]
+    //#[test_case("super.a" => false; "super prop")]
+    //#[test_case("new.target" => false; "meta prop")]
+    //#[test_case("new a()" => false; "new expr")]
+    //#[test_case("a.#b" => false; "private member access")]
+    //#[test_case("new a" => false; "other new expr")]
+    //#[test_case("a()" => false; "call")]
+    //#[test_case("a?.b" => false; "optional")]
+    //fn is_identifier_ref(src: &str) -> bool {
+    //    Maker::new(src).left_hand_side_expression().is_identifier_ref()
+    //}
 
     #[test_case("idref" => ssome("idref"); "Id Ref")]
     #[test_case("this" => None; "this kwd")]
@@ -2854,13 +2840,13 @@ mod left_hand_side_expression {
         Maker::new(src).left_hand_side_expression().location()
     }
 
-    #[test_case("1" => false; "literal")]
-    #[test_case("a()" => false; "call expression")]
-    #[test_case("a?.b" => false; "optional expression")]
-    #[test_case("function bob(){}" => true; "function")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).left_hand_side_expression().is_named_function()
-    }
+    //#[test_case("1" => false; "literal")]
+    //#[test_case("a()" => false; "call expression")]
+    //#[test_case("a?.b" => false; "optional expression")]
+    //#[test_case("function bob(){}" => true; "function")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).left_hand_side_expression().is_named_function()
+    //}
 
     #[test_case("1" => false; "literal")]
     #[test_case("[a]" => true; "destructuring")]

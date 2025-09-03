@@ -4,11 +4,11 @@ use std::fmt;
 use std::rc::Rc;
 
 #[derive(Clone)]
-pub struct ScriptRecord {
-    pub realm: Rc<RefCell<Realm>>,
-    pub ecmascript_code: Rc<Script>,
-    pub text: String,
-    pub compiled: Rc<Chunk>,
+pub(crate) struct ScriptRecord {
+    pub(crate) realm: Rc<RefCell<Realm>>,
+    pub(crate) ecmascript_code: Rc<Script>,
+    pub(crate) text: String,
+    pub(crate) compiled: Rc<Chunk>,
 }
 struct ConciseScript<'a>(&'a Script);
 impl fmt::Debug for ConciseScript<'_> {
@@ -29,10 +29,18 @@ impl fmt::Debug for ScriptRecord {
 }
 
 #[derive(Debug)]
-pub struct ModuleRecord {}
+pub(crate) struct ModuleRecord {}
 
+#[cfg(not(test))]
 #[derive(Debug, Clone)]
-pub enum ScriptOrModule {
+pub(crate) enum ScriptOrModule {
+    Script(Rc<ScriptRecord>),
+    #[expect(dead_code)]
+    Module(Rc<ModuleRecord>),
+}
+#[cfg(test)]
+#[derive(Debug, Clone)]
+pub(crate) enum ScriptOrModule {
     Script(Rc<ScriptRecord>),
     Module(Rc<ModuleRecord>),
 }
@@ -48,13 +56,14 @@ impl PartialEq for ScriptOrModule {
 }
 
 impl ScriptOrModule {
-    pub fn source_text(&self) -> &String {
+    #[cfg(test)]
+    pub(crate) fn source_text(&self) -> &String {
         match self {
             ScriptOrModule::Script(som) => &som.text,
             ScriptOrModule::Module(_) => todo!(),
         }
     }
-    pub fn source_tree(&self) -> SourceTree {
+    pub(crate) fn source_tree(&self) -> SourceTree {
         match self {
             ScriptOrModule::Script(som) => {
                 SourceTree { text: som.text.clone(), ast: ParsedText::Script(som.ecmascript_code.clone()) }
@@ -64,23 +73,23 @@ impl ScriptOrModule {
     }
 }
 
-pub struct ExecutionContext {
-    pub realm: Rc<RefCell<Realm>>,
-    pub function: Option<Object>,
-    pub script_or_module: Option<ScriptOrModule>,
+pub(crate) struct ExecutionContext {
+    pub(crate) realm: Rc<RefCell<Realm>>,
+    pub(crate) function: Option<Object>,
+    pub(crate) script_or_module: Option<ScriptOrModule>,
 
     // for code contexts
-    pub lexical_environment: Option<Rc<dyn EnvironmentRecord>>,
-    pub variable_environment: Option<Rc<dyn EnvironmentRecord>>,
-    pub private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+    pub(crate) lexical_environment: Option<Rc<dyn EnvironmentRecord>>,
+    pub(crate) variable_environment: Option<Rc<dyn EnvironmentRecord>>,
+    pub(crate) private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
 
     // code evaluation state
-    pub stack: Vec<FullCompletion>,
-    pub chunk: Option<Rc<Chunk>>, // This might change. It might be easier to have an empty chunk than a None.
-    pub pc: usize,
+    pub(crate) stack: Vec<FullCompletion>,
+    pub(crate) chunk: Option<Rc<Chunk>>, // This might change. It might be easier to have an empty chunk than a None.
+    pub(crate) pc: usize,
 
-    pub generator: Option<Object>,
-    pub gen_closure: Option<ECMAClosure>,
+    pub(crate) generator: Option<Object>,
+    pub(crate) gen_closure: Option<ECMAClosure>,
 }
 impl std::fmt::Debug for ExecutionContext {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -102,7 +111,11 @@ impl std::fmt::Debug for ExecutionContext {
 
 impl ExecutionContext {
     #[expect(unused_variables)]
-    pub fn new(function: Option<Object>, realm: Rc<RefCell<Realm>>, script_or_module: Option<ScriptOrModule>) -> Self {
+    pub(crate) fn new(
+        function: Option<Object>,
+        realm: Rc<RefCell<Realm>>,
+        script_or_module: Option<ScriptOrModule>,
+    ) -> Self {
         let chunk = match &script_or_module {
             None => None,
             Some(ScriptOrModule::Script(sr)) => Some(Rc::clone(&sr.compiled)),
@@ -131,14 +144,14 @@ impl ExecutionContext {
 //
 //  1. Let currentRealm be the current Realm Record.
 //  2. Return currentRealm.[[GlobalObject]].
-pub fn get_global_object() -> Option<Object> {
+pub(crate) fn get_global_object() -> Option<Object> {
     current_realm_record()?.borrow().global_object.clone()
 }
 
 /// Finds the Environment Record that currently supplies the binding of the keyword this.
 ///
 /// See [GetThisEnvironment](https://tc39.es/ecma262/#sec-getthisenvironment) in ECMA-262.
-pub fn get_this_environment() -> Rc<dyn EnvironmentRecord> {
+pub(crate) fn get_this_environment() -> Rc<dyn EnvironmentRecord> {
     // The abstract operation GetThisEnvironment takes no arguments and returns an Environment Record. It finds the
     // Environment Record that currently supplies the binding of the keyword this. It performs the following steps when
     // called:
@@ -166,7 +179,7 @@ pub fn get_this_environment() -> Rc<dyn EnvironmentRecord> {
 /// Determine the binding of the "this" keyword (and return it)
 ///
 /// See [ResolveThisBinding](https://tc39.es/ecma262/#sec-resolvethisbinding) in ECMA-262.
-pub fn resolve_this_binding() -> Completion<ECMAScriptValue> {
+pub(crate) fn resolve_this_binding() -> Completion<ECMAScriptValue> {
     // ResolveThisBinding ( )
     //
     // The abstract operation ResolveThisBinding takes no arguments and returns either a normal completion containing an
@@ -182,7 +195,7 @@ pub fn resolve_this_binding() -> Completion<ECMAScriptValue> {
 /// Constructs a Reference for the given name (and, potentially, environment)
 ///
 /// See [ResolveBinding](https://tc39.es/ecma262/#sec-resolvebinding) in ECMA-262.
-pub fn resolve_binding(name: &JSString, env: Option<Rc<dyn EnvironmentRecord>>, strict: bool) -> FullCompletion {
+pub(crate) fn resolve_binding(name: &JSString, env: Option<Rc<dyn EnvironmentRecord>>, strict: bool) -> FullCompletion {
     // ResolveBinding ( name [ , env ] )
     // The abstract operation ResolveBinding takes argument name (a String) and optional argument env (an
     // Environment Record or undefined) and returns either a normal completion containing a Reference Record or an

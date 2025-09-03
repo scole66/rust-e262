@@ -6,8 +6,8 @@ use std::io::Write;
 // ThrowStatement[Yield, Await] :
 //      throw [no LineTerminator here] Expression[+In, ?Yield, ?Await] ;
 #[derive(Debug)]
-pub struct ThrowStatement {
-    pub exp: Rc<Expression>,
+pub(crate) struct ThrowStatement {
+    pub(crate) exp: Rc<Expression>,
     location: Location,
 }
 
@@ -40,24 +40,29 @@ impl PrettyPrint for ThrowStatement {
 }
 
 impl ThrowStatement {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         let (throw_loc, after_throw) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Throw)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Throw)?;
         no_line_terminator(after_throw, parser.source)?;
         let (exp, after_exp) = Expression::parse(parser, after_throw, true, yield_flag, await_flag)?;
-        let (semi_loc, after_semi) = scan_for_auto_semi(after_exp, parser.source, ScanGoal::InputElementRegExp)?;
+        let (semi_loc, after_semi) = scan_for_auto_semi(after_exp, parser.source, InputElementGoal::RegExp)?;
         Ok((Rc::new(ThrowStatement { exp, location: throw_loc.merge(&semi_loc) }), after_semi))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.exp.contains(kind)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -71,7 +76,7 @@ impl ThrowStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -81,12 +86,12 @@ impl ThrowStatement {
         self.exp.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         self.exp.early_errors(errs, strict);
     }
 
     #[expect(unused_variables)]
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         todo!()
     }

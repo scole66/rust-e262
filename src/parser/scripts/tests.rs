@@ -11,10 +11,10 @@ mod var_scope_decl {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(HoistableDeclPart::FunctionDeclaration(Maker::new("function a(){}").function_declaration()) => "function a ( ) { }"; "function decl")]
-    #[test_case(HoistableDeclPart::GeneratorDeclaration(Maker::new("function *a(){}").generator_declaration()) => "function * a ( ) { }"; "generator decl")]
-    #[test_case(HoistableDeclPart::AsyncFunctionDeclaration(Maker::new("async function a(){}").async_function_declaration()) => "async function a ( ) { }"; "async function decl")]
-    #[test_case(HoistableDeclPart::AsyncGeneratorDeclaration(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a ( ) { }"; "async generator decl")]
+    #[test_case(HoistableDeclPart::Function(Maker::new("function a(){}").function_declaration()) => "function a ( ) { }"; "function decl")]
+    #[test_case(HoistableDeclPart::Generator(Maker::new("function *a(){}").generator_declaration()) => "function * a ( ) { }"; "generator decl")]
+    #[test_case(HoistableDeclPart::AsyncFunction(Maker::new("async function a(){}").async_function_declaration()) => "async function a ( ) { }"; "async function decl")]
+    #[test_case(HoistableDeclPart::AsyncGenerator(Maker::new("async function *a(){}").async_generator_declaration()) => "async function * a ( ) { }"; "async generator decl")]
     fn from_hoistable(part: HoistableDeclPart) -> String {
         VarScopeDecl::from(part).to_string()
     }

@@ -18,7 +18,6 @@ mod update_expression {
         assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: 78", &["LeftHandSideExpression: 78"]);
         concise_check(&*ue, "Numeric: 78", &[]);
-        assert!(!ue.is_function_definition());
     }
     #[test]
     fn lhs_2() {
@@ -32,7 +31,6 @@ mod update_expression {
             "ParenthesizedExpression: ( x => x * 2 )",
             &["Punctuator: (", "ArrowFunction: x => x * 2", "Punctuator: )"],
         );
-        assert!(ue.is_function_definition());
     }
     #[test]
     fn lhs_3() {
@@ -42,7 +40,6 @@ mod update_expression {
         assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: x", &["LeftHandSideExpression: x"]);
         concise_check(&*ue, "IdentifierName: x", &[]);
-        assert!(!ue.is_function_definition());
     }
     #[test]
     fn preinc() {
@@ -52,7 +49,6 @@ mod update_expression {
         assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: ++ a", &["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: ++ a", &["Punctuator: ++", "IdentifierName: a"]);
-        assert!(!ue.is_function_definition());
     }
     #[test]
     fn predec() {
@@ -62,7 +58,6 @@ mod update_expression {
         assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: -- a", &["UnaryExpression: a"]);
         concise_check(&*ue, "UpdateExpression: -- a", &["Punctuator: --", "IdentifierName: a"]);
-        assert!(!ue.is_function_definition());
     }
     #[test]
     fn postinc() {
@@ -72,7 +67,6 @@ mod update_expression {
         assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: a ++", &["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a ++", &["IdentifierName: a", "Punctuator: ++"]);
-        assert!(!ue.is_function_definition());
     }
     #[test]
     fn postdec() {
@@ -82,7 +76,6 @@ mod update_expression {
         assert_ne!(format!("{ue:?}"), "");
         pretty_check(&*ue, "UpdateExpression: a --", &["LeftHandSideExpression: a"]);
         concise_check(&*ue, "UpdateExpression: a --", &["IdentifierName: a", "Punctuator: --"]);
-        assert!(!ue.is_function_definition());
     }
     #[test]
     fn newline() {
@@ -291,12 +284,12 @@ mod update_expression {
         Maker::new(src).update_expression().assignment_target_type(strict)
     }
 
-    #[test_case("--a" => false; "expr")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).update_expression().is_named_function()
-    }
+    //#[test_case("--a" => false; "expr")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).update_expression().is_named_function()
+    //}
 
     #[test_case("  a++" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "postinc")]
     #[test_case("  a--" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "postdec")]

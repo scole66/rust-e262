@@ -5,7 +5,7 @@ use std::os::raw::{c_double, c_int, c_uchar};
 use std::sync::{Arc, LazyLock, Mutex};
 
 unsafe extern "C" {
-    pub fn dtoa_rust(
+    pub(crate) fn dtoa_rust(
         value: c_double,
         mode: c_int,
         ndigits: c_int,
@@ -19,13 +19,13 @@ unsafe extern "C" {
 static DTOALOCK: LazyLock<Arc<Mutex<u32>>> = LazyLock::new(|| Arc::new(Mutex::new(0)));
 
 #[derive(Debug)]
-pub struct DtoAResult {
-    pub chars: String,
-    pub decpt: i32,
-    pub sign: i8,
+pub(crate) struct DtoAResult {
+    pub(crate) chars: String,
+    pub(crate) decpt: i32,
+    pub(crate) sign: i8,
 }
 
-pub fn dtoa(value: f64) -> DtoAResult {
+pub(crate) fn dtoa(value: f64) -> DtoAResult {
     let mut decpt: c_int = 0;
     let mut sign: c_int = 0;
     let mut digits: [u8; 64] = [0; 64];
@@ -53,7 +53,7 @@ pub fn dtoa(value: f64) -> DtoAResult {
     }
 }
 
-pub fn dtoa_precise(value: f64, num_digits: i32) -> DtoAResult {
+pub(crate) fn dtoa_precise(value: f64, num_digits: i32) -> DtoAResult {
     let mut decpt: c_int = 0;
     let mut sign: c_int = 0;
     let mut digits: [u8; 110] = [0; 110];
@@ -80,7 +80,7 @@ pub fn dtoa_precise(value: f64, num_digits: i32) -> DtoAResult {
         sign: i8::try_from(sign).expect("sign should fit into an i8"),
     }
 }
-pub fn dtoa_fixed(value: f64, num_digits: i32) -> DtoAResult {
+pub(crate) fn dtoa_fixed(value: f64, num_digits: i32) -> DtoAResult {
     let mut decpt: c_int = 0;
     let mut sign: c_int = 0;
     let mut digits: [u8; 110] = [0; 110];

@@ -26,11 +26,11 @@ use super::*;
 // +-------------------------+----------------------+-----------------------------------------------------------------+
 
 #[derive(Debug)]
-pub struct BoundFunctionObject {
+pub(crate) struct BoundFunctionObject {
     common: RefCell<CommonObjectData>,
-    pub bound_target_function: Object,
-    pub bound_this: ECMAScriptValue,
-    pub bound_arguments: Box<[ECMAScriptValue]>,
+    pub(crate) bound_target_function: Object,
+    pub(crate) bound_this: ECMAScriptValue,
+    pub(crate) bound_arguments: Box<[ECMAScriptValue]>,
 }
 
 impl<'a> From<&'a BoundFunctionObject> for &'a dyn ObjectInterface {
@@ -181,7 +181,7 @@ impl ObjectInterface for BoundFunctionObject {
 }
 
 impl BoundFunctionObject {
-    pub fn new(
+    pub(crate) fn new(
         prototype: Option<Object>,
         target_function: Object,
         bound_this: ECMAScriptValue,
@@ -204,7 +204,7 @@ impl BoundFunctionObject {
     ///     call itself follow.
     ///
     /// See also BoundFunctionCreate in [ECMA-262](https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html#sec-boundfunctioncreate).
-    pub fn create(
+    pub(crate) fn create(
         target_function: Object,
         bound_this: ECMAScriptValue,
         bound_args: &[ECMAScriptValue],

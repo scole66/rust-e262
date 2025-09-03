@@ -527,7 +527,7 @@ fn hex_integer_literal_05() {
 }
 #[test]
 fn scan_numeric() {
-    let result = scan_token(&Scanner::new(), ".25", ScanGoal::InputElementRegExp);
+    let result = scan_token(&Scanner::new(), ".25", InputElementGoal::RegExp);
     assert_eq!(
         result,
         (
@@ -539,7 +539,7 @@ fn scan_numeric() {
 }
 #[test]
 fn scan_token_id_01() {
-    let result = scan_token(&Scanner::new(), "\\u004Abc\\u004a\\u{1235}", ScanGoal::InputElementRegExp);
+    let result = scan_token(&Scanner::new(), "\\u004Abc\\u004a\\u{1235}", InputElementGoal::RegExp);
     assert_eq!(
         result,
         (
@@ -550,7 +550,7 @@ fn scan_token_id_01() {
     );
 }
 fn keyword_test_helper(inp: &str, expected: Option<Keyword>) {
-    let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
+    let result = scan_token(&Scanner::new(), inp, InputElementGoal::RegExp);
     assert_eq!(
         result,
         (
@@ -645,7 +645,7 @@ fn scan_token_keywords() {
 }
 #[test]
 fn optional_chaining_test_01() {
-    let result = scan_token(&Scanner::new(), "?.", ScanGoal::InputElementRegExp);
+    let result = scan_token(&Scanner::new(), "?.", InputElementGoal::RegExp);
     assert_eq!(
         result,
         (
@@ -657,7 +657,7 @@ fn optional_chaining_test_01() {
 }
 #[test]
 fn optional_chaining_test_02() {
-    let result = scan_token(&Scanner::new(), "?.P", ScanGoal::InputElementRegExp);
+    let result = scan_token(&Scanner::new(), "?.P", InputElementGoal::RegExp);
     assert_eq!(
         result,
         (
@@ -669,7 +669,7 @@ fn optional_chaining_test_02() {
 }
 #[test]
 fn optional_chaining_test_03() {
-    let result = scan_token(&Scanner::new(), "?.999", ScanGoal::InputElementRegExp);
+    let result = scan_token(&Scanner::new(), "?.999", InputElementGoal::RegExp);
     assert_eq!(
         result,
         (
@@ -681,7 +681,7 @@ fn optional_chaining_test_03() {
 }
 #[test]
 fn optional_chaining_test_04() {
-    let result = scan_token(&Scanner::new(), "?mulberry", ScanGoal::InputElementRegExp);
+    let result = scan_token(&Scanner::new(), "?mulberry", InputElementGoal::RegExp);
     assert_eq!(
         result,
         (
@@ -695,7 +695,7 @@ mod punctuator {
     use super::*;
 
     fn punct_check(inp: &str, tok: Token) {
-        let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
+        let result = scan_token(&Scanner::new(), inp, InputElementGoal::RegExp);
         assert_eq!(
             result,
             (
@@ -763,7 +763,7 @@ mod punctuator {
     }
 
     fn punct_chk2(inp: &str, tok: Token, consumed: u32) {
-        let result = scan_token(&Scanner::new(), inp, ScanGoal::InputElementRegExp);
+        let result = scan_token(&Scanner::new(), inp, InputElementGoal::RegExp);
         assert_eq!(
             result,
             (
@@ -784,7 +784,7 @@ mod punctuator {
     }
     #[test]
     fn nomatch() {
-        let result = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
+        let result = scan_token(&Scanner::new(), "@", InputElementGoal::RegExp);
         let (token, location, scanner) = result;
         assert!(matches!(token, Token::Error(_)));
         assert_eq!(
@@ -1144,47 +1144,47 @@ fn template_test() {
 #[test]
 fn div_punctuator_test() {
     assert_eq!(
-        div_punctuator(&Scanner::new(), "/", ScanGoal::InputElementDiv),
+        div_punctuator(&Scanner::new(), "/", InputElementGoal::Div),
         Some((Token::Punctuator(Punctuator::Slash), Scanner { line: 1, column: 2, start_idx: 1 }))
     );
-    assert_eq!(div_punctuator(&Scanner::new(), "/", ScanGoal::InputElementRegExp), None);
-    assert_eq!(div_punctuator(&Scanner::new(), "/", ScanGoal::InputElementRegExpOrTemplateTail), None);
+    assert_eq!(div_punctuator(&Scanner::new(), "/", InputElementGoal::RegExp), None);
+    assert_eq!(div_punctuator(&Scanner::new(), "/", InputElementGoal::RegExpOrTemplateTail), None);
     assert_eq!(
-        div_punctuator(&Scanner::new(), "/", ScanGoal::InputElementTemplateTail),
+        div_punctuator(&Scanner::new(), "/", InputElementGoal::TemplateTail),
         Some((Token::Punctuator(Punctuator::Slash), Scanner { line: 1, column: 2, start_idx: 1 }))
     );
     assert_eq!(
-        div_punctuator(&Scanner::new(), "/=", ScanGoal::InputElementDiv),
+        div_punctuator(&Scanner::new(), "/=", InputElementGoal::Div),
         Some((Token::Punctuator(Punctuator::SlashEq), Scanner { line: 1, column: 3, start_idx: 2 }))
     );
-    assert_eq!(div_punctuator(&Scanner::new(), "/=", ScanGoal::InputElementRegExp), None);
-    assert_eq!(div_punctuator(&Scanner::new(), "/=", ScanGoal::InputElementRegExpOrTemplateTail), None);
+    assert_eq!(div_punctuator(&Scanner::new(), "/=", InputElementGoal::RegExp), None);
+    assert_eq!(div_punctuator(&Scanner::new(), "/=", InputElementGoal::RegExpOrTemplateTail), None);
     assert_eq!(
-        div_punctuator(&Scanner::new(), "/=", ScanGoal::InputElementTemplateTail),
+        div_punctuator(&Scanner::new(), "/=", InputElementGoal::TemplateTail),
         Some((Token::Punctuator(Punctuator::SlashEq), Scanner { line: 1, column: 3, start_idx: 2 }))
     );
-    assert_eq!(div_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementDiv), None);
-    assert_eq!(div_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementRegExp), None);
-    assert_eq!(div_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementRegExpOrTemplateTail), None);
-    assert_eq!(div_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementTemplateTail), None);
+    assert_eq!(div_punctuator(&Scanner::new(), "Q", InputElementGoal::Div), None);
+    assert_eq!(div_punctuator(&Scanner::new(), "Q", InputElementGoal::RegExp), None);
+    assert_eq!(div_punctuator(&Scanner::new(), "Q", InputElementGoal::RegExpOrTemplateTail), None);
+    assert_eq!(div_punctuator(&Scanner::new(), "Q", InputElementGoal::TemplateTail), None);
 }
 
 #[test]
 fn right_brace_punctuator_test() {
     assert_eq!(
-        right_brace_punctuator(&Scanner::new(), "}", ScanGoal::InputElementDiv),
+        right_brace_punctuator(&Scanner::new(), "}", InputElementGoal::Div),
         Some((Token::Punctuator(Punctuator::RightBrace), Scanner { line: 1, column: 2, start_idx: 1 }))
     );
     assert_eq!(
-        right_brace_punctuator(&Scanner::new(), "}", ScanGoal::InputElementRegExp),
+        right_brace_punctuator(&Scanner::new(), "}", InputElementGoal::RegExp),
         Some((Token::Punctuator(Punctuator::RightBrace), Scanner { line: 1, column: 2, start_idx: 1 }))
     );
-    assert_eq!(right_brace_punctuator(&Scanner::new(), "}", ScanGoal::InputElementTemplateTail), None);
-    assert_eq!(right_brace_punctuator(&Scanner::new(), "}", ScanGoal::InputElementRegExpOrTemplateTail), None);
-    assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementDiv), None);
-    assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementRegExp), None);
-    assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementRegExpOrTemplateTail), None);
-    assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", ScanGoal::InputElementTemplateTail), None);
+    assert_eq!(right_brace_punctuator(&Scanner::new(), "}", InputElementGoal::TemplateTail), None);
+    assert_eq!(right_brace_punctuator(&Scanner::new(), "}", InputElementGoal::RegExpOrTemplateTail), None);
+    assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", InputElementGoal::Div), None);
+    assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", InputElementGoal::RegExp), None);
+    assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", InputElementGoal::RegExpOrTemplateTail), None);
+    assert_eq!(right_brace_punctuator(&Scanner::new(), "Q", InputElementGoal::TemplateTail), None);
 }
 
 #[test]
@@ -1230,16 +1230,16 @@ fn common_token_test_nstemp() {
 
 #[test]
 fn regular_expression_literal_test_01() {
-    assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementRegExp), None);
-    assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementRegExpOrTemplateTail), None);
-    assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementDiv), None);
-    assert_eq!(regular_expression_literal(&Scanner::new(), "", ScanGoal::InputElementTemplateTail), None);
-    assert_eq!(regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementDiv), None);
-    assert_eq!(regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementTemplateTail), None);
+    assert_eq!(regular_expression_literal(&Scanner::new(), "", InputElementGoal::RegExp), None);
+    assert_eq!(regular_expression_literal(&Scanner::new(), "", InputElementGoal::RegExpOrTemplateTail), None);
+    assert_eq!(regular_expression_literal(&Scanner::new(), "", InputElementGoal::Div), None);
+    assert_eq!(regular_expression_literal(&Scanner::new(), "", InputElementGoal::TemplateTail), None);
+    assert_eq!(regular_expression_literal(&Scanner::new(), "/abcd/", InputElementGoal::Div), None);
+    assert_eq!(regular_expression_literal(&Scanner::new(), "/abcd/", InputElementGoal::TemplateTail), None);
 }
 #[test]
 fn regular_expression_literal_test_02() {
-    let result = regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExp);
+    let result = regular_expression_literal(&Scanner::new(), "/abcd/", InputElementGoal::RegExp);
     assert_eq!(
         result,
         Some((
@@ -1250,7 +1250,7 @@ fn regular_expression_literal_test_02() {
 }
 #[test]
 fn regular_expression_literal_test_03() {
-    let result = regular_expression_literal(&Scanner::new(), "/abcd/", ScanGoal::InputElementRegExpOrTemplateTail);
+    let result = regular_expression_literal(&Scanner::new(), "/abcd/", InputElementGoal::RegExpOrTemplateTail);
     assert_eq!(
         result,
         Some((
@@ -1261,7 +1261,7 @@ fn regular_expression_literal_test_03() {
 }
 #[test]
 fn regular_expression_literal_test_04() {
-    let result = regular_expression_literal(&Scanner::new(), "/\\//", ScanGoal::InputElementRegExpOrTemplateTail);
+    let result = regular_expression_literal(&Scanner::new(), "/\\//", InputElementGoal::RegExpOrTemplateTail);
     assert_eq!(
         result,
         Some((
@@ -1273,18 +1273,18 @@ fn regular_expression_literal_test_04() {
 
 #[test]
 fn template_literal_test_01() {
-    assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementRegExp), None);
-    assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementRegExpOrTemplateTail), None);
-    assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementDiv), None);
-    assert_eq!(template_substitution_tail(&Scanner::new(), "", ScanGoal::InputElementTemplateTail), None);
-    assert_eq!(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementDiv), None);
-    assert_eq!(template_substitution_tail(&Scanner::new(), "} middle {", ScanGoal::InputElementRegExp), None);
+    assert_eq!(template_substitution_tail(&Scanner::new(), "", InputElementGoal::RegExp), None);
+    assert_eq!(template_substitution_tail(&Scanner::new(), "", InputElementGoal::RegExpOrTemplateTail), None);
+    assert_eq!(template_substitution_tail(&Scanner::new(), "", InputElementGoal::Div), None);
+    assert_eq!(template_substitution_tail(&Scanner::new(), "", InputElementGoal::TemplateTail), None);
+    assert_eq!(template_substitution_tail(&Scanner::new(), "} middle {", InputElementGoal::Div), None);
+    assert_eq!(template_substitution_tail(&Scanner::new(), "} middle {", InputElementGoal::RegExp), None);
 }
 
 #[test]
 fn scan_token_test_01() {
     assert_eq!(
-        scan_token(&Scanner::new(), "", ScanGoal::InputElementRegExp),
+        scan_token(&Scanner::new(), "", InputElementGoal::RegExp),
         (
             Token::Eof,
             Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 0 } },
@@ -1292,7 +1292,7 @@ fn scan_token_test_01() {
         )
     );
     assert_eq!(
-        scan_token(&Scanner::new(), "  /* nothing to see here */   ", ScanGoal::InputElementRegExp),
+        scan_token(&Scanner::new(), "  /* nothing to see here */   ", InputElementGoal::RegExp),
         (
             Token::Eof,
             Location { starting_line: 1, starting_column: 31, span: Span { starting_index: 30, length: 0 } },
@@ -1300,7 +1300,7 @@ fn scan_token_test_01() {
         )
     );
     assert_eq!(
-        scan_token(&Scanner::new(), "/=", ScanGoal::InputElementDiv),
+        scan_token(&Scanner::new(), "/=", InputElementGoal::Div),
         (
             Token::Punctuator(Punctuator::SlashEq),
             Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 2 } },
@@ -1308,7 +1308,7 @@ fn scan_token_test_01() {
         )
     );
     assert_eq!(
-        scan_token(&Scanner::new(), "}", ScanGoal::InputElementRegExp),
+        scan_token(&Scanner::new(), "}", InputElementGoal::RegExp),
         (
             Token::Punctuator(Punctuator::RightBrace),
             Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 1 } },
@@ -1318,7 +1318,7 @@ fn scan_token_test_01() {
 }
 #[test]
 fn scan_token_panic_01() {
-    let (token, location, scanner) = scan_token(&Scanner::new(), "@", ScanGoal::InputElementRegExp);
+    let (token, location, scanner) = scan_token(&Scanner::new(), "@", InputElementGoal::RegExp);
     assert!(matches!(token, Token::Error(_)));
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(
@@ -1354,7 +1354,7 @@ fn thd_count_ne() {
 
 #[test]
 fn template_test_01() {
-    let r = scan_token(&Scanner::new(), "``", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "``", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 3, start_idx: 2 });
     assert_eq!(
@@ -1368,7 +1368,7 @@ fn template_test_01() {
 }
 #[test]
 fn template_test_02() {
-    let r = scan_token(&Scanner::new(), "`a`", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "`a`", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3 });
     assert_eq!(
@@ -1382,7 +1382,7 @@ fn template_test_02() {
 }
 #[test]
 fn template_test_03() {
-    let r = scan_token(&Scanner::new(), "`aa`", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "`aa`", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 5, start_idx: 4 });
     assert_eq!(
@@ -1399,7 +1399,7 @@ fn template_test_04() {
     let r = scan_token(
         &Scanner::new(),
         "`=\\0\\b\\t\\n\\v\\f\\r\\\"\\'\\\\\\x66\\u2288\\u{1f48b}\\\u{1f498}`",
-        ScanGoal::InputElementRegExp,
+        InputElementGoal::RegExp,
     );
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 45, start_idx: 47 });
@@ -1417,7 +1417,7 @@ fn template_test_04() {
 }
 #[test]
 fn template_test_05() {
-    let r = scan_token(&Scanner::new(), "`\\ubob`", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "`\\ubob`", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 8, start_idx: 7 });
     assert_eq!(token, Token::NoSubstitutionTemplate(TemplateData { tv: None, trv: JSString::from("\\ubob") }));
@@ -1428,7 +1428,7 @@ fn template_test_05() {
 }
 #[test]
 fn template_test_06() {
-    let r = scan_token(&Scanner::new(), "`\\u{}`", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "`\\u{}`", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 7, start_idx: 6 });
     assert_eq!(token, Token::NoSubstitutionTemplate(TemplateData { tv: None, trv: JSString::from("\\u{}") }));
@@ -1442,7 +1442,7 @@ fn template_test_07() {
     let r = scan_token(
         &Scanner::new(),
         "`\\u{9999999999999999999999999999999999999999999999999999999999}`",
-        ScanGoal::InputElementRegExp,
+        InputElementGoal::RegExp,
     );
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 65, start_idx: 64 });
@@ -1460,7 +1460,7 @@ fn template_test_07() {
 }
 #[test]
 fn template_test_08() {
-    let r = scan_token(&Scanner::new(), "`\\u{9999:`", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "`\\u{9999:`", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 11, start_idx: 10 });
     assert_eq!(token, Token::NoSubstitutionTemplate(TemplateData { tv: None, trv: JSString::from("\\u{9999:") }));
@@ -1471,7 +1471,7 @@ fn template_test_08() {
 }
 #[test]
 fn template_test_09() {
-    let r = scan_token(&Scanner::new(), "`\\", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "`\\", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert!(matches!(token, Token::Error(_)));
@@ -1482,7 +1482,7 @@ fn template_test_09() {
 }
 #[test]
 fn template_test_10() {
-    let r = scan_token(&Scanner::new(), "`\\03`", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "`\\03`", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 6, start_idx: 5 });
     assert_eq!(token, Token::NoSubstitutionTemplate(TemplateData { tv: None, trv: JSString::from("\\03") }));
@@ -1493,7 +1493,7 @@ fn template_test_10() {
 }
 #[test]
 fn template_test_11() {
-    let r = scan_token(&Scanner::new(), "`\\03 and escapes later? \\u{1f48b}?`", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "`\\03 and escapes later? \\u{1f48b}?`", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 36, start_idx: 35 });
     assert_eq!(
@@ -1513,7 +1513,7 @@ fn template_test_12() {
     let r = scan_token(
         &Scanner::new(),
         "`one\\\ntwo\\\u{2028}three\\\u{2029}four\\\r\nfive\\\rsix`",
-        ScanGoal::InputElementRegExp,
+        InputElementGoal::RegExp,
     );
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 6, column: 5, start_idx: 39 });
@@ -1531,7 +1531,7 @@ fn template_test_12() {
 }
 #[test]
 fn template_test_13() {
-    let r = scan_token(&Scanner::new(), "`This ${thing} is great`", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "`This ${thing} is great`", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 9, start_idx: 8 });
     assert_eq!(
@@ -1546,7 +1546,7 @@ fn template_test_13() {
 
 #[test]
 fn template_test_14() {
-    let r = scan_token(&Scanner::new(), "}${", ScanGoal::InputElementTemplateTail);
+    let r = scan_token(&Scanner::new(), "}${", InputElementGoal::TemplateTail);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3 });
     assert_eq!(token, Token::TemplateMiddle(TemplateData { tv: Some(JSString::from("")), trv: JSString::from("") }));
@@ -1557,7 +1557,7 @@ fn template_test_14() {
 }
 #[test]
 fn template_test_15() {
-    let r = scan_token(&Scanner::new(), "}`", ScanGoal::InputElementTemplateTail);
+    let r = scan_token(&Scanner::new(), "}`", InputElementGoal::TemplateTail);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 3, start_idx: 2 });
     assert_eq!(token, Token::TemplateTail(TemplateData { tv: Some(JSString::from("")), trv: JSString::from("") }));
@@ -1589,7 +1589,7 @@ fn charval_ne() {
 
 #[test]
 fn regex_test_01() {
-    let r = scan_token(&Scanner::new(), "/a/", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "/a/", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 4, start_idx: 3 });
     assert_eq!(
@@ -1604,7 +1604,7 @@ fn regex_test_01() {
 
 #[test]
 fn regex_test_02() {
-    let r = scan_token(&Scanner::new(), "/blue/green", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "/blue/green", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 12, start_idx: 11 });
     assert_eq!(
@@ -1619,7 +1619,7 @@ fn regex_test_02() {
 #[test]
 fn regex_test_03() {
     let scanner = Scanner { line: 1, column: 5, start_idx: 4 };
-    let r = scan_token(&scanner, "####/blue/green", ScanGoal::InputElementRegExp);
+    let r = scan_token(&scanner, "####/blue/green", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 16, start_idx: 15 });
     assert_eq!(
@@ -1633,7 +1633,7 @@ fn regex_test_03() {
 }
 #[test]
 fn scan_token_binary_digits_01() {
-    let r = scan_token(&Scanner::new(), "0b01__01", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "0b01__01", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
@@ -1644,7 +1644,7 @@ fn scan_token_binary_digits_01() {
 }
 #[test]
 fn scan_token_binary_digits_02() {
-    let r = scan_token(&Scanner::new(), "0bx", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "0bx", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
@@ -1655,7 +1655,7 @@ fn scan_token_binary_digits_02() {
 }
 #[test]
 fn scan_token_octal_digits_01() {
-    let r = scan_token(&Scanner::new(), "0o01__01", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "0o01__01", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
@@ -1666,7 +1666,7 @@ fn scan_token_octal_digits_01() {
 }
 #[test]
 fn scan_token_octal_digits_02() {
-    let r = scan_token(&Scanner::new(), "0ox", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "0ox", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
@@ -1677,7 +1677,7 @@ fn scan_token_octal_digits_02() {
 }
 #[test]
 fn scan_token_hex_digits_01() {
-    let r = scan_token(&Scanner::new(), "0x01__01", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "0x01__01", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
@@ -1688,7 +1688,7 @@ fn scan_token_hex_digits_01() {
 }
 #[test]
 fn scan_token_hex_digits_02() {
-    let r = scan_token(&Scanner::new(), "0xx", ScanGoal::InputElementRegExp);
+    let r = scan_token(&Scanner::new(), "0xx", InputElementGoal::RegExp);
     let (token, location, scanner) = r;
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unrecognized Token")));
@@ -1699,7 +1699,7 @@ fn scan_token_hex_digits_02() {
 }
 #[test]
 fn scan_token_err() {
-    let (token, location, scanner) = scan_token(&Scanner::new(), "/*", ScanGoal::InputElementRegExp);
+    let (token, location, scanner) = scan_token(&Scanner::new(), "/*", InputElementGoal::RegExp);
     assert_eq!(scanner, Scanner { line: 1, column: 1, start_idx: 0 });
     assert_eq!(token, Token::Error(String::from("Unterminated /*-style comment. Started on line 1, column 1.")));
     assert_eq!(
@@ -2120,11 +2120,11 @@ mod regular_expression_data {
 
 #[test]
 fn scan_goal_debug() {
-    assert_ne!(format!("{:?}", ScanGoal::InputElementRegExp), "");
+    assert_ne!(format!("{:?}", InputElementGoal::RegExp), "");
 }
 #[test]
 fn scan_goal_clone() {
-    let sg1 = ScanGoal::InputElementRegExp;
+    let sg1 = InputElementGoal::RegExp;
     let sg2 = sg1.clone();
 
     assert_eq!(sg1, sg2);
@@ -2132,7 +2132,7 @@ fn scan_goal_clone() {
 
 #[test]
 fn private_identifier_01() {
-    let (tok, location, scan) = scan_token(&Scanner::new(), "#bobo", ScanGoal::InputElementRegExp);
+    let (tok, location, scan) = scan_token(&Scanner::new(), "#bobo", InputElementGoal::RegExp);
     assert_eq!(scan, Scanner { line: 1, column: 6, start_idx: 5 });
     assert!(matches!(tok, Token::PrivateIdentifier(_)));
     if let Token::PrivateIdentifier(data) = tok {
@@ -2146,7 +2146,7 @@ fn private_identifier_01() {
 }
 #[test]
 fn private_identifier_02() {
-    let (tok, location, scan) = scan_token(&Scanner::new(), "#100", ScanGoal::InputElementRegExp);
+    let (tok, location, scan) = scan_token(&Scanner::new(), "#100", InputElementGoal::RegExp);
     assert_eq!(scan, Scanner { line: 1, column: 1, start_idx: 0 });
     println!("{tok:?}");
     assert!(matches!(tok, Token::Error(_)));
@@ -2160,7 +2160,7 @@ fn private_identifier_02() {
 }
 #[test]
 fn private_identifier_03() {
-    let (tok, location, scan) = scan_token(&Scanner::new(), "#ident\\u{20}aa", ScanGoal::InputElementRegExp);
+    let (tok, location, scan) = scan_token(&Scanner::new(), "#ident\\u{20}aa", InputElementGoal::RegExp);
     assert_eq!(scan, Scanner { line: 1, column: 7, start_idx: 6 });
     assert!(matches!(tok, Token::Error(_)));
     if let Token::Error(msg) = tok {

@@ -40,7 +40,7 @@ use std::rc::Rc;
 // +--------------------+------------------------------+---------------------------------------------------------------+
 
 #[derive(Clone, Debug)]
-pub enum Base {
+pub(crate) enum Base {
     Unresolvable,
     Environment(Rc<dyn EnvironmentRecord>),
     Value(ECMAScriptValue),
@@ -99,7 +99,7 @@ impl From<Option<Object>> for Base {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum ReferencedName {
+pub(crate) enum ReferencedName {
     Value(ECMAScriptValue),
     PrivateName(PrivateName),
 }
@@ -153,15 +153,15 @@ impl TryFrom<ReferencedName> for ECMAScriptValue {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Reference {
-    pub base: Base,
-    pub referenced_name: ReferencedName,
-    pub strict: bool,
-    pub this_value: Option<ECMAScriptValue>,
+pub(crate) struct Reference {
+    pub(crate) base: Base,
+    pub(crate) referenced_name: ReferencedName,
+    pub(crate) strict: bool,
+    pub(crate) this_value: Option<ECMAScriptValue>,
 }
 
 impl Reference {
-    pub fn new<T>(base: Base, key: T, strict: bool, this_value: Option<ECMAScriptValue>) -> Self
+    pub(crate) fn new<T>(base: Base, key: T, strict: bool, this_value: Option<ECMAScriptValue>) -> Self
     where
         T: Into<ReferencedName>,
     {
@@ -175,7 +175,7 @@ impl Reference {
     //
     //  1. If V.[[Base]] is unresolvable, return false.
     //  2. If V.[[Base]] is an Environment Record, return false; otherwise return true.
-    pub fn is_property_reference(&self) -> bool {
+    pub(crate) fn is_property_reference(&self) -> bool {
         matches!(&self.base, Base::Value(_))
     }
 
@@ -186,7 +186,7 @@ impl Reference {
     //
     //  1. Assert: V is a Reference Record.
     //  2. If V.[[Base]] is unresolvable, return true; otherwise return false.
-    pub fn is_unresolvable_reference(&self) -> bool {
+    pub(crate) fn is_unresolvable_reference(&self) -> bool {
         matches!(&self.base, Base::Unresolvable)
     }
 
@@ -197,7 +197,8 @@ impl Reference {
     //
     //  1. Assert: V is a Reference Record.
     //  2. If V.[[ThisValue]] is not empty, return true; otherwise return false.
-    pub fn is_super_reference(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn is_super_reference(&self) -> bool {
         self.this_value.is_some()
     }
 
@@ -207,7 +208,8 @@ impl Reference {
     // when called:
     //
     //  1. If V.[[ReferencedName]] is a Private Name, return true; otherwise return false.
-    pub fn is_private_reference(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn is_private_reference(&self) -> bool {
         matches!(&self.referenced_name, ReferencedName::PrivateName(_))
     }
 
@@ -217,14 +219,14 @@ impl Reference {
     //
     //  1. Assert: IsPropertyReference(V) is true.
     //  2. If IsSuperReference(V) is true, return V.[[ThisValue]]; otherwise return V.[[Base]].
-    pub fn get_this_value(&self) -> ECMAScriptValue {
+    pub(crate) fn get_this_value(&self) -> ECMAScriptValue {
         match (&self.base, &self.this_value) {
             (Base::Value(_), Some(val)) | (Base::Value(val), None) => val.clone(),
             _ => unreachable!(),
         }
     }
 
-    pub fn make_super_property_reference(
+    pub(crate) fn make_super_property_reference(
         actual_this: ECMAScriptValue,
         property_key: ECMAScriptValue,
         strict: bool,
@@ -268,7 +270,7 @@ impl Reference {
 // NOTE     The object that may be created in step 4.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Get]] internal method. An implementation might choose to avoid the actual creation of the
 //          object.
-pub fn get_value(v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
+pub(crate) fn get_value(v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
     let v = v_completion?;
     match v {
         NormalCompletion::Value(val) => Ok(val),
@@ -330,7 +332,7 @@ pub fn get_value(v_completion: FullCompletion) -> Completion<ECMAScriptValue> {
 // NOTE     The object that may be created in step 3.a is not accessible outside of the above abstract operation and the
 //          ordinary object [[Set]] internal method. An implementation might choose to avoid the actual creation of that
 //          object.
-pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScriptValue>) -> Completion<()> {
+pub(crate) fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScriptValue>) -> Completion<()> {
     let v = v_completion?;
     let w = w_completion?;
     match v {
@@ -387,7 +389,7 @@ pub fn put_value(v_completion: FullCompletion, w_completion: Completion<ECMAScri
 //  5. Let base be V.[[Base]].
 //  6. Assert: base is an Environment Record.
 //  7. Return base.InitializeBinding(V.[[ReferencedName]], W).
-pub fn initialize_referenced_binding(
+pub(crate) fn initialize_referenced_binding(
     v_completion: FullCompletion,
     w_completion: Completion<ECMAScriptValue>,
 ) -> Completion<()> {
@@ -402,7 +404,10 @@ pub fn initialize_referenced_binding(
     }
 }
 
-pub fn make_private_reference(base_value: ECMAScriptValue, private_identifier: &JSString) -> anyhow::Result<Reference> {
+pub(crate) fn make_private_reference(
+    base_value: ECMAScriptValue,
+    private_identifier: &JSString,
+) -> anyhow::Result<Reference> {
     // MakePrivateReference ( baseValue, privateIdentifier )
     // The abstract operation MakePrivateReference takes arguments baseValue (an ECMAScript language value) and
     // privateIdentifier (a String) and returns a Reference Record. It performs the following steps when called:

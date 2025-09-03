@@ -8,8 +8,8 @@ use std::io::Write;
 // Script :
 //      ScriptBody opt
 #[derive(Debug)]
-pub struct Script {
-    pub body: Option<Rc<ScriptBody>>,
+pub(crate) struct Script {
+    pub(crate) body: Option<Rc<ScriptBody>>,
     location: Location,
 }
 
@@ -46,7 +46,7 @@ impl PrettyPrint for Script {
     }
 }
 
-pub fn has_unique_elements<T>(iter: T) -> bool
+pub(crate) fn has_unique_elements<T>(iter: T) -> bool
 where
     T: IntoIterator,
     T::Item: Eq + Hash,
@@ -56,7 +56,7 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub enum VarScopeDecl {
+pub(crate) enum VarScopeDecl {
     VariableDeclaration(Rc<VariableDeclaration>),
     ForBinding(Rc<ForBinding>),
     FunctionDeclaration(Rc<FunctionDeclaration>),
@@ -67,10 +67,10 @@ pub enum VarScopeDecl {
 impl From<HoistableDeclPart> for VarScopeDecl {
     fn from(src: HoistableDeclPart) -> Self {
         match src {
-            HoistableDeclPart::FunctionDeclaration(fd) => VarScopeDecl::FunctionDeclaration(fd),
-            HoistableDeclPart::GeneratorDeclaration(gd) => VarScopeDecl::GeneratorDeclaration(gd),
-            HoistableDeclPart::AsyncFunctionDeclaration(afd) => VarScopeDecl::AsyncFunctionDeclaration(afd),
-            HoistableDeclPart::AsyncGeneratorDeclaration(agd) => VarScopeDecl::AsyncGeneratorDeclaration(agd),
+            HoistableDeclPart::Function(fd) => VarScopeDecl::FunctionDeclaration(fd),
+            HoistableDeclPart::Generator(gd) => VarScopeDecl::GeneratorDeclaration(gd),
+            HoistableDeclPart::AsyncFunction(afd) => VarScopeDecl::AsyncFunctionDeclaration(afd),
+            HoistableDeclPart::AsyncGenerator(agd) => VarScopeDecl::AsyncGeneratorDeclaration(agd),
         }
     }
 }
@@ -92,7 +92,7 @@ impl From<&VarScopeDecl> for String {
     }
 }
 impl VarScopeDecl {
-    pub fn bound_names(&self) -> Vec<JSString> {
+    pub(crate) fn bound_names(&self) -> Vec<JSString> {
         match self {
             VarScopeDecl::VariableDeclaration(node) => node.bound_names(),
             VarScopeDecl::ForBinding(node) => node.bound_names(),
@@ -105,7 +105,7 @@ impl VarScopeDecl {
 }
 
 impl Script {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let starting_location = Location::from(scanner);
         let (script, after_script, err) = match ScriptBody::parse(parser, scanner) {
             Ok((node, scan)) => (Some(node), scan, None),
@@ -124,7 +124,7 @@ impl Script {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
@@ -133,7 +133,7 @@ impl Script {
     // * It is a Syntax Error if the LexicallyDeclaredNames of ScriptBody contains any duplicate entries.
     // * It is a Syntax Error if any element of the LexicallyDeclaredNames of ScriptBody also occurs in the
     //   VarDeclaredNames of ScriptBody.
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         if let Some(body) = &self.body {
             let lex_names = body.lexically_declared_names();
             let var_names = body.var_declared_names();
@@ -152,7 +152,8 @@ impl Script {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    #[cfg(test)]
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match &self.body {
             None => false,
             Some(n) => kind == ParseNodeKind::ScriptBody || n.contains(kind),
@@ -162,7 +163,7 @@ impl Script {
     /// Return a list of the lexically declared names for this script.
     ///
     /// See [LexicallyDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-lexicallydeclarednames) from ECMA-262.
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         match &self.body {
             None => vec![],
             Some(sb) => sb.lexically_declared_names(),
@@ -172,7 +173,7 @@ impl Script {
     /// Return a list of the var delcared names for this script.
     ///
     /// See [VarDeclaredNames](https://tc39.es/ecma262/#sec-static-semantics-vardeclarednames) from ECMA-262.
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match &self.body {
             None => vec![],
             Some(sb) => sb.var_declared_names(),
@@ -185,7 +186,7 @@ impl Script {
     /// they are declared var-style.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match &self.body {
             None => vec![],
             Some(sb) => sb.var_scoped_declarations(),
@@ -198,14 +199,14 @@ impl Script {
     /// they are declared var-style, and as such won't be reflected here.
     ///
     /// See [LexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-lexicallyscopeddeclarations) in ECMA-262.
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         match &self.body {
             None => vec![],
             Some(sb) => sb.lexically_scoped_declarations(),
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         match &self.body {
             None => None,
@@ -223,9 +224,9 @@ impl Script {
 // ScriptBody :
 //      StatementList[~Yield, ~Await, ~Return]
 #[derive(Debug)]
-pub struct ScriptBody {
-    pub statement_list: Rc<StatementList>,
-    pub direct: bool,
+pub(crate) struct ScriptBody {
+    pub(crate) statement_list: Rc<StatementList>,
+    pub(crate) direct: bool,
 }
 
 impl fmt::Display for ScriptBody {
@@ -253,20 +254,20 @@ impl PrettyPrint for ScriptBody {
 }
 
 impl ScriptBody {
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (sl, after_sl) = StatementList::parse(parser, scanner, false, false, false)?;
         Ok((Rc::new(ScriptBody { statement_list: sl, direct: parser.direct }), after_sl))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.statement_list.location()
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         self.statement_list.top_level_lexically_declared_names()
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.statement_list.top_level_var_declared_names()
     }
 
@@ -282,7 +283,7 @@ impl ScriptBody {
     //  * It is a Syntax Error if ContainsUndefinedContinueTarget of StatementList with arguments « » and « » is true.
     //  * It is a Syntax Error if AllPrivateIdentifiersValid of StatementList with argument « » is false unless the
     //    source code containing ScriptBody is eval code that is being processed by a direct eval.
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         if !self.direct {
             if self.statement_list.contains(ParseNodeKind::Super) {
                 errs.push(create_syntax_error_object(
@@ -321,15 +322,15 @@ impl ScriptBody {
         self.statement_list.early_errors(errs, strict || self.contains_use_strict(), false, false);
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         kind == ParseNodeKind::StatementList || self.statement_list.contains(kind)
     }
 
-    pub fn directive_prologue(&self) -> Vec<StringToken> {
+    pub(crate) fn directive_prologue(&self) -> Vec<StringToken> {
         self.statement_list.initial_string_tokens()
     }
 
-    pub fn contains_use_strict(&self) -> bool {
+    pub(crate) fn contains_use_strict(&self) -> bool {
         let prologue = self.directive_prologue();
         let needle = JSString::from("use strict");
         prologue.iter().any(|string_tok| string_tok.raw.is_none() && string_tok.value == needle)
@@ -341,7 +342,7 @@ impl ScriptBody {
     /// they are declared var-style.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.statement_list.top_level_var_scoped_declarations()
     }
 
@@ -351,7 +352,7 @@ impl ScriptBody {
     /// they are declared var-style, and as such won't be reflected here.
     ///
     /// See [LexicallyScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-lexicallyscopeddeclarations) in ECMA-262.
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.statement_list.top_level_lexically_scoped_declarations()
     }
 
@@ -359,11 +360,11 @@ impl ScriptBody {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         self.statement_list.contains_arguments()
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -373,7 +374,7 @@ impl ScriptBody {
         self.statement_list.all_private_identifiers_valid(names)
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) { self.statement_list.body_containing_location(location) } else { None }
     }

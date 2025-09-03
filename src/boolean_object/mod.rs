@@ -2,12 +2,12 @@ use super::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub trait BooleanObjectInterface: ObjectInterface {
+pub(crate) trait BooleanObjectInterface: ObjectInterface {
     fn boolean_data(&self) -> &bool;
 }
 
 #[derive(Debug)]
-pub struct BooleanObject {
+pub(crate) struct BooleanObject {
     common: RefCell<CommonObjectData>,
     boolean_data: bool,
 }
@@ -147,10 +147,10 @@ impl BooleanObjectInterface for BooleanObject {
 }
 
 impl BooleanObject {
-    pub fn new(prototype: Option<Object>, value: bool) -> Self {
+    pub(crate) fn new(prototype: Option<Object>, value: bool) -> Self {
         Self { common: RefCell::new(CommonObjectData::new(prototype, true, BOOLEAN_OBJECT_SLOTS)), boolean_data: value }
     }
-    pub fn object(prototype: Option<Object>, value: bool) -> Object {
+    pub(crate) fn object(prototype: Option<Object>, value: bool) -> Object {
         Object { o: Rc::new(Self::new(prototype, value)) }
     }
 }
@@ -179,7 +179,7 @@ impl From<bool> for Object {
 //      b. Assert: Type(b) is Boolean.
 //      c. Return b.
 //  3. Throw a TypeError exception.
-pub fn this_boolean_value(value: &ECMAScriptValue) -> Completion<bool> {
+pub(crate) fn this_boolean_value(value: &ECMAScriptValue) -> Completion<bool> {
     match value {
         ECMAScriptValue::Boolean(b) => Ok(*b),
         ECMAScriptValue::Object(o) => {
@@ -195,7 +195,7 @@ pub fn this_boolean_value(value: &ECMAScriptValue) -> Completion<bool> {
     }
 }
 
-pub fn provision_boolean_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_boolean_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 

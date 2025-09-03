@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -90,7 +90,7 @@ pub fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
 #[derive(Debug)]
 #[allow(clippy::struct_excessive_bools)]
-pub struct RegExpData {
+pub(crate) struct RegExpData {
     original_source: JSString,
     original_flags: JSString,
     ignore_case: bool,
@@ -102,7 +102,7 @@ pub struct RegExpData {
 }
 
 #[derive(Debug)]
-pub struct RegExpObject {
+pub(crate) struct RegExpObject {
     common: RefCell<CommonObjectData>,
     regexp_data: RefCell<RegExpData>,
 }
@@ -123,6 +123,7 @@ impl ObjectInterface for RegExpObject {
     fn to_regexp_object(&self) -> Option<&RegExpObject> {
         Some(self)
     }
+    #[cfg(test)]
     fn is_regexp_object(&self) -> bool {
         true
     }
@@ -236,10 +237,14 @@ impl ObjectInterface for RegExpObject {
     fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
+
+    fn kind(&self) -> ObjectTag {
+        ObjectTag::RegExp
+    }
 }
 
 impl RegExpObject {
-    pub fn new(prototype: Option<Object>) -> Self {
+    pub(crate) fn new(prototype: Option<Object>) -> Self {
         Self {
             common: RefCell::new(CommonObjectData::new(prototype, true, REGEXP_OBJECT_SLOTS)),
             regexp_data: RefCell::new(RegExpData {
@@ -254,12 +259,12 @@ impl RegExpObject {
             }),
         }
     }
-    pub fn object(prototype: Option<Object>) -> Object {
+    pub(crate) fn object(prototype: Option<Object>) -> Object {
         Object { o: Rc::new(Self::new(prototype)) }
     }
 }
 
-pub fn reg_exp_create(p: ECMAScriptValue, f: Option<JSString>) -> Completion<Object> {
+pub(crate) fn reg_exp_create(p: ECMAScriptValue, f: Option<JSString>) -> Completion<Object> {
     // RegExpCreate ( P, F )
     // The abstract operation RegExpCreate takes arguments P (an ECMAScript language value) and F (a String or
     // undefined) and returns either a normal completion containing an Object or a throw completion. It performs the

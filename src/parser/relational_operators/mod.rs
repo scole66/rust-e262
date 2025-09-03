@@ -13,7 +13,7 @@ use std::io::Write;
 //      [+In] RelationalExpression[+In, ?Yield, ?Await] in ShiftExpression[?Yield, ?Await]
 //      [+In] PrivateIdentifier in ShiftExpression[?Yield, ?Await]
 #[derive(Debug)]
-pub enum RelationalExpression {
+pub(crate) enum RelationalExpression {
     ShiftExpression(Rc<ShiftExpression>),
     Less(Rc<RelationalExpression>, Rc<ShiftExpression>),
     Greater(Rc<RelationalExpression>, Rc<ShiftExpression>),
@@ -97,15 +97,6 @@ impl PrettyPrint for RelationalExpression {
     }
 }
 
-impl IsFunctionDefinition for RelationalExpression {
-    fn is_function_definition(&self) -> bool {
-        match self {
-            RelationalExpression::ShiftExpression(se) => se.is_function_definition(),
-            _ => false,
-        }
-    }
-}
-
 impl RelationalExpression {
     fn is_relational_token(tok: &Token, in_flag: bool) -> bool {
         tok.matches_punct(Punctuator::Lt)
@@ -116,7 +107,7 @@ impl RelationalExpression {
             || (tok.matches_keyword(Keyword::In) && in_flag)
     }
 
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         in_flag: bool,
@@ -129,7 +120,7 @@ impl RelationalExpression {
                     let mut current = Rc::new(RelationalExpression::ShiftExpression(se));
                     let mut current_scanner = after_se;
                     loop {
-                        let (op, _, after_op) = scan_token(&current_scanner, parser.source, ScanGoal::InputElementDiv);
+                        let (op, _, after_op) = scan_token(&current_scanner, parser.source, InputElementGoal::Div);
                         let make_re = match &op {
                             Token::Punctuator(Punctuator::Lt) => RelationalExpression::Less,
                             Token::Punctuator(Punctuator::Gt) => RelationalExpression::Greater,
@@ -159,9 +150,9 @@ impl RelationalExpression {
             })
             .otherwise(|| {
                 if in_flag {
-                    scan_for_private_identifier(scanner, parser.source, ScanGoal::InputElementRegExp).and_then(
+                    scan_for_private_identifier(scanner, parser.source, InputElementGoal::RegExp).and_then(
                         |(pid, pid_loc, after_pid)| {
-                            scan_for_keyword(after_pid, parser.source, ScanGoal::InputElementDiv, Keyword::In).and_then(
+                            scan_for_keyword(after_pid, parser.source, InputElementGoal::Div, Keyword::In).and_then(
                                 |(_, after_in)| {
                                     ShiftExpression::parse(parser, after_in, yield_flag, await_flag).map(
                                         |(se, after_se)| {
@@ -179,7 +170,7 @@ impl RelationalExpression {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             RelationalExpression::ShiftExpression(exp) => exp.location(),
             RelationalExpression::Less(left, right)
@@ -192,7 +183,7 @@ impl RelationalExpression {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             RelationalExpression::ShiftExpression(n) | RelationalExpression::PrivateIn(_, n, _) => n.contains(kind),
             RelationalExpression::Less(l, r)
@@ -204,14 +195,14 @@ impl RelationalExpression {
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             RelationalExpression::ShiftExpression(n) => n.as_string_literal(),
             _ => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         match self {
@@ -243,7 +234,7 @@ impl RelationalExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -263,7 +254,7 @@ impl RelationalExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             RelationalExpression::ShiftExpression(n) | RelationalExpression::PrivateIn(_, n, _) => {
                 n.early_errors(errs, strict);
@@ -280,7 +271,7 @@ impl RelationalExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             RelationalExpression::ShiftExpression(node) => node.is_strictly_deletable(),
             _ => true,
@@ -290,21 +281,21 @@ impl RelationalExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             RelationalExpression::ShiftExpression(se) => se.assignment_target_type(strict),
             _ => ATTKind::Invalid,
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            RelationalExpression::ShiftExpression(node) => node.is_named_function(),
-            _ => false,
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        RelationalExpression::ShiftExpression(node) => node.is_named_function(),
+    //        _ => false,
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -324,7 +315,7 @@ impl RelationalExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

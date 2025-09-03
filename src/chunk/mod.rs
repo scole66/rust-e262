@@ -7,16 +7,16 @@ use std::fmt;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct StashedFunctionData {
-    pub source_text: String,
-    pub params: ParamSource,
-    pub body: BodySource,
-    pub to_compile: FunctionSource,
-    pub strict: bool,
-    pub this_mode: ThisLexicality,
+pub(crate) struct StashedFunctionData {
+    pub(crate) source_text: String,
+    pub(crate) params: ParamSource,
+    pub(crate) body: BodySource,
+    pub(crate) to_compile: FunctionSource,
+    pub(crate) strict: bool,
+    pub(crate) this_mode: ThisLexicality,
 }
 
-pub struct ConciseChunk<'a>(pub &'a Chunk);
+pub(crate) struct ConciseChunk<'a>(pub(crate) &'a Chunk);
 impl fmt::Debug for ConciseChunk<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Chunk {{ {} }}", self.0.name)
@@ -24,22 +24,23 @@ impl fmt::Debug for ConciseChunk<'_> {
 }
 /// A compilation unit
 #[derive(Debug, Default)]
-pub struct Chunk {
-    pub name: String,
-    pub strings: Vec<JSString>,
-    pub opcodes: Vec<Opcode>,
-    pub floats: Vec<f64>,
-    pub bigints: Vec<Rc<BigInt>>,
-    pub string_sets: Vec<AHashSet<JSString>>,
-    pub function_object_data: Vec<StashedFunctionData>,
+pub(crate) struct Chunk {
+    pub(crate) name: String,
+    pub(crate) strings: Vec<JSString>,
+    pub(crate) opcodes: Vec<Opcode>,
+    pub(crate) floats: Vec<f64>,
+    pub(crate) bigints: Vec<Rc<BigInt>>,
+    pub(crate) string_sets: Vec<AHashSet<JSString>>,
+    pub(crate) function_object_data: Vec<StashedFunctionData>,
 }
 
 impl Chunk {
-    pub fn new(name: impl Into<String>) -> Self {
+    pub(crate) fn new(name: impl Into<String>) -> Self {
         Self { name: name.into(), ..Default::default() }
     }
 
-    pub fn dup_without_code(src: &Chunk, name: impl Into<String>) -> Self {
+    #[cfg(test)]
+    pub(crate) fn dup_without_code(src: &Chunk, name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             strings: src.strings.clone(),
@@ -51,19 +52,19 @@ impl Chunk {
         }
     }
 
-    pub fn add_to_string_pool(&mut self, s: JSString) -> anyhow::Result<u16> {
+    pub(crate) fn add_to_string_pool(&mut self, s: JSString) -> anyhow::Result<u16> {
         Self::add_to_pool(&mut self.strings, s, "strings")
     }
 
-    pub fn add_to_float_pool(&mut self, n: f64) -> anyhow::Result<u16> {
+    pub(crate) fn add_to_float_pool(&mut self, n: f64) -> anyhow::Result<u16> {
         Self::add_to_pool(&mut self.floats, n, "floats")
     }
 
-    pub fn add_to_bigint_pool(&mut self, n: Rc<BigInt>) -> anyhow::Result<u16> {
+    pub(crate) fn add_to_bigint_pool(&mut self, n: Rc<BigInt>) -> anyhow::Result<u16> {
         Self::add_to_pool(&mut self.bigints, n, "big ints")
     }
 
-    pub fn add_to_string_set_pool(&mut self, strings: &[JSString]) -> anyhow::Result<u16> {
+    pub(crate) fn add_to_string_set_pool(&mut self, strings: &[JSString]) -> anyhow::Result<u16> {
         let label_set = strings.iter().cloned().collect::<AHashSet<JSString>>();
         Self::add_to_pool(&mut self.string_sets, label_set, "string sets")
     }
@@ -84,35 +85,35 @@ impl Chunk {
             .map_err(|_| anyhow!("Out of room for {} in this compilation unit", collection_name))
     }
 
-    pub fn add_to_func_stash(&mut self, fd: StashedFunctionData) -> anyhow::Result<u16> {
+    pub(crate) fn add_to_func_stash(&mut self, fd: StashedFunctionData) -> anyhow::Result<u16> {
         let result = self.function_object_data.len();
         self.function_object_data.push(fd);
         result.try_into().map_err(|_| anyhow!("Out of room for more functions!"))
     }
 
-    pub fn op(&mut self, opcode: Insn) {
+    pub(crate) fn op(&mut self, opcode: Insn) {
         self.opcodes.push(opcode.into());
     }
 
-    pub fn op_plus_arg(&mut self, opcode: Insn, arg: u16) {
+    pub(crate) fn op_plus_arg(&mut self, opcode: Insn, arg: u16) {
         self.opcodes.push(opcode.into());
         self.opcodes.push(arg);
     }
 
-    pub fn op_plus_two_args(&mut self, opcode: Insn, arg1: u16, arg2: u16) {
+    pub(crate) fn op_plus_two_args(&mut self, opcode: Insn, arg1: u16, arg2: u16) {
         self.opcodes.push(opcode.into());
         self.opcodes.push(arg1);
         self.opcodes.push(arg2);
     }
 
-    pub fn op_jump(&mut self, opcode: Insn) -> usize {
+    pub(crate) fn op_jump(&mut self, opcode: Insn) -> usize {
         self.opcodes.push(opcode.into());
         self.opcodes.push(0);
         self.opcodes.len() - 1
     }
 
     #[expect(clippy::cast_sign_loss)]
-    pub fn op_jump_back(&mut self, opcode: Insn, location: usize) -> anyhow::Result<()> {
+    pub(crate) fn op_jump_back(&mut self, opcode: Insn, location: usize) -> anyhow::Result<()> {
         self.opcodes.push(opcode.into());
         let delta = isize::try_from(location).expect("a hope and a prayer")
             - isize::try_from(self.opcodes.len()).expect("should be ok")
@@ -123,7 +124,7 @@ impl Chunk {
     }
 
     #[expect(clippy::cast_sign_loss)]
-    pub fn fixup(&mut self, mark: usize) -> anyhow::Result<()> {
+    pub(crate) fn fixup(&mut self, mark: usize) -> anyhow::Result<()> {
         let len = self.opcodes.len();
         if mark >= len {
             anyhow::bail!("Fixup location out of range");
@@ -133,12 +134,12 @@ impl Chunk {
         Ok(())
     }
 
-    pub fn pos(&self) -> usize {
+    pub(crate) fn pos(&self) -> usize {
         self.opcodes.len()
     }
 
     #[expect(clippy::cast_possible_wrap)]
-    pub fn insn_repr_at(&self, starting_idx: usize) -> (usize, String) {
+    pub(crate) fn insn_repr_at(&self, starting_idx: usize) -> (usize, String) {
         let mut idx = starting_idx;
         let insn = Insn::try_from(self.opcodes[idx]).unwrap();
         idx += 1;
@@ -371,7 +372,7 @@ impl Chunk {
         }
     }
 
-    pub fn disassemble(&self) -> Vec<String> {
+    pub(crate) fn disassemble(&self) -> Vec<String> {
         let mut idx = 0;
         let mut result = vec![];
         result.push(format!("====== {} ======", self.name));
@@ -383,7 +384,8 @@ impl Chunk {
         result
     }
 
-    pub fn repr_with_size(&self) -> Vec<(String, usize)> {
+    #[cfg(test)]
+    pub(crate) fn repr_with_size(&self) -> Vec<(String, usize)> {
         let mut idx = 0;
         let mut result = vec![];
         while idx < self.opcodes.len() {
@@ -394,11 +396,13 @@ impl Chunk {
         result
     }
 
-    pub fn set_name(&mut self, name: &str) {
+    #[cfg(test)]
+    pub(crate) fn set_name(&mut self, name: &str) {
         self.name = String::from(name);
     }
 
-    pub fn analyze_strictness(&self) -> Strictness {
+    #[cfg(test)]
+    pub(crate) fn analyze_strictness(&self) -> Strictness {
         let mut idx = 0;
         let mut saw_strict = false;
         let mut saw_non_strict = false;
@@ -407,7 +411,7 @@ impl Chunk {
             idx += inc;
 
             let repr = repr.split_whitespace().next().unwrap();
-            if ["CALL_STRICT", "STRICT_RESOLVE", "STRICT_REF"].contains(&repr) {
+            if ["CALL_STRICT", "STRICT_RESOLVE", "STRICT_REF", "TAIL_CALL"].contains(&repr) {
                 saw_strict = true;
             } else if ["CALL", "RESOLVE", "REF"].contains(&repr) {
                 saw_non_strict = true;
@@ -422,8 +426,9 @@ impl Chunk {
     }
 }
 
+#[cfg(test)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Strictness {
+pub(crate) enum Strictness {
     /// Has strict-style instructions, and no non-strict instructions
     Strict,
     /// Has non-strict instructions, and no strict instructions

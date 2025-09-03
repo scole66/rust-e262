@@ -6,9 +6,9 @@ use std::io::Write;
 // SwitchStatement[Yield, Await, Return] :
 //      switch ( Expression[+In, ?Yield, ?Await] ) CaseBlock[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub struct SwitchStatement {
-    pub expression: Rc<Expression>,
-    pub case_block: Rc<CaseBlock>,
+pub(crate) struct SwitchStatement {
+    pub(crate) expression: Rc<Expression>,
+    pub(crate) case_block: Rc<CaseBlock>,
     location: Location,
 }
 
@@ -44,7 +44,7 @@ impl PrettyPrint for SwitchStatement {
 }
 
 impl SwitchStatement {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -52,42 +52,41 @@ impl SwitchStatement {
         return_flag: bool,
     ) -> ParseResult<Self> {
         let (switch_loc, after_switch) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Switch)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Switch)?;
         let (_, after_open) =
-            scan_for_punct(after_switch, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+            scan_for_punct(after_switch, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-        let (_, after_close) =
-            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_close) = scan_for_punct(after_exp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
         let (cb, after_cases) = CaseBlock::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
         let location = switch_loc.merge(&cb.location());
         Ok((Rc::new(SwitchStatement { expression: exp, case_block: cb, location }), after_cases))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.case_block.var_declared_names()
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         self.case_block.contains_undefined_break_target(label_set)
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind) || self.case_block.contains(kind)
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         self.case_block.contains_duplicate_labels(label_set)
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         self.case_block.contains_undefined_continue_target(iteration_set)
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -101,7 +100,7 @@ impl SwitchStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -111,7 +110,7 @@ impl SwitchStatement {
         self.expression.contains_arguments() || self.case_block.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         // Static Semantics: Early Errors
         //  SwitchStatement : switch ( Expression ) CaseBlock
         //  * It is a Syntax Error if the LexicallyDeclaredNames of CaseBlock contains any duplicate entries.
@@ -139,11 +138,11 @@ impl SwitchStatement {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.case_block.var_scoped_declarations()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             self.expression
@@ -154,7 +153,7 @@ impl SwitchStatement {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -174,7 +173,7 @@ impl SwitchStatement {
 //      { CaseClauses[?Yield, ?Await, ?Return]opt }
 //      { CaseClauses[?Yield, ?Await, ?Return]opt DefaultClause[?Yield, ?Await, ?Return] CaseClauses[?Yield, ?Await, ?Return]opt }
 #[derive(Debug)]
-pub enum CaseBlock {
+pub(crate) enum CaseBlock {
     NoDefault(Option<Rc<CaseClauses>>, Location),
     HasDefault(Option<Rc<CaseClauses>>, Rc<DefaultClause>, Option<Rc<CaseClauses>>, Location),
 }
@@ -255,7 +254,7 @@ impl PrettyPrint for CaseBlock {
 }
 
 impl CaseBlock {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -263,7 +262,7 @@ impl CaseBlock {
         return_flag: bool,
     ) -> ParseResult<Self> {
         let (open_loc, after_open) =
-            scan_for_punct(scanner, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftBrace)?;
+            scan_for_punct(scanner, parser.source, InputElementGoal::Div, Punctuator::LeftBrace)?;
         let (pre, after_pre) = match CaseClauses::parse(parser, after_open, yield_flag, await_flag, return_flag) {
             Ok((node, scan)) => (Some(node), scan),
             Err(_) => (None, after_open),
@@ -271,7 +270,7 @@ impl CaseBlock {
         Err(ParseError::new(PECode::CaseBlockCloseExpected, after_pre))
             .otherwise(|| {
                 let (close_loc, after_close) =
-                    scan_for_punct(after_pre, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                    scan_for_punct(after_pre, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
                 Ok((None, close_loc, after_close))
             })
             .otherwise(|| {
@@ -282,7 +281,7 @@ impl CaseBlock {
                         Err(_) => (None, after_def),
                     };
                 let (close_loc, after_close) =
-                    scan_for_punct(after_post, parser.source, ScanGoal::InputElementDiv, Punctuator::RightBrace)?;
+                    scan_for_punct(after_post, parser.source, InputElementGoal::Div, Punctuator::RightBrace)?;
                 Ok((Some((def, post)), close_loc, after_close))
             })
             .map(|(post, close_loc, scan)| {
@@ -299,13 +298,13 @@ impl CaseBlock {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             CaseBlock::NoDefault(_, location) | CaseBlock::HasDefault(_, _, _, location) => *location,
         }
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             CaseBlock::NoDefault(None, _) => vec![],
             CaseBlock::NoDefault(Some(node), _) => node.var_declared_names(),
@@ -323,7 +322,7 @@ impl CaseBlock {
         }
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         let (c1, dflt, c2) = match self {
             CaseBlock::NoDefault(c, _) => (c.as_ref(), None, None),
             CaseBlock::HasDefault(pre, def, post, _) => (pre.as_ref(), Some(def), post.as_ref()),
@@ -342,7 +341,7 @@ impl CaseBlock {
         result
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             CaseBlock::NoDefault(None, _) => false,
             CaseBlock::NoDefault(Some(node), _) => node.contains_undefined_break_target(label_set),
@@ -354,7 +353,7 @@ impl CaseBlock {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             CaseBlock::NoDefault(opt, _) => opt.as_ref().is_some_and(|n| n.contains(kind)),
             CaseBlock::HasDefault(opt1, def, opt2, _) => {
@@ -365,7 +364,7 @@ impl CaseBlock {
         }
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             CaseBlock::NoDefault(None, _) => false,
             CaseBlock::NoDefault(Some(node), _) => node.contains_duplicate_labels(label_set),
@@ -377,7 +376,7 @@ impl CaseBlock {
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             CaseBlock::NoDefault(None, _) => false,
             CaseBlock::NoDefault(Some(node), _) => node.contains_undefined_continue_target(iteration_set),
@@ -389,7 +388,7 @@ impl CaseBlock {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -418,7 +417,7 @@ impl CaseBlock {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -435,7 +434,7 @@ impl CaseBlock {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         let (before, default, after) = match self {
             CaseBlock::NoDefault(cc, _) => (cc.as_ref(), None, None),
             CaseBlock::HasDefault(cc1, def, cc2, _) => (cc1.as_ref(), Some(def), cc2.as_ref()),
@@ -454,7 +453,7 @@ impl CaseBlock {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         let (before, default, after) = match self {
             CaseBlock::NoDefault(cc, _) => (cc.as_ref(), None, None),
             CaseBlock::HasDefault(cc1, def, cc2, _) => (cc1.as_ref(), Some(def), cc2.as_ref()),
@@ -472,7 +471,7 @@ impl CaseBlock {
         list
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         let (before, default, after) = match self {
             CaseBlock::NoDefault(cc, _) => (cc.as_ref(), None, None),
             CaseBlock::HasDefault(before, def, after, _) => (before.as_ref(), Some(def), after.as_ref()),
@@ -490,7 +489,7 @@ impl CaseBlock {
         list
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -508,7 +507,7 @@ impl CaseBlock {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -537,7 +536,7 @@ impl CaseBlock {
 //      CaseClause[?Yield, ?Await, ?Return]
 //      CaseClauses[?Yield, ?Await, ?Return] CaseClause[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub enum CaseClauses {
+pub(crate) enum CaseClauses {
     Item(Rc<CaseClause>),
     List(Rc<CaseClauses>, Rc<CaseClause>),
 }
@@ -584,7 +583,7 @@ impl PrettyPrint for CaseClauses {
 }
 
 impl CaseClauses {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
@@ -603,7 +602,7 @@ impl CaseClauses {
         Ok((current, current_scanner))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             CaseClauses::Item(node) => node.var_declared_names(),
             CaseClauses::List(lst, item) => {
@@ -614,7 +613,7 @@ impl CaseClauses {
         }
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         let (list, item) = match self {
             CaseClauses::Item(item) => (None, item),
             CaseClauses::List(lst, item) => (Some(lst), item),
@@ -624,7 +623,7 @@ impl CaseClauses {
         result
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             CaseClauses::Item(node) => node.contains_undefined_break_target(label_set),
             CaseClauses::List(lst, item) => {
@@ -633,14 +632,14 @@ impl CaseClauses {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             CaseClauses::Item(node) => node.contains(kind),
             CaseClauses::List(lst, item) => lst.contains(kind) || item.contains(kind),
         }
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             CaseClauses::Item(node) => node.contains_duplicate_labels(label_set),
             CaseClauses::List(lst, item) => {
@@ -649,7 +648,7 @@ impl CaseClauses {
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             CaseClauses::Item(node) => node.contains_undefined_continue_target(iteration_set),
             CaseClauses::List(lst, item) => {
@@ -659,7 +658,7 @@ impl CaseClauses {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -678,7 +677,7 @@ impl CaseClauses {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -691,7 +690,7 @@ impl CaseClauses {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         let (list, item) = match self {
             CaseClauses::Item(node) => (None, node),
             CaseClauses::List(list, node) => (Some(list), node),
@@ -705,7 +704,7 @@ impl CaseClauses {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             CaseClauses::Item(cc) => cc.var_scoped_declarations(),
             CaseClauses::List(ccl, cc) => {
@@ -716,7 +715,7 @@ impl CaseClauses {
         }
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         match self {
             CaseClauses::Item(cc) => cc.lexically_scoped_declarations(),
             CaseClauses::List(clauses, clause) => {
@@ -727,7 +726,7 @@ impl CaseClauses {
         }
     }
 
-    pub fn to_vec(&self) -> Vec<Rc<CaseClause>> {
+    pub(crate) fn to_vec(&self) -> Vec<Rc<CaseClause>> {
         match self {
             CaseClauses::Item(item) => vec![item.clone()],
             CaseClauses::List(list, item) => {
@@ -738,14 +737,14 @@ impl CaseClauses {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             CaseClauses::Item(case_clause) => case_clause.location(),
             CaseClauses::List(case_clauses, case_clause) => case_clauses.location().merge(&case_clause.location()),
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -759,7 +758,7 @@ impl CaseClauses {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -783,10 +782,10 @@ impl CaseClauses {
 // CaseClause[Yield, Await, Return] :
 //      case Expression[+In, ?Yield, ?Await] : StatementList[?Yield, ?Await, ?Return]opt
 #[derive(Debug)]
-pub struct CaseClause {
-    pub expression: Rc<Expression>,
-    pub statements: Option<Rc<StatementList>>,
-    pub location: Location,
+pub(crate) struct CaseClause {
+    pub(crate) expression: Rc<Expression>,
+    pub(crate) statements: Option<Rc<StatementList>>,
+    pub(crate) location: Location,
 }
 
 impl fmt::Display for CaseClause {
@@ -833,18 +832,17 @@ impl PrettyPrint for CaseClause {
 }
 
 impl CaseClause {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (loc_start, after_case) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Case)?;
+        let (loc_start, after_case) = scan_for_keyword(scanner, parser.source, InputElementGoal::Div, Keyword::Case)?;
         let (exp, after_exp) = Expression::parse(parser, after_case, true, yield_flag, await_flag)?;
         let (loc_colon, after_colon) =
-            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+            scan_for_punct(after_exp, parser.source, InputElementGoal::Div, Punctuator::Colon)?;
         let (stmt, after_stmt) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_colon),
             Ok((stmt, s)) => (Some(stmt), s),
@@ -854,43 +852,43 @@ impl CaseClause {
         Ok((Rc::new(CaseClause { expression: exp, statements: stmt, location }), after_stmt))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match &self.statements {
             None => vec![],
             Some(s) => s.var_declared_names(),
         }
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         if let Some(stmt) = &self.statements { stmt.lexically_declared_names() } else { vec![] }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match &self.statements {
             None => false,
             Some(s) => s.contains_undefined_break_target(label_set),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind) || self.statements.as_ref().is_some_and(|n| n.contains(kind))
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match &self.statements {
             None => false,
             Some(s) => s.contains_duplicate_labels(label_set),
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match &self.statements {
             None => false,
             Some(s) => s.contains_undefined_continue_target(iteration_set, &[]),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -908,7 +906,7 @@ impl CaseClause {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -918,7 +916,7 @@ impl CaseClause {
         self.expression.contains_arguments() || self.statements.as_ref().is_some_and(|s| s.contains_arguments())
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         self.expression.early_errors(errs, strict);
         if let Some(stmt) = &self.statements {
             stmt.early_errors(errs, strict, within_iteration, true);
@@ -928,22 +926,22 @@ impl CaseClause {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         if let Some(sl) = &self.statements { sl.var_scoped_declarations() } else { vec![] }
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         match &self.statements {
             Some(sl) => sl.lexically_scoped_declarations(),
             None => vec![],
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             if let Some(statements) = &self.statements { statements.body_containing_location(location) } else { None }
@@ -952,7 +950,7 @@ impl CaseClause {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
@@ -971,8 +969,8 @@ impl CaseClause {
 // DefaultClause[Yield, Await, Return] :
 //      default : StatementList[?Yield, ?Await, ?Return]opt
 #[derive(Debug)]
-pub struct DefaultClause {
-    pub list: Option<Rc<StatementList>>,
+pub(crate) struct DefaultClause {
+    pub(crate) list: Option<Rc<StatementList>>,
     location: Location,
 }
 
@@ -1018,17 +1016,16 @@ impl PrettyPrint for DefaultClause {
 }
 
 impl DefaultClause {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (start_loc, after_def) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementDiv, Keyword::Default)?;
+        let (start_loc, after_def) = scan_for_keyword(scanner, parser.source, InputElementGoal::Div, Keyword::Default)?;
         let (colon_loc, after_colon) =
-            scan_for_punct(after_def, parser.source, ScanGoal::InputElementDiv, Punctuator::Colon)?;
+            scan_for_punct(after_def, parser.source, InputElementGoal::Div, Punctuator::Colon)?;
         let (sl, after_sl) = match StatementList::parse(parser, after_colon, yield_flag, await_flag, return_flag) {
             Err(_) => (None, after_colon),
             Ok((lst, scan)) => (Some(lst), scan),
@@ -1037,46 +1034,46 @@ impl DefaultClause {
         Ok((Rc::new(DefaultClause { list: sl, location }), after_sl))
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             DefaultClause { list: None, .. } => vec![],
             DefaultClause { list: Some(sl), .. } => sl.var_declared_names(),
         }
     }
 
-    pub fn lexically_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn lexically_declared_names(&self) -> Vec<JSString> {
         match &self.list {
             None => vec![],
             Some(stmt) => stmt.lexically_declared_names(),
         }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             DefaultClause { list: None, .. } => false,
             DefaultClause { list: Some(sl), .. } => sl.contains_undefined_break_target(label_set),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.list.as_ref().is_some_and(|n| n.contains(kind))
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             DefaultClause { list: None, .. } => false,
             DefaultClause { list: Some(sl), .. } => sl.contains_duplicate_labels(label_set),
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             DefaultClause { list: None, .. } => false,
             DefaultClause { list: Some(sl), .. } => sl.contains_undefined_continue_target(iteration_set, &[]),
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -1090,7 +1087,7 @@ impl DefaultClause {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -1100,7 +1097,7 @@ impl DefaultClause {
         self.list.as_ref().is_some_and(|sl| sl.contains_arguments())
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool) {
         if let Some(stmt) = &self.list {
             stmt.early_errors(errs, strict, within_iteration, true);
         }
@@ -1109,22 +1106,22 @@ impl DefaultClause {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         if let Some(stmt) = &self.list { stmt.var_scoped_declarations() } else { vec![] }
     }
 
-    pub fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
+    pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         match &self.list {
             Some(stmt) => stmt.lexically_scoped_declarations(),
             None => vec![],
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             self.list.as_ref().and_then(|item| item.body_containing_location(location))
@@ -1133,7 +1130,7 @@ impl DefaultClause {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

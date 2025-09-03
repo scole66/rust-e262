@@ -6,7 +6,7 @@ use std::io::Write;
 // DebuggerStatement :
 //      debugger ;
 #[derive(Debug)]
-pub struct DebuggerStatement {
+pub(crate) struct DebuggerStatement {
     location: Location,
 }
 
@@ -38,24 +38,15 @@ impl PrettyPrint for DebuggerStatement {
 
 impl DebuggerStatement {
     // no need to cache
-    pub fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut Parser, scanner: Scanner) -> ParseResult<Self> {
         let (deb_loc, after_deb) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::Debugger)?;
-        let (semi_loc, after_semi) = scan_for_auto_semi(after_deb, parser.source, ScanGoal::InputElementDiv)?;
+            scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::Debugger)?;
+        let (semi_loc, after_semi) = scan_for_auto_semi(after_deb, parser.source, InputElementGoal::Div)?;
         Ok((Rc::new(DebuggerStatement { location: deb_loc.merge(&semi_loc) }), after_semi))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
-    }
-
-    pub fn contains(&self, _kind: ParseNodeKind) -> bool {
-        false
-    }
-
-    pub fn body_containing_location(&self, _: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        None
     }
 }
 

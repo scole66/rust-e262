@@ -7,7 +7,7 @@ use std::io::Write;
 //      if ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return] else Statement[?Yield, ?Await, ?Return]
 //      if ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return] [lookahead ≠ else]
 #[derive(Debug)]
-pub enum IfStatement {
+pub(crate) enum IfStatement {
     WithElse(Rc<Expression>, Rc<Statement>, Rc<Statement>, Location),
     WithoutElse(Rc<Expression>, Rc<Statement>, Location),
 }
@@ -71,22 +71,19 @@ impl PrettyPrint for IfStatement {
 }
 
 impl IfStatement {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (lead_loc, after_lead) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::If)?;
-        let (_, after_open) =
-            scan_for_punct(after_lead, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (lead_loc, after_lead) = scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::If)?;
+        let (_, after_open) = scan_for_punct(after_lead, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (exp, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-        let (_, after_close) =
-            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_close) = scan_for_punct(after_exp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
         let (stmt1, after_stmt1) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
-        match scan_for_keyword(after_stmt1, parser.source, ScanGoal::InputElementRegExp, Keyword::Else) {
+        match scan_for_keyword(after_stmt1, parser.source, InputElementGoal::RegExp, Keyword::Else) {
             Err(_) => {
                 let location = lead_loc.merge(&stmt1.location());
                 Ok((Rc::new(IfStatement::WithoutElse(exp, stmt1, location)), after_stmt1))
@@ -99,24 +96,24 @@ impl IfStatement {
         }
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             IfStatement::WithElse(_, _, _, location) | IfStatement::WithoutElse(_, _, location) => *location,
         }
     }
 
-    pub fn expression(&self) -> &Rc<Expression> {
+    pub(crate) fn expression(&self) -> &Rc<Expression> {
         match self {
             IfStatement::WithElse(e, ..) | IfStatement::WithoutElse(e, ..) => e,
         }
     }
-    pub fn first_statement(&self) -> &Rc<Statement> {
+    pub(crate) fn first_statement(&self) -> &Rc<Statement> {
         match self {
             IfStatement::WithElse(_, s, ..) | IfStatement::WithoutElse(_, s, ..) => s,
         }
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         match self {
             IfStatement::WithElse(_, s1, s2, ..) => {
                 let mut names = s1.var_declared_names();
@@ -127,7 +124,7 @@ impl IfStatement {
         }
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         match self {
             IfStatement::WithElse(_, s1, s2, ..) => {
                 s1.contains_undefined_break_target(label_set) || s2.contains_undefined_break_target(label_set)
@@ -136,14 +133,14 @@ impl IfStatement {
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             IfStatement::WithElse(e, s1, s2, ..) => e.contains(kind) || s1.contains(kind) || s2.contains(kind),
             IfStatement::WithoutElse(e, s1, ..) => e.contains(kind) || s1.contains(kind),
         }
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         match self {
             IfStatement::WithElse(_, s1, s2, ..) => {
                 s1.contains_duplicate_labels(label_set) || s2.contains_duplicate_labels(label_set)
@@ -152,7 +149,7 @@ impl IfStatement {
         }
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         match self {
             IfStatement::WithElse(_, s1, s2, ..) => {
                 s1.contains_undefined_continue_target(iteration_set, &[])
@@ -162,7 +159,7 @@ impl IfStatement {
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -185,7 +182,7 @@ impl IfStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -200,7 +197,13 @@ impl IfStatement {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub(crate) fn early_errors(
+        &self,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         let (e, s1, s2) = match self {
             IfStatement::WithElse(e, s1, s2, ..) => (e, s1, Some(s2)),
             IfStatement::WithoutElse(e, s1, ..) => (e, s1, None),
@@ -215,7 +218,7 @@ impl IfStatement {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         match self {
             IfStatement::WithElse(_, s1, s2, ..) => {
                 let mut list = s1.var_scoped_declarations();
@@ -226,7 +229,7 @@ impl IfStatement {
         }
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         if self.location().contains(location) {
             match self {
                 IfStatement::WithElse(expression, statement, statement1, location) => expression
@@ -242,7 +245,7 @@ impl IfStatement {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

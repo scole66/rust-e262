@@ -18,7 +18,6 @@ mod bitwise_and_expression {
         pretty_check(&*pn, "BitwiseANDExpression: a", &["EqualityExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", &[]);
         assert_ne!(format!("{pn:?}"), "");
-        assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn parse_02() {
@@ -33,7 +32,6 @@ mod bitwise_and_expression {
             &["IdentifierName: a", "Punctuator: &", "IdentifierName: b"],
         );
         assert_ne!(format!("{pn:?}"), "");
-        assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn parse_03() {
@@ -44,7 +42,6 @@ mod bitwise_and_expression {
         pretty_check(&*pn, "BitwiseANDExpression: a", &["EqualityExpression: a"]);
         concise_check(&*pn, "IdentifierName: a", &[]);
         assert_ne!(format!("{pn:?}"), "");
-        assert_eq!(pn.is_function_definition(), false);
     }
     #[test]
     fn parse_04() {
@@ -154,12 +151,12 @@ mod bitwise_and_expression {
         Maker::new(src).bitwise_and_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a&b" => false; "bitwise and")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).bitwise_and_expression().is_named_function()
-    }
+    //#[test_case("a&b" => false; "bitwise and")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).bitwise_and_expression().is_named_function()
+    //}
 
     #[test_case("  a&b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "bitwise and")]
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
@@ -176,7 +173,6 @@ fn bitwise_xor_expression_test_01() {
     pretty_check(&*pn, "BitwiseXORExpression: a", &["BitwiseANDExpression: a"]);
     concise_check(&*pn, "IdentifierName: a", &[]);
     assert_ne!(format!("{pn:?}"), "");
-    assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
 fn bitwise_xor_expression_test_02() {
@@ -186,7 +182,6 @@ fn bitwise_xor_expression_test_02() {
     pretty_check(&*pn, "BitwiseXORExpression: a ^ b", &["BitwiseXORExpression: a", "BitwiseANDExpression: b"]);
     concise_check(&*pn, "BitwiseXORExpression: a ^ b", &["IdentifierName: a", "Punctuator: ^", "IdentifierName: b"]);
     assert_ne!(format!("{pn:?}"), "");
-    assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
 fn bitwise_xor_expression_test_03() {
@@ -196,7 +191,6 @@ fn bitwise_xor_expression_test_03() {
     pretty_check(&*pn, "BitwiseXORExpression: a", &["BitwiseANDExpression: a"]);
     concise_check(&*pn, "IdentifierName: a", &[]);
     assert_ne!(format!("{pn:?}"), "");
-    assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
 fn bitwise_xor_expression_test_04() {
@@ -305,12 +299,12 @@ mod bitwise_xor_expression {
         Maker::new(src).bitwise_xor_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a^b" => false; "bitwise xor")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).bitwise_xor_expression().is_named_function()
-    }
+    //#[test_case("a^b" => false; "bitwise xor")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).bitwise_xor_expression().is_named_function()
+    //}
 
     #[test_case("  a^b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "bitwise xor")]
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
@@ -327,7 +321,6 @@ fn bitwise_or_expression_test_01() {
     pretty_check(&*pn, "BitwiseORExpression: a", &["BitwiseXORExpression: a"]);
     concise_check(&*pn, "IdentifierName: a", &[]);
     assert_ne!(format!("{pn:?}"), "");
-    assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
 fn bitwise_or_expression_test_02() {
@@ -337,7 +330,6 @@ fn bitwise_or_expression_test_02() {
     pretty_check(&*pn, "BitwiseORExpression: a | b", &["BitwiseORExpression: a", "BitwiseXORExpression: b"]);
     concise_check(&*pn, "BitwiseORExpression: a | b", &["IdentifierName: a", "Punctuator: |", "IdentifierName: b"]);
     assert_ne!(format!("{pn:?}"), "");
-    assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
 fn bitwise_or_expression_test_03() {
@@ -347,7 +339,6 @@ fn bitwise_or_expression_test_03() {
     pretty_check(&*pn, "BitwiseORExpression: a", &["BitwiseXORExpression: a"]);
     concise_check(&*pn, "IdentifierName: a", &[]);
     assert_ne!(format!("{pn:?}"), "");
-    assert_eq!(pn.is_function_definition(), false);
 }
 #[test]
 fn bitwise_or_expression_test_cache_01() {
@@ -462,12 +453,12 @@ mod bitwise_or_expression {
         Maker::new(src).bitwise_or_expression().assignment_target_type(strict)
     }
 
-    #[test_case("a|b" => false; "bitwise or")]
-    #[test_case("function bob(){}" => true; "function fallthru")]
-    #[test_case("1" => false; "literal fallthru")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).bitwise_or_expression().is_named_function()
-    }
+    //#[test_case("a|b" => false; "bitwise or")]
+    //#[test_case("function bob(){}" => true; "function fallthru")]
+    //#[test_case("1" => false; "literal fallthru")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).bitwise_or_expression().is_named_function()
+    //}
 
     #[test_case("  a|b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "bitwise or")]
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]

@@ -130,34 +130,6 @@ mod assignment_expression {
         Ok((scanner, pretty_elements, concise_elements))
     }
 
-    #[test_case("a" => false; "Fall-thru (identifier)")]
-    #[test_case("function (){}" => true; "Fall-thru (function exp)")]
-    #[test_case("yield a" => false; "YieldExpression")]
-    #[test_case("a=>a" => true; "ArrowFunction")]
-    #[test_case("async a=>a" => true; "AsyncArrowFunction")]
-    #[test_case("a=b" => false; "LeftHandSideExpression = AssignmentExpression (assignment)")]
-    #[test_case("a*=b" => false; "LeftHandSideExpression *= AssignmentExpression (multiply)")]
-    #[test_case("a/=b" => false; "LeftHandSideExpression /= AssignmentExpression (divide)")]
-    #[test_case("a%=b" => false; "LeftHandSideExpression %= AssignmentExpression (modulo)")]
-    #[test_case("a+=b" => false; "LeftHandSideExpression += AssignmentExpression (add)")]
-    #[test_case("a-=b" => false; "LeftHandSideExpression -= AssignmentExpression (subtract)")]
-    #[test_case("a<<=b" => false; "LeftHandSideExpression <<= AssignmentExpression (lshift)")]
-    #[test_case("a>>=b" => false; "LeftHandSideExpression >>= AssignmentExpression (rshift)")]
-    #[test_case("a>>>=b" => false; "LeftHandSideExpression >>>= AssignmentExpression (urshift)")]
-    #[test_case("a&=b" => false; "LeftHandSideExpression &= AssignmentExpression (bitwise and)")]
-    #[test_case("a^=b" => false; "LeftHandSideExpression ^= AssignmentExpression (bitwise xor)")]
-    #[test_case("a|=b" => false; "LeftHandSideExpression |= AssignmentExpression (bitwise or)")]
-    #[test_case("a&&=b" => false; "LeftHandSideExpression &&= AssignmentExpression (logical and)")]
-    #[test_case("a||=b" => false; "LeftHandSideExpression ||= AssignmentExpression (logical or)")]
-    #[test_case("a??=b" => false; "LeftHandSideExpression ??= AssignmentExpression (coalesce)")]
-    #[test_case("[a]=[1]" => false; "AssignmentPattern = AssignmentExpression")]
-    fn is_function_definition(src: &str) -> bool {
-        AssignmentExpression::parse(&mut newparser(src), Scanner::new(), true, true, true)
-            .unwrap()
-            .0
-            .is_function_definition()
-    }
-
     #[test_case("a", true => ATTKind::Simple; "Fall-thru (identifier)")]
     #[test_case("function (){}", true => ATTKind::Invalid; "Fall-thru (function exp)")]
     #[test_case("yield a", true => ATTKind::Invalid; "YieldExpression")]
@@ -341,7 +313,7 @@ mod assignment_expression {
     #[test_case("package", true => sset(&[PACKAGE_NOT_ALLOWED]); "Fall-thru (identifier)")]
     #[test_case("yield package", true => sset(&[PACKAGE_NOT_ALLOWED]); "YieldExpression")]
     #[test_case("package=>interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "ArrowFunction")]
-    #[test_case("async package=>interface", true => panics "not yet implemented"; "AsyncArrowFunction")]
+    #[test_case("async package=>interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "AsyncArrowFunction")]
     #[test_case("package=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression = AssignmentExpression (assignment)")]
     #[test_case("package*=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression *= AssignmentExpression (multiply)")]
     #[test_case("package/=interface", true => sset(&[PACKAGE_NOT_ALLOWED, INTERFACE_NOT_ALLOWED]); "LeftHandSideExpression /= AssignmentExpression (divide)")]
@@ -428,60 +400,60 @@ mod assignment_expression {
             .contains_arguments()
     }
 
-    #[test_case("function blue(){}" => false; "named function")]
-    #[test_case("function (){}" => true; "anonymous function")]
-    #[test_case("function *a(){}" => false; "named generator")]
-    #[test_case("function *(){}" => true; "anonymous generator")]
-    #[test_case("async function blue(){}" => false; "async named function")]
-    #[test_case("async function (){}" => true; "async anonymous function")]
-    #[test_case("async function *a(){}" => false; "async named generator")]
-    #[test_case("async function *(){}" => true; "async anonymous generator")]
-    #[test_case("class {}" => true; "anonymous class")]
-    #[test_case("class a{}" => false; "named class")]
-    #[test_case("x => x*2" => true; "arrow function")]
-    #[test_case("async x => x + 3" => true; "async arrow function")]
-    #[test_case("10" => false; "literal")]
-    #[test_case("(function *(){})" => true; "parenthesized function expr")]
-    fn is_anonymous_function_definition(src: &str) -> bool {
-        Maker::new(src).assignment_expression().is_anonymous_function_definition()
-    }
+    //#[test_case("function blue(){}" => false; "named function")]
+    //#[test_case("function (){}" => true; "anonymous function")]
+    //#[test_case("function *a(){}" => false; "named generator")]
+    //#[test_case("function *(){}" => true; "anonymous generator")]
+    //#[test_case("async function blue(){}" => false; "async named function")]
+    //#[test_case("async function (){}" => true; "async anonymous function")]
+    //#[test_case("async function *a(){}" => false; "async named generator")]
+    //#[test_case("async function *(){}" => true; "async anonymous generator")]
+    //#[test_case("class {}" => true; "anonymous class")]
+    //#[test_case("class a{}" => false; "named class")]
+    //#[test_case("x => x*2" => true; "arrow function")]
+    //#[test_case("async x => x + 3" => true; "async arrow function")]
+    //#[test_case("10" => false; "literal")]
+    //#[test_case("(function *(){})" => true; "parenthesized function expr")]
+    //fn is_anonymous_function_definition(src: &str) -> bool {
+    //    Maker::new(src).assignment_expression().is_anonymous_function_definition()
+    //}
 
-    #[test_case("function blue(){}" => true; "named function")]
-    #[test_case("function (){}" => false; "anonymous function")]
-    #[test_case("function *a(){}" => true; "named generator")]
-    #[test_case("function *(){}" => false; "anonymous generator")]
-    #[test_case("async function blue(){}" => true; "async named function")]
-    #[test_case("async function (){}" => false; "async anonymous function")]
-    #[test_case("async function *a(){}" => true; "async named generator")]
-    #[test_case("async function *(){}" => false; "async anonymous generator")]
-    #[test_case("class {}" => false; "anonymous class")]
-    #[test_case("class a{}" => true; "named class")]
-    #[test_case("x => x*2" => false; "arrow function")]
-    #[test_case("async x => x + 3" => false; "async arrow function")]
-    #[test_case("10" => false; "literal")]
-    #[test_case("(function *(){})" => false; "parenthesized function expr")]
-    #[test_case("a+b" => false; "additive")]
-    #[test_case("a^b" => false; "bitwise xor")]
-    #[test_case("a&b" => false; "bitwise and")]
-    #[test_case("a|b" => false; "bitwise or")]
-    #[test_case("a??b" => false; "coalesce")]
-    #[test_case("a||b" => false; "logical or")]
-    #[test_case("a&&b" => false; "logical and")]
-    #[test_case("a<<b" => false; "shift expr")]
-    #[test_case("(a,b)" => false; "comma")]
-    #[test_case("a==b" => false; "equality")]
-    #[test_case("a**b" => false; "exponent")]
-    #[test_case("a.b" => false; "member")]
-    #[test_case("a()" => false; "call")]
-    #[test_case("new a" => false; "new expr")]
-    #[test_case("a*b" => false; "multiplicative")]
-    #[test_case("a<b" => false; "relational")]
-    #[test_case("-a" => false; "unary expr")]
-    #[test_case("a++" => false; "update expr")]
-    #[test_case("a?b:c" => false; "conditional")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).assignment_expression().is_named_function()
-    }
+    //#[test_case("function blue(){}" => true; "named function")]
+    //#[test_case("function (){}" => false; "anonymous function")]
+    //#[test_case("function *a(){}" => true; "named generator")]
+    //#[test_case("function *(){}" => false; "anonymous generator")]
+    //#[test_case("async function blue(){}" => true; "async named function")]
+    //#[test_case("async function (){}" => false; "async anonymous function")]
+    //#[test_case("async function *a(){}" => true; "async named generator")]
+    //#[test_case("async function *(){}" => false; "async anonymous generator")]
+    //#[test_case("class {}" => false; "anonymous class")]
+    //#[test_case("class a{}" => true; "named class")]
+    //#[test_case("x => x*2" => false; "arrow function")]
+    //#[test_case("async x => x + 3" => false; "async arrow function")]
+    //#[test_case("10" => false; "literal")]
+    //#[test_case("(function *(){})" => false; "parenthesized function expr")]
+    //#[test_case("a+b" => false; "additive")]
+    //#[test_case("a^b" => false; "bitwise xor")]
+    //#[test_case("a&b" => false; "bitwise and")]
+    //#[test_case("a|b" => false; "bitwise or")]
+    //#[test_case("a??b" => false; "coalesce")]
+    //#[test_case("a||b" => false; "logical or")]
+    //#[test_case("a&&b" => false; "logical and")]
+    //#[test_case("a<<b" => false; "shift expr")]
+    //#[test_case("(a,b)" => false; "comma")]
+    //#[test_case("a==b" => false; "equality")]
+    //#[test_case("a**b" => false; "exponent")]
+    //#[test_case("a.b" => false; "member")]
+    //#[test_case("a()" => false; "call")]
+    //#[test_case("new a" => false; "new expr")]
+    //#[test_case("a*b" => false; "multiplicative")]
+    //#[test_case("a<b" => false; "relational")]
+    //#[test_case("-a" => false; "unary expr")]
+    //#[test_case("a++" => false; "update expr")]
+    //#[test_case("a?b:c" => false; "conditional")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).assignment_expression().is_named_function()
+    //}
 
     #[test_case(" 12" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 2 } }; "fall-thru")]
     #[test_case(" yield 12" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 8 } }; "yield expression")]
@@ -517,22 +489,6 @@ mod assignment_expression {
 mod assignment_operator {
     use super::*;
     use test_case::test_case;
-
-    #[test_case(AssignmentOperator::Multiply => false; "Multiply")]
-    #[test_case(AssignmentOperator::Divide => false; "Divide")]
-    #[test_case(AssignmentOperator::Modulo => false; "Modulo")]
-    #[test_case(AssignmentOperator::Add => false; "Add")]
-    #[test_case(AssignmentOperator::Subtract => false; "Subtract")]
-    #[test_case(AssignmentOperator::LeftShift => false; "LeftShift")]
-    #[test_case(AssignmentOperator::SignedRightShift => false; "SignedRightShift")]
-    #[test_case(AssignmentOperator::UnsignedRightShift => false; "UnsignedRightShift")]
-    #[test_case(AssignmentOperator::BitwiseAnd => false; "BitwiseAnd")]
-    #[test_case(AssignmentOperator::BitwiseXor => false; "BitwiseXor")]
-    #[test_case(AssignmentOperator::BitwiseOr => false; "BitwiseOr")]
-    #[test_case(AssignmentOperator::Exponentiate => false; "Exponentiate")]
-    fn contains(op: AssignmentOperator) -> bool {
-        op.contains(ParseNodeKind::This)
-    }
 
     #[test]
     fn debug() {
@@ -703,11 +659,6 @@ mod assignment_pattern {
     #[test_case(" [x,y,z]" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 7 } }; "array pattern")]
     fn location(src: &str) -> Location {
         Maker::new(src).assignment_pattern().location()
-    }
-
-    #[test_case("[]" => true; "is a pattern")]
-    fn is_destructuring(src: &str) -> bool {
-        Maker::new(src).assignment_pattern().is_destructuring()
     }
 }
 

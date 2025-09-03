@@ -46,42 +46,36 @@ fn primary_expression_test_idref() {
     let (boxed_pe, scanner) = check(pe_res);
     chk_scan(&scanner, 4);
     assert!(matches!(*boxed_pe, PrimaryExpression::IdentifierReference { .. }));
-    assert_eq!(boxed_pe.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_literal() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("371"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(*node, PrimaryExpression::Literal { .. }));
-    assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_this() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("this"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
     assert!(matches!(*node, PrimaryExpression::This { .. }));
-    assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_arraylit() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("[]"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
     assert!(matches!(*node, PrimaryExpression::ArrayLiteral { .. }));
-    assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_objlit() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 2);
     assert!(matches!(*node, PrimaryExpression::ObjectLiteral { .. }));
-    assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_group() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("(a)"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
     assert!(matches!(*node, PrimaryExpression::Parenthesized { .. }));
-    assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_func() {
@@ -89,7 +83,6 @@ fn primary_expression_test_func() {
         check(PrimaryExpression::parse(&mut newparser("function a(){}"), Scanner::new(), false, false));
     chk_scan(&scanner, 14);
     assert!(matches!(*node, PrimaryExpression::Function { .. }));
-    assert_eq!(node.is_function_definition(), true);
     pretty_check(&*node, "PrimaryExpression: function a ( ) { }", &["FunctionExpression: function a ( ) { }"]);
     concise_check(
         &*node,
@@ -103,7 +96,6 @@ fn primary_expression_test_generator() {
         check(PrimaryExpression::parse(&mut newparser("function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 18);
     assert!(matches!(*node, PrimaryExpression::Generator { .. }));
-    assert_eq!(node.is_function_definition(), true);
     pretty_check(
         &*node,
         "PrimaryExpression: function * a ( b ) { c ; }",
@@ -131,7 +123,6 @@ fn primary_expression_test_async_generator() {
         check(PrimaryExpression::parse(&mut newparser("async function *a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 24);
     assert!(matches!(*node, PrimaryExpression::AsyncGenerator { .. }));
-    assert_eq!(node.is_function_definition(), true);
     pretty_check(
         &*node,
         "PrimaryExpression: async function * a ( b ) { c ; }",
@@ -160,7 +151,6 @@ fn primary_expression_test_async_function() {
         check(PrimaryExpression::parse(&mut newparser("async function a(b){c;}"), Scanner::new(), false, false));
     chk_scan(&scanner, 23);
     assert!(matches!(*node, PrimaryExpression::AsyncFunction { .. }));
-    assert_eq!(node.is_function_definition(), true);
     pretty_check(
         &*node,
         "PrimaryExpression: async function a ( b ) { c ; }",
@@ -187,14 +177,12 @@ fn primary_expression_test_regexp() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("/rust/"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
     assert!(matches!(*node, PrimaryExpression::RegularExpression { .. }));
-    assert_eq!(node.is_function_definition(), false);
 }
 #[test]
 fn primary_expression_test_class_expression() {
     let (node, scanner) = check(PrimaryExpression::parse(&mut newparser("class{}"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
     assert!(matches!(*node, PrimaryExpression::Class { .. }));
-    assert_eq!(node.is_function_definition(), true);
     pretty_check(&*node, "PrimaryExpression: class { }", &["ClassExpression: class { }"]);
     concise_check(&*node, "ClassExpression: class { }", &["Keyword: class", "ClassTail: { }"]);
 }
@@ -581,22 +569,22 @@ mod primary_expression {
         Maker::new(src).primary_expression().assignment_target_type(strict)
     }
 
-    #[test_case("this" => false; "this")]
-    #[test_case("a" => true; "identifier ref")]
-    #[test_case("1" => false; "literal")]
-    #[test_case("[1]" => false; "array literal")]
-    #[test_case("{a:1}" => false; "object literal")]
-    #[test_case("function (){}" => false; "function expression")]
-    #[test_case("class {}" => false; "class expression")]
-    #[test_case("function *(){}" => false; "generator expression")]
-    #[test_case("async function (){}" => false; "async fn")]
-    #[test_case("async function *(){}" => false; "async gen")]
-    #[test_case("/a/" => false; "regex")]
-    #[test_case("``" => false; "template")]
-    #[test_case("(a)" => false; "parenthesized")]
-    fn is_identifier_ref(src: &str) -> bool {
-        Maker::new(src).primary_expression().is_identifier_ref()
-    }
+    //#[test_case("this" => false; "this")]
+    //#[test_case("a" => true; "identifier ref")]
+    //#[test_case("1" => false; "literal")]
+    //#[test_case("[1]" => false; "array literal")]
+    //#[test_case("{a:1}" => false; "object literal")]
+    //#[test_case("function (){}" => false; "function expression")]
+    //#[test_case("class {}" => false; "class expression")]
+    //#[test_case("function *(){}" => false; "generator expression")]
+    //#[test_case("async function (){}" => false; "async fn")]
+    //#[test_case("async function *(){}" => false; "async gen")]
+    //#[test_case("/a/" => false; "regex")]
+    //#[test_case("``" => false; "template")]
+    //#[test_case("(a)" => false; "parenthesized")]
+    //fn is_identifier_ref(src: &str) -> bool {
+    //    Maker::new(src).primary_expression().is_identifier_ref()
+    //}
 
     #[test_case("this" => None; "this")]
     #[test_case("a" => ssome("a"); "identifier ref")]
@@ -615,28 +603,28 @@ mod primary_expression {
         Maker::new(src).primary_expression().identifier_ref().map(|id| id.to_string())
     }
 
-    #[test_case("this" => false; "this")]
-    #[test_case("a" => false; "identifier ref")]
-    #[test_case("1" => false; "literal")]
-    #[test_case("[1]" => false; "array literal")]
-    #[test_case("{a:1}" => false; "object literal")]
-    #[test_case("function (){}" => false; "function expression")]
-    #[test_case("class {}" => false; "class expression")]
-    #[test_case("function *(){}" => false; "generator expression")]
-    #[test_case("async function (){}" => false; "async fn")]
-    #[test_case("async function *(){}" => false; "async gen")]
-    #[test_case("/a/" => false; "regex")]
-    #[test_case("``" => false; "template")]
-    #[test_case("(a)" => false; "parenthesized")]
-    #[test_case("function bob(){}" => true; "named function expression")]
-    #[test_case("class bob {}" => true; "named class expression")]
-    #[test_case("function *bob(){}" => true; "named generator expression")]
-    #[test_case("async function bob(){}" => true; "named async fn")]
-    #[test_case("async function *bob(){}" => true; "named async gen")]
-    #[test_case("(class bob {})" => true; "named parenthesized")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).primary_expression().is_named_function()
-    }
+    //#[test_case("this" => false; "this")]
+    //#[test_case("a" => false; "identifier ref")]
+    //#[test_case("1" => false; "literal")]
+    //#[test_case("[1]" => false; "array literal")]
+    //#[test_case("{a:1}" => false; "object literal")]
+    //#[test_case("function (){}" => false; "function expression")]
+    //#[test_case("class {}" => false; "class expression")]
+    //#[test_case("function *(){}" => false; "generator expression")]
+    //#[test_case("async function (){}" => false; "async fn")]
+    //#[test_case("async function *(){}" => false; "async gen")]
+    //#[test_case("/a/" => false; "regex")]
+    //#[test_case("``" => false; "template")]
+    //#[test_case("(a)" => false; "parenthesized")]
+    //#[test_case("function bob(){}" => true; "named function expression")]
+    //#[test_case("class bob {}" => true; "named class expression")]
+    //#[test_case("function *bob(){}" => true; "named generator expression")]
+    //#[test_case("async function bob(){}" => true; "named async fn")]
+    //#[test_case("async function *bob(){}" => true; "named async gen")]
+    //#[test_case("(class bob {})" => true; "named parenthesized")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).primary_expression().is_named_function()
+    //}
 
     #[test_case("   this" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "this")]
     #[test_case("   a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "identifier ref")]
@@ -668,7 +656,7 @@ fn literal_test_null() {
     chk_scan(&scanner, 4);
     assert!(matches!(
         *lit,
-        Literal::NullLiteral {
+        Literal::Null {
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
         }
     ));
@@ -681,7 +669,7 @@ fn literal_test_boolean_01() {
     chk_scan(&scanner, 4);
     assert!(matches!(
         *lit,
-        Literal::BooleanLiteral {
+        Literal::Boolean {
             val: true,
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 4 } }
         }
@@ -695,7 +683,7 @@ fn literal_test_boolean_02() {
     chk_scan(&scanner, 5);
     assert!(matches!(
         *lit,
-        Literal::BooleanLiteral {
+        Literal::Boolean {
             val: false,
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
         }
@@ -709,7 +697,7 @@ fn literal_test_leading_dot() {
     chk_scan(&scanner, 3);
     assert_eq!(
         *lit,
-        Literal::NumericLiteral {
+        Literal::Numeric {
             val: Numeric::Number(0.25),
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
         }
@@ -723,7 +711,7 @@ fn literal_test_bigint() {
     chk_scan(&scanner, 5);
     assert!(matches!(
         *lit,
-        Literal::NumericLiteral {
+        Literal::Numeric {
             val: Numeric::BigInt(_),
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 5 } }
         }
@@ -738,7 +726,7 @@ fn literal_test_string() {
     chk_scan(&scanner, 8);
     assert!(matches!(
         *lit,
-        Literal::StringLiteral {
+        Literal::String {
             val: _,
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 8 } }
         }
@@ -752,7 +740,7 @@ fn literal_test_debugmark() {
     chk_scan(&scanner, 3);
     assert!(matches!(
         *lit,
-        Literal::DebugLiteral {
+        Literal::Debug {
             val: DebugKind::Char('H'),
             location: Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: 3 } }
         }
@@ -904,11 +892,6 @@ fn elision_test_conciseerrors_1() {
     let (item, _) = Elisions::parse(&mut newparser(",,,"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
-#[test]
-fn elision_test_contains_01() {
-    let (item, _) = Elisions::parse(&mut newparser(",,,"), Scanner::new()).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), false);
-}
 mod elision {
     use super::*;
     use test_case::test_case;
@@ -1053,7 +1036,7 @@ fn element_list_test_06() {
 fn element_list_test_07() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,b"), Scanner::new(), false, false));
     chk_scan(&scanner, 3);
-    assert!(matches!(&*el, ElementList::ElementListAssignmentExpression { elision: None, .. }));
+    assert!(matches!(&*el, ElementList::ListAssignmentExpression { elision: None, .. }));
     pretty_check(&*el, "ElementList: a , b", &["ElementList: a", "AssignmentExpression: b"]);
     concise_check(&*el, "ElementList: a , b", &["IdentifierName: a", "Punctuator: ,", "IdentifierName: b"]);
 }
@@ -1061,7 +1044,7 @@ fn element_list_test_07() {
 fn element_list_test_08() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,,b"), Scanner::new(), false, false));
     chk_scan(&scanner, 4);
-    assert!(matches!(&*el, ElementList::ElementListAssignmentExpression{elision: Some(be), ..} if be.count == 1));
+    assert!(matches!(&*el, ElementList::ListAssignmentExpression{elision: Some(be), ..} if be.count == 1));
     pretty_check(&*el, "ElementList: a , , b", &["ElementList: a", "Elisions: ,", "AssignmentExpression: b"]);
     concise_check(
         &*el,
@@ -1073,7 +1056,7 @@ fn element_list_test_08() {
 fn element_list_test_09() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,...b"), Scanner::new(), false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*el, ElementList::ElementListSpreadElement { elision: None, .. }));
+    assert!(matches!(&*el, ElementList::ListSpreadElement { elision: None, .. }));
     pretty_check(&*el, "ElementList: a , ... b", &["ElementList: a", "SpreadElement: ... b"]);
     concise_check(&*el, "ElementList: a , ... b", &["IdentifierName: a", "Punctuator: ,", "SpreadElement: ... b"]);
 }
@@ -1081,7 +1064,7 @@ fn element_list_test_09() {
 fn element_list_test_10() {
     let (el, scanner) = check(ElementList::parse(&mut newparser("a,,...b"), Scanner::new(), false, false));
     chk_scan(&scanner, 7);
-    assert!(matches!(&*el, ElementList::ElementListSpreadElement{elision: Some(be), ..} if be.count == 1));
+    assert!(matches!(&*el, ElementList::ListSpreadElement{elision: Some(be), ..} if be.count == 1));
     pretty_check(&*el, "ElementList: a , , ... b", &["ElementList: a", "Elisions: ,", "SpreadElement: ... b"]);
     concise_check(
         &*el,
@@ -1735,11 +1718,11 @@ mod initializer {
         Maker::new(src).initializer().location()
     }
 
-    #[test_case("=a" => false; "not anon func")]
-    #[test_case("=function (){}" => true; "anon func")]
-    fn is_anonymous_function_definition(src: &str) -> bool {
-        Maker::new(src).initializer().is_anonymous_function_definition()
-    }
+    //#[test_case("=a" => false; "not anon func")]
+    //#[test_case("=function (){}" => true; "anon func")]
+    //fn is_anonymous_function_definition(src: &str) -> bool {
+    //    Maker::new(src).initializer().is_anonymous_function_definition()
+    //}
 
     #[test_case("=a" => None; "not function")]
     #[test_case("=function a(){}" => None; "named function")]
@@ -1807,12 +1790,6 @@ mod cover_initialized_name {
             .0
             .early_errors(&mut errs, strict);
         errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
-    }
-
-    #[test]
-    fn prop_name() {
-        let (item, _) = CoverInitializedName::parse(&mut newparser("a=b"), Scanner::new(), true, true).unwrap();
-        assert_eq!(item.prop_name(), JSString::from("a"));
     }
 
     #[test_case("   n=a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "typical")]
@@ -1903,11 +1880,6 @@ mod computed_property_name {
     #[test_case("   [3]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).computed_property_name().location()
-    }
-
-    #[test_case("[computed]" => true; "typical")]
-    fn is_computed_property_key(src: &str) -> bool {
-        Maker::new(src).computed_property_name().is_computed_property_key()
     }
 }
 
@@ -2008,11 +1980,6 @@ fn literal_property_name_test_conciseerrors_3() {
     let (item, _) = LiteralPropertyName::parse(&mut newparser("'a'"), Scanner::new()).unwrap();
     concise_error_validate(&*item);
 }
-#[test]
-fn literal_property_name_test_contains_01() {
-    let (item, _) = LiteralPropertyName::parse(&mut newparser("'a'"), Scanner::new()).unwrap();
-    assert_eq!(item.contains(ParseNodeKind::This), false);
-}
 mod literal_property_name {
     use super::*;
     use test_case::test_case;
@@ -2031,11 +1998,6 @@ mod literal_property_name {
     #[test_case("   3" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "numeric")]
     fn location(src: &str) -> Location {
         Maker::new(src).literal_property_name().location()
-    }
-
-    #[test_case("ident" => false; "typical")]
-    fn is_computed_property_key(src: &str) -> bool {
-        Maker::new(src).literal_property_name().is_computed_property_key()
     }
 }
 
@@ -2396,15 +2358,15 @@ mod property_definition {
         errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
     }
 
-    #[test_case("a" => Some(JSString::from("a")); "identifier")]
-    #[test_case("a=b" => Some(JSString::from("a")); "cover init")]
-    #[test_case("a:3" => Some(JSString::from("a")); "property name")]
-    #[test_case("a(){}" => Some(JSString::from("a")); "method def")]
-    #[test_case("...3" => None; "spread element")]
-    fn prop_name(src: &str) -> Option<JSString> {
-        let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
-        item.prop_name()
-    }
+    //#[test_case("a" => Some(JSString::from("a")); "identifier")]
+    //#[test_case("a=b" => Some(JSString::from("a")); "cover init")]
+    //#[test_case("a:3" => Some(JSString::from("a")); "property name")]
+    //#[test_case("a(){}" => Some(JSString::from("a")); "method def")]
+    //#[test_case("...3" => None; "spread element")]
+    //fn prop_name(src: &str) -> Option<JSString> {
+    //    let (item, _) = PropertyDefinition::parse(&mut newparser(src), Scanner::new(), true, true).unwrap();
+    //    item.prop_name()
+    //}
 
     #[test_case("__proto__" => 0; "identifier")]
     #[test_case("__proto__=b" => 0; "cover init")]
@@ -2761,7 +2723,6 @@ fn parenthesized_expression_test_01() {
     pretty_check(&*pe, "ParenthesizedExpression: ( a )", &["Expression: a"]);
     concise_check(&*pe, "ParenthesizedExpression: ( a )", &["Punctuator: (", "IdentifierName: a", "Punctuator: )"]);
     assert_ne!(format!("{pe:?}"), "");
-    assert_eq!(pe.is_function_definition(), false);
 }
 #[test]
 fn parenthesized_expression_test_02() {
@@ -2846,11 +2807,11 @@ mod parenthesized_expression {
         Maker::new(src).parenthesized_expression().assignment_target_type(strict)
     }
 
-    #[test_case("(function a(){})" => true; "named")]
-    #[test_case("(function (){})" => false; "unnamed")]
-    fn is_named_function(src: &str) -> bool {
-        Maker::new(src).parenthesized_expression().is_named_function()
-    }
+    //#[test_case("(function a(){})" => true; "named")]
+    //#[test_case("(function (){})" => false; "unnamed")]
+    //fn is_named_function(src: &str) -> bool {
+    //    Maker::new(src).parenthesized_expression().is_named_function()
+    //}
 
     #[test_case("   (a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "typical")]
     fn location(src: &str) -> Location {
@@ -3424,7 +3385,6 @@ mod template_literal {
 // COVER PARENTHESIZED EXPRESSION AND ARROW PARAMETER LIST
 mod cover_parenthesized_expression_and_arrow_parameter_list {
     use super::*;
-    use test_case::test_case;
 
     #[test]
     fn test_01() {
@@ -3435,7 +3395,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             false,
         ));
         chk_scan(&scanner, 2);
-        assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Empty { .. }));
+        assert!(matches!(&*node, CoverParenthesizedExpressionAndArrowParameterList::Empty));
         pretty_check(&*node, "CoverParenthesizedExpressionAndArrowParameterList: ( )", &[]);
         concise_check(
             &*node,
@@ -3837,157 +3797,6 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
         assert!(scanner == scanner2);
         assert!(Rc::ptr_eq(&node, &node2));
-    }
-
-    #[test]
-    fn test_contains_01() {
-        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("(this)"),
-            Scanner::new(),
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(item.contains(ParseNodeKind::This), true);
-    }
-    #[test]
-    fn test_contains_02() {
-        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("(a)"),
-            Scanner::new(),
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(item.contains(ParseNodeKind::This), false);
-    }
-    #[test]
-    fn test_contains_03() {
-        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("(this,)"),
-            Scanner::new(),
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(item.contains(ParseNodeKind::This), true);
-    }
-    #[test]
-    fn test_contains_04() {
-        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("(a,)"),
-            Scanner::new(),
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(item.contains(ParseNodeKind::This), false);
-    }
-    #[test]
-    fn test_contains_05() {
-        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("()"),
-            Scanner::new(),
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(item.contains(ParseNodeKind::This), false);
-    }
-    #[test]
-    fn test_contains_06() {
-        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("(...blue)"),
-            Scanner::new(),
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(item.contains(ParseNodeKind::This), false);
-    }
-    #[test]
-    fn test_contains_07() {
-        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("(...[a,b,c])"),
-            Scanner::new(),
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(item.contains(ParseNodeKind::This), false);
-    }
-    #[test]
-    fn test_contains_08() {
-        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("(this, ...thing)"),
-            Scanner::new(),
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(item.contains(ParseNodeKind::This), true);
-    }
-    #[test]
-    fn test_contains_09() {
-        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("(a, ...thing)"),
-            Scanner::new(),
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(item.contains(ParseNodeKind::This), false);
-    }
-    #[test]
-    fn test_contains_10() {
-        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("(this, ...[a])"),
-            Scanner::new(),
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(item.contains(ParseNodeKind::This), true);
-    }
-    #[test]
-    fn test_contains_11() {
-        let (item, _) = CoverParenthesizedExpressionAndArrowParameterList::parse(
-            &mut newparser("(b, ...[a])"),
-            Scanner::new(),
-            false,
-            false,
-        )
-        .unwrap();
-        assert_eq!(item.contains(ParseNodeKind::This), false);
-    }
-    #[test_case("(package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "Expression")]
-    #[test_case("(package,)", true => sset(&[PACKAGE_NOT_ALLOWED]); "Expression+Comma")]
-    #[test_case("()", true => sset(&[]); "Empty")]
-    #[test_case("(...package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "rest id")]
-    #[test_case("(...{package=a})", true => sset(&[PACKAGE_NOT_ALLOWED]); "rest pattern")]
-    #[test_case("(package, ...a)", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp rest id; exp bad")]
-    #[test_case("(a, ...package)", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp rest id; id bad")]
-    #[test_case("(package, ...{a=b})", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp rest pat; exp bad")]
-    #[test_case("(a, ...{package=b})", true => sset(&[PACKAGE_NOT_ALLOWED]); "exp rest pat; pat bad")]
-    fn early_errors(src: &str, strict: bool) -> AHashSet<String> {
-        setup_test_agent();
-        let mut errs = vec![];
-        CoverParenthesizedExpressionAndArrowParameterList::parse(&mut newparser(src), Scanner::new(), false, true)
-            .unwrap()
-            .0
-            .early_errors(&mut errs, strict);
-        errs.iter().map(|err| unwind_syntax_error_object(&err.clone())).collect()
-    }
-
-    #[test_case("   (a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "parenthesized")]
-    #[test_case("   (a,)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 4 } }; "Expression+Comma")]
-    #[test_case("   ()" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 2 } }; "Empty")]
-    #[test_case("   (...a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "rest id")]
-    #[test_case("   (...{z=a})" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 10 } }; "rest pattern")]
-    #[test_case("   (z, ...a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "exp rest id; exp")]
-    #[test_case("   (z, ...{a=b})" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 13 } }; "exp rest pat; exp")]
-    fn location(src: &str) -> Location {
-        Maker::new(src).cover_parenthesized_expression_and_arrow_parameter_list().location()
     }
 }
 

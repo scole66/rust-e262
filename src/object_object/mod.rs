@@ -43,7 +43,7 @@ fn object_prototype_value_of(
 //            test for those specific kinds of built-in objects. It does not provide a reliable type testing mechanism
 //            for other kinds of built-in or program defined objects. In addition, programs can use @@toStringTag in
 //            ways that will invalidate the reliability of such legacy type tests.
-pub fn object_prototype_to_string(
+pub(crate) fn object_prototype_to_string(
     this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
@@ -68,7 +68,7 @@ pub fn object_prototype_to_string(
     Ok(ECMAScriptValue::from(result_vec))
 }
 
-pub fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 

@@ -7,7 +7,7 @@ use std::io::Write;
 //      UnaryExpression[?Yield, ?Await]
 //      UpdateExpression[?Yield, ?Await] ** ExponentiationExpression[?Yield, ?Await]
 #[derive(Debug)]
-pub enum ExponentiationExpression {
+pub(crate) enum ExponentiationExpression {
     UnaryExpression(Rc<UnaryExpression>),
     Exponentiation(Rc<UpdateExpression>, Rc<ExponentiationExpression>),
 }
@@ -60,22 +60,18 @@ impl PrettyPrint for ExponentiationExpression {
     }
 }
 
-impl IsFunctionDefinition for ExponentiationExpression {
-    fn is_function_definition(&self) -> bool {
-        match self {
-            ExponentiationExpression::Exponentiation(..) => false,
-            ExponentiationExpression::UnaryExpression(ue) => ue.is_function_definition(),
-        }
-    }
-}
-
 impl ExponentiationExpression {
-    pub fn parse(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
+    pub(crate) fn parse(
+        parser: &mut Parser,
+        scanner: Scanner,
+        yield_flag: bool,
+        await_flag: bool,
+    ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::ExponentiationExpression), scanner))
             .otherwise(|| {
                 let (ue, after_ue) = UpdateExpression::parse(parser, scanner, yield_flag, await_flag)?;
                 let (_, after_op) =
-                    scan_for_punct(after_ue, parser.source, ScanGoal::InputElementDiv, Punctuator::StarStar)?;
+                    scan_for_punct(after_ue, parser.source, InputElementGoal::Div, Punctuator::StarStar)?;
                 let (ee, after_ee) = ExponentiationExpression::parse(parser, after_op, yield_flag, await_flag)?;
                 Ok((Rc::new(ExponentiationExpression::Exponentiation(ue, ee)), after_ee))
             })
@@ -85,28 +81,28 @@ impl ExponentiationExpression {
             })
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         match self {
             ExponentiationExpression::UnaryExpression(exp) => exp.location(),
             ExponentiationExpression::Exponentiation(left, right) => left.location().merge(&right.location()),
         }
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
             ExponentiationExpression::UnaryExpression(n) => n.contains(kind),
             ExponentiationExpression::Exponentiation(l, r) => l.contains(kind) || r.contains(kind),
         }
     }
 
-    pub fn as_string_literal(&self) -> Option<StringToken> {
+    pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             ExponentiationExpression::UnaryExpression(n) => n.as_string_literal(),
             ExponentiationExpression::Exponentiation(..) => None,
         }
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -125,7 +121,7 @@ impl ExponentiationExpression {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -138,7 +134,7 @@ impl ExponentiationExpression {
         }
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
+    pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         match self {
             ExponentiationExpression::UnaryExpression(n) => n.early_errors(errs, strict),
             ExponentiationExpression::Exponentiation(l, r) => {
@@ -148,7 +144,7 @@ impl ExponentiationExpression {
         }
     }
 
-    pub fn is_strictly_deletable(&self) -> bool {
+    pub(crate) fn is_strictly_deletable(&self) -> bool {
         match self {
             ExponentiationExpression::UnaryExpression(node) => node.is_strictly_deletable(),
             ExponentiationExpression::Exponentiation(..) => true,
@@ -158,21 +154,21 @@ impl ExponentiationExpression {
     /// Whether an expression can be assigned to. `Simple` or `Invalid`.
     ///
     /// See [AssignmentTargetType](https://tc39.es/ecma262/#sec-static-semantics-assignmenttargettype) from ECMA-262.
-    pub fn assignment_target_type(&self, strict: bool) -> ATTKind {
+    pub(crate) fn assignment_target_type(&self, strict: bool) -> ATTKind {
         match self {
             ExponentiationExpression::Exponentiation(..) => ATTKind::Invalid,
             ExponentiationExpression::UnaryExpression(ue) => ue.assignment_target_type(strict),
         }
     }
 
-    pub fn is_named_function(&self) -> bool {
-        match self {
-            ExponentiationExpression::UnaryExpression(node) => node.is_named_function(),
-            ExponentiationExpression::Exponentiation(..) => false,
-        }
-    }
+    //pub(crate) fn is_named_function(&self) -> bool {
+    //    match self {
+    //        ExponentiationExpression::UnaryExpression(node) => node.is_named_function(),
+    //        ExponentiationExpression::Exponentiation(..) => false,
+    //    }
+    //}
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             match self {
@@ -186,7 +182,7 @@ impl ExponentiationExpression {
         }
     }
 
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 
 use super::*;
 
-pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
 
@@ -199,7 +199,7 @@ pub fn provision_date_intrinsic(realm: &Rc<RefCell<Realm>>) {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
-pub struct TimeNumber {
+pub(crate) struct TimeNumber {
     // This is a floating point number that has conversion routines to/from integers designed to not generate clippy
     // warnings.
     val: f64,
@@ -292,7 +292,7 @@ impl TryFrom<TimeNumber> for u8 {
 }
 
 #[derive(Debug)]
-pub struct DateObject {
+pub(crate) struct DateObject {
     common: RefCell<CommonObjectData>,
     date_value: Cell<f64>,
 }
@@ -423,15 +423,15 @@ impl ObjectInterface for DateObject {
 }
 
 impl DateObject {
-    pub fn date_value(&self) -> f64 {
+    pub(crate) fn date_value(&self) -> f64 {
         self.date_value.get()
     }
 
-    pub fn set_date_value(&self, value: f64) {
+    pub(crate) fn set_date_value(&self, value: f64) {
         self.date_value.set(value);
     }
 
-    pub fn now_utc() -> anyhow::Result<f64> {
+    pub(crate) fn now_utc() -> anyhow::Result<f64> {
         let timestamp = time::OffsetDateTime::now_utc();
         let nanos = timestamp.unix_timestamp_nanos();
         let milliseconds = nanos / 1_000_000;
@@ -445,7 +445,7 @@ impl DateObject {
         }
     }
 
-    pub fn object(prototype: Option<Object>, value: Option<TimeNumber>) -> Object {
+    pub(crate) fn object(prototype: Option<Object>, value: Option<TimeNumber>) -> Object {
         Object { o: Rc::new(Self::new(prototype, value)) }
     }
 }

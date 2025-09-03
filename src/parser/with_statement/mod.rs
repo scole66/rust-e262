@@ -6,9 +6,9 @@ use std::io::Write;
 // WithStatement[Yield, Await, Return] :
 //      with ( Expression[+In, ?Yield, ?Await] ) Statement[?Yield, ?Await, ?Return]
 #[derive(Debug)]
-pub struct WithStatement {
-    pub expression: Rc<Expression>,
-    pub statement: Rc<Statement>,
+pub(crate) struct WithStatement {
+    pub(crate) expression: Rc<Expression>,
+    pub(crate) statement: Rc<Statement>,
     location: Location,
 }
 
@@ -44,20 +44,17 @@ impl PrettyPrint for WithStatement {
 }
 
 impl WithStatement {
-    pub fn parse(
+    pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
         yield_flag: bool,
         await_flag: bool,
         return_flag: bool,
     ) -> ParseResult<Self> {
-        let (with_loc, after_with) =
-            scan_for_keyword(scanner, parser.source, ScanGoal::InputElementRegExp, Keyword::With)?;
-        let (_, after_open) =
-            scan_for_punct(after_with, parser.source, ScanGoal::InputElementDiv, Punctuator::LeftParen)?;
+        let (with_loc, after_with) = scan_for_keyword(scanner, parser.source, InputElementGoal::RegExp, Keyword::With)?;
+        let (_, after_open) = scan_for_punct(after_with, parser.source, InputElementGoal::Div, Punctuator::LeftParen)?;
         let (expression, after_exp) = Expression::parse(parser, after_open, true, yield_flag, await_flag)?;
-        let (_, after_close) =
-            scan_for_punct(after_exp, parser.source, ScanGoal::InputElementDiv, Punctuator::RightParen)?;
+        let (_, after_close) = scan_for_punct(after_exp, parser.source, InputElementGoal::Div, Punctuator::RightParen)?;
         let (statement, after_stmt) = Statement::parse(parser, after_close, yield_flag, await_flag, return_flag)?;
         Ok((
             Rc::new({
@@ -68,31 +65,31 @@ impl WithStatement {
         ))
     }
 
-    pub fn location(&self) -> Location {
+    pub(crate) fn location(&self) -> Location {
         self.location
     }
 
-    pub fn var_declared_names(&self) -> Vec<JSString> {
+    pub(crate) fn var_declared_names(&self) -> Vec<JSString> {
         self.statement.var_declared_names()
     }
 
-    pub fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_break_target(&self, label_set: &[JSString]) -> bool {
         self.statement.contains_undefined_break_target(label_set)
     }
 
-    pub fn contains(&self, kind: ParseNodeKind) -> bool {
+    pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         self.expression.contains(kind) || self.statement.contains(kind)
     }
 
-    pub fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
+    pub(crate) fn contains_duplicate_labels(&self, label_set: &[JSString]) -> bool {
         self.statement.contains_duplicate_labels(label_set)
     }
 
-    pub fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
+    pub(crate) fn contains_undefined_continue_target(&self, iteration_set: &[JSString]) -> bool {
         self.statement.contains_undefined_continue_target(iteration_set, &[])
     }
 
-    pub fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
+    pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
         // Static Semantics: AllPrivateIdentifiersValid
         // With parameter names.
         //  1. For each child node child of this Parse Node, do
@@ -106,7 +103,7 @@ impl WithStatement {
     /// [`IdentifierReference`] with string value `"arguments"`.
     ///
     /// See [ContainsArguments](https://tc39.es/ecma262/#sec-static-semantics-containsarguments) from ECMA-262.
-    pub fn contains_arguments(&self) -> bool {
+    pub(crate) fn contains_arguments(&self) -> bool {
         // Static Semantics: ContainsArguments
         // The syntax-directed operation ContainsArguments takes no arguments and returns a Boolean.
         //  1. For each child node child of this Parse Node, do
@@ -116,7 +113,13 @@ impl WithStatement {
         self.expression.contains_arguments() || self.statement.contains_arguments()
     }
 
-    pub fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, within_iteration: bool, within_switch: bool) {
+    pub(crate) fn early_errors(
+        &self,
+        errs: &mut Vec<Object>,
+        strict: bool,
+        within_iteration: bool,
+        within_switch: bool,
+    ) {
         // Static Semantics: Early Errors
         //  WithStatement : with ( Expression ) Statement
         //  * It is a Syntax Error if the source text matched by this production is contained in strict mode code.
@@ -133,11 +136,11 @@ impl WithStatement {
     /// Return a list of parse nodes for the var-style declarations contained within the children of this node.
     ///
     /// See [VarScopedDeclarations](https://tc39.es/ecma262/#sec-static-semantics-varscopeddeclarations) in ECMA-262.
-    pub fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
+    pub(crate) fn var_scoped_declarations(&self) -> Vec<VarScopeDecl> {
         self.statement.var_scoped_declarations()
     }
 
-    pub fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.location().contains(location) {
             self.expression
@@ -149,7 +152,7 @@ impl WithStatement {
     }
 
     #[expect(unused_variables)]
-    pub fn has_call_in_tail_position(&self, location: &Location) -> bool {
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
         // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.

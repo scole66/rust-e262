@@ -1,6 +1,6 @@
 use super::*;
 
-pub fn provision_reflect_intrinsic(realm: &Rc<RefCell<Realm>>) {
+pub(crate) fn provision_reflect_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // The Reflect object:
     //
     //  * is %Reflect%.
