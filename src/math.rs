@@ -1,5 +1,4 @@
 use super::*;
-use rand::prelude::*;
 use std::f64;
 
 pub(crate) fn provision_math_intrinsic(realm: &Rc<RefCell<Realm>>) {
@@ -764,7 +763,7 @@ fn math_random(
     //
     // Each Math.random function created for distinct realms must produce a distinct sequence of values from successive
     // calls.
-    Ok(random::<f64>().into())
+    Ok(rand::random::<f64>().into())
 }
 
 fn math_round(

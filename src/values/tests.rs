@@ -969,7 +969,7 @@ mod pn {
         assert_eq!(b.cmp(&c), Ordering::Equal);
         assert_eq!(b.partial_cmp(&c), Some(Ordering::Equal));
 
-        let mut hasher = AHasher::new_with_keys(1234, 5678);
+        let mut hasher = AHasher::default();
         b.hash(&mut hasher);
     }
 }
