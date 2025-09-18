@@ -5,7 +5,7 @@ use super::*;
 use crate::tests::*;
 use ahash::RandomState;
 use num::traits::Zero;
-use std::hash::{BuildHasher, Hash};
+use std::hash::Hash;
 
 #[test]
 fn jsstring_from_str() {

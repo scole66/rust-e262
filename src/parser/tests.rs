@@ -9,7 +9,7 @@ use std::hash::{Hash, Hasher};
 use test_case::test_case;
 
 fn calculate_hash<T: Hash>(t: &T) -> u64 {
-    let mut s = AHasher::new_with_keys(1234, 5678);
+    let mut s = AHasher::default();
     t.hash(&mut s);
     s.finish()
 }
