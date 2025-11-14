@@ -2844,11 +2844,8 @@ impl<'a> Maker<'a> {
 }
 
 pub(crate) fn find_call(src: &str) -> Location {
-    let loc_default = Location {
-        starting_line: 10,
-        starting_column: 1,
-        span: Span { starting_index: src.len(), length: 6 },
-    };
+    let loc_default =
+        Location { starting_line: 10, starting_column: 1, span: Span { starting_index: src.len(), length: 6 } };
     src.find("call()").map_or(loc_default, |starting_index| Location {
         starting_line: 1,
         starting_column: u32::try_from(starting_index).unwrap() + 1,

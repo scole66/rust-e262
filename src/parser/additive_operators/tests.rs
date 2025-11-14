@@ -210,6 +210,10 @@ mod additive_expression {
     #[test_case("10 - (function(){ return call(); })()" => ssome("return call ( ) ;"); "right-side subtract; location in function body")]
     fn body_containing_location(src: &str) -> Option<String> {
         let location = find_call(src);
-        Maker::new(src).return_ok(true).additive_expression().body_containing_location(&location).map(|node| node.to_string())
+        Maker::new(src)
+            .return_ok(true)
+            .additive_expression()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
     }
 }

@@ -686,6 +686,20 @@ mod arguments_object {
 
         let keys = obj.o.own_property_keys().unwrap();
 
-        assert_eq!(keys, vec!["0".into(), "1".into(), "2".into(), "6".into(), "60".into(), "100".into(), "zebra".into(), "alpha".into(), to_prim.into(), species.into()]);
+        assert_eq!(
+            keys,
+            vec![
+                "0".into(),
+                "1".into(),
+                "2".into(),
+                "6".into(),
+                "60".into(),
+                "100".into(),
+                "zebra".into(),
+                "alpha".into(),
+                to_prim.into(),
+                species.into()
+            ]
+        );
     }
 }

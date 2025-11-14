@@ -324,6 +324,10 @@ mod update_expression {
     #[test_case("--call()" => None; "predec; call, but not in body")]
     fn body_containing_location(src: &str) -> Option<String> {
         let location = find_call(src);
-        Maker::new(src).return_ok(true).update_expression().body_containing_location(&location).map(|node| node.to_string())
+        Maker::new(src)
+            .return_ok(true)
+            .update_expression()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
     }
 }

@@ -878,7 +878,6 @@ mod arguments {
         Maker::new(src).arguments().location()
     }
 
-
     #[test_case("(/*call()*/)" => None; "empty")]
     #[test_case("(a,b)" => None; "not in production")]
     #[test_case("(call())" => None; "call not in body")]
@@ -1125,7 +1124,12 @@ mod argument_list {
     #[test_case("a=call(), ...b" => None; "list+dots, no match in left list")]
     fn body_containing_location(src: &str) -> Option<String> {
         let location = find_call(src);
-        Maker::new(src).return_ok(true).argument_list_ast().0.body_containing_location(&location).map(|node| node.to_string())
+        Maker::new(src)
+            .return_ok(true)
+            .argument_list_ast()
+            .0
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
     }
 }
 

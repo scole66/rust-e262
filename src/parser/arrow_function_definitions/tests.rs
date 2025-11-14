@@ -150,7 +150,11 @@ mod arrow_function {
     #[test_case("(x = (function(z) { return call(); })()) => { return x; }" => ssome("return call ( ) ;"); "location in params")]
     fn body_containing_location(src: &str) -> Option<String> {
         let location = find_call(src);
-        Maker::new(src).return_ok(true).arrow_function().body_containing_location(&location).map(|node| node.to_string())
+        Maker::new(src)
+            .return_ok(true)
+            .arrow_function()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
     }
 }
 
