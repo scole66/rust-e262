@@ -1833,6 +1833,15 @@ pub(crate) enum ContainingBody {
     //AsyncConciseBody(Rc<AsyncConciseBody>), // Add back when Async goes in
 }
 
+impl fmt::Display for ContainingBody {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ContainingBody::FunctionBody(node) => node.fmt(f),
+            ContainingBody::ConciseBody(node) => node.fmt(f),
+        }
+    }
+}
+
 pub(crate) mod additive_operators;
 pub(crate) mod arrow_function_definitions;
 pub(crate) mod assignment_operators;

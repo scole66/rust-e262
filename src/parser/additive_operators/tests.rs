@@ -191,4 +191,25 @@ mod additive_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).additive_expression().location()
     }
+
+    #[test_case("a+call()" => false; "add")]
+    #[test_case("a-call()" => false; "subtract")]
+    #[test_case("call()" => true; "fall-thru")]
+    #[test_case("37" => false; "fall-thru, no call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).additive_expression().has_call_in_tail_position(&location)
+    }
+
+    #[test_case("a+b" => None; "location not in parse node")]
+    #[test_case("call()" => None; "fall-thru; location in node, but no function body")]
+    #[test_case("(function(){ return call(); })()" => ssome("return call ( ) ;"); "fall-thru; location in function body")]
+    #[test_case("(function(){ return call(); })() + 3" => ssome("return call ( ) ;"); "left-side add; location in function body")]
+    #[test_case("10 + (function(){ return call(); })()" => ssome("return call ( ) ;"); "right-side add; location in function body")]
+    #[test_case("(function(){ return call(); })() - 3" => ssome("return call ( ) ;"); "left-side subtract; location in function body")]
+    #[test_case("10 - (function(){ return call(); })()" => ssome("return call ( ) ;"); "right-side subtract; location in function body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).return_ok(true).additive_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
 }

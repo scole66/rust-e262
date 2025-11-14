@@ -1630,6 +1630,22 @@ mod array_literal {
     fn location(src: &str) -> Location {
         Maker::new(src).array_literal().location()
     }
+
+    #[test_case("[]" => None; "location not in body")]
+    #[test_case("[/* call() */]" => None; "empty list")]
+    #[test_case("[call()]" => None; "list, but no function body")]
+    #[test_case("[function () { return call(); }]" => ssome("return call ( ) ;"); "function body in list")]
+    #[test_case("[function () { return call(); },,,]" => ssome("return call ( ) ;"); "function body in list+elision")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).array_literal().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("[]" => "[ ]"; "empty")]
+    fn into_primary_expression(src: &str) -> String {
+        let item = Maker::new(src).array_literal();
+        PrimaryExpression::from(item).to_string()
+    }
 }
 
 // INITIALIZER

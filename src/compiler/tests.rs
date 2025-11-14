@@ -399,6 +399,12 @@ mod abrupt_result {
     fn from(item: impl Into<AbruptResult>) -> AbruptResult {
         item.into()
     }
+
+    #[test_case(AbruptResult::Maybe => CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Never }; "AbruptResult::Maybe")]
+    #[test_case(AbruptResult::Never => CompilerStatusFlags { can_be_abrupt: AbruptResult::Never, can_be_reference: RefResult::Never }; "AbruptResult::Never")]
+    fn into_compiiler_status_flags(item: AbruptResult) -> CompilerStatusFlags {
+        item.into()
+    }
 }
 
 mod always_abrupt_result {
@@ -422,6 +428,20 @@ mod always_abrupt_result {
         let item = AlwaysAbruptResult {};
         assert!(item.maybe_abrupt());
     }
+
+    #[test]
+    fn into_compiiler_status_flags() {
+        let item = AlwaysAbruptResult {};
+        let csf: CompilerStatusFlags = item.into();
+        assert_eq!(csf, CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Never });
+    }
+
+    #[test]
+    fn into_abrupt_result() {
+        let item = AlwaysAbruptResult {};
+        let ar: AbruptResult = item.into();
+        assert_eq!(ar, AbruptResult::Maybe);
+    }
 }
 
 mod always_ref_result {
@@ -439,6 +459,13 @@ mod always_ref_result {
         let cloned = item.clone();
         assert!(matches!(cloned, AlwaysRefResult {}));
     }
+
+    #[test]
+    fn into_compiiler_status_flags() {
+        let item = AlwaysRefResult {};
+        let csf: CompilerStatusFlags = item.into();
+        assert_eq!(csf, CompilerStatusFlags { can_be_abrupt: AbruptResult::Never, can_be_reference: RefResult::Maybe });
+    }
 }
 
 mod always_abrupt_ref_result {
@@ -455,6 +482,13 @@ mod always_abrupt_ref_result {
         let item = AlwaysAbruptRefResult {};
         let cloned = item.clone();
         assert!(matches!(cloned, AlwaysAbruptRefResult {}));
+    }
+
+    #[test]
+    fn into_compiiler_status_flags() {
+        let item = AlwaysAbruptRefResult {};
+        let csf: CompilerStatusFlags = item.into();
+        assert_eq!(csf, CompilerStatusFlags { can_be_abrupt: AbruptResult::Maybe, can_be_reference: RefResult::Maybe });
     }
 }
 

@@ -185,6 +185,15 @@ mod script {
     fn location(src: &str) -> Location {
         Maker::new(src).script().location()
     }
+
+    #[test_case("" => None; "no body")]
+    #[test_case("console.log('hello');" => None; "call not in script")]
+    #[test_case("function f(){ call(); return 34; }" => Some("call ( ) ; return 34 ;".to_string()); "call in function body")]
+    #[test_case("call();" => None; "call not in function body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).return_ok(true).script().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // SCRIPT BODY
@@ -332,5 +341,13 @@ mod script_body {
     fn all_private_identifiers_valid(src: &str, names: &[&str]) -> bool {
         let js_names = names.iter().map(|&name| JSString::from(name)).collect::<Vec<_>>();
         Maker::new(src).script_body().all_private_identifiers_valid(js_names.as_slice())
+    }
+
+    #[test_case("a;" => None; "call not in scope")]
+    #[test_case("function f(){ call(); return 34; }" => Some("call ( ) ; return 34 ;".to_string()); "call in scope")]
+    #[test_case("call();" => None; "call not in function body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).return_ok(true).script_body().body_containing_location(&location).map(|node| node.to_string())
     }
 }

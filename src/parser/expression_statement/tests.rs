@@ -146,4 +146,13 @@ mod expression_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).expression_statement().location()
     }
+
+    #[test_case("a;" => None; "location outside of source")]
+    #[test_case("(function () { return call(); })();" => Some("return call ( ) ;".to_string()); "call in function body")]
+    #[test_case("call();" => None; "call, but not in body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).return_ok(true).expression_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
 }

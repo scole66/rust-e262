@@ -412,16 +412,11 @@ impl fmt::Display for Insn {
 /// A compilation might leave a value on the runtime stack that could be a reference. We want to communicate back to the
 /// parent compilation step about whether that's possible or not. The values are "Might leave a reference on top of the
 /// stack" and "Will never leave a reference on the top of the stack".
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) enum RefResult {
     Maybe,
+    #[default]
     Never,
-}
-
-impl Default for RefResult {
-    fn default() -> Self {
-        Self::Never
-    }
 }
 
 impl From<bool> for RefResult {
@@ -433,16 +428,11 @@ impl From<bool> for RefResult {
 /// A compilation might leave a value on top of the runtime stack that could be an error. We want to communicate back to
 /// the parent compilation step about whether that's possible or not. The values are "Might leave an abrupt completion
 /// on top of the stack" and "Will never leave an abrupt completion on top of the stack".
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) enum AbruptResult {
     Maybe,
+    #[default]
     Never,
-}
-
-impl Default for AbruptResult {
-    fn default() -> Self {
-        Self::Never
-    }
 }
 
 impl From<CompilerStatusFlags> for AbruptResult {

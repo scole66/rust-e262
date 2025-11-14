@@ -57,8 +57,9 @@ impl PartialEq for PrimitiveValue {
 
 impl Eq for PrimitiveValue {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub(crate) enum ECMAScriptValue {
+    #[default]
     Undefined,
     Null,
     Boolean(bool),
@@ -395,12 +396,6 @@ impl TryFrom<ECMAScriptValue> for Rc<BigInt> {
             ECMAScriptValue::BigInt(bi) => Ok(bi),
             _ => Err(anyhow!("Value not a bigint")),
         }
-    }
-}
-
-impl Default for ECMAScriptValue {
-    fn default() -> Self {
-        Self::Undefined
     }
 }
 

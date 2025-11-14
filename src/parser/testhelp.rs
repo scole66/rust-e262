@@ -141,14 +141,14 @@ impl<'a> Maker<'a> {
     //     Self { in_flag, ..self }
     // }
 
-    // /// Set the `return_flag` in the maker object.
-    // ///
-    // /// `true` means that `return` statements are currently allowed (generally within function bodies); `false` means
-    // /// they are not.
-    // #[must_use]
-    // pub(crate) fn return_ok(self, return_flag: bool) -> Self {
-    //     Self { return_flag, ..self }
-    // }
+    /// Set the `return_flag` in the maker object.
+    ///
+    /// `true` means that `return` statements are currently allowed (generally within function bodies); `false` means
+    /// they are not.
+    #[must_use]
+    pub(crate) fn return_ok(self, return_flag: bool) -> Self {
+        Self { return_flag, ..self }
+    }
 
     /// Set the `tagged` flag in the maker object.
     ///
@@ -2841,6 +2841,19 @@ impl<'a> Maker<'a> {
     //        .0;
     //    (node.clone(), SourceTree { text: source, ast: ParsedText::YieldExpression(node) })
     //}
+}
+
+pub(crate) fn find_call(src: &str) -> Location {
+    let loc_default = Location {
+        starting_line: 10,
+        starting_column: 1,
+        span: Span { starting_index: src.len(), length: 6 },
+    };
+    src.find("call()").map_or(loc_default, |starting_index| Location {
+        starting_line: 1,
+        starting_column: u32::try_from(starting_index).unwrap() + 1,
+        span: Span { starting_index, length: 6 },
+    })
 }
 
 pub(crate) const PACKAGE_NOT_ALLOWED: &str = "‘package’ not allowed as an identifier in strict mode";

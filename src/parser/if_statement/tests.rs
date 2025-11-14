@@ -286,4 +286,29 @@ mod if_statement {
     fn expression(src: &str) -> String {
         Maker::new(src).if_statement().expression().to_string()
     }
+
+    #[test_case("if (expr) return call();" => true; "no else: call in tail position")]
+    #[test_case("if (expr) call();" => false; "no else: expression in tail position")]
+    #[test_case("if (expr) first; else return call();" => true; "with else: call in tail position in else clause")]
+    #[test_case("if (expr) return call(); else second;" => true; "with else: call in tail position in then clause")]
+    #[test_case("if (expr) first; else call();" => false; "with else: expression in tail position in else clause")]
+    #[test_case("if (expr) return 1 + call(); else second;" => false; "with else: complex in tail position in then clause")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).if_statement().has_call_in_tail_position(&location)
+    }
+
+    #[test_case("if (true) return ((x)=>{ let z = x * 2; call() })(0);" => ssome("let z = x * 2 ; call ( ) ;"); "no else: call in fbody in stmt")]
+    #[test_case("if (true) return call();" => None; "no else: call not in a function body, in stmt")]
+    #[test_case("if (call()) return 1;" => None; "no else: call not in a function body, in expr")]
+    #[test_case("if ((function (){ return call(); })()) return 1;" => ssome("return call ( ) ;"); "no else: call in fbody in expr")]
+    #[test_case("if (true) return 1;" => None; "location not in sequence")]
+    #[test_case("if ((function() { return call(); })()) return 1; else return 2;" => ssome("return call ( ) ;"); "with else: call in fbody in expr")]
+    #[test_case("if (true) return ((function() { return call(); })()); else return 2;" => ssome("return call ( ) ;"); "with else: call in fbody in stmt1")]
+    #[test_case("if (true) return 1; else return ((function() { return call(); })());" => ssome("return call ( ) ;"); "with else: call in fbody in stmt2")]
+    #[test_case("if (true) return 1; else return ((function() { return (function() { return 'inner' + call(); })(); })());" => ssome("return 'inner' + call ( ) ;"); "with else: call in nested fbody in stmt2")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).return_ok(true).if_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
 }

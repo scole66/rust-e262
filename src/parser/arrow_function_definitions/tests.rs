@@ -143,6 +143,15 @@ mod arrow_function {
     fn location(src: &str) -> Location {
         Maker::new(src).arrow_function().location()
     }
+
+    #[test_case("x => 3" => None; "location not in parse node")]
+    #[test_case("x => { return call(); }" => ssome("return call ( ) ;"); "location in body")]
+    #[test_case("(x = call()) => { return x; }" => None; "location in params, but not in a body itself")]
+    #[test_case("(x = (function(z) { return call(); })()) => { return x; }" => ssome("return call ( ) ;"); "location in params")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).return_ok(true).arrow_function().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // ARROW PARAMETERS
