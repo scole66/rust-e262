@@ -454,14 +454,13 @@ impl Statement {
                 Statement::Expression(node) => node.body_containing_location(location),
                 Statement::If(node) => node.body_containing_location(location),
                 Statement::Breakable(node) => node.body_containing_location(location),
-                Statement::Continue(node) => node.body_containing_location(location),
                 Statement::Break(node) => node.body_containing_location(location),
                 Statement::Return(node) => node.body_containing_location(location),
                 Statement::With(node) => node.body_containing_location(location),
                 Statement::Labelled(node) => node.body_containing_location(location),
                 Statement::Throw(node) => node.body_containing_location(location),
                 Statement::Try(node) => node.body_containing_location(location),
-                Statement::Empty(_) | Statement::Debugger(_) => None,
+                Statement::Continue(_) | Statement::Empty(_) | Statement::Debugger(_) => None,
             }
         } else {
             None

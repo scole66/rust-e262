@@ -638,4 +638,68 @@ mod arguments_object {
     none_function!(to_map_obj);
     none_function!(to_regexp_object);
     none_function!(to_string_obj);
+
+    #[test]
+    fn own_property_keys() {
+        setup_test_agent();
+        let obj = make(); // adds 0, 1, 2, and 100
+
+        let to_prim = wks(WksId::ToPrimitive);
+        let species = wks(WksId::Species);
+
+        obj.o
+            .define_own_property(
+                "60".into(),
+                PotentialPropertyDescriptor::new().value("q").writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+        obj.o
+            .define_own_property(
+                "6".into(),
+                PotentialPropertyDescriptor::new().value("s").writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+        obj.o
+            .define_own_property(
+                "zebra".into(),
+                PotentialPropertyDescriptor::new().value(0).writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+        obj.o
+            .define_own_property(
+                "alpha".into(),
+                PotentialPropertyDescriptor::new().value(1).writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+        obj.o
+            .define_own_property(
+                to_prim.clone().into(),
+                PotentialPropertyDescriptor::new().value(2).writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+        obj.o
+            .define_own_property(
+                species.clone().into(),
+                PotentialPropertyDescriptor::new().value(3).writable(true).enumerable(true).configurable(true),
+            )
+            .unwrap();
+
+        let keys = obj.o.own_property_keys().unwrap();
+
+        assert_eq!(
+            keys,
+            vec![
+                "0".into(),
+                "1".into(),
+                "2".into(),
+                "6".into(),
+                "60".into(),
+                "100".into(),
+                "zebra".into(),
+                "alpha".into(),
+                to_prim.into(),
+                species.into()
+            ]
+        );
+    }
 }

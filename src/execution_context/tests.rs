@@ -81,6 +81,23 @@ mod script_or_module {
         text.clone()
     }
 
+    #[test_case(|| {
+        let mut sr = ScriptRecord::new_empty(current_realm_record().unwrap());
+        sr.text = String::from("I am a walrus");
+        ScriptOrModule::Script(Rc::new(sr))
+    } => "I am a walrus --- "; "script")]
+    #[test_case(|| ScriptOrModule::Module(Rc::new(ModuleRecord{})) => panics "not yet implemented"; "module")]
+    fn source_tree(maker: impl FnOnce() -> ScriptOrModule) -> String {
+        setup_test_agent();
+        let som = maker();
+        let tree = som.source_tree();
+        if let SourceTree { text, ast: ParsedText::Script(script) } = tree {
+            format!("{text} --- {script}")
+        } else {
+            panic!("expected ParsedText::Script, got something else")
+        }
+    }
+
     #[test_case(
         || {
             let mut sr = ScriptRecord::new_empty(current_realm_record().unwrap());

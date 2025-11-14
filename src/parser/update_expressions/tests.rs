@@ -299,4 +299,35 @@ mod update_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).update_expression().location()
     }
+
+    #[test_case("call++" => false; "postinc, no")]
+    #[test_case("++call" => false; "preinc, no")]
+    #[test_case("call--" => false; "postdec, no")]
+    #[test_case("--call" => false; "predec, no")]
+    #[test_case("call()" => true; "fall-thru, yes")]
+    #[test_case("432" => false; "fall-thru, no")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).update_expression().has_call_in_tail_position(&location)
+    }
+
+    #[test_case("(function () { return call(); })()" => Some("return call ( ) ;".to_string()); "fall-thru; call in function body")]
+    #[test_case("call()" => None; "fall-thru; call, but not in body")]
+    #[test_case("a++" => None; "call not in expression")]
+    #[test_case("(function () { return call(); })()++" => Some("return call ( ) ;".to_string()); "postinc; call in function body")]
+    #[test_case("call()++" => None; "postinc; call, but not in body")]
+    #[test_case("(function () { return call(); })()--" => Some("return call ( ) ;".to_string()); "postdec; call in function body")]
+    #[test_case("call()--" => None; "postdec; call, but not in body")]
+    #[test_case("++(function () { return call(); })()" => Some("return call ( ) ;".to_string()); "preinc; call in function body")]
+    #[test_case("++call()" => None; "preinc; call, but not in body")]
+    #[test_case("--(function () { return call(); })()" => Some("return call ( ) ;".to_string()); "predec; call in function body")]
+    #[test_case("--call()" => None; "predec; call, but not in body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .update_expression()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
+    }
 }

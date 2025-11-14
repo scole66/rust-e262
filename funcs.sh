@@ -1,3 +1,6 @@
+CARGO_PROFDATA=$(find $HOME/.rustup -name llvm-profdata)
+CARGO_COV=$(find $HOME/.rustup -name llvm-cov)
+
 function objects() {
     for file in $( \
             LLVM_PROFILE_FILE="res-%m.profraw" RUSTFLAGS="-Cinstrument-coverage" cargo test --profile coverage --no-run --message-format=json 2> /dev/null | \
@@ -26,7 +29,7 @@ function tst() {
   RUST_BACKTRACE=1 LLVM_PROFILE_FILE="res-%m.profraw" RUSTFLAGS="-Cinstrument-coverage" cargo test --bin res --profile coverage $quiet -- "$@"
   local covstatus=$?
   if [ $covstatus -eq 0 ]; then
-    cargo profdata -- merge res-*.profraw --output="$output"
+    $CARGO_PROFDATA merge res-*.profraw --output="$output"
   fi
   cd $here
   return $covstatus
@@ -37,7 +40,7 @@ function summary() {
   cd ~/*/rust-e262
   local profile=res.profdata
   if [ $# -gt 0 ]; then profile="$1"; fi
-  cargo cov -- report --use-color --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/.*tests\.rs|/testhelp\.rs|/tests/' --instr-profile="$profile" $(objects)
+  $CARGO_COV report --use-color --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/.*tests\.rs|/testhelp\.rs|/tests/' --instr-profile="$profile" $(objects)
   cd $here
 }
 
@@ -50,7 +53,7 @@ function z() {
 function s() {
   local here=$(pwd)
   cd ~/*/rust-e262
-  cargo cov -- show \
+  $CARGO_COV show \
     --use-color \
     --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/.*tests\.rs|/testhelp\.rs|/tests/' \
     --instr-profile=res.profdata $(objects) \
@@ -95,7 +98,7 @@ function report() {
     shift
   done
 
-  cargo cov -- show \
+  $CARGO_COV show \
     $color \
     --ignore-filename-regex='/rustc/|/\.cargo/|\.rustup/toolchains|/.*tests\.rs|/testhelp\.rs|/tests/' \
     --instr-profile="$profile" $(objects) \

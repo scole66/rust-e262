@@ -1237,7 +1237,9 @@ impl ArgumentList {
         if self.location().contains(location) {
             match self {
                 ArgumentList::FallThru(n) | ArgumentList::Dots(n, _) => n.body_containing_location(location),
-                ArgumentList::List(n, _) | ArgumentList::ListDots(n, _) => n.body_containing_location(location),
+                ArgumentList::List(n1, n2) | ArgumentList::ListDots(n1, n2) => {
+                    n1.body_containing_location(location).or_else(|| n2.body_containing_location(location))
+                }
             }
         } else {
             None

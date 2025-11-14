@@ -1314,16 +1314,12 @@ fn validate_and_apply_property_descriptor_06() {
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ONE BIG TEST to check all different PotentialPropertyDescriptors against all different existing PropertyDescriptors.
 // (There are 23,328 different tests included in this.)
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Default)]
 enum Stage {
+    #[default]
     Data,
     Accessor,
     Done,
-}
-impl Default for Stage {
-    fn default() -> Self {
-        Self::Data
-    }
 }
 #[expect(clippy::struct_excessive_bools)]
 #[derive(Default)]

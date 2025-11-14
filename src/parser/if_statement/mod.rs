@@ -232,11 +232,11 @@ impl IfStatement {
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         if self.location().contains(location) {
             match self {
-                IfStatement::WithElse(expression, statement, statement1, location) => expression
+                IfStatement::WithElse(expression, statement, statement1, ..) => expression
                     .body_containing_location(location)
                     .or_else(|| statement.body_containing_location(location))
                     .or_else(|| statement1.body_containing_location(location)),
-                IfStatement::WithoutElse(expression, statement, location) => expression
+                IfStatement::WithoutElse(expression, statement, ..) => expression
                     .body_containing_location(location)
                     .or_else(|| statement.body_containing_location(location)),
             }

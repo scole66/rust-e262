@@ -1441,6 +1441,18 @@ mod array_binding_pattern {
     fn contains(src: &str, kind: ParseNodeKind) -> bool {
         Maker::new(src).array_binding_pattern().contains(kind)
     }
+
+    #[test_case("[,,, /* call() */]" => None; "elisions only")]
+    #[test_case("[...a /* call() */]" => None; "binding rest element; no function body")]
+    #[test_case("[...[a=function(){return call();}]]" => ssome("return call ( ) ;"); "binding rest element; has function body")]
+    #[test_case("[a=function(){return call();},b]" => ssome("return call ( ) ;"); "binding element list; has function body on head")]
+    #[test_case("[a,b=function(){return call();}]" => ssome("return call ( ) ;"); "binding element list; has function body in tail")]
+    #[test_case("[a=function(){return call();},b,]" => ssome("return call ( ) ;"); "binding element list + empty rest; has function body on head")]
+    #[test_case("[a,...[b=function(){return call();}]]" => ssome("return call ( ) ;"); "binding element list + rest; has function body in rest")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).array_binding_pattern().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // BINDING REST PROPERTY

@@ -877,6 +877,16 @@ mod arguments {
     fn location(src: &str) -> Location {
         Maker::new(src).arguments().location()
     }
+
+    #[test_case("(/*call()*/)" => None; "empty")]
+    #[test_case("(a,b)" => None; "not in production")]
+    #[test_case("(call())" => None; "call not in body")]
+    #[test_case("((function(){ return call(); })())" => ssome("return call ( ) ;"); "call in list")]
+    #[test_case("((function(){ return call(); })(),)" => ssome("return call ( ) ;"); "call in list-comma")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).return_ok(true).arguments().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // ARGUMENT LIST
@@ -1090,6 +1100,36 @@ mod argument_list {
     #[test_case("xyzzy,...bob" => false; "List , Spread (no)")]
     fn contains_arguments(src: &str) -> bool {
         ArgumentList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 1 }}; "fallthru")]
+    #[test_case("  ...a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 4 }}; "dots")]
+    #[test_case("  a,b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "list")]
+    #[test_case("  a,...b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "list+dots")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).argument_list_ast().0.location()
+    }
+    #[test_case("a" => None; "call outside of production")]
+    #[test_case("a=(function() { return call(); })()" => ssome("return call ( ) ;"); "fallthru, matches")]
+    #[test_case("a=call()" => None; "fallthru, no match")]
+    #[test_case("...a=(function() { return call(); })()" => ssome("return call ( ) ;"); "dots, matches")]
+    #[test_case("...a=call()" => None; "dots, no match")]
+    #[test_case("a,b=(function() { return call(); })()" => ssome("return call ( ) ;"); "list, match in assignment expression")]
+    #[test_case("a,b=call()" => None; "list, no match (right)")]
+    #[test_case("a=(function() { return call(); })(), b" => ssome("return call ( ) ;"); "list, match in left list")]
+    #[test_case("a=call(), b" => None; "list, no match in left list")]
+    #[test_case("a,...b=(function() { return call(); })()" => ssome("return call ( ) ;"); "list+dots, match in assignment expression")]
+    #[test_case("a,...b=call()" => None; "list+dots, no match")]
+    #[test_case("a=(function() { return call(); })(), ...b" => ssome("return call ( ) ;"); "list+dots, match in left list")]
+    #[test_case("a=call(), ...b" => None; "list+dots, no match in left list")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .argument_list_ast()
+            .0
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
     }
 }
 
