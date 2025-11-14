@@ -536,7 +536,7 @@ impl<'a> Maker<'a> {
         )
         .unwrap()
         .0;
-        (node.clone(), SourceTree { text: source.to_string(), ast: ParsedText::AsyncFunctionDeclaration(node) })
+        (node.clone(), SourceTree { text: source.clone(), ast: ParsedText::AsyncFunctionDeclaration(node) })
     }
     /// Use the configs in the [`Maker`] object to make a [`AsyncFunctionExpression`] parse node.
     pub(crate) fn async_function_expression(self) -> Rc<AsyncFunctionExpression> {
