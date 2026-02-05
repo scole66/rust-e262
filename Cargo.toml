@@ -38,7 +38,7 @@ tempfile = "3.19.1"
 clap = { version = "4.5.32", features = ["derive"] }
 rand = "0.9"
 thiserror = "2"
-time = { version = "0.3.41", features = ["formatting", "large-dates", "local-offset", "std", "macros"]}
+time = { version = "0.3.47", features = ["formatting", "large-dates", "local-offset", "std", "macros"]}
 multi-map = "1.3.0"
 config = "0.15"
 

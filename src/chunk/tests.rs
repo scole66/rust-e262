@@ -67,7 +67,7 @@ mod chunk {
         for item in inputs {
             results.push(c.add_to_bigint_pool(Rc::new(item.clone())).unwrap());
         }
-        (results, c.bigints.iter().cloned().map(|b| b.deref().clone()).collect::<Vec<_>>())
+        (results, c.bigints.iter().map(|b| b.deref().clone()).collect::<Vec<_>>())
     }
 
     #[test_case(&[&["bob"]] => (vec![0], vec![sset(&["bob"])]); "one item")]
