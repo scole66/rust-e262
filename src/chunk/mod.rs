@@ -82,7 +82,7 @@ impl Chunk {
         collection.push(item);
         (collection.len() - 1)
             .try_into()
-            .map_err(|_| anyhow!("Out of room for {} in this compilation unit", collection_name))
+            .map_err(|_| anyhow!("Out of room for {collection_name} in this compilation unit"))
     }
 
     pub(crate) fn add_to_func_stash(&mut self, fd: StashedFunctionData) -> anyhow::Result<u16> {
