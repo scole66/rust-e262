@@ -642,6 +642,52 @@ mod primary_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).primary_expression().location()
     }
+
+    #[test_case("this" => None; "this expression")]
+    #[test_case("blue" => None; "identifier expression")]
+    #[test_case("[ function () { return call(); } ]" => ssome("return call ( ) ;"); "array literal; present")]
+    #[test_case("[ 19 ]" => None; "array literal; missing")]
+    #[test_case("{ a: function () { return call(); } }" => ssome("return call ( ) ;"); "object literal; present")]
+    #[test_case("{ a: 10 }" => None; "object literal; missing")]
+    #[test_case("(function () { return call(); })" => ssome("return call ( ) ;"); "paren expr; present")]
+    #[test_case("(10)" => None; "paren; missing")]
+    #[test_case("`${function () { return call(); }}`" => ssome("return call ( ) ;"); "template; present")]
+    #[test_case("`${1}`" => None; "template; missing")]
+    #[test_case("class a { item () { return call(); } }" => ssome("return call ( ) ;"); "class; present")]
+    #[test_case("class a { item () { return 5; } }" => None; "class; missing")]
+    #[test_case("function *() { return call(); }" => ssome("return call ( ) ;"); "generator; present")]
+    #[test_case("function *() { return undefined; }" => None; "generator; missing")]
+    #[test_case("async function () { return call(); }" => ssome("return call ( ) ;"); "async function; present")]
+    #[test_case("async function () { return undefined; }" => None; "async function; missing")]
+    #[test_case("async function *() { return call(); }" => ssome("return call ( ) ;"); "async generator; present")]
+    #[test_case("async function *() { return undefined; }" => None; "async generator; missing")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .primary_expression()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
+    }
+
+    #[test_case("this" => false; "this expression")]
+    #[test_case("a" => false; "identifier")]
+    #[test_case("18" => false; "literal")]
+    #[test_case("[]" => false; "array literal")]
+    #[test_case("{ a: 10 }" => false; "object literal")]
+    #[test_case("``" => false; "template literal")]
+    #[test_case("function () { return 1; }" => false; "function expression")]
+    #[test_case("class { a() {} }" => false; "class expression")]
+    #[test_case("function *(){}" => false; "generator expression")]
+    #[test_case("async function(){}" => false; "async function expression")]
+    #[test_case("async function * () {}" => false; "async generator expression")]
+    #[test_case("/regex/" => false; "regular expression")]
+    #[test_case("(10)" => false; "paren expression; missing")]
+    #[test_case("(call())" => true; "paren expression; present")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).primary_expression().has_call_in_tail_position(&location)
+    }
 }
 
 // LITERAL

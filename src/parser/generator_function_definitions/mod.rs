@@ -489,9 +489,14 @@ impl GeneratorExpression {
     pub(crate) fn is_named_function(&self) -> bool {
         self.ident.is_some()
     }
-    #[expect(unused_variables)]
+
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        todo!()
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.location().contains(location) {
+            self.params.body_containing_location(location).or_else(|| self.body.body_containing_location(location))
+        } else {
+            None
+        }
     }
 }
 
@@ -601,9 +606,9 @@ impl GeneratorBody {
     pub(crate) fn lexically_scoped_declarations(&self) -> Vec<DeclPart> {
         self.0.lexically_scoped_declarations()
     }
-    #[expect(unused_variables)]
+
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        todo!()
+        self.0.body_containing_location(location)
     }
 }
 

@@ -308,15 +308,15 @@ impl ArrowParameters {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ArrowParameters::Identifier(_) => None,
-                ArrowParameters::Formals(arrow_formal_parameters) => {
+        match self {
+            ArrowParameters::Identifier(_) => None,
+            ArrowParameters::Formals(arrow_formal_parameters) => {
+                if self.location().contains(location) {
                     arrow_formal_parameters.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 }
