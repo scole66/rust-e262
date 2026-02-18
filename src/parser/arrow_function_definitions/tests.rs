@@ -299,6 +299,15 @@ mod arrow_parameters {
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).arrow_parameters().contains_expression()
     }
+
+    #[test_case("x" => None; "binding identifier")]
+    #[test_case("(x, y=call())" => None ; "location in params, but not in a body itself")]
+    #[test_case("(x=function(){call();}, y)" => ssome("call ( ) ;"); "location in params")]
+    #[test_case("(x, y)" => None; "location not in production")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).arrow_parameters().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // CONCISE BODY
@@ -618,5 +627,13 @@ mod arrow_formal_parameters {
     #[test_case("()" => "( )"; "no args")]
     fn display(src: &str) -> String {
         format!("{}", Maker::new(src).arrow_formal_parameters())
+    }
+
+    #[test_case("()" => None; "location not in parse node")]
+    #[test_case("(x = call())" => None; "there, but not in body")]
+    #[test_case("(x = function(){call();})" => ssome("call ( ) ;"); "found a function body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).arrow_formal_parameters().body_containing_location(&location).map(|node| node.to_string())
     }
 }
