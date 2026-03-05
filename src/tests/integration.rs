@@ -1092,6 +1092,15 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 // 2025/07/31 - destructuring broken in catch parameters
 #[test_case("try{throw[10];}catch([z]){z;}" => vok(10); "catch parameter destructuring")]
 #[test_case("try{throw 10;}catch([z]){}" => serr("Thrown: TypeError: object is not iterable"); "catch parameter bad destructuring")]
+// 2026/03/05 - Array.from has bad max length (used 2^53 --- which is 55 --- rather than 2.pow(53))
+#[test_case("Array.from([
+    0,1,2,3,4,5,6,7,8,9,
+    0,1,2,3,4,5,6,7,8,9,
+    0,1,2,3,4,5,6,7,8,9,
+    0,1,2,3,4,5,6,7,8,9,
+    0,1,2,3,4,5,6,7,8,9,
+    0,1,2,3,4,5,6,7,8,9
+    ]).length" => vok(60); "Array.from: bad length limit")]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

@@ -465,6 +465,7 @@ impl ObjectInterface for MapObject {
 impl MapObject {
     fn new(prototype: Option<Object>) -> Self {
         Self {
+            // !!!! @@@@ DATE_OBJECT_SLOTS?????
             common: RefCell::new(CommonObjectData::new(prototype, true, DATE_OBJECT_SLOTS)),
             map_data: RefCell::new(MapInternals::default()),
         }
@@ -956,7 +957,7 @@ fn group_by(
     let iterator_record = get_iterator(items, IteratorKind::Sync)?;
     let mut k = 0;
     loop {
-        if k >= (2 ^ 53) - 1 {
+        if k >= 2_usize.pow(53) - 1 {
             let error = create_type_error("Map.groupBy: too many items");
             let result = iterator_record.close::<ECMAScriptValue>(Err(error)).unwrap_err();
             return Err(result);
