@@ -978,7 +978,7 @@ fn array_from(
         let iterator_record = get_iterator_from_method(&items, &using_iterator)?;
         let mut k: usize = 0;
         loop {
-            if k >= (2 ^ 53) - 1 {
+            if k >= 2_usize.pow(53) - 1 {
                 let error = Err(create_type_error("Array.from: iterable too long"));
                 return iterator_close(&iterator_record, error);
             }
