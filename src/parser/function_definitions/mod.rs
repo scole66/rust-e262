@@ -145,8 +145,10 @@ impl FunctionDeclaration {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            self.params.body_containing_location(location).or_else(|| self.body.body_containing_location(location))
+        if self.params.location().contains(location) {
+            self.params.body_containing_location(location)
+        } else if self.body.location().contains(location) {
+            self.body.body_containing_location(location)
         } else {
             None
         }
@@ -327,8 +329,11 @@ impl FunctionExpression {
     }
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        if self.location().contains(location) {
-            self.params.body_containing_location(location).or_else(|| self.body.body_containing_location(location))
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.params.location().contains(location) {
+            self.params.body_containing_location(location)
+        } else if self.body.location().contains(location) {
+            self.body.body_containing_location(location)
         } else {
             None
         }
@@ -539,13 +544,9 @@ impl FunctionBody {
     }
 
     pub(crate) fn body_containing_location(self: &Rc<Self>, location: &Location) -> Option<ContainingBody> {
-        if self.location().contains(location) {
-            self.statements
-                .body_containing_location(location)
-                .or_else(|| Some(ContainingBody::FunctionBody(Rc::clone(self))))
-        } else {
-            None
-        }
+        self.statements.body_containing_location(location).or_else(|| {
+            if self.location().contains(location) { Some(ContainingBody::Function(Rc::clone(self))) } else { None }
+        })
     }
 
     pub(crate) fn is_generator_body(&self) -> bool {
@@ -749,13 +750,9 @@ impl FunctionStatementList {
     }
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        if self.location().contains(location) {
-            match self {
-                FunctionStatementList::Statements(s) => s.body_containing_location(location),
-                FunctionStatementList::Empty(_) => None,
-            }
-        } else {
-            None
+        match self {
+            FunctionStatementList::Statements(s) => s.body_containing_location(location),
+            FunctionStatementList::Empty(_) => None,
         }
     }
 

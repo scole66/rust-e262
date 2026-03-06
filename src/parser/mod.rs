@@ -949,8 +949,8 @@ pub(crate) enum ParsedText {
     PropertyDefinitionList(Rc<PropertyDefinitionList>),
     #[cfg(test)]
     PropertyName(Rc<PropertyName>),
-    //    #[cfg(test)]
-    //    PropertySetParameterList(Rc<PropertySetParameterList>),
+    #[cfg(test)]
+    PropertySetParameterList(Rc<PropertySetParameterList>),
     #[cfg(test)]
     RelationalExpression(Rc<RelationalExpression>),
     #[cfg(test)]
@@ -1536,10 +1536,10 @@ impl ParsedText {
             ParsedText::OptionalExpression(optional_expression) => {
                 optional_expression.body_containing_location(location)
             }
-            //#[cfg(test)]
-            //ParsedText::PropertySetParameterList(property_set_parameter_list) => {
-            //    property_set_parameter_list.body_containing_location(location)
-            //}
+            #[cfg(test)]
+            ParsedText::PropertySetParameterList(property_set_parameter_list) => {
+                property_set_parameter_list.body_containing_location(location)
+            }
             #[cfg(test)]
             ParsedText::RelationalExpression(relational_expression) => {
                 relational_expression.body_containing_location(location)
@@ -1828,16 +1828,17 @@ pub(crate) fn duplicates(idents: &[JSString]) -> Vec<&JSString> {
 
 #[derive(Debug, Clone)]
 pub(crate) enum ContainingBody {
-    FunctionBody(Rc<FunctionBody>),
-    ConciseBody(Rc<ConciseBody>),
-    //AsyncConciseBody(Rc<AsyncConciseBody>), // Add back when Async goes in
+    Function(Rc<FunctionBody>),
+    Concise(Rc<ConciseBody>),
+    AsyncConcise(Rc<AsyncConciseBody>),
 }
 
 impl fmt::Display for ContainingBody {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ContainingBody::FunctionBody(node) => node.fmt(f),
-            ContainingBody::ConciseBody(node) => node.fmt(f),
+            ContainingBody::Function(node) => node.fmt(f),
+            ContainingBody::Concise(node) => node.fmt(f),
+            ContainingBody::AsyncConcise(node) => node.fmt(f),
         }
     }
 }

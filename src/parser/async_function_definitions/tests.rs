@@ -272,6 +272,16 @@ mod async_function_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).async_function_declaration().bound_name().into()
     }
+
+    #[test_case("async function /* call() */ name(){}" => None; "location outside of child productions")]
+    #[test_case("async function x(y=call()){}" => None; "location in params; no body")]
+    #[test_case("async function x(y=(function(){return call();})()){}" => ssome("return call ( ) ;"); "location in params; has body")]
+    #[test_case("async function x(){call();}" => ssome("call ( ) ;"); "location in body")]
+    #[test_case("async function x(){ let f = function() { return call(); }; f(); }" => ssome("return call ( ) ;"); "location in body; sub-body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).async_function_declaration().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // ASYNC FUNCTION EXPRESSION
@@ -465,9 +475,19 @@ mod async_function_expression {
         Maker::new(src).async_function_expression().is_named_function()
     }
 
-    #[test_case("    async function  elephant(a, b, c) { return a + b + c; }" => Location{ starting_line: 1, starting_column: 5, span: Span{ starting_index: 4, length: 55 } })]
+    #[test_case("    async function  elephant(a, b, c) { return a + b + c; }" => Location{ starting_line: 1, starting_column: 5, span: Span{ starting_index: 4, length: 55 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).async_function_expression().location()
+    }
+
+    #[test_case("async function /* call() */ name(){}" => None; "location outside of child productions")]
+    #[test_case("async function x(y=call()){}" => None; "location in params; no body")]
+    #[test_case("async function x(y=(function(){return call();})()){}" => ssome("return call ( ) ;"); "location in params; has body")]
+    #[test_case("async function x(){call();}" => ssome("call ( ) ;"); "location in body")]
+    #[test_case("async function x(){ let f = function() { return call(); }; f(); }" => ssome("return call ( ) ;"); "location in body; sub-body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).async_function_expression().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -645,6 +665,18 @@ mod async_method {
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).async_method().contains_arguments()
     }
+
+    #[test_case("async /* call() */ name(){}" => None; "location outside of child productions")]
+    #[test_case("async x(y=call()){}" => None; "location in params; no body")]
+    #[test_case("async x(y=(function(){return call();})()){}" => ssome("return call ( ) ;"); "location in params; has body")]
+    #[test_case("async x(){call();}" => ssome("call ( ) ;"); "location in body")]
+    #[test_case("async x(){ let f = function() { return call(); }; f(); }" => ssome("return call ( ) ;"); "location in body; sub-body")]
+    #[test_case("async [call()](){}" => None; "location in ident; no body")]
+    #[test_case("async [(function(){return call();})()](){}" => ssome("return call ( ) ;"); "location in ident; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).async_method().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // ASYNC FUNCTION BODY
@@ -747,6 +779,14 @@ mod async_function_body {
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).async_function_body().lexically_scoped_declarations().iter().map(String::from).collect()
     }
+
+    #[test_case("call()" => ssome("call ( ) ;"); "present in function body")]
+    #[test_case("(function(){return call();})" => ssome("return call ( ) ;"); "deeper")]
+    #[test_case("10" => None; "location not in body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).async_function_body().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // AWAIT EXPRESSION
@@ -818,5 +858,13 @@ mod await_expression {
     #[test_case("   await forlorn_hope" => Location{ starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length: 18 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).await_expression().location()
+    }
+
+    #[test_case("await call()" => None; "expression; no body")]
+    #[test_case("await (function(){return call();})()" => ssome("return call ( ) ;"); "expression; has body")]
+    #[test_case("await /* call() */ other()" => None; "location not in expression")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).await_expression().body_containing_location(&location).map(|node| node.to_string())
     }
 }

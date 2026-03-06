@@ -188,10 +188,17 @@ impl AsyncGeneratorMethod {
         self.name.prop_name()
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.name.location().contains(location) {
+            self.name.body_containing_location(location)
+        } else if self.params.location().contains(location) {
+            self.params.body_containing_location(location)
+        } else if self.body.location().contains(location) {
+            self.body.body_containing_location(location)
+        } else {
+            None
+        }
     }
 }
 
@@ -370,10 +377,15 @@ impl AsyncGeneratorDeclaration {
         self.body.early_errors(errs, strict_function);
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.params.location().contains(location) {
+            self.params.body_containing_location(location)
+        } else if self.body.location().contains(location) {
+            self.body.body_containing_location(location)
+        } else {
+            None
+        }
     }
 }
 
@@ -528,8 +540,10 @@ impl AsyncGeneratorExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely
-        if self.location().contains(location) {
-            self.params.body_containing_location(location).or_else(|| self.body.body_containing_location(location))
+        if self.params.location().contains(location) {
+            self.params.body_containing_location(location)
+        } else if self.body.location().contains(location) {
+            self.body.body_containing_location(location)
         } else {
             None
         }
@@ -642,6 +656,10 @@ impl AsyncGeneratorBody {
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely
         self.0.body_containing_location(location)
+    }
+
+    pub(crate) fn location(&self) -> Location {
+        self.0.location()
     }
 }
 

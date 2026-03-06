@@ -569,10 +569,9 @@ impl PropertySetParameterList {
         self.node.contains_expression()
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        self.node.body_containing_location(location)
     }
 }
 

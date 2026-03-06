@@ -4761,7 +4761,7 @@ impl AssignmentRestElement {
         //   UNWIND 1                                err
         // exit:                                     ir/err
 
-        match self.0.as_ref() {
+        match self.dat.as_ref() {
             DestructuringAssignmentTarget::LeftHandSideExpression(lhse) => {
                 let status = lhse.compile(chunk, strict, source)?;
                 let unwind_a = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };

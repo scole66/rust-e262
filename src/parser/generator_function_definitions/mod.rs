@@ -184,9 +184,16 @@ impl GeneratorMethod {
         self.name.prop_name()
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        todo!()
+        if self.name.location().contains(location) {
+            self.name.body_containing_location(location)
+        } else if self.params.location().contains(location) {
+            self.params.body_containing_location(location)
+        } else if self.body.location().contains(location) {
+            self.body.body_containing_location(location)
+        } else {
+            None
+        }
     }
 }
 
@@ -347,10 +354,15 @@ impl GeneratorDeclaration {
         function_early_errors(errs, strict, self.ident.as_ref(), &self.params, &self.body.0);
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.params.location().contains(location) {
+            self.params.body_containing_location(location)
+        } else if self.body.location().contains(location) {
+            self.body.body_containing_location(location)
+        } else {
+            None
+        }
     }
 }
 
@@ -492,8 +504,10 @@ impl GeneratorExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            self.params.body_containing_location(location).or_else(|| self.body.body_containing_location(location))
+        if self.params.location().contains(location) {
+            self.params.body_containing_location(location)
+        } else if self.body.location().contains(location) {
+            self.body.body_containing_location(location)
         } else {
             None
         }
@@ -769,10 +783,14 @@ impl YieldExpression {
         }
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        match self {
+            YieldExpression::Simple { .. } => None,
+            YieldExpression::Expression { exp, .. } | YieldExpression::From { exp, .. } => {
+                if exp.location().contains(location) { exp.body_containing_location(location) } else { None }
+            }
+        }
     }
 }
 

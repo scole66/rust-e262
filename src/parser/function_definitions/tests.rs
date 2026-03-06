@@ -242,6 +242,16 @@ mod function_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).function_declaration().bound_name().into()
     }
+
+    #[test_case("function /* call() */ name(){}" => None; "location outside of child productions")]
+    #[test_case("function x(y=call()){}" => None; "location in params; no body")]
+    #[test_case("function x(y=(function(){return call();})()){}" => ssome("return call ( ) ;"); "location in params; has body")]
+    #[test_case("function x(){call();}" => ssome("call ( ) ;"); "location in body")]
+    #[test_case("function x(){ let f = function() { return call(); }; f(); }" => ssome("return call ( ) ;"); "location in body; sub-body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).function_declaration().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // FUNCTION EXPRESSION
@@ -383,6 +393,16 @@ mod function_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).function_expression().location()
     }
+
+    #[test_case("function /* call() */ name(){}" => None; "location outside of child productions")]
+    #[test_case("function x(y=call()){}" => None; "location in params; no body")]
+    #[test_case("function x(y=(function(){return call();})()){}" => ssome("return call ( ) ;"); "location in params; has body")]
+    #[test_case("function x(){call();}" => ssome("call ( ) ;"); "location in body")]
+    #[test_case("function x(){ let f = function() { return call(); }; f(); }" => ssome("return call ( ) ;"); "location in body; sub-body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).function_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // FUNCTION BODY
@@ -496,6 +516,45 @@ mod function_body {
     #[test_case("let a; const b=0; var c; function d() {}" => svec(&["let a ;", "const b = 0 ;"]); "typical")]
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).function_body().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
+
+    #[test_case("call()" => ssome("call ( ) ;"); "present in function body")]
+    #[test_case("(function(){return call();})" => ssome("return call ( ) ;"); "deeper")]
+    #[test_case("10" => None; "location not in body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).function_body().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("doesnt_matter", FunctionBodyParent::Generator => true; "is a generator")]
+    #[test_case("doesnt_matter", FunctionBodyParent::Function => false; "is a function")]
+    #[test_case("doesnt_matter", FunctionBodyParent::Async => false; "is an async function")]
+    #[test_case("doesnt_matter", FunctionBodyParent::AsyncGenerator => false; "is an async generator")]
+    fn is_generator_body(src: &str, parent: FunctionBodyParent) -> bool {
+        Maker::new(src).parent(parent).function_body().is_generator_body()
+    }
+
+    #[test_case("doesnt_matter", FunctionBodyParent::Generator => false; "is a generator")]
+    #[test_case("doesnt_matter", FunctionBodyParent::Function => false; "is a function")]
+    #[test_case("doesnt_matter", FunctionBodyParent::Async => true; "is an async function")]
+    #[test_case("doesnt_matter", FunctionBodyParent::AsyncGenerator => false; "is an async generator")]
+    fn is_async_function_body(src: &str, parent: FunctionBodyParent) -> bool {
+        Maker::new(src).parent(parent).function_body().is_async_function_body()
+    }
+
+    #[test_case("doesnt_matter", FunctionBodyParent::Generator => false; "is a generator")]
+    #[test_case("doesnt_matter", FunctionBodyParent::Function => false; "is a function")]
+    #[test_case("doesnt_matter", FunctionBodyParent::Async => false; "is an async function")]
+    #[test_case("doesnt_matter", FunctionBodyParent::AsyncGenerator => true; "is an async generator")]
+    fn is_async_generator_body(src: &str, parent: FunctionBodyParent) -> bool {
+        Maker::new(src).parent(parent).function_body().is_async_generator_body()
+    }
+
+    #[test_case("return call()" => true; "in tail pos")]
+    #[test_case("3+call()" => false; "not tail pos")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).function_body().has_call_in_tail_position(&location)
     }
 }
 
@@ -627,5 +686,22 @@ mod function_statement_list {
     #[test_case("" => svec(&[]); "empty")]
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).function_statement_list().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
+
+    #[test_case("/*call()*/" => None; "empty")]
+    #[test_case("a" => None; "location not in child")]
+    #[test_case("call();" => None; "location in list; no body")]
+    #[test_case("(function(){return call();})()" => ssome("return call ( ) ;"); "location in list; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).function_statement_list().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => false; "not tail")]
+    #[test_case("return call();" => true; "tail pos")]
+    #[test_case("" => false; "empty")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).function_statement_list().has_call_in_tail_position(&location)
     }
 }

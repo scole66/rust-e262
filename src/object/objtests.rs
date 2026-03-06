@@ -3918,6 +3918,25 @@ mod object {
                 .map_err(ToString::to_string)
                 .map(|o| ECMAScriptValue::from(o).test_result_string())
         }
+
+        #[test_case(|| ECMAScriptValue::Undefined
+            => serr("Only object values may be converted to true objects");
+            "not object")]
+        #[test_case(
+            || {
+                let obj = ordinary_object_create(None);
+                obj.set("key_1", "value_1", true).unwrap();
+                obj.set("key_2", "value_2", true).unwrap();
+                obj.into()
+            }
+            => Ok("key_1:value_1,key_2:value_2".to_string());
+            "is object")]
+        fn value_ref_from_ref(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+            setup_test_agent();
+            let val = make_val();
+            let oref: &Object = (&val).try_into().map_err(|err: anyhow::Error| err.to_string())?;
+            Ok(ECMAScriptValue::from(oref.clone()).test_result_string())
+        }
     }
 
     #[test_case(

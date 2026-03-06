@@ -507,6 +507,28 @@ mod never_abrupt_ref_result {
         let cloned = item.clone();
         assert!(matches!(cloned, NeverAbruptRefResult {}));
     }
+
+    mod into {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(NeverAbruptRefResult => AbruptResult::Never; "typical")]
+        fn abrupt_result(x: NeverAbruptRefResult) -> AbruptResult {
+            AbruptResult::from(x)
+        }
+
+        #[test_case(
+            NeverAbruptRefResult
+            => CompilerStatusFlags {
+                can_be_abrupt: AbruptResult::Never,
+                can_be_reference: RefResult::Never
+            };
+            "typical"
+        )]
+        fn compiler_status_flags(x: NeverAbruptRefResult) -> CompilerStatusFlags {
+            CompilerStatusFlags::from(x)
+        }
+    }
 }
 
 mod nameable_production {
@@ -2180,6 +2202,22 @@ mod update_expression {
                 )
             })
             .map_err(|e| e.to_string())
+    }
+
+    mod try_into {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("++a" => serr("Production not nameable"); "PreIncrement")]
+        #[test_case("--a" => serr("Production not nameable"); "PreDecrement")]
+        #[test_case("a++" => serr("Production not nameable"); "PostIncrement")]
+        #[test_case("a--" => serr("Production not nameable"); "PostDecrement")]
+        #[test_case("a" => serr("Production not nameable"); "Unnamable Left-hand-side")]
+        #[test_case("(function(){})" => sok("function ( ) { }"); "Nameable Left-hand-side")]
+        fn nameable_production(src: &str) -> Result<String, String> {
+            let node = Maker::new(src).update_expression();
+            NameableProduction::try_from(node).map(|x| x.to_string()).map_err(|x| x.to_string())
+        }
     }
 }
 
@@ -6931,6 +6969,7 @@ mod param_source {
         AsyncArrowBinding,
         ArrowFormals,
         UniqueFormals,
+        SetParamList,
     }
 
     #[test_case("a", Kind::Formal, true, EnvUsage::UsePutValue, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "PUT_VALUE", "POP"]), false)); "strict/dups/formal")]
@@ -6944,6 +6983,7 @@ mod param_source {
     #[test_case("a", Kind::AsyncArrowBinding, false, EnvUsage::UseCurrentLexical, &[] => panics "not yet implemented"; "async arrow binding")]
     #[test_case("(a)", Kind::ArrowFormals, false, EnvUsage::UseCurrentLexical, &[] => panics "not yet implemented"; "arrow formals")]
     #[test_case("a", Kind::UniqueFormals, false, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "RESOLVE", "SWAP", "IRB", "POP"]), false)); "unique formal params")]
+    #[test_case("a", Kind::SetParamList, true, EnvUsage::UseCurrentLexical, &[] => Ok((svec(&["EXTRACT_ARG", "STRING 0 (a)", "STRICT_RESOLVE", "SWAP", "IRB", "POP"]), false)); "property set")]
     fn compile_binding_initialization(
         src: &str,
         which: Kind,
@@ -6971,6 +7011,10 @@ mod param_source {
             Kind::UniqueFormals => {
                 let (node, ast) = Maker::new(src).unique_formal_parameters_ast();
                 (ParamSource::UniqueFormalParameters(node), ast)
+            }
+            Kind::SetParamList => {
+                let (node, ast) = Maker::new(src).property_set_parameter_list_ast();
+                (ParamSource::PropertySetParameterList(node), ast)
             }
         };
         let mut c = complex_filled_chunk("x", what);

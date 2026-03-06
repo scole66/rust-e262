@@ -166,15 +166,17 @@ impl BitwiseANDExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                BitwiseANDExpression::EqualityExpression(node) => node.body_containing_location(location),
-                BitwiseANDExpression::BitwiseAND(band, ee) => {
-                    band.body_containing_location(location).or_else(|| ee.body_containing_location(location))
+        match self {
+            BitwiseANDExpression::EqualityExpression(node) => node.body_containing_location(location),
+            BitwiseANDExpression::BitwiseAND(band, ee) => {
+                if band.location().contains(location) {
+                    band.body_containing_location(location)
+                } else if ee.location().contains(location) {
+                    ee.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 
@@ -368,15 +370,17 @@ impl BitwiseXORExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                BitwiseXORExpression::BitwiseANDExpression(node) => node.body_containing_location(location),
-                BitwiseXORExpression::BitwiseXOR(bxe, bae) => {
-                    bxe.body_containing_location(location).or_else(|| bae.body_containing_location(location))
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(node) => node.body_containing_location(location),
+            BitwiseXORExpression::BitwiseXOR(bxe, bae) => {
+                if bxe.location().contains(location) {
+                    bxe.body_containing_location(location)
+                } else if bae.location().contains(location) {
+                    bae.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 
@@ -588,15 +592,17 @@ impl BitwiseORExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.body_containing_location(location),
-                BitwiseORExpression::BitwiseOR(boe, bxe) => {
-                    boe.body_containing_location(location).or_else(|| bxe.body_containing_location(location))
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.body_containing_location(location),
+            BitwiseORExpression::BitwiseOR(boe, bxe) => {
+                if boe.location().contains(location) {
+                    boe.body_containing_location(location)
+                } else if bxe.location().contains(location) {
+                    bxe.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 

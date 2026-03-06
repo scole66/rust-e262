@@ -326,6 +326,32 @@ mod iteration_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).iteration_statement().location()
     }
+
+    #[test_case("do { call(); } while (0)" => None; "do-while; no body")]
+    #[test_case("do { (function(){return call();})() } while (0)" => ssome("return call ( ) ;"); "do-while; body present")]
+    #[test_case("while(call()) {}" => None; "while; no body")]
+    #[test_case("while(true) { (function(){return call();})() }" => ssome("return call ( ) ;"); "while; body present")]
+    #[test_case("for(;;) { call() }" => None; "for; no body")]
+    #[test_case("for(;;) { (function(){return call();})() }" => ssome("return call ( ) ;"); "for; body present")]
+    #[test_case("for(a in b) { call() }" => None; "for-in; no body")]
+    #[test_case("for(a in b) { (function(){return call();})() }" => ssome("return call ( ) ;"); "for-in; body present")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).iteration_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("do { return call(); } while (0)" => true; "dowhile; in tail pos")]
+    #[test_case("do { call(); } while (0)" => false; "dowhile; not in tail")]
+    #[test_case("while (1) { return call(); }" => true; "while; in tail pos")]
+    #[test_case("while (1) { call(); }" => false; "while; not in tail")]
+    #[test_case("for(;;) { return call(); }" => true; "for; in tail pos")]
+    #[test_case("for(;;) { call(); }" => false; "for; not in tail")]
+    #[test_case("for(a in b) { return call(); }" => true; "for-in; in tail pos")]
+    #[test_case("for(a in b) { call(); }" => false; "for-in; not in tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).iteration_statement().has_call_in_tail_position(&location)
+    }
 }
 
 // DO WHILE STATEMENT
@@ -513,6 +539,23 @@ mod do_while_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).do_while_statement().location()
     }
+
+    #[test_case("do { call(); } while (0)" => None; "location in stmts, no body")]
+    #[test_case("do { (function(){return call();})(); } while (0)" => ssome("return call ( ) ;"); "location in stmts, body present")]
+    #[test_case("do { something; } while(call())" => None; "location in expr, no body")]
+    #[test_case("do { something; } while((function(){return call();})())" => ssome("return call ( ) ;"); "location in expr; body present")]
+    #[test_case("do /* call() */ {} while (0)" => None; "location in neither statements nor expression")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).do_while_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("do { call(); } while (0)" => false; "not in a tail position")]
+    #[test_case("do { return call(); } while (0)" => true; "in a tail position")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).do_while_statement().has_call_in_tail_position(&location)
+    }
 }
 
 // WHILE STATEMENT
@@ -647,6 +690,23 @@ mod while_statement {
     #[test_case("   while (x) var t;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 16 } }; "while stmt")]
     fn location(src: &str) -> Location {
         Maker::new(src).while_statement().location()
+    }
+
+    #[test_case("while /* call() */ (true) {}" => None; "location in neither expression nor statements")]
+    #[test_case("while (1) { call(); }" => None; "location in statements; no body")]
+    #[test_case("while (1) { (function(){return call();})(); }" => ssome("return call ( ) ;"); "location in statements; has body")]
+    #[test_case("while (call()) {}" => None; "location in expression; no body")]
+    #[test_case("while ((function(){return call();})()) {}" => ssome("return call ( ) ;"); "location in expression; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).while_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("while (1) { call(); }" => false; "no tail pos")]
+    #[test_case("while (1) { return call(); }" => true; "has tail pos")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).while_statement().has_call_in_tail_position(&location)
     }
 }
 
@@ -1623,6 +1683,49 @@ mod for_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).for_statement().location()
     }
+
+    #[test_case("for(;;) /* call() */ {}" => None; "for; location not in child productions")]
+    #[test_case("for(x=call();;){}" => None; "for; location in izer, no body")]
+    #[test_case("for(x=(function(){return call();})();;){}" => ssome("return call ( ) ;"); "for; location in izer; has body")]
+    #[test_case("for(;x<call();){}" => None; "for; location in test; no body")]
+    #[test_case("for(;x<(function(){return call();})();){}" => ssome("return call ( ) ;"); "for; location in test; has body")]
+    #[test_case("for(;;x+=call()){}" => None; "for; location in increment; no body")]
+    #[test_case("for(;;x+=(function(){return call();})()){}" => ssome("return call ( ) ;"); "for; location in increment; has body")]
+    #[test_case("for(;;){call();}" => None; "for; location in statement; no body")]
+    #[test_case("for(;;){(function(){return call();})()}" => ssome("return call ( ) ;"); "for; location in statement; has body")]
+    #[test_case("for(var x=0;;)/*call()*/{}" => None; "for-var; location not in child productions")]
+    #[test_case("for(var x=call();;){}" => None; "for-var; location in vardecl; no body")]
+    #[test_case("for(var x=(function(){return call();})();;){}" => ssome("return call ( ) ;"); "for-var; location in vardecl; has body")]
+    #[test_case("for(var x=0;x<call();){}" => None; "for-var; location in test; no body")]
+    #[test_case("for(var x=0;x<(function(){return call();})();){}" => ssome("return call ( ) ;"); "for-var; location in test; has body")]
+    #[test_case("for(var x=0;;x+=call()){}" => None; "for-var; location in increment; no body")]
+    #[test_case("for(var x=0;;x+=(function(){return call();})()){}" => ssome("return call ( ) ;"); "for-var; location in increment; has body")]
+    #[test_case("for(var x=0;;){call();}" => None; "for-var; location in stmt; no body")]
+    #[test_case("for(var x=0;;){(function(){return call();})();}" => ssome("return call ( ) ;"); "for-var; location in stmt; has body")]
+    #[test_case("for(let x=0;;)/*call()*/{}" => None; "for-lex; location not in child productions")]
+    #[test_case("for(let x=call();;){}" => None; "for-lex; location in decl; no body")]
+    #[test_case("for(let x=(function(){return call();})();;){}" => ssome("return call ( ) ;"); "for-lex; location in decl; has body")]
+    #[test_case("for(let x=0;x<call();){}" => None; "for-lex; location in test; no body")]
+    #[test_case("for(let x=0;x<(function(){return call();})();){}" => ssome("return call ( ) ;"); "for-lex; location in test; has body")]
+    #[test_case("for(let x=0;;x+=call()){}" => None; "for-lex; location in increment; no body")]
+    #[test_case("for(let x=0;;x+=(function(){return call();})()){}" => ssome("return call ( ) ;"); "for-lex; location in increment; has body")]
+    #[test_case("for(let x=0;;){call();}" => None; "for-lex; location in stmt; no body")]
+    #[test_case("for(let x=0;;){(function(){return call();})();}" => ssome("return call ( ) ;"); "for-lex; location in stmt; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).for_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("for(;;){call();}" => false; "for; no tail")]
+    #[test_case("for(;;){return call();}" => true; "for; has tail")]
+    #[test_case("for(var x=0;;){call();}" => false; "for-var; no tail")]
+    #[test_case("for(var x=0;;){return call();}" => true; "for-var; has tail")]
+    #[test_case("for(let x=0;;){call();}" => false; "for-lex; no tail")]
+    #[test_case("for(let x=0;;){return call();}" => true; "for-lex; has tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).for_statement().has_call_in_tail_position(&location)
+    }
 }
 
 // FOR IN-OF STATEMENT
@@ -2538,6 +2641,124 @@ mod for_in_of_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).for_in_of_statement().location()
     }
+
+    #[test_case("for(x in y)/*call()*/{}" => None; "in; location not in child productions")]
+    #[test_case("for(call() in y){}" => None; "in; location in target; no body")]
+    #[test_case("for((function(){return call();})() in y){}" => ssome("return call ( ) ;"); "in; location in target; has body")]
+    #[test_case("for(x in call()){}" => None; "in; location in source; no body")]
+    #[test_case("for(x in function(){return call();}){}" => ssome("return call ( ) ;"); "in; location in source; has body")]
+    #[test_case("for(x in y){call();}" => None; "in; location in statement; no body")]
+    #[test_case("for(x in y){(function(){return call();})}" => ssome("return call ( ) ;"); "in; location in statement; has body")]
+    #[test_case("for({x} in y)/*call()*/{}" => None; "destructuring-in; location not in child productions")]
+    #[test_case("for({x=call()} in y){}" => None; "destructuring-in; location in target; no body")]
+    #[test_case("for({x=(function(){return call();})()} in y){}" => ssome("return call ( ) ;"); "destructuring-in; location in target; has body")]
+    #[test_case("for({x} in call()){}" => None; "destructuring-in; location in source; no body")]
+    #[test_case("for({x} in function(){return call();}){}" => ssome("return call ( ) ;"); "destructuring-in; location in source; has body")]
+    #[test_case("for({x} in y){call();}" => None; "destructuring-in; location in statement; no body")]
+    #[test_case("for({x} in y){(function(){return call();})}" => ssome("return call ( ) ;"); "destructuring-in; location in statement; has body")]
+    #[test_case("for(var x in y)/*call()*/{}" => None; "var-in; location not in child productions")]
+    #[test_case("for(var {x=call()} in y){}" => None; "var-in; location in target; no body")]
+    #[test_case("for(var {x=(function(){return call();})()} in y){}" => ssome("return call ( ) ;"); "var-in; location in target; has body")]
+    #[test_case("for(var x in call()){}" => None; "var-in; location in source; no body")]
+    #[test_case("for(var x in function(){return call();}){}" => ssome("return call ( ) ;"); "var-in; location in source; has body")]
+    #[test_case("for(var x in y){call();}" => None; "var-in; location in statement; no body")]
+    #[test_case("for(var x in y){(function(){return call();})}" => ssome("return call ( ) ;"); "var-in; location in statement; has body")]
+    #[test_case("for(let x in y)/*call()*/{}" => None; "lex-in; location not in child productions")]
+    #[test_case("for(let {x=call()} in y){}" => None; "lex-in; location in target; no body")]
+    #[test_case("for(let {x=(function(){return call();})()} in y){}" => ssome("return call ( ) ;"); "lex-in; location in target; has body")]
+    #[test_case("for(let x in call()){}" => None; "lex-in; location in source; no body")]
+    #[test_case("for(let x in function(){return call();}){}" => ssome("return call ( ) ;"); "lex-in; location in source; has body")]
+    #[test_case("for(let x in y){call();}" => None; "lex-in; location in statement; no body")]
+    #[test_case("for(let x in y){(function(){return call();})}" => ssome("return call ( ) ;"); "lex-in; location in statement; has body")]
+    #[test_case("for(x of y)/*call()*/{}" => None; "of; location not in child productions")]
+    #[test_case("for(call() of y){}" => None; "of; location in target; no body")]
+    #[test_case("for((function(){return call();})() of y){}" => ssome("return call ( ) ;"); "of; location in target; has body")]
+    #[test_case("for(x of call()){}" => None; "of; location in source; no body")]
+    #[test_case("for(x of function(){return call();}){}" => ssome("return call ( ) ;"); "of; location in source; has body")]
+    #[test_case("for(x of y){call();}" => None; "of; location in statement; no body")]
+    #[test_case("for(x of y){(function(){return call();})}" => ssome("return call ( ) ;"); "of; location in statement; has body")]
+    #[test_case("for({x} of y)/*call()*/{}" => None; "destructuring-of; location not in child productions")]
+    #[test_case("for({x=call()} of y){}" => None; "destructuring-of; location in target; no body")]
+    #[test_case("for({x=(function(){return call();})()} of y){}" => ssome("return call ( ) ;"); "destructuring-of; location in target; has body")]
+    #[test_case("for({x} of call()){}" => None; "destructuring-of; location in source; no body")]
+    #[test_case("for({x} of function(){return call();}){}" => ssome("return call ( ) ;"); "destructuring-of; location in source; has body")]
+    #[test_case("for({x} of y){call();}" => None; "destructuring-of; location in statement; no body")]
+    #[test_case("for({x} of y){(function(){return call();})}" => ssome("return call ( ) ;"); "destructuring-of; location in statement; has body")]
+    #[test_case("for(var x of y)/*call()*/{}" => None; "var-of; location not in child productions")]
+    #[test_case("for(var {x=call()} of y){}" => None; "var-of; location in target; no body")]
+    #[test_case("for(var {x=(function(){return call();})()} of y){}" => ssome("return call ( ) ;"); "var-of; location in target; has body")]
+    #[test_case("for(var x of call()){}" => None; "var-of; location in source; no body")]
+    #[test_case("for(var x of function(){return call();}){}" => ssome("return call ( ) ;"); "var-of; location in source; has body")]
+    #[test_case("for(var x of y){call();}" => None; "var-of; location in statement; no body")]
+    #[test_case("for(var x of y){(function(){return call();})}" => ssome("return call ( ) ;"); "var-of; location in statement; has body")]
+    #[test_case("for(let x of y)/*call()*/{}" => None; "lex-of; location not in child productions")]
+    #[test_case("for(let {x=call()} of y){}" => None; "lex-of; location in target; no body")]
+    #[test_case("for(let {x=(function(){return call();})()} of y){}" => ssome("return call ( ) ;"); "lex-of; location in target; has body")]
+    #[test_case("for(let x of call()){}" => None; "lex-of; location in source; no body")]
+    #[test_case("for(let x of function(){return call();}){}" => ssome("return call ( ) ;"); "lex-of; location in source; has body")]
+    #[test_case("for(let x of y){call();}" => None; "lex-of; location in statement; no body")]
+    #[test_case("for(let x of y){(function(){return call();})}" => ssome("return call ( ) ;"); "lex-of; location in statement; has body")]
+    #[test_case("for await(x of y)/*call()*/{}" => None; "await-of; location not in child productions")]
+    #[test_case("for await(call() of y){}" => None; "await-of; location in target; no body")]
+    #[test_case("for await((function(){return call();})() of y){}" => ssome("return call ( ) ;"); "await-of; location in target; has body")]
+    #[test_case("for await(x of call()){}" => None; "await-of; location in source; no body")]
+    #[test_case("for await(x of function(){return call();}){}" => ssome("return call ( ) ;"); "await-of; location in source; has body")]
+    #[test_case("for await(x of y){call();}" => None; "await-of; location in statement; no body")]
+    #[test_case("for await(x of y){(function(){return call();})}" => ssome("return call ( ) ;"); "await-of; location in statement; has body")]
+    #[test_case("for await({x} of y)/*call()*/{}" => None; "destructuring-await-of; location not in child productions")]
+    #[test_case("for await({x=call()} of y){}" => None; "destructuring-await-of; location in target; no body")]
+    #[test_case("for await({x=(function(){return call();})()} of y){}" => ssome("return call ( ) ;"); "destructuring-await-of; location in target; has body")]
+    #[test_case("for await({x} of call()){}" => None; "destructuring-await-of; location in source; no body")]
+    #[test_case("for await({x} of function(){return call();}){}" => ssome("return call ( ) ;"); "destructuring-await-of; location in source; has body")]
+    #[test_case("for await({x} of y){call();}" => None; "destructuring-await-of; location in statement; no body")]
+    #[test_case("for await({x} of y){(function(){return call();})}" => ssome("return call ( ) ;"); "destructuring-await-of; location in statement; has body")]
+    #[test_case("for await(var x of y)/*call()*/{}" => None; "await-var-of; location not in child productions")]
+    #[test_case("for await(var {x=call()} of y){}" => None; "await-var-of; location in target; no body")]
+    #[test_case("for await(var {x=(function(){return call();})()} of y){}" => ssome("return call ( ) ;"); "await-var-of; location in target; has body")]
+    #[test_case("for await(var x of call()){}" => None; "await-var-of; location in source; no body")]
+    #[test_case("for await(var x of function(){return call();}){}" => ssome("return call ( ) ;"); "await-var-of; location in source; has body")]
+    #[test_case("for await(var x of y){call();}" => None; "await-var-of; location in statement; no body")]
+    #[test_case("for await(var x of y){(function(){return call();})}" => ssome("return call ( ) ;"); "await-var-of; location in statement; has body")]
+    #[test_case("for await(let x of y)/*call()*/{}" => None; "await-lex-of; location not in child productions")]
+    #[test_case("for await(let {x=call()} of y){}" => None; "await-lex-of; location in target; no body")]
+    #[test_case("for await(let {x=(function(){return call();})()} of y){}" => ssome("return call ( ) ;"); "await-lex-of; location in target; has body")]
+    #[test_case("for await(let x of call()){}" => None; "await-lex-of; location in source; no body")]
+    #[test_case("for await(let x of function(){return call();}){}" => ssome("return call ( ) ;"); "await-lex-of; location in source; has body")]
+    #[test_case("for await(let x of y){call();}" => None; "await-lex-of; location in statement; no body")]
+    #[test_case("for await(let x of y){(function(){return call();})}" => ssome("return call ( ) ;"); "await-lex-of; location in statement; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).for_in_of_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("for (x in y) { call(); }" => false; "in; no tail")]
+    #[test_case("for (x in y) { return call(); }" => true; "in; has tail")]
+    #[test_case("for ({x} in y) { call(); }" => false; "destructuring-in; no tail")]
+    #[test_case("for ({x} in y) { return call(); }" => true; "destructuring-in; has tail")]
+    #[test_case("for (var x in y) { call(); }" => false; "var-in; no tail")]
+    #[test_case("for (var x in y) { return call(); }" => true; "var-in; has tail")]
+    #[test_case("for (let x in y) { call(); }" => false; "lex-in; no tail")]
+    #[test_case("for (let x in y) { return call(); }" => true; "lex-in; has tail")]
+    #[test_case("for (x of y) { call(); }" => false; "of; no tail")]
+    #[test_case("for (x of y) { return call(); }" => true; "of; has tail")]
+    #[test_case("for ({x} of y) { call(); }" => false; "destructuring-of; no tail")]
+    #[test_case("for ({x} of y) { return call(); }" => true; "destructuring-of; has tail")]
+    #[test_case("for (var x of y) { call(); }" => false; "var-of; no tail")]
+    #[test_case("for (var x of y) { return call(); }" => true; "var-of; has tail")]
+    #[test_case("for (let x of y) { call(); }" => false; "lex-of; no tail")]
+    #[test_case("for (let x of y) { return call(); }" => true; "lex-of; has tail")]
+    #[test_case("for await (x of y) { call(); }" => false; "await-of; no tail")]
+    #[test_case("for await (x of y) { return call(); }" => true; "await-of; has tail")]
+    #[test_case("for await ({x} of y) { call(); }" => false; "await-destructuring-of; no tail")]
+    #[test_case("for await ({x} of y) { return call(); }" => true; "await-destructuring-of; has tail")]
+    #[test_case("for await (var x of y) { call(); }" => false; "await-var-of; no tail")]
+    #[test_case("for await (var x of y) { return call(); }" => true; "await-var-of; has tail")]
+    #[test_case("for await (let x of y) { call(); }" => false; "await-lex-of; no tail")]
+    #[test_case("for await (let x of y) { return call(); }" => true; "await-lex-of; has tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).for_in_of_statement().has_call_in_tail_position(&location)
+    }
 }
 
 // FOR DECLARATION
@@ -2638,6 +2859,14 @@ mod for_declaration {
     #[test_case("let [a]" => true; "destructure")]
     fn is_destructuring(src: &str) -> bool {
         Maker::new(src).for_declaration().is_destructuring()
+    }
+
+    #[test_case("let /* call() */ x" => None; "location not in binding")]
+    #[test_case("let [a=call()]" => None; "location in binding; no body")]
+    #[test_case("let [a=(function(){return call();})()]" => ssome("return call ( ) ;"); "location in binding; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).for_declaration().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -2752,5 +2981,13 @@ mod for_binding {
     #[test_case("{a}" => true; "pattern")]
     fn is_destructuring(src: &str) -> bool {
         Maker::new(src).for_binding().is_destructuring()
+    }
+
+    #[test_case("a" => None; "indentifier")]
+    #[test_case("{[call()]: a}" => None; "pattern; no body")]
+    #[test_case("{a: b=function(){return call()}}" => ssome("return call ( ) ;"); "pattern; includes body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).for_binding().body_containing_location(&location).map(|node| node.to_string())
     }
 }

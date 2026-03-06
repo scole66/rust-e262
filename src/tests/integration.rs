@@ -1101,6 +1101,7 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     0,1,2,3,4,5,6,7,8,9,
     0,1,2,3,4,5,6,7,8,9
     ]).length" => vok(60); "Array.from: bad length limit")]
+#[test_case("const C = new Proxy(Array, {});const a = [1, 2, 3];a.constructor = C;a.map(x => 2 * x).join(', ')" => vok("2, 4, 6"); "proxy as callable")]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

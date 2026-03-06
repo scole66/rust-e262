@@ -1047,6 +1047,19 @@ mod hoistable_declaration {
     fn location(src: &str) -> Location {
         Maker::new(src).hoistable_declaration().location()
     }
+
+    #[test_case("function /* call() */ x(){}" => None; "function; no body")]
+    #[test_case("function x(){call();}" => ssome("call ( ) ;"); "function; has body")]
+    #[test_case("function /* call() */ *x(){}" => None; "generator; no body")]
+    #[test_case("function *x(){call();}" => ssome("call ( ) ;"); "generator; has body")]
+    #[test_case("async function /* call() */ *x(){}" => None; "async generator; no body")]
+    #[test_case("async function *x(){call();}" => ssome("call ( ) ;"); "async generator; has body")]
+    #[test_case("async function /* call() */ x(){}" => None; "async func; no body")]
+    #[test_case("async function x(){call();}" => ssome("call ( ) ;"); "async func; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).hoistable_declaration().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // BREAKABLE STATEMENT

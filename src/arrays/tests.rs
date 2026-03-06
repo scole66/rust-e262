@@ -555,6 +555,20 @@ mod array_species_create {
         ordinary_object_create(Some(proto))
     }
 
+    fn make_revoked_proxy() -> Object {
+        let obj = make_ordinary();
+        let handler = make_ordinary();
+        let proxy = Object::try_from(
+            crate::proxy_object::proxy_revocable(&ECMAScriptValue::Undefined, None, &[obj.into(), handler.into()])
+                .unwrap(),
+        )
+        .unwrap();
+        let sub_proxy = Object::try_from(proxy.get(&PropertyKey::from("proxy")).unwrap()).unwrap();
+        let po = sub_proxy.o.to_proxy_object().expect("Object should be a proxy");
+        po.revoke();
+        sub_proxy
+    }
+
     fn make_throwing_constructor_prop() -> Object {
         let proto = intrinsic(IntrinsicId::ArrayPrototype);
         let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
@@ -621,6 +635,83 @@ mod array_species_create {
         .unwrap();
         obj
     }
+    fn make_throwing_species_prop() -> Object {
+        let proto = intrinsic(IntrinsicId::ArrayPrototype);
+        let function_proto = intrinsic(IntrinsicId::FunctionPrototype);
+        let obj = super::super::array_create(0.0, Some(proto)).unwrap();
+        let constructor = make_ordinary();
+        define_property_or_throw(
+            &obj,
+            "constructor",
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(constructor.clone())),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let species_getter = create_builtin_function(
+            Box::new(faux_errors),
+            None,
+            0.0,
+            "constructor".into(),
+            &[],
+            None,
+            Some(function_proto),
+            Some("get".into()),
+        );
+        define_property_or_throw(
+            &constructor,
+            wks(WksId::Species),
+            PotentialPropertyDescriptor {
+                get: Some(species_getter.into()),
+                set: None,
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        obj
+    }
+    fn make_null_species_prop() -> Object {
+        let proto = intrinsic(IntrinsicId::ArrayPrototype);
+        let obj = super::super::array_create(0.0, Some(proto)).unwrap();
+        let constructor = make_ordinary();
+        define_property_or_throw(
+            &obj,
+            "constructor",
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::from(constructor.clone())),
+                writable: Some(true),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        define_property_or_throw(
+            &constructor,
+            wks(WksId::Species),
+            PotentialPropertyDescriptor {
+                value: Some(ECMAScriptValue::Null),
+                writable: Some(false),
+                enumerable: Some(true),
+                configurable: Some(true),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        obj
+    }
+    fn make_alternate_realm_constructor() -> Object {
+        initialize_host_defined_realm(1, false);
+        let array = make_plain_array();
+        pop_execution_context();
+        array
+    }
 
     #[test_case(make_ordinary, 10.0 => Ok(vec![
         PropertyInfo {
@@ -630,8 +721,8 @@ mod array_species_create {
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(10.0), writable: true },
         },
     ]); "not array")]
-    #[test_case(make_ordinary, 42_949_672_950.0 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "bad length")]
-    #[test_case(make_throwing_constructor_prop, 200.0 => Err("TypeError: Test Sentinel".to_string()); "get(constructor) throws")]
+    #[test_case(make_ordinary, 42_949_672_950.0 => serr("RangeError: Array lengths greater than 4294967295 are not allowed"); "bad length")]
+    #[test_case(make_throwing_constructor_prop, 200.0 => serr("TypeError: Test Sentinel"); "get(constructor) throws")]
     #[test_case(make_undefined_constructor_prop, 0.0 => Ok(vec![
         PropertyInfo {
             name: PropertyKey::from("length"),
@@ -640,7 +731,7 @@ mod array_species_create {
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(0.0), writable: true },
         },
     ]); "undefined constructor")]
-    #[test_case(make_undefined_constructor_prop, 42_949_672_950.0 => Err("RangeError: Array lengths greater than 4294967295 are not allowed".to_string()); "undefined constructor plus bad length")]
+    #[test_case(make_undefined_constructor_prop, 42_949_672_950.0 => serr("RangeError: Array lengths greater than 4294967295 are not allowed"); "undefined constructor plus bad length")]
     #[test_case(make_plain_array, 542.0 => Ok(vec![
         PropertyInfo {
             name: PropertyKey::from("length"),
@@ -649,7 +740,25 @@ mod array_species_create {
             kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(542.0), writable: true },
         },
     ]); "plain array")]
-    #[test_case(make_primitive_constructor_prop, 10.0 => Err("TypeError: Array species constructor invalid".to_string()); "primitive in constructor")]
+    #[test_case(make_primitive_constructor_prop, 10.0 => serr("TypeError: Array species constructor invalid"); "primitive in constructor")]
+    #[test_case(make_revoked_proxy, 10.0 => serr("TypeError: Proxy has been revoked"); "revoked proxy")]
+    #[test_case(make_throwing_species_prop, 10.0 => serr("TypeError: Test Sentinel"); "constructor's species property is broken")]
+    #[test_case(make_null_species_prop, 15.0 => Ok(vec![
+        PropertyInfo {
+            name: PropertyKey::from("length"),
+            enumerable: false,
+            configurable: false,
+            kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(15.0), writable: true },
+        },
+    ]);  "constructor's species property is null")]
+    #[test_case(make_alternate_realm_constructor, 12.0 => Ok(vec![
+        PropertyInfo {
+            name: PropertyKey::from("length"),
+            enumerable: false,
+            configurable: false,
+            kind: PropertyInfoKind::Data { value: ECMAScriptValue::from(12.0), writable: true },
+        },
+    ]); "constructor in alternate realm")]
     fn f(make_original: fn() -> Object, length: f64) -> Result<Vec<PropertyInfo>, String> {
         setup_test_agent();
         let original = make_original();
@@ -658,12 +767,6 @@ mod array_species_create {
             .map(|val| Object::try_from(val).unwrap().o.common_object_data().borrow().propdump())
             .map_err(unwind_any_error)
     }
-
-    // todo!(): More tests want to be here to cover other code paths, but those code paths require:
-    // * Proxy Objects
-    // * Bound Function Objects
-    // * An Array constructor that does something besides a todo-panic
-    // * Species fields on other objects
 }
 
 #[test]

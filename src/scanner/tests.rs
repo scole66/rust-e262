@@ -1849,116 +1849,124 @@ mod string_token {
     }
 }
 
-#[test]
-fn token_debug() {
-    assert_ne!(format!("{:?}", Token::Eof), "");
-}
-#[test]
-fn token_matches_punct() {
-    let t1 = Token::Eof;
-    let t2 = Token::Punctuator(Punctuator::Caret);
+mod token {
+    use super::*;
 
-    assert_eq!(t1.matches_punct(Punctuator::Semicolon), false);
-    assert_eq!(t2.matches_punct(Punctuator::Caret), true);
-    assert_eq!(t2.matches_punct(Punctuator::Semicolon), false);
-}
-#[test]
-fn token_matches_keyword() {
-    let t1 = Token::Eof;
-    let t2 = Token::Identifier(IdentifierData { string_value: JSString::from("as"), keyword_id: Some(Keyword::As) });
+    #[test]
+    fn debug() {
+        assert_ne!(format!("{:?}", Token::Eof), "");
+    }
+    #[test]
+    fn matches_punct() {
+        let t1 = Token::Eof;
+        let t2 = Token::Punctuator(Punctuator::Caret);
 
-    assert_eq!(t1.matches_keyword(Keyword::As), false);
-    assert_eq!(t2.matches_keyword(Keyword::As), true);
-    assert_eq!(t2.matches_keyword(Keyword::This), false);
-}
-#[test]
-fn token_display() {
-    assert_eq!(format!("{}", Token::Eof), "");
-    assert_eq!(format!("{}", Token::Punctuator(Punctuator::Ellipsis)), "...");
-    assert_eq!(
-        format!("{}", Token::Identifier(IdentifierData { string_value: JSString::from("bob"), keyword_id: None })),
-        "bob"
-    );
-    assert_eq!(format!("{}", Token::Number(6.222)), "6.222");
-    assert_eq!(format!("{}", Token::BigInt(BigInt::parse_bytes(b"9131551", 10).unwrap())), "9131551");
-    assert_eq!(
-        format!(
-            "{}",
-            Token::String(StringToken {
-                value: JSString::from("baloney"),
-                delimiter: StringDelimiter::Single,
-                raw: None
-            })
-        ),
-        "'baloney'"
-    );
-    assert_eq!(
-        format!(
-            "{}",
-            Token::String(StringToken {
-                value: JSString::from("baloney"),
-                delimiter: StringDelimiter::Double,
-                raw: Some(String::from("\\x62aloney"))
-            })
-        ),
-        "\"\\x62aloney\""
-    );
-    assert_eq!(
-        format!(
-            "{}",
-            Token::NoSubstitutionTemplate(TemplateData {
-                tv: Some(JSString::from("rust")),
-                trv: JSString::from("rust"),
-            })
-        ),
-        "rust"
-    );
-    assert_eq!(
-        format!(
-            "{}",
-            Token::TemplateHead(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust") })
-        ),
-        "rust"
-    );
-    assert_eq!(
-        format!(
-            "{}",
-            Token::TemplateMiddle(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust") })
-        ),
-        "rust"
-    );
-    assert_eq!(
-        format!(
-            "{}",
-            Token::TemplateTail(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust") })
-        ),
-        "rust"
-    );
-    assert_eq!(
-        format!(
-            "{}",
-            Token::RegularExpression(RegularExpressionData { body: String::from("rust"), flags: String::from("ng") })
-        ),
-        "/rust/ng"
-    );
-    assert_eq!(format!("{}", Token::Error(String::from("syntax error"))), "\u{26a0}");
-    assert_eq!(
-        format!(
-            "{}",
-            Token::PrivateIdentifier(IdentifierData { string_value: JSString::from("#bob"), keyword_id: None })
-        ),
-        "#bob"
-    );
-    assert_eq!(format!("{}", Token::Debug(DebugKind::Char('!'))), "@@!");
-}
-#[test]
-fn token_ne() {
-    let t1 = Token::Eof;
-    let t2 = Token::Punctuator(Punctuator::Semicolon);
-    let t3 = Token::Eof;
+        assert_eq!(t1.matches_punct(Punctuator::Semicolon), false);
+        assert_eq!(t2.matches_punct(Punctuator::Caret), true);
+        assert_eq!(t2.matches_punct(Punctuator::Semicolon), false);
+    }
+    #[test]
+    fn matches_keyword() {
+        let t1 = Token::Eof;
+        let t2 =
+            Token::Identifier(IdentifierData { string_value: JSString::from("as"), keyword_id: Some(Keyword::As) });
 
-    assert_eq!(t1 != t2, true);
-    assert_eq!(t1 != t3, false);
+        assert_eq!(t1.matches_keyword(Keyword::As), false);
+        assert_eq!(t2.matches_keyword(Keyword::As), true);
+        assert_eq!(t2.matches_keyword(Keyword::This), false);
+    }
+    #[test]
+    fn display() {
+        assert_eq!(format!("{}", Token::Eof), "");
+        assert_eq!(format!("{}", Token::Punctuator(Punctuator::Ellipsis)), "...");
+        assert_eq!(
+            format!("{}", Token::Identifier(IdentifierData { string_value: JSString::from("bob"), keyword_id: None })),
+            "bob"
+        );
+        assert_eq!(format!("{}", Token::Number(6.222)), "6.222");
+        assert_eq!(format!("{}", Token::BigInt(BigInt::parse_bytes(b"9131551", 10).unwrap())), "9131551");
+        assert_eq!(
+            format!(
+                "{}",
+                Token::String(StringToken {
+                    value: JSString::from("baloney"),
+                    delimiter: StringDelimiter::Single,
+                    raw: None
+                })
+            ),
+            "'baloney'"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                Token::String(StringToken {
+                    value: JSString::from("baloney"),
+                    delimiter: StringDelimiter::Double,
+                    raw: Some(String::from("\\x62aloney"))
+                })
+            ),
+            "\"\\x62aloney\""
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                Token::NoSubstitutionTemplate(TemplateData {
+                    tv: Some(JSString::from("rust")),
+                    trv: JSString::from("rust"),
+                })
+            ),
+            "rust"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                Token::TemplateHead(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust") })
+            ),
+            "rust"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                Token::TemplateMiddle(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust") })
+            ),
+            "rust"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                Token::TemplateTail(TemplateData { tv: Some(JSString::from("rust")), trv: JSString::from("rust") })
+            ),
+            "rust"
+        );
+        assert_eq!(
+            format!(
+                "{}",
+                Token::RegularExpression(RegularExpressionData {
+                    body: String::from("rust"),
+                    flags: String::from("ng")
+                })
+            ),
+            "/rust/ng"
+        );
+        assert_eq!(format!("{}", Token::Error(String::from("syntax error"))), "\u{26a0}");
+        assert_eq!(
+            format!(
+                "{}",
+                Token::PrivateIdentifier(IdentifierData { string_value: JSString::from("#bob"), keyword_id: None })
+            ),
+            "#bob"
+        );
+        assert_eq!(format!("{}", Token::Debug(DebugKind::Char('!'))), "@@!");
+    }
+    #[test]
+    fn ne() {
+        let t1 = Token::Eof;
+        let t2 = Token::Punctuator(Punctuator::Semicolon);
+        let t3 = Token::Eof;
+
+        assert_eq!(t1 != t2, true);
+        assert_eq!(t1 != t3, false);
+    }
 }
 
 mod keyword {

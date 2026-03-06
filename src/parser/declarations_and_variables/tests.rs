@@ -141,6 +141,14 @@ mod lexical_declaration {
     fn location(src: &str) -> Location {
         Maker::new(src).lexical_declaration().location()
     }
+
+    #[test_case("let a;" => None; "location not in production")]
+    #[test_case("let a=call();" => None; "list, no body")]
+    #[test_case("let a=(function(){return call();})();" => ssome("return call ( ) ;"); "list; body present")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).lexical_declaration().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // LET OR CONST
@@ -281,6 +289,17 @@ mod binding_list {
     fn location(src: &str) -> Location {
         Maker::new(src).binding_list().location()
     }
+
+    #[test_case("a" => None; "location not in production")]
+    #[test_case("a=call()" => None; "item; no body")]
+    #[test_case("a=(function(){return call();})()" => ssome("return call ( ) ;"); "item; has body")]
+    #[test_case("a=call(),b" => None; "list; no body")]
+    #[test_case("a=(function(){return call();})(),b" => ssome("return call ( ) ;"); "list; body on left")]
+    #[test_case("a,b=(function(){return call();})()" => ssome("return call ( ) ;"); "list; body on right")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).binding_list().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // LEXICAL BINDING
@@ -399,6 +418,17 @@ mod lexical_binding {
     fn contains(src: &str, kind: ParseNodeKind) -> bool {
         Maker::new(src).lexical_binding().contains(kind)
     }
+
+    #[test_case("a" => None; "uninit id")]
+    #[test_case("a=call()" => None; "initialized id; no body")]
+    #[test_case("a=(function(){return call();})()" => ssome("return call ( ) ;"); "initialized id; has body")]
+    #[test_case("[a]=call()" => None; "pattern; no body")]
+    #[test_case("[a=(function(){return call();})()]=b" => ssome("return call ( ) ;"); "pattern; body in pattern")]
+    #[test_case("[a]=(function(){return call();})()" => ssome("return call ( ) ;"); "pattern; body in izer")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).lexical_binding().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // VARIABLE STATMENT
@@ -489,6 +519,14 @@ mod variable_statement {
     #[test_case("   var left;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 9 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).variable_statement().location()
+    }
+
+    #[test_case("var a;" => None; "location not in production")]
+    #[test_case("var a=call();" => None; "body not present")]
+    #[test_case("var a=(function(){return call();})();" => ssome("return call ( ) ;"); "body present")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).variable_statement().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -622,6 +660,19 @@ mod variable_declaration_list {
             .iter()
             .map(String::from)
             .collect::<Vec<_>>()
+    }
+
+    #[test_case("   a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).variable_declaration_list().location()
+    }
+
+    #[test_case("a" => None; "location not in production")]
+    #[test_case("a,b=call(),c" => None; "no body in list")]
+    #[test_case("a, b=(function(){return call();})(), c" => ssome("return call ( ) ;"); "body exists")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).variable_declaration_list().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -758,6 +809,24 @@ mod variable_declaration {
             .0
             .contains_arguments()
     }
+
+    #[test_case("   a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 1 } }; "ident only")]
+    #[test_case("   a = 3" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "ident plus izer")]
+    #[test_case("   [a]=b" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).variable_declaration().location()
+    }
+
+    #[test_case("a" => None; "location not in production")]
+    #[test_case("b=call()" => None; "ident; body not present")]
+    #[test_case("b=(function(){return call();})()" => ssome("return call ( ) ;"); "ident; body exists")]
+    #[test_case("[a]=call()" => None; "pattern; body not present")]
+    #[test_case("[a=(function(){return call();})()]=b" => ssome("return call ( ) ;"); "pattern; body on left")]
+    #[test_case("[a]=(function(){return call();})()" => ssome("return call ( ) ;"); "pattern; body on right")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).variable_declaration().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // BINDING PATTERN
@@ -869,6 +938,16 @@ mod binding_pattern {
     #[test_case("[]" => false; "array without expr")]
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).binding_pattern().contains_expression()
+    }
+
+    #[test_case("{}" => None; "location not in production")]
+    #[test_case("{a=call()}" => None; "object; no body")]
+    #[test_case("{a=(function(){return call();})()}" => ssome("return call ( ) ;"); "object; has body")]
+    #[test_case("[a=call()]" => None; "array; no body")]
+    #[test_case("[a=(function(){return call();})()]" => ssome("return call ( ) ;"); "array; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).binding_pattern().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -1102,6 +1181,19 @@ mod object_binding_pattern {
     #[test_case("{a, ...b}" => false; "list+rest; missing")]
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).object_binding_pattern().contains_expression()
+    }
+
+    #[test_case("{}" => None; "empty")]
+    #[test_case("{...a}" => None; "rest only")]
+    #[test_case("{a=call()}" => None; "list only; no body")]
+    #[test_case("{a=(function(){return call();})()}" => ssome("return call ( ) ;"); "list only; has body")]
+    #[test_case("{a=call(),}" => None; "list + elision; no body")]
+    #[test_case("{a=(function(){return call();})(),}" => ssome("return call ( ) ;"); "list + elision; has body")]
+    #[test_case("{a=call(),...b}" => None; "list + rest; no body")]
+    #[test_case("{a=(function(){return call();})(),...b}" => ssome("return call ( ) ;"); "list + rest; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).object_binding_pattern().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -1629,6 +1721,21 @@ mod binding_property_list {
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).binding_property_list().contains_expression()
     }
+
+    #[test_case("a" => None; "location outside of production")]
+    #[test_case("a=call()" => None; "one item; no body")]
+    #[test_case("a=(function(){return call();})()" => ssome("return call ( ) ;"); "one item; has body")]
+    #[test_case("a=call(),b" => None; "two items, no body")]
+    #[test_case("a=(function(){return call();})(),b" => ssome("return call ( ) ;"); "two items; body in first")]
+    #[test_case("a,b=(function(){return call();})()" => ssome("return call ( ) ;"); "two items, body in second")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .binding_property_list()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
+    }
 }
 
 // BINDING ELEMENT LIST
@@ -1752,6 +1859,21 @@ mod binding_element_list {
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).binding_element_list().contains_expression()
     }
+
+    #[test_case("a" => None; "location outside of production")]
+    #[test_case("a=call()" => None; "one item; no body")]
+    #[test_case("a=(function(){return call();})()" => ssome("return call ( ) ;"); "one item; has body")]
+    #[test_case("a=call(),b" => None; "two items, no body")]
+    #[test_case("a=(function(){return call();})(),b" => ssome("return call ( ) ;"); "two items; body in first")]
+    #[test_case("a,b=(function(){return call();})()" => ssome("return call ( ) ;"); "two items, body in second")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .binding_element_list()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
+    }
 }
 
 // BINDING ELISION ELEMENT
@@ -1849,6 +1971,18 @@ mod binding_elision_element {
     #[test_case("a=0" => true; "Item; present")]
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).binding_elision_element().contains_expression()
+    }
+
+    #[test_case(",,,,a=call()" => None; "no function body")]
+    #[test_case(",,,,a=(function(){return call();})()" => ssome("return call ( ) ;"); "body present")]
+    #[test_case("a" => None; "location outside of production")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .binding_elision_element()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
     }
 }
 
@@ -1972,6 +2106,21 @@ mod binding_property {
     #[test_case("a:b=0" => true; "Name+Element; present (Element)")]
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).binding_property().contains_expression()
+    }
+
+    #[test_case("a=call()" => None; "single name; no body")]
+    #[test_case("a=(function(){return call();})()" => ssome("return call ( ) ;"); "single name; with body")]
+    #[test_case("[call()]:from_property" => None; "named element; no body")]
+    #[test_case("[(function(){return call();})()]:name" => ssome("return call ( ) ;"); "named element: body in name")]
+    #[test_case("name:{a=(function(){return call();})()}" => ssome("return call ( ) ;"); "named element: body in value")]
+    #[test_case("name" => None; "location not in production")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .binding_property()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
     }
 }
 
@@ -2137,6 +2286,23 @@ mod binding_element {
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).binding_element().contains_expression()
     }
+
+    #[test_case("a" => None; "location not in production")]
+    #[test_case("a=call()" => None; "single name binding with initializer")]
+    #[test_case("a=(function(){return call();})()" => ssome("return call ( ) ;"); "single name binding with call")]
+    #[test_case("{a=call()}" => None; "binding pattern without initializer")]
+    #[test_case("{a=(function(){return call();})()}" => ssome("return call ( ) ;"); "binding pattern without initializer, with embedded function")]
+    #[test_case("{a=call()}=b" => None; "binding pattern with initializer")]
+    #[test_case("{a}=(function(){return call();})()" => ssome("return call ( ) ;"); "binding pattern with initializer with body in initializer")]
+    #[test_case("{a=(function(){return call();})()}=b" => ssome("return call ( ) ;"); "binding pattern with initializer with body in pattern")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .binding_element()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
+    }
 }
 
 // SINGLE NAME BINDING
@@ -2243,6 +2409,19 @@ mod single_name_binding {
     #[test_case("a=x", ParseNodeKind::Literal => false; "name doesn't have literal initializer")]
     fn contains(src: &str, kind: ParseNodeKind) -> bool {
         Maker::new(src).single_name_binding().contains(kind)
+    }
+
+    #[test_case("a" => None; "single name with no initializer")]
+    #[test_case("a=call()" => None; "with initializer; no body")]
+    #[test_case("a=(function(){return call();})()" => ssome("return call ( ) ;"); "with initializer; body in izer")]
+    #[test_case("a=1" => None; "with initializer but location not here")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .single_name_binding()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
     }
 }
 
@@ -2356,5 +2535,18 @@ mod binding_rest_element {
     #[test_case("...{a=0}" => true; "pattern; present")]
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).binding_rest_element().contains_expression()
+    }
+
+    #[test_case("...a" => None; "id only")]
+    #[test_case("...{a=call()}" => None; "pattern; body not present")]
+    #[test_case("...{a=(function(){return call();})()}" => ssome("return call ( ) ;"); "pattern; body present")]
+    #[test_case("...{a}" => None; "pattern, location not in production")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .binding_rest_element()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
     }
 }

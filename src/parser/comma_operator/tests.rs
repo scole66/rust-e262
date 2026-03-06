@@ -136,4 +136,25 @@ mod expression {
     fn location(src: &str) -> Location {
         Maker::new(src).expression().location()
     }
+
+    #[test_case("call()" => None; "expr; no body")]
+    #[test_case("function(){return call();}" => ssome("return call ( ) ;"); "expr; body present")]
+    #[test_case("call(),b" => None; "exp1+exp2; no body")]
+    #[test_case("function(){return call();},b" => ssome("return call ( ) ;"); "exp1+exp2; body in exp1")]
+    #[test_case("a,function(){return call();}" => ssome("return call ( ) ;"); "exp1+exp2; body in exp2")]
+    #[test_case("a,/*call()*/b" => None; "exp1+exp2; location not in either expr")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("3+call()" => false; "fallthru; not in tail pos")]
+    #[test_case("call()" => true; "fallthru; in tail pos")]
+    #[test_case("call(),a" => false; "comma; location in first expr")]
+    #[test_case("a,3+call()" => false; "comma; location in second; not tail")]
+    #[test_case("a,call()" => true; "comma; location in second; is tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).expression().has_call_in_tail_position(&location)
+    }
 }

@@ -1554,71 +1554,75 @@ fn to_string_12() {
     assert_eq!(unwind_any_error(result.unwrap_err()), "TypeError: get called on DeadObject");
 }
 
-#[test]
-fn to_object_01() {
-    setup_test_agent();
-    let err = to_object(ECMAScriptValue::Undefined).unwrap_err();
-    let msg = unwind_type_error(err);
-    assert_eq!(msg, "Undefined and null cannot be converted to objects");
-}
-#[test]
-fn to_object_02() {
-    setup_test_agent();
-    let err = to_object(ECMAScriptValue::Null).unwrap_err();
-    let msg = unwind_type_error(err);
-    assert_eq!(msg, "Undefined and null cannot be converted to objects");
-}
-#[test]
-fn to_object_03() {
-    setup_test_agent();
-    let test_value = true;
-    let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
+mod to_object {
+    use super::*;
 
-    let boolean_obj = result.o.to_boolean_obj().unwrap();
-    assert_eq!(*boolean_obj.boolean_data(), test_value);
-}
-#[test]
-#[expect(clippy::float_cmp)]
-fn to_object_04() {
-    setup_test_agent();
-    let test_value = 1337.0;
-    let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
+    #[test]
+    fn to_object_01() {
+        setup_test_agent();
+        let err = to_object(ECMAScriptValue::Undefined).unwrap_err();
+        let msg = unwind_type_error(err);
+        assert_eq!(msg, "Undefined and null cannot be converted to objects");
+    }
+    #[test]
+    fn to_object_02() {
+        setup_test_agent();
+        let err = to_object(ECMAScriptValue::Null).unwrap_err();
+        let msg = unwind_type_error(err);
+        assert_eq!(msg, "Undefined and null cannot be converted to objects");
+    }
+    #[test]
+    fn to_object_03() {
+        setup_test_agent();
+        let test_value = true;
+        let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
 
-    let number_obj = result.o.to_number_obj().unwrap();
-    assert_eq!(*number_obj.number_data(), test_value);
-}
-#[test]
-fn to_object_05() {
-    setup_test_agent();
-    let test_value = "orange";
-    let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
+        let boolean_obj = result.o.to_boolean_obj().unwrap();
+        assert_eq!(*boolean_obj.boolean_data(), test_value);
+    }
+    #[test]
+    #[expect(clippy::float_cmp)]
+    fn to_object_04() {
+        setup_test_agent();
+        let test_value = 1337.0;
+        let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
 
-    let val = result.to_string().unwrap();
-    assert_eq!(val, JSString::from(test_value));
-}
-#[test]
-fn to_object_06() {
-    setup_test_agent();
-    let test_value = wks(WksId::ToPrimitive);
-    let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
-    let desc = result.get(&"description".into()).unwrap();
-    assert_eq!(desc, ECMAScriptValue::from("Symbol.toPrimitive"));
-}
-#[test]
-fn to_object_07() {
-    setup_test_agent();
-    let test_value = BigInt::from(10);
-    let result = to_object(ECMAScriptValue::from(test_value.clone())).unwrap();
-    let bi_obj = result.o.to_bigint_object().unwrap();
-    assert_eq!(*bi_obj.value(), test_value);
-}
-#[test]
-fn to_object_08() {
-    setup_test_agent();
-    let test_value = ordinary_object_create(None);
-    let id = test_value.o.id();
-    let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
-    assert_eq!(result.o.id(), id);
+        let number_obj = result.o.to_number_obj().unwrap();
+        assert_eq!(*number_obj.number_data(), test_value);
+    }
+    #[test]
+    fn to_object_05() {
+        setup_test_agent();
+        let test_value = "orange";
+        let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
+
+        let val = result.to_string().unwrap();
+        assert_eq!(val, JSString::from(test_value));
+    }
+    #[test]
+    fn to_object_06() {
+        setup_test_agent();
+        let test_value = wks(WksId::ToPrimitive);
+        let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
+        let desc = result.get(&"description".into()).unwrap();
+        assert_eq!(desc, ECMAScriptValue::from("Symbol.toPrimitive"));
+    }
+    #[test]
+    fn to_object_07() {
+        setup_test_agent();
+        let test_value = BigInt::from(10);
+        let result = to_object(ECMAScriptValue::from(test_value.clone())).unwrap();
+        let bi_obj = result.o.to_bigint_object().unwrap();
+        assert_eq!(*bi_obj.value(), test_value);
+    }
+    #[test]
+    fn to_object_08() {
+        setup_test_agent();
+        let test_value = ordinary_object_create(None);
+        let id = test_value.o.id();
+        let result = to_object(ECMAScriptValue::from(test_value)).unwrap();
+        assert_eq!(result.o.id(), id);
+    }
 }
 
 // ordinary_to_primitive:
@@ -2306,6 +2310,12 @@ mod bigintish {
     #[test_case(ECMAScriptValue::from(BigInt::from(10)) => Ok(Rc::new(BigInt::from(10))); "bigint")]
     fn try_from(src: impl TryInto<Rc<BigInt>, Error = anyhow::Error>) -> Result<Rc<BigInt>, String> {
         src.try_into().map_err(|err| err.to_string())
+    }
+
+    // This should really be in the tests for ECMAScriptValue, but the coverage script catches it here as well.
+    #[test_case(Rc::new(BigInt::from(10)) => ECMAScriptValue::BigInt(Rc::new(BigInt::from(10))); "from 10n")]
+    fn into_value(src: impl Into<ECMAScriptValue>) -> ECMAScriptValue {
+        src.into()
     }
 }
 

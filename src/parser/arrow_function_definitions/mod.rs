@@ -662,10 +662,10 @@ impl ConciseBody {
             match self.as_ref() {
                 ConciseBody::Expression(expression_body) => expression_body
                     .body_containing_location(location)
-                    .or_else(|| Some(ContainingBody::ConciseBody(Rc::clone(self)))),
-                ConciseBody::Function { body, .. } => body
-                    .body_containing_location(location)
-                    .or_else(|| Some(ContainingBody::ConciseBody(Rc::clone(self)))),
+                    .or_else(|| Some(ContainingBody::Concise(Rc::clone(self)))),
+                ConciseBody::Function { body, .. } => {
+                    body.body_containing_location(location).or_else(|| Some(ContainingBody::Concise(Rc::clone(self))))
+                }
             }
         } else {
             None

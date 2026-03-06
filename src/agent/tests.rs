@@ -11,6 +11,15 @@ use std::str::FromStr;
 use std::sync::LazyLock;
 use test_case::test_case;
 
+impl Agent {
+    pub(crate) fn reset(&self) {
+        self.obj_id.set(1);
+        self.execution_context_stack.borrow_mut().clear();
+        self.symbol_id.set(14);
+        self.gsr.borrow_mut().take();
+    }
+}
+
 mod agent {
     use super::*;
     use crate::values::tests::make_test_obj_uncallable;
