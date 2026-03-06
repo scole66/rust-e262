@@ -871,7 +871,9 @@ impl CallableObject for ProxyObject {
     }
 
     fn complete_call(&self) -> Completion<ECMAScriptValue> {
-        unreachable!()
+        ec_pop()
+            .expect("Call must return a Completion")
+            .map(|nc| ECMAScriptValue::try_from(nc).expect("Call must return a language value"))
     }
 }
 
@@ -1085,7 +1087,7 @@ fn proxy_constructor_function(
     }
 }
 
-fn proxy_revocable(
+pub(crate) fn proxy_revocable(
     _: &ECMAScriptValue,
     _: Option<&Object>,
     arguments: &[ECMAScriptValue],

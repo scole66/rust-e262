@@ -221,6 +221,18 @@ mod async_generator_method {
     fn location(src: &str) -> Location {
         Maker::new(src).async_generator_method().location()
     }
+
+    #[test_case("async /* call() */ *name(){}" => None; "location outside of child productions")]
+    #[test_case("async *x(y=call()){}" => None; "location in params; no body")]
+    #[test_case("async *x(y=(function(){return call();})()){}" => ssome("return call ( ) ;"); "location in params; has body")]
+    #[test_case("async *x(){call();}" => ssome("call ( ) ;"); "location in body")]
+    #[test_case("async *x(){ let f = function() { return call(); }; f(); }" => ssome("return call ( ) ;"); "location in body; sub-body")]
+    #[test_case("async *[call()](){}" => None; "location in ident; no body")]
+    #[test_case("async *[(function(){return call();})()](){}" => ssome("return call ( ) ;"); "location in ident; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).async_generator_method().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // ASYNC GENERATOR DECLARATION
@@ -549,6 +561,16 @@ mod async_generator_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).async_generator_declaration().bound_name().into()
     }
+
+    #[test_case("async function /* call() */ *name(){}" => None; "location outside of child productions")]
+    #[test_case("async function *x(y=call()){}" => None; "location in params; no body")]
+    #[test_case("async function *x(y=(function(){return call();})()){}" => ssome("return call ( ) ;"); "location in params; has body")]
+    #[test_case("async function *x(){call();}" => ssome("call ( ) ;"); "location in body")]
+    #[test_case("async function *x(){ let f = function() { return call(); }; f(); }" => ssome("return call ( ) ;"); "location in body; sub-body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).async_generator_declaration().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // ASYNC GENERATOR EXPRESSION
@@ -785,6 +807,16 @@ mod async_generator_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).async_generator_expression().location()
     }
+
+    #[test_case("async function /* call() */ *name(){}" => None; "location outside of child productions")]
+    #[test_case("async function *x(y=call()){}" => None; "location in params; no body")]
+    #[test_case("async function *x(y=(function(){return call();})()){}" => ssome("return call ( ) ;"); "location in params; has body")]
+    #[test_case("async function *x(){call();}" => ssome("call ( ) ;"); "location in body")]
+    #[test_case("async function *x(){ let f = function() { return call(); }; f(); }" => ssome("return call ( ) ;"); "location in body; sub-body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).async_generator_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // ASYNC GENERATOR BODY
@@ -866,5 +898,19 @@ mod async_generator_body {
     #[test_case("'bob is a putz';" => false; "not present")]
     fn function_body_contains_use_strict(src: &str) -> bool {
         Maker::new(src).async_generator_body().function_body_contains_use_strict()
+    }
+
+    #[test_case("    " => Location{ starting_line: 1, starting_column: 1, span: Span{ starting_index: 0, length: 0 } }; "empty")]
+    #[test_case("   return q;" => Location { starting_line: 1, starting_column: 4, span: Span{ starting_index: 3, length:  9} }; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).async_generator_body().location()
+    }
+
+    #[test_case("call()" => ssome("call ( ) ;"); "present in function body")]
+    #[test_case("(function(){return call();})" => ssome("return call ( ) ;"); "deeper")]
+    #[test_case("10" => None; "location not in body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).async_generator_body().body_containing_location(&location).map(|node| node.to_string())
     }
 }

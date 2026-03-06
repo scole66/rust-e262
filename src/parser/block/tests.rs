@@ -114,6 +114,26 @@ mod block_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).block_statement().location()
     }
+
+    #[test_case("{}" => None; "no call")]
+    #[test_case("{ (function () { return call(); })() }" => ssome("return call ( ) ;"); "call present")]
+    #[test_case("{ /* call() */ }" => None; "call faked")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .block_statement()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
+    }
+
+    #[test_case("{}" => false; "missing")]
+    #[test_case("{ call(); return other(); }" => false; "call not in tail")]
+    #[test_case("{ other(); return call(); }" => true; "call in tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).block_statement().has_call_in_tail_position(&location)
+    }
 }
 
 // BLOCK
@@ -286,6 +306,22 @@ mod block {
     #[test_case("    { b; let a; }" => Location { starting_line: 1, starting_column: 5, span: Span { starting_index: 4, length: 13 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).block().location()
+    }
+
+    #[test_case("{}" => None; "no call")]
+    #[test_case("{ (function () { return call(); })() }" => ssome("return call ( ) ;"); "call present")]
+    #[test_case("{ /* call() */ }" => None; "call faked")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).return_ok(true).block().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("{}" => false; "missing")]
+    #[test_case("{ call(); return other(); }" => false; "call not in tail")]
+    #[test_case("{ other(); return call(); }" => true; "call in tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).block().has_call_in_tail_position(&location)
     }
 }
 
@@ -576,6 +612,27 @@ mod statement_list {
     fn location(src: &str) -> Location {
         Maker::new(src).statement_list().location()
     }
+
+    #[test_case("1; 2;" => None; "no call in list")]
+    #[test_case("call(); 2;" => None; "call, but not in body")]
+    #[test_case("(function () { return call(); }); 2;" => ssome("return call ( ) ;"); "body in list")]
+    #[test_case("1; (function () { return call(); });" => ssome("return call ( ) ;"); "body in item")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .statement_list()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
+    }
+
+    #[test_case("return call();" => true; "just one item")]
+    #[test_case("1; if (predicate) { return call(); }; 27;" => true; "item within statement in middle")]
+    #[test_case("1; 2; 3; 4; 5;" => false; "nothing there")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).statement_list().has_call_in_tail_position(&location)
+    }
 }
 
 // STATEMENT LIST ITEM
@@ -726,55 +783,55 @@ fn statement_list_item_test_contains_04() {
     assert_eq!(item.contains(ParseNodeKind::Statement), true);
     assert_eq!(item.contains(ParseNodeKind::Declaration), false);
 }
-#[test]
-fn statement_list_item_test_contains_duplicate_labels_01() {
-    let (item, _) = StatementListItem::parse(&mut newparser("t:;"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains_duplicate_labels(&[]), false);
-    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), true);
-}
-#[test]
-fn statement_list_item_test_contains_duplicate_labels_02() {
-    let (item, _) = StatementListItem::parse(&mut newparser("let t;"), Scanner::new(), true, true, true).unwrap();
-    assert_eq!(item.contains_duplicate_labels(&[]), false);
-    assert_eq!(item.contains_duplicate_labels(&[JSString::from("t")]), false);
-}
-#[test_case("continue x;" => (false, true, true, true); "continue x;")]
-#[test_case("for (;;) continue x;" => (false, true, false, true); "for (;;) continue x;")]
-#[test_case("let x;" => (false, false, false, false); "let x;")]
-fn statement_list_item_test_contains_undefined_continue_target(src: &str) -> (bool, bool, bool, bool) {
-    let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    (
-        item.contains_undefined_continue_target(&[JSString::from("x")], &[]),
-        item.contains_undefined_continue_target(&[JSString::from("y")], &[]),
-        item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
-        item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
-    )
-}
-#[test_case("'string';" => Some(JSString::from("string")); "String Token")]
-#[test_case("let a;" => None; "Declaration")]
-fn statement_list_item_test_as_string_literal(src: &str) -> Option<JSString> {
-    let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.as_string_literal().map(|st| st.value)
-}
-#[test_case("a: b;" => Vec::<JSString>::new(); "Labelled Plain")]
-#[test_case("b;" => Vec::<JSString>::new(); "Plain")]
-#[test_case("a: function f(){}" => vec![JSString::from("f")]; "Labelled Function")]
-#[test_case("const t=true,f=false;" => vec![JSString::from("t"), JSString::from("f")]; "Unlabelled Decl")]
-fn statement_list_item_test_lexically_declared_names(src: &str) -> Vec<JSString> {
-    let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.lexically_declared_names()
-}
-#[test_case("item.#valid;" => true; "Statement valid")]
-#[test_case("const a=item.#valid;" => true; "Declaration valid")]
-#[test_case("item.#invalid;" => false; "Statement invalid")]
-#[test_case("const a=item.#invalid;" => false; "Declaration invalid")]
-fn statement_list_item_test_all_private_identifiers_valid(src: &str) -> bool {
-    let (item, _) = StatementListItem::parse(&mut newparser(src), Scanner::new(), true, true, true).unwrap();
-    item.all_private_identifiers_valid(&[JSString::from("#valid")])
-}
+
 mod statement_list_item {
     use super::*;
     use test_case::test_case;
+
+    #[test_case("t:;" => (false, true); "is duplicate")]
+    #[test_case("let t;" => (false, false); "isn't a label")]
+    fn contains_duplicate_labels(src: &str) -> (bool, bool) {
+        let item = Maker::new(src).statement_list_item();
+        (item.contains_duplicate_labels(&[]), item.contains_duplicate_labels(&[JSString::from("t")]))
+    }
+
+    #[test_case("continue x;" => (false, true, true, true); "continue x;")]
+    #[test_case("for (;;) continue x;" => (false, true, false, true); "for (;;) continue x;")]
+    #[test_case("let x;" => (false, false, false, false); "let x;")]
+    fn contains_undefined_continue_target(src: &str) -> (bool, bool, bool, bool) {
+        let item = Maker::new(src).statement_list_item();
+        (
+            item.contains_undefined_continue_target(&[JSString::from("x")], &[]),
+            item.contains_undefined_continue_target(&[JSString::from("y")], &[]),
+            item.contains_undefined_continue_target(&[], &[JSString::from("x")]),
+            item.contains_undefined_continue_target(&[], &[JSString::from("y")]),
+        )
+    }
+
+    #[test_case("'string';" => Some(JSString::from("string")); "String Token")]
+    #[test_case("let a;" => None; "Declaration")]
+    fn as_string_literal(src: &str) -> Option<JSString> {
+        let item = Maker::new(src).statement_list_item();
+        item.as_string_literal().map(|st| st.value)
+    }
+
+    #[test_case("a: b;" => Vec::<JSString>::new(); "Labelled Plain")]
+    #[test_case("b;" => Vec::<JSString>::new(); "Plain")]
+    #[test_case("a: function f(){}" => vec![JSString::from("f")]; "Labelled Function")]
+    #[test_case("const t=true,f=false;" => vec![JSString::from("t"), JSString::from("f")]; "Unlabelled Decl")]
+    fn lexically_declared_names(src: &str) -> Vec<JSString> {
+        let item = Maker::new(src).statement_list_item();
+        item.lexically_declared_names()
+    }
+
+    #[test_case("item.#valid;" => true; "Statement valid")]
+    #[test_case("const a=item.#valid;" => true; "Declaration valid")]
+    #[test_case("item.#invalid;" => false; "Statement invalid")]
+    #[test_case("const a=item.#invalid;" => false; "Declaration invalid")]
+    fn all_private_identifiers_valid(src: &str) -> bool {
+        let item = Maker::new(src).statement_list_item();
+        item.all_private_identifiers_valid(&[JSString::from("#valid")])
+    }
 
     #[test_case("let package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "Declaration")]
     #[test_case("package;", true => sset(&[PACKAGE_NOT_ALLOWED]); "Statement")]
@@ -843,5 +900,27 @@ mod statement_list_item {
     #[test_case("    let a;" => Location { starting_line: 1, starting_column: 5, span: Span { starting_index: 4, length: 6 } }; "declaration")]
     fn location(src: &str) -> Location {
         Maker::new(src).statement_list_item().location()
+    }
+
+    #[test_case("1;" => None; "missing")]
+    #[test_case("(function() {return call();})();" => ssome("return call ( ) ;"); "statement; present")]
+    #[test_case("call();" => None; "statement; call not in body")]
+    #[test_case("let f=function() {return call();};" => ssome("return call ( ) ;"); "declaration; present")]
+    #[test_case("let z=call();" => None; "declaration; call not in body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .return_ok(true)
+            .statement_list_item()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
+    }
+
+    #[test_case("let x=call();" => false; "declaration")]
+    #[test_case("return call();" => true; "statement; present")]
+    #[test_case("call();" => false; "statement; not tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).statement_list_item().has_call_in_tail_position(&location)
     }
 }

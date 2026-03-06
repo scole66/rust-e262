@@ -520,16 +520,12 @@ impl LexicalBinding {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                LexicalBinding::Identifier(_, Some(izer)) => izer.body_containing_location(location),
-                LexicalBinding::Identifier(_, None) => None,
-                LexicalBinding::Pattern(pat, izer) => {
-                    pat.body_containing_location(location).or_else(|| izer.body_containing_location(location))
-                }
+        match self {
+            LexicalBinding::Identifier(_, Some(izer)) => izer.body_containing_location(location),
+            LexicalBinding::Identifier(_, None) => None,
+            LexicalBinding::Pattern(pat, izer) => {
+                pat.body_containing_location(location).or_else(|| izer.body_containing_location(location))
             }
-        } else {
-            None
         }
     }
 }
@@ -1390,19 +1386,11 @@ impl ObjectBindingPattern {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ObjectBindingPattern::Empty { .. } => None,
-                ObjectBindingPattern::RestOnly { brp, .. } => brp.body_containing_location(location),
-                ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
-                    bpl.body_containing_location(location)
-                }
-                ObjectBindingPattern::ListRest { bpl, brp: Some(brp), .. } => {
-                    bpl.body_containing_location(location).or_else(|| brp.body_containing_location(location))
-                }
+        match self {
+            ObjectBindingPattern::Empty { .. } | ObjectBindingPattern::RestOnly { .. } => None,
+            ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, .. } => {
+                self.location().contains(location).then(|| bpl.body_containing_location(location)).flatten()
             }
-        } else {
-            None
         }
     }
 }
@@ -1826,12 +1814,6 @@ impl BindingRestProperty {
         let BindingRestProperty::Id(node) = self;
         node.early_errors(errs, strict);
     }
-
-    #[expect(unused_variables)]
-    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
-    }
 }
 
 // BindingPropertyList[Yield, Await] :
@@ -1976,10 +1958,14 @@ impl BindingPropertyList {
         }
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        match self {
+            BindingPropertyList::Item(binding_property) => binding_property.body_containing_location(location),
+            BindingPropertyList::List(binding_property_list, binding_property) => binding_property_list
+                .body_containing_location(location)
+                .or_else(|| binding_property.body_containing_location(location)),
+        }
     }
 }
 
@@ -2403,11 +2389,15 @@ impl BindingProperty {
         }
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            BindingProperty::Single(single_name_binding) => single_name_binding.body_containing_location(location),
+            BindingProperty::Property(property_name, binding_element) => property_name
+                .body_containing_location(location)
+                .or_else(|| binding_element.body_containing_location(location)),
+        }
+    }
 }
 
 // BindingElement[Yield, Await] :
@@ -2776,13 +2766,15 @@ impl SingleNameBinding {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                SingleNameBinding::Id(_, Some(izer)) => izer.body_containing_location(location),
-                SingleNameBinding::Id(_, None) => None,
+        match self {
+            SingleNameBinding::Id(_, Some(izer)) => {
+                if self.location().contains(location) {
+                    izer.body_containing_location(location)
+                } else {
+                    None
+                }
             }
-        } else {
-            None
+            SingleNameBinding::Id(_, None) => None,
         }
     }
 }
@@ -2937,13 +2929,15 @@ impl BindingRestElement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                BindingRestElement::Identifier(..) => None,
-                BindingRestElement::Pattern(bp, ..) => bp.body_containing_location(location),
+        match self {
+            BindingRestElement::Identifier(..) => None,
+            BindingRestElement::Pattern(bp, ..) => {
+                if self.location().contains(location) {
+                    bp.body_containing_location(location)
+                } else {
+                    None
+                }
             }
-        } else {
-            None
         }
     }
 }

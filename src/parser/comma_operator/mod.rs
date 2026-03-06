@@ -191,15 +191,17 @@ impl Expression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                Expression::FallThru(node) => node.body_containing_location(location),
-                Expression::Comma(left, right) => {
-                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
+        match self {
+            Expression::FallThru(node) => node.body_containing_location(location),
+            Expression::Comma(left, right) => {
+                if left.location().contains(location) {
+                    left.body_containing_location(location)
+                } else if right.location().contains(location) {
+                    right.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 

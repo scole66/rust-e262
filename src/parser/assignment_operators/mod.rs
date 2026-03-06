@@ -707,10 +707,13 @@ impl AssignmentPattern {
         }
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+
+        match self {
+            AssignmentPattern::Object(node) => node.body_containing_location(location),
+            AssignmentPattern::Array(node) => node.body_containing_location(location),
+        }
     }
 }
 
@@ -915,11 +918,18 @@ impl ObjectAssignmentPattern {
         }
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            ObjectAssignmentPattern::Empty { .. } => None,
+            ObjectAssignmentPattern::RestOnly { arp, .. } => arp.body_containing_location(location),
+            ObjectAssignmentPattern::ListOnly { apl, .. }
+            | ObjectAssignmentPattern::ListRest { apl, arp: None, .. } => apl.body_containing_location(location),
+            ObjectAssignmentPattern::ListRest { apl, arp: Some(arp), .. } => {
+                apl.body_containing_location(location).or_else(|| arp.body_containing_location(location))
+            }
+        }
+    }
 }
 
 // ArrayAssignmentPattern[Yield, Await] :
@@ -1173,11 +1183,28 @@ impl ArrayAssignmentPattern {
         }
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            ArrayAssignmentPattern::RestOnly { elision: _, are: None, .. } => None,
+            ArrayAssignmentPattern::RestOnly { elision: _, are: Some(are), .. } => {
+                if are.location().contains(location) { are.body_containing_location(location) } else { None }
+            }
+            ArrayAssignmentPattern::ListOnly { ael, .. }
+            | ArrayAssignmentPattern::ListRest { ael, elision: _, are: None, .. } => {
+                if ael.location().contains(location) { ael.body_containing_location(location) } else { None }
+            }
+            ArrayAssignmentPattern::ListRest { ael, elision: _, are: Some(are), .. } => {
+                if ael.location().contains(location) {
+                    ael.body_containing_location(location)
+                } else if are.location().contains(location) {
+                    are.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+        }
+    }
 }
 
 // AssignmentRestProperty[Yield, Await] :
@@ -1265,11 +1292,10 @@ impl AssignmentRestProperty {
         self.0.early_errors(errs, strict);
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.0.location().contains(location) { self.0.body_containing_location(location) } else { None }
+    }
 }
 
 // AssignmentPropertyList[Yield, Await] :
@@ -1393,11 +1419,15 @@ impl AssignmentPropertyList {
         }
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            AssignmentPropertyList::Item(item) => item.body_containing_location(location),
+            AssignmentPropertyList::List(list, item) => {
+                list.body_containing_location(location).or_else(|| item.body_containing_location(location))
+            }
+        }
+    }
 }
 
 // AssignmentElementList[Yield, Await] :
@@ -1522,11 +1552,22 @@ impl AssignmentElementList {
         }
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            AssignmentElementList::Item(node) => node.location(),
+            AssignmentElementList::List(list, item) => list.location().merge(&item.location()),
+        }
+    }
+
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            AssignmentElementList::Item(aee) => aee.body_containing_location(location),
+            AssignmentElementList::List(ael, aee) => {
+                ael.body_containing_location(location).or_else(|| aee.body_containing_location(location))
+            }
+        }
+    }
 }
 
 // AssignmentElisionElement[Yield, Await] :
@@ -1621,11 +1662,17 @@ impl AssignmentElisionElement {
         self.element.early_errors(errs, strict);
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn location(&self) -> Location {
+        match &self.elisions {
+            None => self.element.location(),
+            Some(elisions) => elisions.location().merge(&self.element.location()),
+        }
+    }
+
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        self.element.body_containing_location(location)
+    }
 }
 
 // AssignmentProperty[Yield, Await] :
@@ -1790,11 +1837,17 @@ impl AssignmentProperty {
         }
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            AssignmentProperty::Ident(_, izer) => {
+                izer.as_ref().and_then(|izer| izer.body_containing_location(location))
+            }
+            AssignmentProperty::Property(pn, elem) => {
+                pn.body_containing_location(location).or_else(|| elem.body_containing_location(location))
+            }
+        }
+    }
 }
 
 // AssignmentElement[Yield, Await] :
@@ -1901,21 +1954,38 @@ impl AssignmentElement {
         }
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn location(&self) -> Location {
+        match &self.initializer {
+            None => self.target.location(),
+            Some(izer) => self.target.location().merge(&izer.location()),
+        }
+    }
+
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.target.location().contains(location) {
+            self.target.body_containing_location(location)
+        } else if let Some(izer) = &self.initializer
+            && izer.location().contains(location)
+        {
+            izer.body_containing_location(location)
+        } else {
+            None
+        }
+    }
 }
 
 // AssignmentRestElement[Yield, Await] :
 //      ... DestructuringAssignmentTarget[?Yield, ?Await]
 #[derive(Debug)]
-pub(crate) struct AssignmentRestElement(pub(crate) Rc<DestructuringAssignmentTarget>);
+pub(crate) struct AssignmentRestElement {
+    pub dat: Rc<DestructuringAssignmentTarget>,
+    location: Location,
+}
 
 impl fmt::Display for AssignmentRestElement {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "... {}", self.0)
+        write!(f, "... {}", self.dat)
     }
 }
 
@@ -1926,7 +1996,7 @@ impl PrettyPrint for AssignmentRestElement {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}AssignmentRestElement: {self}")?;
-        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.dat.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -1935,7 +2005,7 @@ impl PrettyPrint for AssignmentRestElement {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}AssignmentRestElement: {self}")?;
         pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        self.0.concise_with_leftpad(writer, &successive, Spot::Final)
+        self.dat.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
@@ -1946,13 +2016,15 @@ impl AssignmentRestElement {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<Self> {
-        let (_, after_dots) = scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Ellipsis)?;
+        let (tok_loc, after_dots) =
+            scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Ellipsis)?;
         let (target, after_target) = DestructuringAssignmentTarget::parse(parser, after_dots, yield_flag, await_flag)?;
-        Ok((Rc::new(AssignmentRestElement(target)), after_target))
+        let location = tok_loc.merge(&target.location());
+        Ok((Rc::new(AssignmentRestElement { dat: target, location }), after_target))
     }
 
     pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
+        self.dat.contains(kind)
     }
 
     pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -1962,7 +2034,7 @@ impl AssignmentRestElement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.0.all_private_identifiers_valid(names)
+        self.dat.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -1976,18 +2048,21 @@ impl AssignmentRestElement {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.0.contains_arguments()
+        self.dat.contains_arguments()
     }
 
     pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
-        self.0.early_errors(errs, strict);
+        self.dat.early_errors(errs, strict);
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn location(&self) -> Location {
+        self.location
+    }
+
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.dat.location().contains(location) { self.dat.body_containing_location(location) } else { None }
+    }
 }
 
 // DestructuringAssignmentTarget[Yield, Await] :
@@ -2115,11 +2190,20 @@ impl DestructuringAssignmentTarget {
         }
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            DestructuringAssignmentTarget::LeftHandSideExpression(node) => node.location(),
+            DestructuringAssignmentTarget::AssignmentPattern(node) => node.location(),
+        }
+    }
+
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            DestructuringAssignmentTarget::AssignmentPattern(pat) => pat.body_containing_location(location),
+            DestructuringAssignmentTarget::LeftHandSideExpression(lhs) => lhs.body_containing_location(location),
+        }
+    }
 }
 
 #[cfg(test)]

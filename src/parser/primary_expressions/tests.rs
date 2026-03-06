@@ -1033,6 +1033,14 @@ mod spread_element {
     fn location(src: &str) -> Location {
         Maker::new(src).spread_element().location()
     }
+
+    #[test_case("...call()" => None; "body not in expr")]
+    #[test_case("...(function(){return call();})()" => ssome("return call ( ) ;"); "body present")]
+    #[test_case(".../*call()*/expr" => None; "location not in expr")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).spread_element().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // ELEMENT LIST
@@ -1418,6 +1426,24 @@ mod element_list {
     fn location(src: &str) -> Location {
         Maker::new(src).element_list().location()
     }
+
+    #[test_case("call()" => None; "assignment expression; no body")]
+    #[test_case(",/*call()*/a" => None; "assignment expression; location not in expr")]
+    #[test_case("function(){return call();}" => ssome("return call ( ) ;"); "assignment expression; body present")]
+    #[test_case("...call()" => None; "spread element; no body")]
+    #[test_case("...(function(){return call();})()" => ssome("return call ( ) ;"); "spread element; body present")]
+    #[test_case(",/*call()*/...a" => None; "spread element; location not in spread")]
+    #[test_case("a,call()" => None; "list; no body")]
+    #[test_case("function(){return call();}, b" => ssome("return call ( ) ;"); "list+expr; body in list")]
+    #[test_case("a, function(){return call();}" => ssome("return call ( ) ;"); "list+expr; body in expr")]
+    #[test_case("a,/*call()*/b" => None; "list+expr; location not in either expr")]
+    #[test_case("function(){return call();},...b" => ssome("return call ( ) ;"); "list+spread; body in list")]
+    #[test_case("a, ...(function(){return call();})()" => ssome("return call ( ) ;"); "list+spread; body in spread")]
+    #[test_case("a,/*call()*/...b" => None; "list+spread; body not in either expr")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).element_list().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // ARRAY LITERAL
@@ -1682,6 +1708,7 @@ mod array_literal {
     #[test_case("[call()]" => None; "list, but no function body")]
     #[test_case("[function () { return call(); }]" => ssome("return call ( ) ;"); "function body in list")]
     #[test_case("[function () { return call(); },,,]" => ssome("return call ( ) ;"); "function body in list+elision")]
+    #[test_case("[/* call() */ a, b]" => None; "list; location not in child productions")]
     fn body_containing_location(src: &str) -> Option<String> {
         let location = find_call(src);
         Maker::new(src).array_literal().body_containing_location(&location).map(|node| node.to_string())
@@ -1792,6 +1819,14 @@ mod initializer {
     fn anonymous_function_definition(src: &str) -> Option<String> {
         Maker::new(src).initializer().anonymous_function_definition().map(|fd| fd.to_string())
     }
+
+    #[test_case("=/*call()*/value" => None; "location not in child production")]
+    #[test_case("=call()" => None; "location in child; no body")]
+    #[test_case("=(function(){return call();})()" => ssome("return call ( ) ;"); "location in child; body present")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).initializer().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // COVER INITIALIZED NAME
@@ -1857,6 +1892,14 @@ mod cover_initialized_name {
     #[test_case("   n=a" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).cover_initialized_name().location()
+    }
+
+    #[test_case("z /* call() */ = 3" => None; "location not in izer")]
+    #[test_case("z = call()" => None; "no body")]
+    #[test_case("z = (function(){return call();})()" => ssome("return call ( ) ;"); "has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).cover_initialized_name().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -1942,6 +1985,14 @@ mod computed_property_name {
     #[test_case("   [3]" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).computed_property_name().location()
+    }
+
+    #[test_case("[ 2 /* call() */]" => None; "location not in expression")]
+    #[test_case("[ call() ]" => None; "no body")]
+    #[test_case("[(function(){return call();})()]" => ssome("return call ( ) ;"); "has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).computed_property_name().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -2194,6 +2245,14 @@ mod property_name {
     #[test_case("[computed]" => true; "computed")]
     fn is_computed_property_key(src: &str) -> bool {
         Maker::new(src).property_name().is_computed_property_key()
+    }
+
+    #[test_case("x" => None; "literal")]
+    #[test_case("[call()]" => None; "computed; no body")]
+    #[test_case("[(function(){return call();})()]" => ssome("return call ( ) ;"); "computed; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).property_name().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -2463,6 +2522,24 @@ mod property_definition {
     fn location(src: &str) -> Location {
         Maker::new(src).property_definition().location()
     }
+
+    #[test_case("idref" => None; "identifier ref")]
+    #[test_case("x=call()" => None; "cin; no body")]
+    #[test_case("x=(function(){return call();})()" => ssome("return call ( ) ;"); "cin; has body")]
+    #[test_case("x /* call() */: 3" => None; "name-exp; location not in child productions")]
+    #[test_case("[call()]: 3" => None; "name-exp; location in name; no body")]
+    #[test_case("[(function(){return call();})()]: 3" => ssome("return call ( ) ;"); "name-exp; location in name; body present")]
+    #[test_case("x: call()" => None; "name-exp; location in exp; no body")]
+    #[test_case("x: (function(){return call();})()" => ssome("return call ( ) ;"); "name-exp; location in exp; body present")]
+    #[test_case("a(/*call()*/){}" => None; "method; no body")]
+    #[test_case("a(){return call();}" => ssome("return call ( ) ;"); "method; has body")]
+    #[test_case("... /* call() */ a" => None; "rest; location not in expression")]
+    #[test_case("...call()" => None; "rest; no body")]
+    #[test_case("...(function(){return call();})()" => ssome("return call ( ) ;"); "rest; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).property_definition().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // PROPERTY DEFINITION LIST
@@ -2598,6 +2675,18 @@ mod property_definition_list {
     #[test_case("   a,b" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "list")]
     fn location(src: &str) -> Location {
         Maker::new(src).property_definition_list().location()
+    }
+
+    #[test_case("x:call()" => None; "item; no body")]
+    #[test_case("x:(function(){return call();})()" => ssome("return call ( ) ;"); "item; has body")]
+    #[test_case("x/*call()*/,y" => None; "list; location not in children")]
+    #[test_case("x:call(),y" => None; "list; location in left; no body")]
+    #[test_case("x:function(){return call();},y" => ssome("return call ( ) ;"); "list; location in left; has body")]
+    #[test_case("x,y:call()" => None; "list; location in right; no body")]
+    #[test_case("x,y:function(){return call();}" => ssome("return call ( ) ;"); "list; location in right; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).property_definition_list().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -2771,6 +2860,28 @@ mod object_literal {
     fn location(src: &str) -> Location {
         Maker::new(src).object_literal().location()
     }
+
+    #[test_case("{}" => None; "empty")]
+    #[test_case("{a:call()}" => None; "no body")]
+    #[test_case("{a(){return call();}}" => ssome("return call ( ) ;"); "has body")]
+    #[test_case("{/*call()*/b:3}" => None; "location not in child")]
+    #[test_case("{a:call(),}" => None; "trailing comma; no body")]
+    #[test_case("{a(){return call();},}" => ssome("return call ( ) ;"); "trailing comma; has body")]
+    #[test_case("{/*call()*/b:3,}" => None; "trailing comma; location not in child")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).object_literal().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    mod into {
+        use super::*;
+
+        #[test]
+        fn primary_expression() {
+            let result = PrimaryExpression::from(Maker::new("{}").object_literal()).to_string();
+            assert_eq!(result, "{ }");
+        }
+    }
 }
 
 // PARENTHESIZED EXPRESSION
@@ -2878,6 +2989,31 @@ mod parenthesized_expression {
     #[test_case("   (a)" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).parenthesized_expression().location()
+    }
+
+    #[test_case("(/*call()*/ a)" => None; "location not within expression")]
+    #[test_case("(call())" => None; "body not present")]
+    #[test_case("(function(){return call();})" => ssome("return call ( ) ;"); "body present")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).parenthesized_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("(3+call())" => false; "not a tail call")]
+    #[test_case("(call())" => true; "is a tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).parenthesized_expression().has_call_in_tail_position(&location)
+    }
+
+    mod into {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case("(1+3)" => String::from("( 1 + 3 )"); "typical")]
+        fn primary_expression(src: &str) -> String {
+            PrimaryExpression::from(Maker::new(src).parenthesized_expression()).to_string()
+        }
     }
 }
 
@@ -3038,6 +3174,19 @@ mod template_middle_list {
             .0
             .contains_arguments()
     }
+
+    #[test_case("}call()${z" => None; "exp-only; location not in exp")]
+    #[test_case("}${call()" => None; "exp-only; no body")]
+    #[test_case("}${(function(){return call();})()" => ssome("return call ( ) ;"); "exp-only; has body")]
+    #[test_case("}${x}call()${y" => None; "list; location not in child expressions")]
+    #[test_case("}${call()}${y" => None; "list; location in left; no body")]
+    #[test_case("}${(function(){return call();})()}${y" => ssome("return call ( ) ;"); "list; location in left; has body")]
+    #[test_case("}${x}${call()" => None; "list; location in right; no body")]
+    #[test_case("}${x}${(function(){return call();})()" => ssome("return call ( ) ;"); "list; location in right; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).template_middle_list().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // TEMPLATE SPANS
@@ -3160,6 +3309,15 @@ mod template_spans {
     fn location(src: &str) -> Location {
         Maker::new(src).template_spans().location()
     }
+
+    #[test_case("}`" => None; "tail only")]
+    #[test_case("}${call()}`" => None; "list; no body")]
+    #[test_case("}${function(){return call();}}`" => ssome("return call ( ) ;"); "list; has body")]
+    #[test_case("}${1}call()`" => None; "list; location not in child nodes")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).template_spans().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // SUBSTITUTION TEMPLATE
@@ -3279,6 +3437,16 @@ mod substitution_template {
     #[test_case("   `${a}`" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "sub")]
     fn location(src: &str) -> Location {
         Maker::new(src).substitution_template().location()
+    }
+
+    #[test_case("`${call()}`" => None; "location in exp; no body")]
+    #[test_case("`${function(){return call();}}`" => ssome("return call ( ) ;"); "location in exp; has body")]
+    #[test_case("`${10}${call()}`" => None; "location in spans; no body")]
+    #[test_case("`${10}${function(){return call();}}`" => ssome("return call ( ) ;"); "location in spans; has body")]
+    #[test_case("`${a/*call()*/}${b}`" => None; "location between exp & spans")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).substitution_template().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -3441,6 +3609,24 @@ mod template_literal {
     #[test_case("   `${a}`" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 6 } }; "sub")]
     fn location(src: &str) -> Location {
         Maker::new(src).template_literal().location()
+    }
+
+    #[test_case("`no-substitution`" => None; "no substitution")]
+    #[test_case("`${call()}`" => None; "substitution; no body")]
+    #[test_case("`${function(){return call();}}`" => ssome("return call ( ) ;"); "substitution; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).template_literal().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    mod into {
+        use super::*;
+
+        #[test]
+        fn primary_expression() {
+            let result = PrimaryExpression::from(Maker::new("``").template_literal()).to_string();
+            assert_eq!(result, "``");
+        }
     }
 }
 

@@ -493,7 +493,9 @@ impl Object {
         if is_constructor(&c) {
             let c_obj = Object::try_from(&c).unwrap();
             let this_realm = current_realm_record().unwrap();
-            let realm_c = c_obj.get_function_realm()?;
+            let realm_c = c_obj
+                .get_function_realm()
+                .expect("revoked constructor proxies should fail the 'isConstructor' test and never get here");
             if !Rc::ptr_eq(&this_realm, &realm_c) && c_obj == realm_c.borrow().intrinsics.array {
                 c = ECMAScriptValue::Undefined;
             }

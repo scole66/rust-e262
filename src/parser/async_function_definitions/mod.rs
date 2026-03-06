@@ -231,10 +231,15 @@ impl AsyncFunctionDeclaration {
         // And done.
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.params.location().contains(location) {
+            self.params.body_containing_location(location)
+        } else if self.body.location().contains(location) {
+            self.body.body_containing_location(location)
+        } else {
+            None
+        }
     }
 }
 
@@ -444,8 +449,10 @@ impl AsyncFunctionExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            self.params.body_containing_location(location).or_else(|| self.body.body_containing_location(location))
+        if self.params.location().contains(location) {
+            self.params.body_containing_location(location)
+        } else if self.body.location().contains(location) {
+            self.body.body_containing_location(location)
         } else {
             None
         }
@@ -637,10 +644,17 @@ impl AsyncMethod {
         self.ident.prop_name()
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.ident.location().contains(location) {
+            self.ident.body_containing_location(location)
+        } else if self.params.location().contains(location) {
+            self.params.body_containing_location(location)
+        } else if self.body.location().contains(location) {
+            self.body.body_containing_location(location)
+        } else {
+            None
+        }
     }
 }
 
@@ -848,10 +862,9 @@ impl AwaitExpression {
         self.exp.contains_arguments()
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.exp.location().contains(location) { self.exp.body_containing_location(location) } else { None }
     }
 }
 

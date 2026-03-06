@@ -163,6 +163,27 @@ mod bitwise_and_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).bitwise_and_expression().location()
     }
+
+    #[test_case("call()" => None; "expression; no body")]
+    #[test_case("function (){return call();}" => ssome("return call ( ) ;"); "expression; has body")]
+    #[test_case("a" => None; "expression; location not in production")]
+    #[test_case("a /* call() */ & b" => None; "and; location not in child productions")]
+    #[test_case("call() & b" => None; "and; location in left; no body")]
+    #[test_case("(function(){return call();})() & b" => ssome("return call ( ) ;"); "and; location in left; has body")]
+    #[test_case("a&call()" => None; "and; location in right; no body")]
+    #[test_case("a&(function(){return call();})()" => ssome("return call ( ) ;"); "and; location in right; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).bitwise_and_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()&b" => false; "and")]
+    #[test_case("call()" => true; "expression with tail")]
+    #[test_case("!call()" => false; "expression without tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).bitwise_and_expression().has_call_in_tail_position(&location)
+    }
 }
 
 #[test]
@@ -310,6 +331,27 @@ mod bitwise_xor_expression {
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
     fn location(src: &str) -> Location {
         Maker::new(src).bitwise_xor_expression().location()
+    }
+
+    #[test_case("call()" => None; "expression; no body")]
+    #[test_case("function (){return call();}" => ssome("return call ( ) ;"); "expression; has body")]
+    #[test_case("a" => None; "expression; location not in production")]
+    #[test_case("a /* call() */ ^ b" => None; "xor; location not in child productions")]
+    #[test_case("call() ^ b" => None; "xor; location in left; no body")]
+    #[test_case("(function(){return call();})() ^ b" => ssome("return call ( ) ;"); "xor; location in left; has body")]
+    #[test_case("a^call()" => None; "xor; location in right; no body")]
+    #[test_case("a^(function(){return call();})()" => ssome("return call ( ) ;"); "xor; location in right; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).bitwise_xor_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()^b" => false; "xor")]
+    #[test_case("call()" => true; "expression with tail")]
+    #[test_case("!call()" => false; "expression without tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).bitwise_xor_expression().has_call_in_tail_position(&location)
     }
 }
 
@@ -464,5 +506,26 @@ mod bitwise_or_expression {
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
     fn location(src: &str) -> Location {
         Maker::new(src).bitwise_or_expression().location()
+    }
+
+    #[test_case("call()" => None; "expression; no body")]
+    #[test_case("function (){return call();}" => ssome("return call ( ) ;"); "expression; has body")]
+    #[test_case("a" => None; "expression; location not in production")]
+    #[test_case("a /* call() */ | b" => None; "or; location not in child productions")]
+    #[test_case("call() | b" => None; "or; location in left; no body")]
+    #[test_case("(function(){return call();})() | b" => ssome("return call ( ) ;"); "or; location in left; has body")]
+    #[test_case("a|call()" => None; "or; location in right; no body")]
+    #[test_case("a|(function(){return call();})()" => ssome("return call ( ) ;"); "or; location in right; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).bitwise_or_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()|b" => false; "or")]
+    #[test_case("call()" => true; "expression with tail")]
+    #[test_case("!call()" => false; "expression without tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).bitwise_or_expression().has_call_in_tail_position(&location)
     }
 }

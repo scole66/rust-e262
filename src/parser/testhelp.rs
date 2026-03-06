@@ -168,10 +168,10 @@ impl<'a> Maker<'a> {
     //     Self { default_flag, ..self }
     // }
 
-    // #[must_use]
-    // pub(crate) fn parent(self, parent: FunctionBodyParent) -> Self {
-    //     Self { parent, ..self }
-    // }
+    #[must_use]
+    pub(crate) fn parent(self, parent: FunctionBodyParent) -> Self {
+        Self { parent, ..self }
+    }
 
     /// Use the configs in the [`Maker`] object to make a [`AdditiveExpression`] parse node.
     pub(crate) fn additive_expression(self) -> Rc<AdditiveExpression> {
@@ -302,12 +302,12 @@ impl<'a> Maker<'a> {
                 .0;
         (node.clone(), SourceTree { text: source, ast: ParsedText::ArrowParameters(node) })
     }
-    // /// Use the configs in the [`Maker`] object to make a [`AssignmentElement`] parse node.
-    // pub(crate) fn assignment_element(self) -> Rc<AssignmentElement> {
-    //     AssignmentElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
-    //         .unwrap()
-    //         .0
-    // }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentElement`] parse node.
+    pub(crate) fn assignment_element(self) -> Rc<AssignmentElement> {
+        AssignmentElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     pub(crate) fn assignment_element_ast(self) -> (Rc<AssignmentElement>, SourceTree) {
         let source = self.source.to_string();
         let node =
@@ -316,12 +316,12 @@ impl<'a> Maker<'a> {
                 .0;
         (node.clone(), SourceTree { text: source, ast: ParsedText::AssignmentElement(node) })
     }
-    // /// Use the configs in the [`Maker`] object to make a [`AssignmentElementList`] parse node.
-    // pub(crate) fn assignment_element_list(self) -> Rc<AssignmentElementList> {
-    //     AssignmentElementList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
-    //         .unwrap()
-    //         .0
-    // }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentElementList`] parse node.
+    pub(crate) fn assignment_element_list(self) -> Rc<AssignmentElementList> {
+        AssignmentElementList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     pub(crate) fn assignment_element_list_ast(self) -> (Rc<AssignmentElementList>, SourceTree) {
         let source = self.source.to_string();
         let node =
@@ -330,12 +330,12 @@ impl<'a> Maker<'a> {
                 .0;
         (node.clone(), SourceTree { text: source, ast: ParsedText::AssignmentElementList(node) })
     }
-    // /// Use the configs in the [`Maker`] object to make a [`AssignmentElisionElement`] parse node.
-    // pub(crate) fn assignment_elision_element(self) -> Rc<AssignmentElisionElement> {
-    //     AssignmentElisionElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
-    //         .unwrap()
-    //         .0
-    // }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentElisionElement`] parse node.
+    pub(crate) fn assignment_elision_element(self) -> Rc<AssignmentElisionElement> {
+        AssignmentElisionElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     pub(crate) fn assignment_elision_element_ast(self) -> (Rc<AssignmentElisionElement>, SourceTree) {
         let source = self.source.to_string();
         let node = AssignmentElisionElement::parse(
@@ -387,12 +387,12 @@ impl<'a> Maker<'a> {
                 .0;
         (node.clone(), SourceTree { text: source, ast: ParsedText::AssignmentPattern(node) })
     }
-    // /// Use the configs in the [`Maker`] object to make a [`AssignmentProperty`] parse node.
-    // pub(crate) fn assignment_property(self) -> Rc<AssignmentProperty> {
-    //     AssignmentProperty::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
-    //         .unwrap()
-    //         .0
-    // }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentProperty`] parse node.
+    pub(crate) fn assignment_property(self) -> Rc<AssignmentProperty> {
+        AssignmentProperty::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     pub(crate) fn assignment_property_ast(self) -> (Rc<AssignmentProperty>, SourceTree) {
         let source = self.source.to_string();
         let node =
@@ -401,12 +401,12 @@ impl<'a> Maker<'a> {
                 .0;
         (node.clone(), SourceTree { text: source, ast: ParsedText::AssignmentProperty(node) })
     }
-    // /// Use the configs in the [`Maker`] object to make a [`AssignmentPropertyList`] parse node.
-    // pub(crate) fn assignment_property_list(self) -> Rc<AssignmentPropertyList> {
-    //     AssignmentPropertyList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
-    //         .unwrap()
-    //         .0
-    // }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentPropertyList`] parse node.
+    pub(crate) fn assignment_property_list(self) -> Rc<AssignmentPropertyList> {
+        AssignmentPropertyList::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     pub(crate) fn assignment_property_list_ast(self) -> (Rc<AssignmentPropertyList>, SourceTree) {
         let source = self.source.to_string();
         let node = AssignmentPropertyList::parse(
@@ -419,12 +419,12 @@ impl<'a> Maker<'a> {
         .0;
         (node.clone(), SourceTree { text: source, ast: ParsedText::AssignmentPropertyList(node) })
     }
-    // /// Use the configs in the [`Maker`] object to make a [`AssignmentRestElement`] parse node.
-    // pub(crate) fn assignment_rest_element(self) -> Rc<AssignmentRestElement> {
-    //     AssignmentRestElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
-    //         .unwrap()
-    //         .0
-    // }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentRestElement`] parse node.
+    pub(crate) fn assignment_rest_element(self) -> Rc<AssignmentRestElement> {
+        AssignmentRestElement::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     pub(crate) fn assignment_rest_element_ast(self) -> (Rc<AssignmentRestElement>, SourceTree) {
         let source = self.source.to_string();
         let node =
@@ -433,12 +433,12 @@ impl<'a> Maker<'a> {
                 .0;
         (node.clone(), SourceTree { text: source, ast: ParsedText::AssignmentRestElement(node) })
     }
-    // /// Use the configs in the [`Maker`] object to make a [`AssignmentRestProperty`] parse node.
-    // pub(crate) fn assignment_rest_property(self) -> Rc<AssignmentRestProperty> {
-    //     AssignmentRestProperty::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
-    //         .unwrap()
-    //         .0
-    // }
+    /// Use the configs in the [`Maker`] object to make a [`AssignmentRestProperty`] parse node.
+    pub(crate) fn assignment_rest_property(self) -> Rc<AssignmentRestProperty> {
+        AssignmentRestProperty::parse(&mut newparser(self.source), Scanner::new(), self.yield_flag, self.await_flag)
+            .unwrap()
+            .0
+    }
     pub(crate) fn assignment_rest_property_ast(self) -> (Rc<AssignmentRestProperty>, SourceTree) {
         let source = self.source.to_string();
         let node = AssignmentRestProperty::parse(
@@ -2298,11 +2298,11 @@ impl<'a> Maker<'a> {
     pub(crate) fn property_set_parameter_list(self) -> Rc<PropertySetParameterList> {
         PropertySetParameterList::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
-    //pub(crate) fn property_set_parameter_list_ast(self) -> (Rc<PropertySetParameterList>, SourceTree) {
-    //    let source = self.source.to_string();
-    //    let node = PropertySetParameterList::parse(&mut newparser(self.source), Scanner::new()).unwrap().0;
-    //    (node.clone(), SourceTree { text: source, ast: ParsedText::PropertySetParameterList(node) })
-    //}
+    pub(crate) fn property_set_parameter_list_ast(self) -> (Rc<PropertySetParameterList>, SourceTree) {
+        let source = self.source.to_string();
+        let node = PropertySetParameterList::parse(&mut newparser(self.source), Scanner::new()).unwrap().0;
+        (node.clone(), SourceTree { text: source, ast: ParsedText::PropertySetParameterList(node) })
+    }
     /// Use the configs in the [`Maker`] object to make a [`RelationalExpression`] parse node.
     pub(crate) fn relational_expression(self) -> Rc<RelationalExpression> {
         RelationalExpression::parse(
@@ -2593,17 +2593,17 @@ impl<'a> Maker<'a> {
         (node.clone(), SourceTree { text: source, ast: ParsedText::TemplateLiteral(node) })
     }
     /// Use the configs in the [`Maker`] object to make a [`TemplateMiddleList`] parse node.
-    // pub(crate) fn template_middle_list(self) -> Rc<TemplateMiddleList> {
-    //     TemplateMiddleList::parse(
-    //         &mut newparser(self.source),
-    //         Scanner::new(),
-    //         self.yield_flag,
-    //         self.await_flag,
-    //         self.tagged_flag,
-    //     )
-    //     .unwrap()
-    //     .0
-    // }
+    pub(crate) fn template_middle_list(self) -> Rc<TemplateMiddleList> {
+        TemplateMiddleList::parse(
+            &mut newparser(self.source),
+            Scanner::new(),
+            self.yield_flag,
+            self.await_flag,
+            self.tagged_flag,
+        )
+        .unwrap()
+        .0
+    }
     pub(crate) fn template_middle_list_ast(self) -> (Rc<TemplateMiddleList>, SourceTree) {
         let source = self.source.to_string();
         let node = TemplateMiddleList::parse(
@@ -2844,12 +2844,20 @@ impl<'a> Maker<'a> {
 }
 
 pub(crate) fn find_call(src: &str) -> Location {
-    let loc_default =
-        Location { starting_line: 10, starting_column: 1, span: Span { starting_index: src.len(), length: 6 } };
-    src.find("call()").map_or(loc_default, |starting_index| Location {
+    find_text(src, "call()")
+}
+
+pub(crate) fn find_text(src: &str, needle: &str) -> Location {
+    let needle_length = needle.len();
+    let loc_default = Location {
+        starting_line: 10,
+        starting_column: 1,
+        span: Span { starting_index: src.len(), length: needle_length },
+    };
+    src.find(needle).map_or(loc_default, |starting_index| Location {
         starting_line: 1,
         starting_column: u32::try_from(starting_index).unwrap() + 1,
-        span: Span { starting_index, length: 6 },
+        span: Span { starting_index, length: needle_length },
     })
 }
 
@@ -2887,3 +2895,2719 @@ pub(crate) const YIELD_IN_GENPARAM: &str = "Yield expressions can't be parameter
 pub(crate) const AWAIT_IN_CLASS_STATIC: &str = "Cannot use await in class static initialization block";
 pub(crate) const BAD_EVAL: &str = "identifier not allowed in strict mode: eval";
 pub(crate) const BAD_ARGUMENTS: &str = "identifier not allowed in strict mode: arguments";
+
+impl ParsedText {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            Self::Errors(_) | Self::Empty => None,
+            Self::FormalParameters(formal_parameters) => formal_parameters.find_call_expression_at(loc),
+            Self::FunctionBody(function_body) => function_body.find_call_expression_at(loc),
+            Self::FunctionExpression(function_expression) => function_expression.find_call_expression_at(loc),
+            Self::GeneratorBody(generator_body) => generator_body.find_call_expression_at(loc),
+            Self::GeneratorExpression(generator_expression) => generator_expression.find_call_expression_at(loc),
+            Self::Script(script) => script.find_call_expression_at(loc),
+            Self::AsyncFunctionBody(async_function_body) => async_function_body.find_call_expression_at(loc),
+            Self::AsyncFunctionExpression(async_function_expression) => {
+                async_function_expression.find_call_expression_at(loc)
+            }
+            Self::AsyncGeneratorBody(async_generator_body) => async_generator_body.find_call_expression_at(loc),
+            Self::AsyncGeneratorExpression(async_generator_expression) => {
+                async_generator_expression.find_call_expression_at(loc)
+            }
+            Self::AdditiveExpression(additive_expression) => additive_expression.find_call_expression_at(loc),
+            Self::ArgumentList(argument_list) => argument_list.find_call_expression_at(loc),
+            Self::Arguments(arguments) => arguments.find_call_expression_at(loc),
+            Self::ArrayAssignmentPattern(array_assignment_pattern) => {
+                array_assignment_pattern.find_call_expression_at(loc)
+            }
+            Self::ArrayBindingPattern(array_binding_pattern) => array_binding_pattern.find_call_expression_at(loc),
+            Self::ArrayLiteral(array_literal) => array_literal.find_call_expression_at(loc),
+            Self::ArrowFormalParameters(arrow_formal_parameters) => {
+                arrow_formal_parameters.find_call_expression_at(loc)
+            }
+            Self::ArrowFunction(arrow_function) => arrow_function.find_call_expression_at(loc),
+            Self::ArrowParameters(arrow_parameters) => arrow_parameters.find_call_expression_at(loc),
+            Self::AssignmentElement(assignment_element) => assignment_element.find_call_expression_at(loc),
+            Self::AssignmentElementList(assignment_element_list) => {
+                assignment_element_list.find_call_expression_at(loc)
+            }
+            Self::AssignmentElisionElement(assignment_elision_element) => {
+                assignment_elision_element.find_call_expression_at(loc)
+            }
+            Self::AssignmentExpression(assignment_expression) => assignment_expression.find_call_expression_at(loc),
+            Self::AssignmentPattern(assignment_pattern) => assignment_pattern.find_call_expression_at(loc),
+            Self::AssignmentProperty(assignment_property) => assignment_property.find_call_expression_at(loc),
+            Self::AssignmentPropertyList(assignment_property_list) => {
+                assignment_property_list.find_call_expression_at(loc)
+            }
+            Self::AssignmentRestElement(assignment_rest_element) => {
+                assignment_rest_element.find_call_expression_at(loc)
+            }
+            Self::AssignmentRestProperty(assignment_rest_property) => {
+                assignment_rest_property.find_call_expression_at(loc)
+            }
+            Self::AsyncArrowBindingIdentifier(async_arrow_binding_identifier) => {
+                async_arrow_binding_identifier.find_call_expression_at(loc)
+            }
+            Self::AsyncFunctionDeclaration(async_function_declaration) => {
+                async_function_declaration.find_call_expression_at(loc)
+            }
+            Self::AsyncGeneratorDeclaration(async_generator_declaration) => {
+                async_generator_declaration.find_call_expression_at(loc)
+            }
+            Self::BindingElement(binding_element) => binding_element.find_call_expression_at(loc),
+            Self::BindingElementList(binding_element_list) => binding_element_list.find_call_expression_at(loc),
+            Self::BindingElisionElement(binding_elision_element) => {
+                binding_elision_element.find_call_expression_at(loc)
+            }
+            Self::BindingList(binding_list) => binding_list.find_call_expression_at(loc),
+            Self::BindingPattern(binding_pattern) => binding_pattern.find_call_expression_at(loc),
+            Self::BindingProperty(binding_property) => binding_property.find_call_expression_at(loc),
+            Self::BindingPropertyList(binding_property_list) => binding_property_list.find_call_expression_at(loc),
+            Self::BindingRestElement(binding_rest_element) => binding_rest_element.find_call_expression_at(loc),
+            Self::BitwiseANDExpression(bitwise_andexpression) => bitwise_andexpression.find_call_expression_at(loc),
+            Self::BitwiseORExpression(bitwise_orexpression) => bitwise_orexpression.find_call_expression_at(loc),
+            Self::BitwiseXORExpression(bitwise_xorexpression) => bitwise_xorexpression.find_call_expression_at(loc),
+            Self::Block(block) => block.find_call_expression_at(loc),
+            Self::BlockStatement(block_statement) => block_statement.find_call_expression_at(loc),
+            Self::BreakableStatement(breakable_statement) => breakable_statement.find_call_expression_at(loc),
+            Self::CallExpression(call_expression) => call_expression.find_call_expression_at(loc),
+            Self::CallMemberExpression(call_member_expression) => call_member_expression.find_call_expression_at(loc),
+            Self::CaseBlock(case_block) => case_block.find_call_expression_at(loc),
+            Self::CaseClause(case_clause) => case_clause.find_call_expression_at(loc),
+            Self::Catch(catch) => catch.find_call_expression_at(loc),
+            Self::CatchParameter(catch_parameter) => catch_parameter.find_call_expression_at(loc),
+            Self::ClassDeclaration(class_declaration) => class_declaration.find_call_expression_at(loc),
+            Self::ClassElementName(class_element_name) => class_element_name.find_call_expression_at(loc),
+            Self::ClassStaticBlockBody(class_static_block_body) => class_static_block_body.find_call_expression_at(loc),
+            Self::ClassStaticBlockStatementList(class_static_block_statement_list) => {
+                class_static_block_statement_list.find_call_expression_at(loc)
+            }
+            Self::CoalesceExpression(coalesce_expression) => coalesce_expression.find_call_expression_at(loc),
+            Self::CoalesceExpressionHead(coalesce_expression_head) => {
+                coalesce_expression_head.find_call_expression_at(loc)
+            }
+            Self::ComputedPropertyName(computed_property_name) => computed_property_name.find_call_expression_at(loc),
+            Self::ConditionalExpression(conditional_expression) => conditional_expression.find_call_expression_at(loc),
+            Self::Declaration(declaration) => declaration.find_call_expression_at(loc),
+            Self::DefaultClause(default_clause) => default_clause.find_call_expression_at(loc),
+            Self::DestructuringAssignmentTarget(destructuring_assignment_target) => {
+                destructuring_assignment_target.find_call_expression_at(loc)
+            }
+            Self::DoWhileStatement(do_while_statement) => do_while_statement.find_call_expression_at(loc),
+            Self::ElementList(element_list) => element_list.find_call_expression_at(loc),
+            Self::EqualityExpression(equality_expression) => equality_expression.find_call_expression_at(loc),
+            Self::ExponentiationExpression(exponentiation_expression) => {
+                exponentiation_expression.find_call_expression_at(loc)
+            }
+            Self::Expression(expression) => expression.find_call_expression_at(loc),
+            Self::ExpressionBody(expression_body) => expression_body.find_call_expression_at(loc),
+            Self::ExpressionStatement(expression_statement) => expression_statement.find_call_expression_at(loc),
+            Self::FieldDefinition(field_definition) => field_definition.find_call_expression_at(loc),
+            Self::Finally(finally) => finally.find_call_expression_at(loc),
+            Self::ForBinding(for_binding) => for_binding.find_call_expression_at(loc),
+            Self::ForDeclaration(for_declaration) => for_declaration.find_call_expression_at(loc),
+            Self::ForInOfStatement(for_in_of_statement) => for_in_of_statement.find_call_expression_at(loc),
+            Self::FormalParameter(formal_parameter) => formal_parameter.find_call_expression_at(loc),
+            Self::FormalParameterList(formal_parameter_list) => formal_parameter_list.find_call_expression_at(loc),
+            Self::ForStatement(for_statement) => for_statement.find_call_expression_at(loc),
+            Self::FunctionDeclaration(function_declaration) => function_declaration.find_call_expression_at(loc),
+            Self::FunctionRestParameter(function_rest_parameter) => {
+                function_rest_parameter.find_call_expression_at(loc)
+            }
+            Self::FunctionStatementList(function_statement_list) => {
+                function_statement_list.find_call_expression_at(loc)
+            }
+            Self::GeneratorDeclaration(generator_declaration) => generator_declaration.find_call_expression_at(loc),
+            Self::IfStatement(if_statement) => if_statement.find_call_expression_at(loc),
+            Self::Initializer(initializer) => initializer.find_call_expression_at(loc),
+            Self::IterationStatement(iteration_statement) => iteration_statement.find_call_expression_at(loc),
+            Self::LabelledItem(labelled_item) => labelled_item.find_call_expression_at(loc),
+            Self::LabelledStatement(labelled_statement) => labelled_statement.find_call_expression_at(loc),
+            Self::LeftHandSideExpression(left_hand_side_expression) => {
+                left_hand_side_expression.find_call_expression_at(loc)
+            }
+            Self::LexicalBinding(lexical_binding) => lexical_binding.find_call_expression_at(loc),
+            Self::LexicalDeclaration(lexical_declaration) => lexical_declaration.find_call_expression_at(loc),
+            Self::LogicalANDExpression(logical_andexpression) => logical_andexpression.find_call_expression_at(loc),
+            Self::LogicalORExpression(logical_orexpression) => logical_orexpression.find_call_expression_at(loc),
+            Self::MemberExpression(member_expression) => member_expression.find_call_expression_at(loc),
+            Self::MethodDefinition(method_definition) => method_definition.find_call_expression_at(loc),
+            Self::MultiplicativeExpression(multiplicative_expression) => {
+                multiplicative_expression.find_call_expression_at(loc)
+            }
+            Self::NewExpression(new_expression) => new_expression.find_call_expression_at(loc),
+            Self::ObjectAssignmentPattern(object_assignment_pattern) => {
+                object_assignment_pattern.find_call_expression_at(loc)
+            }
+            Self::ObjectBindingPattern(object_binding_pattern) => object_binding_pattern.find_call_expression_at(loc),
+            Self::ObjectLiteral(object_literal) => object_literal.find_call_expression_at(loc),
+            Self::OptionalChain(optional_chain) => optional_chain.find_call_expression_at(loc),
+            Self::OptionalExpression(optional_expression) => optional_expression.find_call_expression_at(loc),
+            Self::ParenthesizedExpression(parenthesized_expression) => {
+                parenthesized_expression.find_call_expression_at(loc)
+            }
+            Self::PrimaryExpression(primary_expression) => primary_expression.find_call_expression_at(loc),
+            Self::PropertyDefinition(property_definition) => property_definition.find_call_expression_at(loc),
+            Self::PropertyDefinitionList(property_definition_list) => {
+                property_definition_list.find_call_expression_at(loc)
+            }
+            Self::PropertyName(property_name) => property_name.find_call_expression_at(loc),
+            Self::PropertySetParameterList(property_set_parameter_list) => {
+                property_set_parameter_list.find_call_expression_at(loc)
+            }
+            Self::RelationalExpression(relational_expression) => relational_expression.find_call_expression_at(loc),
+            Self::ReturnStatement(return_statement) => return_statement.find_call_expression_at(loc),
+            Self::ScriptBody(script_body) => script_body.find_call_expression_at(loc),
+            Self::ShiftExpression(shift_expression) => shift_expression.find_call_expression_at(loc),
+            Self::ShortCircuitExpression(short_circuit_expression) => {
+                short_circuit_expression.find_call_expression_at(loc)
+            }
+            Self::SingleNameBinding(single_name_binding) => single_name_binding.find_call_expression_at(loc),
+            Self::SpreadElement(spread_element) => spread_element.find_call_expression_at(loc),
+            Self::Statement(statement) => statement.find_call_expression_at(loc),
+            Self::StatementList(statement_list) => statement_list.find_call_expression_at(loc),
+            Self::StatementListItem(statement_list_item) => statement_list_item.find_call_expression_at(loc),
+            Self::SubstitutionTemplate(substitution_template) => substitution_template.find_call_expression_at(loc),
+            Self::SwitchStatement(switch_statement) => switch_statement.find_call_expression_at(loc),
+            Self::TemplateLiteral(template_literal) => template_literal.find_call_expression_at(loc),
+            Self::TemplateMiddleList(template_middle_list) => template_middle_list.find_call_expression_at(loc),
+            Self::TemplateSpans(template_spans) => template_spans.find_call_expression_at(loc),
+            Self::ThrowStatement(throw_statement) => throw_statement.find_call_expression_at(loc),
+            Self::TryStatement(try_statement) => try_statement.find_call_expression_at(loc),
+            Self::UnaryExpression(unary_expression) => unary_expression.find_call_expression_at(loc),
+            Self::UniqueFormalParameters(unique_formal_parameters) => {
+                unique_formal_parameters.find_call_expression_at(loc)
+            }
+            Self::UpdateExpression(update_expression) => update_expression.find_call_expression_at(loc),
+            Self::VariableDeclaration(variable_declaration) => variable_declaration.find_call_expression_at(loc),
+            Self::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.find_call_expression_at(loc)
+            }
+            Self::VariableStatement(variable_statement) => variable_statement.find_call_expression_at(loc),
+            Self::WhileStatement(while_statement) => while_statement.find_call_expression_at(loc),
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            Self::Errors(_) | Self::Empty => None,
+            Self::FormalParameters(formal_parameters) => formal_parameters.find_call_member_expression_at(loc),
+            Self::FunctionBody(function_body) => function_body.find_call_member_expression_at(loc),
+            Self::FunctionExpression(function_expression) => function_expression.find_call_member_expression_at(loc),
+            Self::GeneratorBody(generator_body) => generator_body.find_call_member_expression_at(loc),
+            Self::GeneratorExpression(generator_expression) => generator_expression.find_call_member_expression_at(loc),
+            Self::Script(script) => script.find_call_member_expression_at(loc),
+            Self::AsyncFunctionBody(async_function_body) => async_function_body.find_call_member_expression_at(loc),
+            Self::AsyncFunctionExpression(async_function_expression) => {
+                async_function_expression.find_call_member_expression_at(loc)
+            }
+            Self::AsyncGeneratorBody(async_generator_body) => async_generator_body.find_call_member_expression_at(loc),
+            Self::AsyncGeneratorExpression(async_generator_expression) => {
+                async_generator_expression.find_call_member_expression_at(loc)
+            }
+            Self::AdditiveExpression(additive_expression) => additive_expression.find_call_member_expression_at(loc),
+            Self::ArgumentList(argument_list) => argument_list.find_call_member_expression_at(loc),
+            Self::Arguments(arguments) => arguments.find_call_member_expression_at(loc),
+            Self::ArrayAssignmentPattern(array_assignment_pattern) => {
+                array_assignment_pattern.find_call_member_expression_at(loc)
+            }
+            Self::ArrayBindingPattern(array_binding_pattern) => {
+                array_binding_pattern.find_call_member_expression_at(loc)
+            }
+            Self::ArrayLiteral(array_literal) => array_literal.find_call_member_expression_at(loc),
+            Self::ArrowFormalParameters(arrow_formal_parameters) => {
+                arrow_formal_parameters.find_call_member_expression_at(loc)
+            }
+            Self::ArrowFunction(arrow_function) => arrow_function.find_call_member_expression_at(loc),
+            Self::ArrowParameters(arrow_parameters) => arrow_parameters.find_call_member_expression_at(loc),
+            Self::AssignmentElement(assignment_element) => assignment_element.find_call_member_expression_at(loc),
+            Self::AssignmentElementList(assignment_element_list) => {
+                assignment_element_list.find_call_member_expression_at(loc)
+            }
+            Self::AssignmentElisionElement(assignment_elision_element) => {
+                assignment_elision_element.find_call_member_expression_at(loc)
+            }
+            Self::AssignmentExpression(assignment_expression) => {
+                assignment_expression.find_call_member_expression_at(loc)
+            }
+            Self::AssignmentPattern(assignment_pattern) => assignment_pattern.find_call_member_expression_at(loc),
+            Self::AssignmentProperty(assignment_property) => assignment_property.find_call_member_expression_at(loc),
+            Self::AssignmentPropertyList(assignment_property_list) => {
+                assignment_property_list.find_call_member_expression_at(loc)
+            }
+            Self::AssignmentRestElement(assignment_rest_element) => {
+                assignment_rest_element.find_call_member_expression_at(loc)
+            }
+            Self::AssignmentRestProperty(assignment_rest_property) => {
+                assignment_rest_property.find_call_member_expression_at(loc)
+            }
+            Self::AsyncArrowBindingIdentifier(async_arrow_binding_identifier) => {
+                async_arrow_binding_identifier.find_call_member_expression_at(loc)
+            }
+            Self::AsyncFunctionDeclaration(async_function_declaration) => {
+                async_function_declaration.find_call_member_expression_at(loc)
+            }
+            Self::AsyncGeneratorDeclaration(async_generator_declaration) => {
+                async_generator_declaration.find_call_member_expression_at(loc)
+            }
+            Self::BindingElement(binding_element) => binding_element.find_call_member_expression_at(loc),
+            Self::BindingElementList(binding_element_list) => binding_element_list.find_call_member_expression_at(loc),
+            Self::BindingElisionElement(binding_elision_element) => {
+                binding_elision_element.find_call_member_expression_at(loc)
+            }
+            Self::BindingList(binding_list) => binding_list.find_call_member_expression_at(loc),
+            Self::BindingPattern(binding_pattern) => binding_pattern.find_call_member_expression_at(loc),
+            Self::BindingProperty(binding_property) => binding_property.find_call_member_expression_at(loc),
+            Self::BindingPropertyList(binding_property_list) => {
+                binding_property_list.find_call_member_expression_at(loc)
+            }
+            Self::BindingRestElement(binding_rest_element) => binding_rest_element.find_call_member_expression_at(loc),
+            Self::BitwiseANDExpression(bitwise_andexpression) => {
+                bitwise_andexpression.find_call_member_expression_at(loc)
+            }
+            Self::BitwiseORExpression(bitwise_orexpression) => bitwise_orexpression.find_call_member_expression_at(loc),
+            Self::BitwiseXORExpression(bitwise_xorexpression) => {
+                bitwise_xorexpression.find_call_member_expression_at(loc)
+            }
+            Self::Block(block) => block.find_call_member_expression_at(loc),
+            Self::BlockStatement(block_statement) => block_statement.find_call_member_expression_at(loc),
+            Self::BreakableStatement(breakable_statement) => breakable_statement.find_call_member_expression_at(loc),
+            Self::CallExpression(call_expression) => call_expression.find_call_member_expression_at(loc),
+            Self::CallMemberExpression(call_member_expression) => {
+                call_member_expression.find_call_member_expression_at(loc)
+            }
+            Self::CaseBlock(case_block) => case_block.find_call_member_expression_at(loc),
+            Self::CaseClause(case_clause) => case_clause.find_call_member_expression_at(loc),
+            Self::Catch(catch) => catch.find_call_member_expression_at(loc),
+            Self::CatchParameter(catch_parameter) => catch_parameter.find_call_member_expression_at(loc),
+            Self::ClassDeclaration(class_declaration) => class_declaration.find_call_member_expression_at(loc),
+            Self::ClassElementName(class_element_name) => class_element_name.find_call_member_expression_at(loc),
+            Self::ClassStaticBlockBody(class_static_block_body) => {
+                class_static_block_body.find_call_member_expression_at(loc)
+            }
+            Self::ClassStaticBlockStatementList(class_static_block_statement_list) => {
+                class_static_block_statement_list.find_call_member_expression_at(loc)
+            }
+            Self::CoalesceExpression(coalesce_expression) => coalesce_expression.find_call_member_expression_at(loc),
+            Self::CoalesceExpressionHead(coalesce_expression_head) => {
+                coalesce_expression_head.find_call_member_expression_at(loc)
+            }
+            Self::ComputedPropertyName(computed_property_name) => {
+                computed_property_name.find_call_member_expression_at(loc)
+            }
+            Self::ConditionalExpression(conditional_expression) => {
+                conditional_expression.find_call_member_expression_at(loc)
+            }
+            Self::Declaration(declaration) => declaration.find_call_member_expression_at(loc),
+            Self::DefaultClause(default_clause) => default_clause.find_call_member_expression_at(loc),
+            Self::DestructuringAssignmentTarget(destructuring_assignment_target) => {
+                destructuring_assignment_target.find_call_member_expression_at(loc)
+            }
+            Self::DoWhileStatement(do_while_statement) => do_while_statement.find_call_member_expression_at(loc),
+            Self::ElementList(element_list) => element_list.find_call_member_expression_at(loc),
+            Self::EqualityExpression(equality_expression) => equality_expression.find_call_member_expression_at(loc),
+            Self::ExponentiationExpression(exponentiation_expression) => {
+                exponentiation_expression.find_call_member_expression_at(loc)
+            }
+            Self::Expression(expression) => expression.find_call_member_expression_at(loc),
+            Self::ExpressionBody(expression_body) => expression_body.find_call_member_expression_at(loc),
+            Self::ExpressionStatement(expression_statement) => expression_statement.find_call_member_expression_at(loc),
+            Self::FieldDefinition(field_definition) => field_definition.find_call_member_expression_at(loc),
+            Self::Finally(finally) => finally.find_call_member_expression_at(loc),
+            Self::ForBinding(for_binding) => for_binding.find_call_member_expression_at(loc),
+            Self::ForDeclaration(for_declaration) => for_declaration.find_call_member_expression_at(loc),
+            Self::ForInOfStatement(for_in_of_statement) => for_in_of_statement.find_call_member_expression_at(loc),
+            Self::FormalParameter(formal_parameter) => formal_parameter.find_call_member_expression_at(loc),
+            Self::FormalParameterList(formal_parameter_list) => {
+                formal_parameter_list.find_call_member_expression_at(loc)
+            }
+            Self::ForStatement(for_statement) => for_statement.find_call_member_expression_at(loc),
+            Self::FunctionDeclaration(function_declaration) => function_declaration.find_call_member_expression_at(loc),
+            Self::FunctionRestParameter(function_rest_parameter) => {
+                function_rest_parameter.find_call_member_expression_at(loc)
+            }
+            Self::FunctionStatementList(function_statement_list) => {
+                function_statement_list.find_call_member_expression_at(loc)
+            }
+            Self::GeneratorDeclaration(generator_declaration) => {
+                generator_declaration.find_call_member_expression_at(loc)
+            }
+            Self::IfStatement(if_statement) => if_statement.find_call_member_expression_at(loc),
+            Self::Initializer(initializer) => initializer.find_call_member_expression_at(loc),
+            Self::IterationStatement(iteration_statement) => iteration_statement.find_call_member_expression_at(loc),
+            Self::LabelledItem(labelled_item) => labelled_item.find_call_member_expression_at(loc),
+            Self::LabelledStatement(labelled_statement) => labelled_statement.find_call_member_expression_at(loc),
+            Self::LeftHandSideExpression(left_hand_side_expression) => {
+                left_hand_side_expression.find_call_member_expression_at(loc)
+            }
+            Self::LexicalBinding(lexical_binding) => lexical_binding.find_call_member_expression_at(loc),
+            Self::LexicalDeclaration(lexical_declaration) => lexical_declaration.find_call_member_expression_at(loc),
+            Self::LogicalANDExpression(logical_andexpression) => {
+                logical_andexpression.find_call_member_expression_at(loc)
+            }
+            Self::LogicalORExpression(logical_orexpression) => logical_orexpression.find_call_member_expression_at(loc),
+            Self::MemberExpression(member_expression) => member_expression.find_call_member_expression_at(loc),
+            Self::MethodDefinition(method_definition) => method_definition.find_call_member_expression_at(loc),
+            Self::MultiplicativeExpression(multiplicative_expression) => {
+                multiplicative_expression.find_call_member_expression_at(loc)
+            }
+            Self::NewExpression(new_expression) => new_expression.find_call_member_expression_at(loc),
+            Self::ObjectAssignmentPattern(object_assignment_pattern) => {
+                object_assignment_pattern.find_call_member_expression_at(loc)
+            }
+            Self::ObjectBindingPattern(object_binding_pattern) => {
+                object_binding_pattern.find_call_member_expression_at(loc)
+            }
+            Self::ObjectLiteral(object_literal) => object_literal.find_call_member_expression_at(loc),
+            Self::OptionalChain(optional_chain) => optional_chain.find_call_member_expression_at(loc),
+            Self::OptionalExpression(optional_expression) => optional_expression.find_call_member_expression_at(loc),
+            Self::ParenthesizedExpression(parenthesized_expression) => {
+                parenthesized_expression.find_call_member_expression_at(loc)
+            }
+            Self::PrimaryExpression(primary_expression) => primary_expression.find_call_member_expression_at(loc),
+            Self::PropertyDefinition(property_definition) => property_definition.find_call_member_expression_at(loc),
+            Self::PropertyDefinitionList(property_definition_list) => {
+                property_definition_list.find_call_member_expression_at(loc)
+            }
+            Self::PropertyName(property_name) => property_name.find_call_member_expression_at(loc),
+            Self::PropertySetParameterList(property_set_parameter_list) => {
+                property_set_parameter_list.find_call_member_expression_at(loc)
+            }
+            Self::RelationalExpression(relational_expression) => {
+                relational_expression.find_call_member_expression_at(loc)
+            }
+            Self::ReturnStatement(return_statement) => return_statement.find_call_member_expression_at(loc),
+            Self::ScriptBody(script_body) => script_body.find_call_member_expression_at(loc),
+            Self::ShiftExpression(shift_expression) => shift_expression.find_call_member_expression_at(loc),
+            Self::ShortCircuitExpression(short_circuit_expression) => {
+                short_circuit_expression.find_call_member_expression_at(loc)
+            }
+            Self::SingleNameBinding(single_name_binding) => single_name_binding.find_call_member_expression_at(loc),
+            Self::SpreadElement(spread_element) => spread_element.find_call_member_expression_at(loc),
+            Self::Statement(statement) => statement.find_call_member_expression_at(loc),
+            Self::StatementList(statement_list) => statement_list.find_call_member_expression_at(loc),
+            Self::StatementListItem(statement_list_item) => statement_list_item.find_call_member_expression_at(loc),
+            Self::SubstitutionTemplate(substitution_template) => {
+                substitution_template.find_call_member_expression_at(loc)
+            }
+            Self::SwitchStatement(switch_statement) => switch_statement.find_call_member_expression_at(loc),
+            Self::TemplateLiteral(template_literal) => template_literal.find_call_member_expression_at(loc),
+            Self::TemplateMiddleList(template_middle_list) => template_middle_list.find_call_member_expression_at(loc),
+            Self::TemplateSpans(template_spans) => template_spans.find_call_member_expression_at(loc),
+            Self::ThrowStatement(throw_statement) => throw_statement.find_call_member_expression_at(loc),
+            Self::TryStatement(try_statement) => try_statement.find_call_member_expression_at(loc),
+            Self::UnaryExpression(unary_expression) => unary_expression.find_call_member_expression_at(loc),
+            Self::UniqueFormalParameters(unique_formal_parameters) => {
+                unique_formal_parameters.find_call_member_expression_at(loc)
+            }
+            Self::UpdateExpression(update_expression) => update_expression.find_call_member_expression_at(loc),
+            Self::VariableDeclaration(variable_declaration) => variable_declaration.find_call_member_expression_at(loc),
+            Self::VariableDeclarationList(variable_declaration_list) => {
+                variable_declaration_list.find_call_member_expression_at(loc)
+            }
+            Self::VariableStatement(variable_statement) => variable_statement.find_call_member_expression_at(loc),
+            Self::WhileStatement(while_statement) => while_statement.find_call_member_expression_at(loc),
+        }
+    }
+}
+
+impl block::StatementListItem {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            StatementListItem::Statement(node) => node.find_call_expression_at(loc),
+            StatementListItem::Declaration(node) => node.find_call_expression_at(loc),
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            StatementListItem::Statement(node) => node.find_call_member_expression_at(loc),
+            StatementListItem::Declaration(node) => node.find_call_member_expression_at(loc),
+        }
+    }
+}
+
+impl declarations_and_variables::BindingProperty {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl declarations_and_variables::BindingPropertyList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl binary_bitwise_operators::BitwiseANDExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            BitwiseANDExpression::EqualityExpression(node) => node.find_call_expression_at(loc),
+            BitwiseANDExpression::BitwiseAND(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            BitwiseANDExpression::EqualityExpression(node) => node.find_call_member_expression_at(loc),
+            BitwiseANDExpression::BitwiseAND(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl binary_bitwise_operators::BitwiseORExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(node) => node.find_call_expression_at(loc),
+            BitwiseORExpression::BitwiseOR(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            BitwiseORExpression::BitwiseXORExpression(node) => node.find_call_member_expression_at(loc),
+            BitwiseORExpression::BitwiseOR(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl binary_bitwise_operators::BitwiseXORExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(node) => node.find_call_expression_at(loc),
+            BitwiseXORExpression::BitwiseXOR(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            BitwiseXORExpression::BitwiseANDExpression(node) => node.find_call_member_expression_at(loc),
+            BitwiseXORExpression::BitwiseXOR(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl parser::block::Block {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parser::block::BlockStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl statements_and_declarations::BreakableStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl left_hand_side_expressions::CallExpression {
+    pub(crate) fn find_call_expression_at(self: &Rc<Self>, loc: &Location) -> Option<Rc<CallExpression>> {
+        if self.location() == *loc {
+            Some(self.clone())
+        } else {
+            match self.as_ref() {
+                CallExpression::CallMemberExpression(node) => node.find_call_expression_at(loc),
+                CallExpression::SuperCall(node) => node.find_call_expression_at(loc),
+                CallExpression::ImportCall(node) => node.find_call_expression_at(loc),
+                CallExpression::CallThenArguments(node1, node2) => {
+                    if node1.location().contains(loc) {
+                        node1.find_call_expression_at(loc)
+                    } else if node2.location().contains(loc) {
+                        node2.find_call_expression_at(loc)
+                    } else {
+                        None
+                    }
+                }
+                CallExpression::CallThenExpression(node1, node2, _) => {
+                    if node1.location().contains(loc) {
+                        node1.find_call_expression_at(loc)
+                    } else if node2.location().contains(loc) {
+                        node2.find_call_expression_at(loc)
+                    } else {
+                        None
+                    }
+                }
+                CallExpression::CallThenName(node, _, _) | CallExpression::CallThenPrivateId(node, _, _) => {
+                    if node.location().contains(loc) { node.find_call_expression_at(loc) } else { None }
+                }
+                CallExpression::CallThenTemplateLiteral(node1, node2) => {
+                    if node1.location().contains(loc) {
+                        node1.find_call_expression_at(loc)
+                    } else if node2.location().contains(loc) {
+                        node2.find_call_expression_at(loc)
+                    } else {
+                        None
+                    }
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            CallExpression::CallMemberExpression(node) => node.find_call_member_expression_at(loc),
+            CallExpression::SuperCall(node) => node.find_call_member_expression_at(loc),
+            CallExpression::ImportCall(node) => node.find_call_member_expression_at(loc),
+            CallExpression::CallThenArguments(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            CallExpression::CallThenExpression(node1, node2, _) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            CallExpression::CallThenName(node, _, _) | CallExpression::CallThenPrivateId(node, _, _) => {
+                if node.location().contains(loc) { node.find_call_member_expression_at(loc) } else { None }
+            }
+            CallExpression::CallThenTemplateLiteral(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl left_hand_side_expressions::CallMemberExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    pub(crate) fn find_call_member_expression_at(self: &Rc<Self>, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        if self.location() == *loc {
+            Some(self.clone())
+        } else if self.member_expression.location().contains(loc) {
+            self.member_expression.find_call_member_expression_at(loc)
+        } else if self.arguments.location().contains(loc) {
+            self.arguments.find_call_member_expression_at(loc)
+        } else {
+            None
+        }
+    }
+}
+
+impl ImportCall {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl SuperCall {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parser::switch_statement::CaseBlock {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parser::switch_statement::CaseClause {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parser::try_statement::Catch {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parser::try_statement::CatchParameter {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl class_definitions::ClassDeclaration {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl class_definitions::ClassElementName {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl class_definitions::ClassStaticBlockBody {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl class_definitions::ClassStaticBlockStatementList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl binary_logical_operators::CoalesceExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl binary_logical_operators::CoalesceExpressionHead {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::ComputedPropertyName {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl conditional_operator::ConditionalExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            ConditionalExpression::FallThru(node) => node.find_call_expression_at(loc),
+            ConditionalExpression::Conditional(node1, node2, node3) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else if node3.location().contains(loc) {
+                    node3.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            ConditionalExpression::FallThru(node) => node.find_call_member_expression_at(loc),
+            ConditionalExpression::Conditional(node1, node2, node3) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else if node3.location().contains(loc) {
+                    node3.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl statements_and_declarations::Declaration {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            Declaration::Hoistable(node) => node.find_call_expression_at(loc),
+            Declaration::Class(node) => node.find_call_expression_at(loc),
+            Declaration::Lexical(node) => node.find_call_expression_at(loc),
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            Declaration::Hoistable(node) => node.find_call_member_expression_at(loc),
+            Declaration::Class(node) => node.find_call_member_expression_at(loc),
+            Declaration::Lexical(node) => node.find_call_member_expression_at(loc),
+        }
+    }
+}
+
+impl statements_and_declarations::HoistableDeclaration {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            HoistableDeclaration::Function(node) => node.find_call_expression_at(loc),
+            HoistableDeclaration::Generator(node) => node.find_call_expression_at(loc),
+            HoistableDeclaration::AsyncFunction(node) => node.find_call_expression_at(loc),
+            HoistableDeclaration::AsyncGenerator(node) => node.find_call_expression_at(loc),
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            HoistableDeclaration::Function(node) => node.find_call_member_expression_at(loc),
+            HoistableDeclaration::Generator(node) => node.find_call_member_expression_at(loc),
+            HoistableDeclaration::AsyncFunction(node) => node.find_call_member_expression_at(loc),
+            HoistableDeclaration::AsyncGenerator(node) => node.find_call_member_expression_at(loc),
+        }
+    }
+}
+
+impl parser::switch_statement::DefaultClause {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl assignment_operators::DestructuringAssignmentTarget {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl iteration_statements::DoWhileStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::ElementList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl equality_operators::EqualityExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            EqualityExpression::RelationalExpression(node) => node.find_call_expression_at(loc),
+            EqualityExpression::Equal(node1, node2)
+            | EqualityExpression::NotEqual(node1, node2)
+            | EqualityExpression::StrictEqual(node1, node2)
+            | EqualityExpression::NotStrictEqual(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            EqualityExpression::RelationalExpression(node) => node.find_call_member_expression_at(loc),
+            EqualityExpression::Equal(node1, node2)
+            | EqualityExpression::NotEqual(node1, node2)
+            | EqualityExpression::StrictEqual(node1, node2)
+            | EqualityExpression::NotStrictEqual(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl exponentiation_operator::ExponentiationExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            ExponentiationExpression::UnaryExpression(node) => node.find_call_expression_at(loc),
+            ExponentiationExpression::Exponentiation(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            ExponentiationExpression::UnaryExpression(node) => node.find_call_member_expression_at(loc),
+            ExponentiationExpression::Exponentiation(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl comma_operator::Expression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            Expression::FallThru(node) => node.find_call_expression_at(loc),
+            Expression::Comma(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            Expression::FallThru(node) => node.find_call_member_expression_at(loc),
+            Expression::Comma(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl arrow_function_definitions::ExpressionBody {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parser::expression_statement::ExpressionStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl class_definitions::FieldDefinition {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parser::try_statement::Finally {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl iteration_statements::ForBinding {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl iteration_statements::ForDeclaration {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl iteration_statements::ForInOfStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parameter_lists::FormalParameter {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parameter_lists::FormalParameterList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl iteration_statements::ForStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl function_definitions::FunctionDeclaration {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        if self.params.location().contains(loc) {
+            self.params.find_call_expression_at(loc)
+        } else if self.body.location().contains(loc) {
+            self.body.find_call_expression_at(loc)
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        if self.params.location().contains(loc) {
+            self.params.find_call_member_expression_at(loc)
+        } else if self.body.location().contains(loc) {
+            self.body.find_call_member_expression_at(loc)
+        } else {
+            None
+        }
+    }
+}
+
+impl FunctionBody {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        self.statements.find_call_expression_at(loc)
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        self.statements.find_call_member_expression_at(loc)
+    }
+}
+
+impl parameter_lists::FunctionRestParameter {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl function_definitions::FunctionStatementList {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            FunctionStatementList::Statements(node) => node.find_call_expression_at(loc),
+            FunctionStatementList::Empty(_) => None,
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            FunctionStatementList::Statements(node) => node.find_call_member_expression_at(loc),
+            FunctionStatementList::Empty(_) => None,
+        }
+    }
+}
+
+impl StatementList {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        self.list.iter().filter(|item| item.location().contains(loc)).find_map(|item| item.find_call_expression_at(loc))
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        self.list
+            .iter()
+            .filter(|item| item.location().contains(loc))
+            .find_map(|item| item.find_call_member_expression_at(loc))
+    }
+}
+
+impl generator_function_definitions::GeneratorDeclaration {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parser::if_statement::IfStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::Initializer {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        if self.ae.location().contains(loc) { self.ae.find_call_expression_at(loc) } else { None }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        if self.ae.location().contains(loc) { self.ae.find_call_member_expression_at(loc) } else { None }
+    }
+}
+
+impl AssignmentExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            AssignmentExpression::FallThru(node) => node.find_call_expression_at(loc),
+            AssignmentExpression::Yield(node) => node.find_call_expression_at(loc),
+            AssignmentExpression::Arrow(node) => node.find_call_expression_at(loc),
+            AssignmentExpression::AsyncArrow(node) => node.find_call_expression_at(loc),
+            AssignmentExpression::Assignment(node1, node2)
+            | AssignmentExpression::OpAssignment(node1, _, node2)
+            | AssignmentExpression::LandAssignment(node1, node2)
+            | AssignmentExpression::LorAssignment(node1, node2)
+            | AssignmentExpression::CoalAssignment(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            AssignmentExpression::Destructuring(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            AssignmentExpression::FallThru(node) => node.find_call_member_expression_at(loc),
+            AssignmentExpression::Yield(node) => node.find_call_member_expression_at(loc),
+            AssignmentExpression::Arrow(node) => node.find_call_member_expression_at(loc),
+            AssignmentExpression::AsyncArrow(node) => node.find_call_member_expression_at(loc),
+            AssignmentExpression::Assignment(node1, node2)
+            | AssignmentExpression::OpAssignment(node1, _, node2)
+            | AssignmentExpression::LandAssignment(node1, node2)
+            | AssignmentExpression::LorAssignment(node1, node2)
+            | AssignmentExpression::CoalAssignment(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            AssignmentExpression::Destructuring(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl iteration_statements::IterationStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl YieldExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AsyncArrowFunction {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl labelled_statements::LabelledItem {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl labelled_statements::LabelledStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl left_hand_side_expressions::LeftHandSideExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            LeftHandSideExpression::New(node) => node.find_call_expression_at(loc),
+            LeftHandSideExpression::Call(node) => node.find_call_expression_at(loc),
+            LeftHandSideExpression::Optional(node) => node.find_call_expression_at(loc),
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            LeftHandSideExpression::New(node) => node.find_call_member_expression_at(loc),
+            LeftHandSideExpression::Call(node) => node.find_call_member_expression_at(loc),
+            LeftHandSideExpression::Optional(node) => node.find_call_member_expression_at(loc),
+        }
+    }
+}
+
+impl declarations_and_variables::LexicalBinding {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            LexicalBinding::Identifier(_, initializer) => initializer
+                .as_ref()
+                .and_then(|izer| if izer.location().contains(loc) { izer.find_call_expression_at(loc) } else { None }),
+            LexicalBinding::Pattern(binding_pattern, initializer) => {
+                if binding_pattern.location().contains(loc) {
+                    binding_pattern.find_call_expression_at(loc)
+                } else if initializer.location().contains(loc) {
+                    initializer.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            LexicalBinding::Identifier(_, initializer) => initializer.as_ref().and_then(|izer| {
+                if izer.location().contains(loc) { izer.find_call_member_expression_at(loc) } else { None }
+            }),
+            LexicalBinding::Pattern(binding_pattern, initializer) => {
+                if binding_pattern.location().contains(loc) {
+                    binding_pattern.find_call_member_expression_at(loc)
+                } else if initializer.location().contains(loc) {
+                    initializer.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl declarations_and_variables::LexicalDeclaration {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        if self.list.location().contains(loc) { self.list.find_call_expression_at(loc) } else { None }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        if self.list.location().contains(loc) { self.list.find_call_member_expression_at(loc) } else { None }
+    }
+}
+
+impl BindingList {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            BindingList::Item(node) => {
+                if node.location().contains(loc) {
+                    node.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            BindingList::List(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            BindingList::Item(node) => {
+                if node.location().contains(loc) {
+                    node.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            BindingList::List(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl binary_logical_operators::LogicalANDExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            LogicalANDExpression::BitwiseORExpression(node) => node.find_call_expression_at(loc),
+            LogicalANDExpression::LogicalAND(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            LogicalANDExpression::BitwiseORExpression(node) => node.find_call_member_expression_at(loc),
+            LogicalANDExpression::LogicalAND(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl binary_logical_operators::LogicalORExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            LogicalORExpression::LogicalANDExpression(node) => node.find_call_expression_at(loc),
+            LogicalORExpression::LogicalOR(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            LogicalORExpression::LogicalANDExpression(node) => node.find_call_member_expression_at(loc),
+            LogicalORExpression::LogicalOR(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl left_hand_side_expressions::MemberExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl method_definitions::MethodDefinition {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl multiplicative_operators::MultiplicativeExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            MultiplicativeExpression::ExponentiationExpression(node) => node.find_call_expression_at(loc),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(node1, _, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            MultiplicativeExpression::ExponentiationExpression(node) => node.find_call_member_expression_at(loc),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(node1, _, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl left_hand_side_expressions::NewExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl assignment_operators::ObjectAssignmentPattern {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::ObjectLiteral {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl left_hand_side_expressions::OptionalChain {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl left_hand_side_expressions::OptionalExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::ParenthesizedExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::PrimaryExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::PropertyDefinition {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::PropertyDefinitionList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::PropertyName {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl method_definitions::PropertySetParameterList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl relational_operators::RelationalExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            RelationalExpression::ShiftExpression(node) => node.find_call_expression_at(loc),
+            RelationalExpression::PrivateIn(_, node, _) => {
+                if node.location().contains(loc) {
+                    node.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            RelationalExpression::Less(node1, node2)
+            | RelationalExpression::Greater(node1, node2)
+            | RelationalExpression::LessEqual(node1, node2)
+            | RelationalExpression::GreaterEqual(node1, node2)
+            | RelationalExpression::InstanceOf(node1, node2)
+            | RelationalExpression::In(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            RelationalExpression::ShiftExpression(node) => node.find_call_member_expression_at(loc),
+            RelationalExpression::PrivateIn(_, node, _) => {
+                if node.location().contains(loc) {
+                    node.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            RelationalExpression::Less(node1, node2)
+            | RelationalExpression::Greater(node1, node2)
+            | RelationalExpression::LessEqual(node1, node2)
+            | RelationalExpression::GreaterEqual(node1, node2)
+            | RelationalExpression::InstanceOf(node1, node2)
+            | RelationalExpression::In(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl parser::return_statement::ReturnStatement {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            ReturnStatement::Bare { .. } => None,
+            ReturnStatement::Expression { exp, location: _ } => {
+                if exp.location().contains(loc) {
+                    exp.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            ReturnStatement::Bare { .. } => None,
+            ReturnStatement::Expression { exp, location: _ } => {
+                if exp.location().contains(loc) {
+                    exp.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl bitwise_shift_operators::ShiftExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            ShiftExpression::AdditiveExpression(node) => node.find_call_expression_at(loc),
+            ShiftExpression::LeftShift(node1, node2)
+            | ShiftExpression::SignedRightShift(node1, node2)
+            | ShiftExpression::UnsignedRightShift(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            ShiftExpression::AdditiveExpression(node) => node.find_call_member_expression_at(loc),
+            ShiftExpression::LeftShift(node1, node2)
+            | ShiftExpression::SignedRightShift(node1, node2)
+            | ShiftExpression::UnsignedRightShift(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl AdditiveExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(node) => node.find_call_expression_at(loc),
+            AdditiveExpression::Add(node1, node2) | AdditiveExpression::Subtract(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            AdditiveExpression::MultiplicativeExpression(node) => node.find_call_member_expression_at(loc),
+            AdditiveExpression::Add(node1, node2) | AdditiveExpression::Subtract(node1, node2) => {
+                if node1.location().contains(loc) {
+                    node1.find_call_member_expression_at(loc)
+                } else if node2.location().contains(loc) {
+                    node2.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl binary_logical_operators::ShortCircuitExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            ShortCircuitExpression::LogicalORExpression(node) => node.find_call_expression_at(loc),
+            ShortCircuitExpression::CoalesceExpression(node) => node.find_call_expression_at(loc),
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            ShortCircuitExpression::LogicalORExpression(node) => node.find_call_member_expression_at(loc),
+            ShortCircuitExpression::CoalesceExpression(node) => node.find_call_member_expression_at(loc),
+        }
+    }
+}
+
+impl declarations_and_variables::SingleNameBinding {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::SpreadElement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl statements_and_declarations::Statement {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            Statement::Block(node) => node.find_call_expression_at(loc),
+            Statement::Variable(node) => node.find_call_expression_at(loc),
+            Statement::Empty(_) | Statement::Debugger(_) => None,
+            Statement::Expression(node) => node.find_call_expression_at(loc),
+            Statement::If(node) => node.find_call_expression_at(loc),
+            Statement::Breakable(node) => node.find_call_expression_at(loc),
+            Statement::Continue(node) => node.find_call_expression_at(loc),
+            Statement::Break(node) => node.find_call_expression_at(loc),
+            Statement::Return(node) => node.find_call_expression_at(loc),
+            Statement::With(node) => node.find_call_expression_at(loc),
+            Statement::Labelled(node) => node.find_call_expression_at(loc),
+            Statement::Throw(node) => node.find_call_expression_at(loc),
+            Statement::Try(node) => node.find_call_expression_at(loc),
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            Statement::Block(node) => node.find_call_member_expression_at(loc),
+            Statement::Variable(node) => node.find_call_member_expression_at(loc),
+            Statement::Empty(_) | Statement::Debugger(_) => None,
+            Statement::Expression(node) => node.find_call_member_expression_at(loc),
+            Statement::If(node) => node.find_call_member_expression_at(loc),
+            Statement::Breakable(node) => node.find_call_member_expression_at(loc),
+            Statement::Continue(node) => node.find_call_member_expression_at(loc),
+            Statement::Break(node) => node.find_call_member_expression_at(loc),
+            Statement::Return(node) => node.find_call_member_expression_at(loc),
+            Statement::With(node) => node.find_call_member_expression_at(loc),
+            Statement::Labelled(node) => node.find_call_member_expression_at(loc),
+            Statement::Throw(node) => node.find_call_member_expression_at(loc),
+            Statement::Try(node) => node.find_call_member_expression_at(loc),
+        }
+    }
+}
+
+impl ContinueStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl BreakStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl WithStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::SubstitutionTemplate {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parser::switch_statement::SwitchStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::TemplateLiteral {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::TemplateMiddleList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl primary_expressions::TemplateSpans {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parser::throw_statement::ThrowStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl parser::try_statement::TryStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl unary_operators::UnaryExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            UnaryExpression::UpdateExpression(node) => node.find_call_expression_at(loc),
+            UnaryExpression::Delete { ue, location: _ }
+            | UnaryExpression::Void { ue, location: _ }
+            | UnaryExpression::Typeof { ue, location: _ }
+            | UnaryExpression::NoOp { ue, location: _ }
+            | UnaryExpression::Negate { ue, location: _ }
+            | UnaryExpression::Complement { ue, location: _ }
+            | UnaryExpression::Not { ue, location: _ } => {
+                if ue.location().contains(loc) {
+                    ue.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            UnaryExpression::Await(node) => {
+                if node.location().contains(loc) {
+                    node.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            UnaryExpression::UpdateExpression(node) => node.find_call_member_expression_at(loc),
+            UnaryExpression::Delete { ue, location: _ }
+            | UnaryExpression::Void { ue, location: _ }
+            | UnaryExpression::Typeof { ue, location: _ }
+            | UnaryExpression::NoOp { ue, location: _ }
+            | UnaryExpression::Negate { ue, location: _ }
+            | UnaryExpression::Complement { ue, location: _ }
+            | UnaryExpression::Not { ue, location: _ } => {
+                if ue.location().contains(loc) {
+                    ue.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            UnaryExpression::Await(node) => {
+                if node.location().contains(loc) {
+                    node.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl parameter_lists::UniqueFormalParameters {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AwaitExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl update_expressions::UpdateExpression {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        match self {
+            UpdateExpression::LeftHandSideExpression(node) => node.find_call_expression_at(loc),
+            UpdateExpression::PostIncrement { lhs, location: _ }
+            | UpdateExpression::PostDecrement { lhs, location: _ } => {
+                if lhs.location().contains(loc) {
+                    lhs.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            UpdateExpression::PreIncrement { ue, location: _ } | UpdateExpression::PreDecrement { ue, location: _ } => {
+                if ue.location().contains(loc) {
+                    ue.find_call_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        match self {
+            UpdateExpression::LeftHandSideExpression(node) => node.find_call_member_expression_at(loc),
+            UpdateExpression::PostIncrement { lhs, location: _ }
+            | UpdateExpression::PostDecrement { lhs, location: _ } => {
+                if lhs.location().contains(loc) {
+                    lhs.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+            UpdateExpression::PreIncrement { ue, location: _ } | UpdateExpression::PreDecrement { ue, location: _ } => {
+                if ue.location().contains(loc) {
+                    ue.find_call_member_expression_at(loc)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+impl declarations_and_variables::VariableDeclaration {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl declarations_and_variables::VariableDeclarationList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl declarations_and_variables::VariableStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl iteration_statements::WhileStatement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl ArrayLiteral {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl ArrowFunction {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl ArrowParameters {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl ArrowFormalParameters {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AssignmentPattern {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl ArrayAssignmentPattern {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AssignmentRestProperty {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AssignmentPropertyList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AssignmentElementList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AssignmentElisionElement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AssignmentProperty {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AssignmentElement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AssignmentRestElement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AsyncArrowBindingIdentifier {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AsyncFunctionDeclaration {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AsyncFunctionExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AsyncFunctionBody {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AsyncGeneratorDeclaration {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AsyncGeneratorExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl AsyncGeneratorBody {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl ScriptBody {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        self.statement_list.find_call_expression_at(loc)
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        self.statement_list.find_call_member_expression_at(loc)
+    }
+}
+
+impl Script {
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        self.body.as_ref().and_then(|body| body.find_call_expression_at(loc))
+    }
+
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        self.body.as_ref().and_then(|body| body.find_call_member_expression_at(loc))
+    }
+}
+
+impl FormalParameters {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl Arguments {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl ArgumentList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl GeneratorBody {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl GeneratorExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl FunctionExpression {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl BindingPattern {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl ObjectBindingPattern {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl ArrayBindingPattern {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl BindingElementList {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl BindingElisionElement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl BindingElement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl BindingRestElement {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}

@@ -645,6 +645,29 @@ mod method_definition {
     fn location(src: &str) -> Location {
         Maker::new(src).method_definition().location()
     }
+
+    #[test_case("a(){}" => None; "location not in production")]
+    #[test_case("a(x=call()){}" => None; "named function; no body")]
+    #[test_case("a(){return call();}" => ssome("return call ( ) ;"); "named function; body in body")]
+    #[test_case("[(function(){return call();})()](){}" => ssome("return call ( ) ;"); "named function; body in classname")]
+    #[test_case("a(x=(function(){return call();})){}" => ssome("return call ( ) ;"); "named function; body in params")]
+    #[test_case("get /*call()*/ a(){}" => None; "getter; no body")]
+    #[test_case("get a(){return call();}" => ssome("return call ( ) ;"); "getter; body in body")]
+    #[test_case("get [(function(){return call();})()](){}" => ssome("return call ( ) ;"); "getter; body in classname")]
+    #[test_case("set /*call()*/ a(x){}" => None; "setter; no body")]
+    #[test_case("set a(x){return call();}" => ssome("return call ( ) ;"); "setter; body in body")]
+    #[test_case("set [(function(){return call();})()](x){}" => ssome("return call ( ) ;"); "setter; body in classname")]
+    #[test_case("set a(x=function(){return call();}){}" => ssome("return call ( ) ;"); "setter; body in params")]
+    #[test_case("*a /* call() */ (){}" => None; "generator; no body")]
+    #[test_case("*a(){return call();}" => ssome("return call ( ) ;"); "generator; has body")]
+    #[test_case("async a() /* call() */ {}" => None; "async; no body")]
+    #[test_case("async a() { return call(); }" => ssome("return call ( ) ;"); "async; has body")]
+    #[test_case("async *a() /* call() */ {}" => None; "async gen; no body")]
+    #[test_case("async *a(){ return call(); }" => ssome("return call ( ) ;"); "async gen; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).method_definition().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 mod property_set_parameter_list {

@@ -444,6 +444,18 @@ mod case_block {
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).case_block().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("{}" => None; "location not in production")]
+    #[test_case("{ case call(): ; }" => None; "no default; no body")]
+    #[test_case("{ case 3: (function(){return call();});}" => ssome("return call ( ) ;"); "no default; body present")]
+    #[test_case("{ case 1: call(); default: 10; case 2: 12; }" => None; "with default; no body")]
+    #[test_case("{ case 1: (function(){return call();}); default: 10; case 2: 12; }" => ssome("return call ( ) ;"); "with default; body left")]
+    #[test_case("{ case 1: 1; default: (function(){return call();}); case 2: 2; }" => ssome("return call ( ) ;"); "with default; body in default")]
+    #[test_case("{ case 1: 1; default: 'd'; case 2: (function(){return call();}); }" => ssome("return call ( ) ;"); "with default; body right")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).case_block().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // CASE CLAUSES

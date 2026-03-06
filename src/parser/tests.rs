@@ -1334,7 +1334,7 @@ mod parsed_text {
             ParsedText::PropertyDefinition(node) => format!("PropertyDefinition({node})"),
             ParsedText::PropertyDefinitionList(node) => format!("PropertyDefinitionList({node})"),
             ParsedText::PropertyName(node) => format!("PropertyName({node})"),
-            //ParsedText::PropertySetParameterList(node) => format!("PropertySetParameterList({node})"),
+            ParsedText::PropertySetParameterList(node) => format!("PropertySetParameterList({node})"),
             ParsedText::RelationalExpression(node) => format!("RelationalExpression({node})"),
             ParsedText::ReturnStatement(node) => format!("ReturnStatement({node})"),
             ParsedText::Script(node) => format!("Script({node})"),

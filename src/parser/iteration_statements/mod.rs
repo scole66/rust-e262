@@ -195,19 +195,11 @@ impl IterationStatement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                IterationStatement::DoWhile(do_while_statement) => {
-                    do_while_statement.body_containing_location(location)
-                }
-                IterationStatement::While(while_statement) => while_statement.body_containing_location(location),
-                IterationStatement::For(for_statement) => for_statement.body_containing_location(location),
-                IterationStatement::ForInOf(for_in_of_statement) => {
-                    for_in_of_statement.body_containing_location(location)
-                }
-            }
-        } else {
-            None
+        match self {
+            IterationStatement::DoWhile(do_while_statement) => do_while_statement.body_containing_location(location),
+            IterationStatement::While(while_statement) => while_statement.body_containing_location(location),
+            IterationStatement::For(for_statement) => for_statement.body_containing_location(location),
+            IterationStatement::ForInOf(for_in_of_statement) => for_in_of_statement.body_containing_location(location),
         }
     }
 
@@ -356,8 +348,10 @@ impl DoWhileStatement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            self.exp.body_containing_location(location).or_else(|| self.stmt.body_containing_location(location))
+        if self.exp.location().contains(location) {
+            self.exp.body_containing_location(location)
+        } else if self.stmt.location().contains(location) {
+            self.stmt.body_containing_location(location)
         } else {
             None
         }
@@ -498,8 +492,10 @@ impl WhileStatement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            self.exp.body_containing_location(location).or_else(|| self.stmt.body_containing_location(location))
+        if self.exp.location().contains(location) {
+            self.exp.body_containing_location(location)
+        } else if self.stmt.location().contains(location) {
+            self.stmt.body_containing_location(location)
         } else {
             None
         }
@@ -933,29 +929,60 @@ impl ForStatement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ForStatement::For(expression, expression1, expression2, statement, _) => expression
-                    .as_ref()
-                    .and_then(|item| item.body_containing_location(location))
-                    .or_else(|| expression1.as_ref().and_then(|item| item.body_containing_location(location)))
-                    .or_else(|| expression2.as_ref().and_then(|item| item.body_containing_location(location)))
-                    .or_else(|| statement.body_containing_location(location)),
-                ForStatement::ForVar(variable_declaration_list, expression, expression1, statement, _) => {
-                    variable_declaration_list
-                        .body_containing_location(location)
-                        .or_else(|| expression.as_ref().and_then(|item| item.body_containing_location(location)))
-                        .or_else(|| expression1.as_ref().and_then(|item| item.body_containing_location(location)))
-                        .or_else(|| statement.body_containing_location(location))
+        match self {
+            ForStatement::For(expression, expression1, expression2, statement, _) => {
+                if let Some(expression) = expression
+                    && expression.location().contains(location)
+                {
+                    expression.body_containing_location(location)
+                } else if let Some(expression) = expression1
+                    && expression.location().contains(location)
+                {
+                    expression.body_containing_location(location)
+                } else if let Some(expression) = expression2
+                    && expression.location().contains(location)
+                {
+                    expression.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
                 }
-                ForStatement::ForLex(lexical_declaration, expression, expression1, statement, _) => lexical_declaration
-                    .body_containing_location(location)
-                    .or_else(|| expression.as_ref().and_then(|item| item.body_containing_location(location)))
-                    .or_else(|| expression1.as_ref().and_then(|item| item.body_containing_location(location)))
-                    .or_else(|| statement.body_containing_location(location)),
             }
-        } else {
-            None
+            ForStatement::ForVar(variable_declaration_list, expression, expression1, statement, _) => {
+                if variable_declaration_list.location().contains(location) {
+                    variable_declaration_list.body_containing_location(location)
+                } else if let Some(expression) = expression
+                    && expression.location().contains(location)
+                {
+                    expression.body_containing_location(location)
+                } else if let Some(expression) = expression1
+                    && expression.location().contains(location)
+                {
+                    expression.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ForStatement::ForLex(lexical_declaration, expression, expression1, statement, _) => {
+                if lexical_declaration.location().contains(location) {
+                    lexical_declaration.body_containing_location(location)
+                } else if let Some(expression) = expression
+                    && expression.location().contains(location)
+                {
+                    expression.body_containing_location(location)
+                } else if let Some(expression) = expression1
+                    && expression.location().contains(location)
+                {
+                    expression.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -1627,63 +1654,139 @@ impl ForInOfStatement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ForInOfStatement::In(left_hand_side_expression, expression, statement, _) => left_hand_side_expression
-                    .body_containing_location(location)
-                    .or_else(|| expression.body_containing_location(location))
-                    .or_else(|| statement.body_containing_location(location)),
-                ForInOfStatement::DestructuringIn(assignment_pattern, expression, statement, _) => assignment_pattern
-                    .body_containing_location(location)
-                    .or_else(|| expression.body_containing_location(location))
-                    .or_else(|| statement.body_containing_location(location)),
-                ForInOfStatement::VarIn(for_binding, expression, statement, _) => for_binding
-                    .body_containing_location(location)
-                    .or_else(|| expression.body_containing_location(location))
-                    .or_else(|| statement.body_containing_location(location)),
-                ForInOfStatement::LexIn(for_declaration, expression, statement, _) => for_declaration
-                    .body_containing_location(location)
-                    .or_else(|| expression.body_containing_location(location))
-                    .or_else(|| statement.body_containing_location(location)),
-                ForInOfStatement::Of(left_hand_side_expression, assignment_expression, statement, _) => {
-                    left_hand_side_expression
-                        .body_containing_location(location)
-                        .or_else(|| assignment_expression.body_containing_location(location))
-                        .or_else(|| statement.body_containing_location(location))
-                }
-                ForInOfStatement::DestructuringOf(assignment_pattern, assignment_expression, statement, _) => {
-                    assignment_pattern
-                        .body_containing_location(location)
-                        .or_else(|| assignment_expression.body_containing_location(location))
-                        .or_else(|| statement.body_containing_location(location))
-                }
-                ForInOfStatement::VarOf(for_binding, assignment_expression, statement, _) => for_binding
-                    .body_containing_location(location)
-                    .or_else(|| assignment_expression.body_containing_location(location))
-                    .or_else(|| statement.body_containing_location(location)),
-                ForInOfStatement::LexOf(for_declaration, assignment_expression, statement, _) => for_declaration
-                    .body_containing_location(location)
-                    .or_else(|| assignment_expression.body_containing_location(location))
-                    .or_else(|| statement.body_containing_location(location)),
-                #[expect(unused_variables)]
-                ForInOfStatement::AwaitOf(left_hand_side_expression, assignment_expression, statement, _) => {
-                    todo!()
-                }
-                #[expect(unused_variables)]
-                ForInOfStatement::DestructuringAwaitOf(assignment_pattern, assignment_expression, statement, _) => {
-                    todo!()
-                }
-                #[expect(unused_variables)]
-                ForInOfStatement::AwaitVarOf(for_binding, assignment_expression, statement, _) => {
-                    todo!()
-                }
-                #[expect(unused_variables)]
-                ForInOfStatement::AwaitLexOf(for_declaration, assignment_expression, statement, _) => {
-                    todo!()
+        match self {
+            ForInOfStatement::In(left_hand_side_expression, expression, statement, _) => {
+                if left_hand_side_expression.location().contains(location) {
+                    left_hand_side_expression.body_containing_location(location)
+                } else if expression.location().contains(location) {
+                    expression.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
+            ForInOfStatement::DestructuringIn(assignment_pattern, expression, statement, _) => {
+                if assignment_pattern.location().contains(location) {
+                    assignment_pattern.body_containing_location(location)
+                } else if expression.location().contains(location) {
+                    expression.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ForInOfStatement::VarIn(for_binding, expression, statement, _) => {
+                if for_binding.location().contains(location) {
+                    for_binding.body_containing_location(location)
+                } else if expression.location().contains(location) {
+                    expression.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ForInOfStatement::LexIn(for_declaration, expression, statement, _) => {
+                if for_declaration.location().contains(location) {
+                    for_declaration.body_containing_location(location)
+                } else if expression.location().contains(location) {
+                    expression.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ForInOfStatement::Of(left_hand_side_expression, assignment_expression, statement, _) => {
+                if left_hand_side_expression.location().contains(location) {
+                    left_hand_side_expression.body_containing_location(location)
+                } else if assignment_expression.location().contains(location) {
+                    assignment_expression.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ForInOfStatement::DestructuringOf(assignment_pattern, assignment_expression, statement, _) => {
+                if assignment_pattern.location().contains(location) {
+                    assignment_pattern.body_containing_location(location)
+                } else if assignment_expression.location().contains(location) {
+                    assignment_expression.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ForInOfStatement::VarOf(for_binding, assignment_expression, statement, _) => {
+                if for_binding.location().contains(location) {
+                    for_binding.body_containing_location(location)
+                } else if assignment_expression.location().contains(location) {
+                    assignment_expression.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ForInOfStatement::LexOf(for_declaration, assignment_expression, statement, _) => {
+                if for_declaration.location().contains(location) {
+                    for_declaration.body_containing_location(location)
+                } else if assignment_expression.location().contains(location) {
+                    assignment_expression.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ForInOfStatement::AwaitOf(init, test, statement, _) => {
+                if init.location().contains(location) {
+                    init.body_containing_location(location)
+                } else if test.location().contains(location) {
+                    test.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ForInOfStatement::DestructuringAwaitOf(init, test, statement, _) => {
+                if init.location().contains(location) {
+                    init.body_containing_location(location)
+                } else if test.location().contains(location) {
+                    test.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ForInOfStatement::AwaitVarOf(init, test, statement, _) => {
+                if init.location().contains(location) {
+                    init.body_containing_location(location)
+                } else if test.location().contains(location) {
+                    test.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ForInOfStatement::AwaitLexOf(init, test, statement, _) => {
+                if init.location().contains(location) {
+                    init.body_containing_location(location)
+                } else if test.location().contains(location) {
+                    test.body_containing_location(location)
+                } else if statement.location().contains(location) {
+                    statement.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -1868,7 +1971,7 @@ impl ForDeclaration {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) { self.binding.body_containing_location(location) } else { None }
+        if self.binding.location().contains(location) { self.binding.body_containing_location(location) } else { None }
     }
 }
 
@@ -2022,13 +2125,9 @@ impl ForBinding {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ForBinding::Identifier(_) => None,
-                ForBinding::Pattern(binding_pattern) => binding_pattern.body_containing_location(location),
-            }
-        } else {
-            None
+        match self {
+            ForBinding::Identifier(_) => None,
+            ForBinding::Pattern(binding_pattern) => binding_pattern.body_containing_location(location),
         }
     }
 }

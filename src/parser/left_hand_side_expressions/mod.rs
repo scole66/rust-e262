@@ -148,14 +148,6 @@ impl From<Rc<MetaProperty>> for MemberExpression {
     }
 }
 
-fn me_boxer<T>(pair: (T, Scanner)) -> (Rc<MemberExpression>, Scanner)
-where
-    T: Into<MemberExpression>,
-{
-    let (node, scanner) = pair;
-    (Rc::new(node.into()), scanner)
-}
-
 fn member_expression_head_recursive(
     parser: &mut Parser,
     yield_flag: bool,
@@ -217,6 +209,14 @@ fn member_expression_head_recursive(
 }
 
 impl MemberExpression {
+    fn me_boxer<T>(pair: (T, Scanner)) -> (Rc<Self>, Scanner)
+    where
+        T: Into<Self>,
+    {
+        let (node, scanner) = pair;
+        (Rc::new(node.into()), scanner)
+    }
+
     pub(crate) fn parse(
         parser: &mut Parser,
         scanner: Scanner,
@@ -237,9 +237,9 @@ impl MemberExpression {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         Err(ParseError::new(PECode::ParseNodeExpected(ParseNodeKind::MemberExpression), scanner))
             // First: All the non-head-recursive productions
-            .otherwise(|| PrimaryExpression::parse(parser, scanner, yield_flag, await_flag).map(me_boxer))
-            .otherwise(|| SuperProperty::parse(parser, scanner, yield_flag, await_flag).map(me_boxer))
-            .otherwise(|| MetaProperty::parse(parser, scanner).map(me_boxer))
+            .otherwise(|| PrimaryExpression::parse(parser, scanner, yield_flag, await_flag).map(Self::me_boxer))
+            .otherwise(|| SuperProperty::parse(parser, scanner, yield_flag, await_flag).map(Self::me_boxer))
+            .otherwise(|| MetaProperty::parse(parser, scanner).map(Self::me_boxer))
             .otherwise(|| {
                 Self::new_memberexpression_arguments(parser, scanner, yield_flag, await_flag).map(
                     |(me, args, new_loc, after)| {
@@ -684,9 +684,17 @@ impl SuperProperty {
         }
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        todo!()
+        match self {
+            SuperProperty::Expression { exp, location: _ } => {
+                if exp.location().contains(location) {
+                    exp.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            SuperProperty::IdentifierName { .. } => None,
+        }
     }
 }
 
@@ -1591,7 +1599,7 @@ impl CallMemberExpression {
         //
         // Note: Tail Position calls are only defined in strict mode code because of a common non-standard language
         //       extension (see 10.2.4) that enables observation of the chain of caller contexts.
-        is_in_tail_position(&self.location(), top, strict)
+        top.is_in_tail_position(&self.location(), strict)
     }
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
@@ -1690,9 +1698,12 @@ impl SuperCall {
         self.arguments.early_errors(errs, strict);
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        todo!()
+        if self.arguments.location().contains(location) {
+            self.arguments.body_containing_location(location)
+        } else {
+            None
+        }
     }
 }
 
@@ -1786,9 +1797,8 @@ impl ImportCall {
         self.assignment_expression.early_errors(errs, strict);
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        todo!()
+        self.assignment_expression.body_containing_location(location)
     }
 }
 
@@ -2124,7 +2134,7 @@ impl CallExpression {
     }
 
     pub(crate) fn is_in_tail_position(&self, top: &ParsedText, strict: bool) -> bool {
-        is_in_tail_position(&self.location(), top, strict)
+        top.is_in_tail_position(&self.location(), strict)
     }
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
@@ -3037,7 +3047,7 @@ impl OptionalChain {
     }
 
     pub(crate) fn is_in_tail_position(&self, top: &ParsedText, strict: bool) -> bool {
-        is_in_tail_position(&self.location(), top, strict)
+        top.is_in_tail_position(&self.location(), strict)
     }
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
@@ -3067,49 +3077,51 @@ impl OptionalChain {
     }
 }
 
-pub(crate) fn is_in_tail_position(location: &Location, top: &ParsedText, strict: bool) -> bool {
-    // Static Semantics: IsInTailPosition ( call )
-    //
-    // The abstract operation IsInTailPosition takes argument call (a CallExpression Parse Node, a MemberExpression
-    // Parse Node, or an OptionalChain Parse Node) and returns a Boolean. It performs the following steps when
-    // called:
-    //
-    //  1. If IsStrict(call) is false, return false.
-    //  2. If call is not contained within a FunctionBody, a ConciseBody, or an AsyncConciseBody, return false.
-    //  3. Let body be the FunctionBody, ConciseBody, or AsyncConciseBody that most closely contains call.
-    //  4. If body is the FunctionBody of a GeneratorBody, return false.
-    //  5. If body is the FunctionBody of an AsyncFunctionBody, return false.
-    //  6. If body is the FunctionBody of an AsyncGeneratorBody, return false.
-    //  7. If body is an AsyncConciseBody, return false.
-    //  8. Return the result of HasCallInTailPosition of body with argument call.
-    //
-    // Note: Tail Position calls are only defined in strict mode code because of a common non-standard language
-    //       extension (see 10.2.4) that enables observation of the chain of caller contexts.
-    if !strict {
-        return false;
-    }
-    let body = top.body_containing_location(location);
-    match &body {
-        None /*| Some(ContainingBody::AsyncConciseBody(_))*/ => false,
-        Some(ContainingBody::ConciseBody(body)) => {
-            // Otherwise, HasCallInTailPosition of body with argument call.
-            body.has_call_in_tail_position(location)
+impl ParsedText {
+    pub(crate) fn is_in_tail_position(&self, location: &Location, strict: bool) -> bool {
+        // Static Semantics: IsInTailPosition ( call )
+        //
+        // The abstract operation IsInTailPosition takes argument call (a CallExpression Parse Node, a MemberExpression
+        // Parse Node, or an OptionalChain Parse Node) and returns a Boolean. It performs the following steps when
+        // called:
+        //
+        //  1. If IsStrict(call) is false, return false.
+        //  2. If call is not contained within a FunctionBody, a ConciseBody, or an AsyncConciseBody, return false.
+        //  3. Let body be the FunctionBody, ConciseBody, or AsyncConciseBody that most closely contains call.
+        //  4. If body is the FunctionBody of a GeneratorBody, return false.
+        //  5. If body is the FunctionBody of an AsyncFunctionBody, return false.
+        //  6. If body is the FunctionBody of an AsyncGeneratorBody, return false.
+        //  7. If body is an AsyncConciseBody, return false.
+        //  8. Return the result of HasCallInTailPosition of body with argument call.
+        //
+        // Note: Tail Position calls are only defined in strict mode code because of a common non-standard language
+        //       extension (see 10.2.4) that enables observation of the chain of caller contexts.
+        if !strict {
+            return false;
         }
-        Some(ContainingBody::FunctionBody(body)) => {
-            // If body is the FunctionBody of a GeneratorBody, return false.
-            if body.is_generator_body() {
-                return false;
+        let body = self.body_containing_location(location);
+        match &body {
+            None | Some(ContainingBody::AsyncConcise(_)) => false,
+            Some(ContainingBody::Concise(body)) => {
+                // Otherwise, HasCallInTailPosition of body with argument call.
+                body.has_call_in_tail_position(location)
             }
-            // If body is the FunctionBody of an AsyncFunctionBody, return false.
-            if body.is_async_function_body() {
-                return false;
+            Some(ContainingBody::Function(body)) => {
+                // If body is the FunctionBody of a GeneratorBody, return false.
+                if body.is_generator_body() {
+                    return false;
+                }
+                // If body is the FunctionBody of an AsyncFunctionBody, return false.
+                if body.is_async_function_body() {
+                    return false;
+                }
+                // If body is the FunctionBody of an AsyncGeneratorBody, return false.
+                if body.is_async_generator_body() {
+                    return false;
+                }
+                // Otherwise, HasCallInTailPosition of body with argument call.
+                body.has_call_in_tail_position(location)
             }
-            // If body is the FunctionBody of an AsyncGeneratorBody, return false.
-            if body.is_async_generator_body() {
-                return false;
-            }
-            // Otherwise, HasCallInTailPosition of body with argument call.
-            body.has_call_in_tail_position(location)
         }
     }
 }

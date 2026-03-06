@@ -201,12 +201,13 @@ impl AsyncArrowFunction {
                 async_concise_body.early_errors(errs, strict);
             }
             AsyncArrowFunction::Formals(async_arrow_head, async_concise_body) => {
-                if async_arrow_head.contains(ParseNodeKind::YieldExpression) {
-                    errs.push(create_syntax_error_object(
-                        "Yield expression not allowed in formal parameter",
-                        Some(self.location()),
-                    ));
-                }
+                // The refined parsing of AsyncArrowHead disallows yield expressions. It's caught before early errors.
+                // if async_arrow_head.contains(ParseNodeKind::YieldExpression) {
+                //     errs.push(create_syntax_error_object(
+                //         "Yield expression not allowed in formal parameter",
+                //         Some(self.location()),
+                //     ));
+                // }
                 if async_arrow_head.contains(ParseNodeKind::AwaitExpression) {
                     errs.push(create_syntax_error_object(
                         "Await expression cannot be a default value",
@@ -239,10 +240,26 @@ impl AsyncArrowFunction {
         }
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        match self {
+            AsyncArrowFunction::IdentOnly(_, body, _) => {
+                if body.location().contains(location) {
+                    body.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            AsyncArrowFunction::Formals(head, body) => {
+                if head.location().contains(location) {
+                    head.body_containing_location(location)
+                } else if body.location().contains(location) {
+                    body.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+        }
     }
 }
 
@@ -410,11 +427,10 @@ impl AsyncArrowHead {
         self.params.early_errors(errs, strict);
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        self.params.body_containing_location(location)
+    }
 }
 
 // AsyncConciseBody[In] :
@@ -584,11 +600,22 @@ impl AsyncConciseBody {
         }
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn body_containing_location(self: &Rc<Self>, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self.as_ref() {
+            AsyncConciseBody::Expression(body) => body.body_containing_location(location),
+            AsyncConciseBody::Function(body, _) => {
+                if body.location().contains(location) {
+                    body.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+        }
+        .or_else(|| {
+            if self.location().contains(location) { Some(ContainingBody::AsyncConcise(Rc::clone(self))) } else { None }
+        })
+    }
 }
 
 // AsyncArrowBindingIdentifier[Yield] :

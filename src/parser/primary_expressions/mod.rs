@@ -701,9 +701,8 @@ impl SpreadElement {
         self.ae.early_errors(errs, strict);
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        todo!()
+        if self.ae.location().contains(location) { self.ae.body_containing_location(location) } else { None }
     }
 }
 
@@ -1008,19 +1007,39 @@ impl ElementList {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ElementList::AssignmentExpression { elision: _, ae } => ae.body_containing_location(location),
-                ElementList::SpreadElement { elision: _, se } => se.body_containing_location(location),
-                ElementList::ListAssignmentExpression { el, elision: _, ae } => {
-                    el.body_containing_location(location).or_else(|| ae.body_containing_location(location))
-                }
-                ElementList::ListSpreadElement { el, elision: _, se } => {
-                    el.body_containing_location(location).or_else(|| se.body_containing_location(location))
+        match self {
+            ElementList::AssignmentExpression { elision: _, ae } => {
+                if ae.location().contains(location) {
+                    ae.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
+            ElementList::SpreadElement { elision: _, se } => {
+                if se.location().contains(location) {
+                    se.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ElementList::ListAssignmentExpression { el, elision: _, ae } => {
+                if el.location().contains(location) {
+                    el.body_containing_location(location)
+                } else if ae.location().contains(location) {
+                    ae.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            ElementList::ListSpreadElement { el, elision: _, se } => {
+                if el.location().contains(location) {
+                    el.body_containing_location(location)
+                } else if se.location().contains(location) {
+                    se.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 }
@@ -1232,15 +1251,11 @@ impl ArrayLiteral {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ArrayLiteral::Empty { .. } => None,
-                ArrayLiteral::ElementList { el: node, .. } | ArrayLiteral::ElementListElision { el: node, .. } => {
-                    node.body_containing_location(location)
-                }
+        match self {
+            ArrayLiteral::Empty { .. } => None,
+            ArrayLiteral::ElementList { el: node, .. } | ArrayLiteral::ElementListElision { el: node, .. } => {
+                if node.location().contains(location) { node.body_containing_location(location) } else { None }
             }
-        } else {
-            None
         }
     }
 }
@@ -1365,7 +1380,7 @@ impl Initializer {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        self.ae.body_containing_location(location)
+        if self.ae.location().contains(location) { self.ae.body_containing_location(location) } else { None }
     }
 }
 
@@ -1452,10 +1467,10 @@ impl CoverInitializedName {
     //    idref.string_value()
     //}
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        let CoverInitializedName::InitializedName(_, izer) = self;
+        if izer.location().contains(location) { izer.body_containing_location(location) } else { None }
     }
 }
 
@@ -1547,7 +1562,7 @@ impl ComputedPropertyName {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location.contains(location) { self.ae.body_containing_location(location) } else { None }
+        if self.ae.location().contains(location) { self.ae.body_containing_location(location) } else { None }
     }
 }
 
@@ -2094,17 +2109,26 @@ impl PropertyDefinition {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if !self.location().contains(location) {
-            return None;
-        }
         match self {
             PropertyDefinition::IdentifierReference(_) => None,
             PropertyDefinition::CoverInitializedName(cin) => cin.body_containing_location(location),
             PropertyDefinition::PropertyNameAssignmentExpression(pn, ae) => {
-                pn.body_containing_location(location).or_else(|| ae.body_containing_location(location))
+                if pn.location().contains(location) {
+                    pn.body_containing_location(location)
+                } else if ae.location().contains(location) {
+                    ae.body_containing_location(location)
+                } else {
+                    None
+                }
             }
             PropertyDefinition::MethodDefinition(md) => md.body_containing_location(location),
-            PropertyDefinition::AssignmentExpression(ae, _) => ae.body_containing_location(location),
+            PropertyDefinition::AssignmentExpression(ae, _) => {
+                if ae.location().contains(location) {
+                    ae.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 }
@@ -2247,15 +2271,17 @@ impl PropertyDefinitionList {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                PropertyDefinitionList::OneDef(pd) => pd.body_containing_location(location),
-                PropertyDefinitionList::ManyDefs(pdl, pd) => {
-                    pdl.body_containing_location(location).or_else(|| pd.body_containing_location(location))
+        match self {
+            PropertyDefinitionList::OneDef(pd) => pd.body_containing_location(location),
+            PropertyDefinitionList::ManyDefs(pdl, pd) => {
+                if pdl.location().contains(location) {
+                    pdl.body_containing_location(location)
+                } else if pd.location().contains(location) {
+                    pd.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 }
@@ -2431,15 +2457,11 @@ impl ObjectLiteral {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ObjectLiteral::Empty { .. } => None,
-                ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => {
-                    pdl.body_containing_location(location)
-                }
+        match self {
+            ObjectLiteral::Empty { .. } => None,
+            ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => {
+                if pdl.location().contains(location) { pdl.body_containing_location(location) } else { None }
             }
-        } else {
-            None
         }
     }
 }
@@ -2816,13 +2838,9 @@ impl TemplateLiteral {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                TemplateLiteral::NoSubstitutionTemplate { .. } => None,
-                TemplateLiteral::SubstitutionTemplate(st) => st.body_containing_location(location),
-            }
-        } else {
-            None
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate { .. } => None,
+            TemplateLiteral::SubstitutionTemplate(st) => st.body_containing_location(location),
         }
     }
 }
@@ -2968,10 +2986,10 @@ impl SubstitutionTemplate {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            self.expression
-                .body_containing_location(location)
-                .or_else(|| self.template_spans.body_containing_location(location))
+        if self.expression.location().contains(location) {
+            self.expression.body_containing_location(location)
+        } else if self.template_spans.location().contains(location) {
+            self.template_spans.body_containing_location(location)
         } else {
             None
         }
@@ -3172,13 +3190,15 @@ impl TemplateSpans {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                TemplateSpans::Tail { .. } => None,
-                TemplateSpans::List { tml, .. } => tml.body_containing_location(location),
+        match self {
+            TemplateSpans::Tail { .. } => None,
+            TemplateSpans::List { tml, .. } => {
+                if tml.location().contains(location) {
+                    tml.body_containing_location(location)
+                } else {
+                    None
+                }
             }
-        } else {
-            None
         }
     }
 }
@@ -3393,17 +3413,19 @@ impl TemplateMiddleList {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                TemplateMiddleList::ListHead { data: _, exp, tagged: _, location: _ } => {
+        match self {
+            TemplateMiddleList::ListHead { data: _, exp, tagged: _, location: _ } => {
+                if exp.location().contains(location) { exp.body_containing_location(location) } else { None }
+            }
+            TemplateMiddleList::ListMid(tml, _, exp, _) => {
+                if tml.location().contains(location) {
+                    tml.body_containing_location(location)
+                } else if exp.location().contains(location) {
                     exp.body_containing_location(location)
-                }
-                TemplateMiddleList::ListMid(tml, _, exp, _) => {
-                    tml.body_containing_location(location).or_else(|| exp.body_containing_location(location))
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 }
@@ -3512,7 +3534,7 @@ impl ParenthesizedExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) { self.exp.body_containing_location(location) } else { None }
+        if self.exp.location().contains(location) { self.exp.body_containing_location(location) } else { None }
     }
 
     pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {

@@ -623,6 +623,18 @@ mod class_body {
     fn constructor_method(src: &str) -> Option<String> {
         Maker::new(src).class_body().constructor_method().map(|cstr| format!("{cstr}"))
     }
+
+    #[test_case("a(){} b(){} constructor(foo){} beetlejuice;" => svec(&["a ( ) { }", "b ( ) { }", "beetlejuice ;"]); "constructor present")]
+    fn non_constructor_elements(src: &str) -> Vec<String> {
+        Maker::new(src).class_body().non_constructor_elements().into_iter().map(ToString::to_string).collect::<Vec<_>>()
+    }
+
+    #[test_case("a(z=call()){return z;}" => None; "no body in production")]
+    #[test_case("a(){return call();}" => ssome("return call ( ) ;"); "body present")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).class_body().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 mod id_usage {

@@ -119,13 +119,15 @@ impl ReturnStatement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ReturnStatement::Bare { .. } => None,
-                ReturnStatement::Expression { exp, .. } => exp.body_containing_location(location),
+        match self {
+            ReturnStatement::Bare { .. } => None,
+            ReturnStatement::Expression { exp, .. } => {
+                if exp.location().contains(location) {
+                    exp.body_containing_location(location)
+                } else {
+                    None
+                }
             }
-        } else {
-            None
         }
     }
 

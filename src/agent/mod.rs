@@ -110,23 +110,12 @@ impl Agent {
             gsr: RefCell::new(None),
         }
     }
-
-    #[cfg(test)]
-    pub(crate) fn reset(&self) {
-        self.obj_id.set(1);
-        self.execution_context_stack.borrow_mut().clear();
-        self.symbol_id.set(14);
-        self.gsr.borrow_mut().take();
-    }
 }
 
 pub(crate) fn active_function_object() -> Option<Object> {
     AGENT.with(|agent| {
         let stack = agent.execution_context_stack.borrow();
-        match stack.len() {
-            0 => None,
-            n => stack[n - 1].function.clone(),
-        }
+        stack.last().and_then(|ec| ec.function.clone())
     })
 }
 

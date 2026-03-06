@@ -444,6 +444,26 @@ mod concise_body {
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).concise_body().lexically_scoped_declarations().iter().map(String::from).collect()
     }
+
+    #[test_case("blue" => None; "location not in production")]
+    #[test_case("(function(){return call();})()" => ssome("return call ( ) ;"); "expression; body in statements")]
+    #[test_case("/* call() */ 3" => None; "expression; no body")]
+    #[test_case("call()" => ssome("call ( )"); "expression; body is the match")]
+    #[test_case("{ g = 1; /* call() */ }" => ssome("{ g = 1 ; }"); "function; body is the match")]
+    #[test_case("{ return (function(){return call();})(); }" => ssome("return call ( ) ;"); "function; body in the statements")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).concise_body().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => true; "expression; call in tail")]
+    #[test_case("3+call()" => false; "expression; call not a tail")]
+    #[test_case("{ return call(); }" => true; "function; call in tail")]
+    #[test_case("{ return 3+call(); }" => false; "function; call not a tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).concise_body().has_call_in_tail_position(&location)
+    }
 }
 
 // EXPRESSION BODY
@@ -519,6 +539,21 @@ mod expression_body {
     #[test_case(" x+y" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 3 } }; "expr")]
     fn location(src: &str) -> Location {
         Maker::new(src).expression_body().location()
+    }
+
+    #[test_case("3" => None; "location not in production")]
+    #[test_case("call()" => None; "no body")]
+    #[test_case("(function(){return call();})()" => ssome("return call ( ) ;"); "some body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).expression_body().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => true; "tail call is there")]
+    #[test_case("37 + call()" => false; "no tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).expression_body().has_call_in_tail_position(&location)
     }
 }
 

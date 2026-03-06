@@ -484,6 +484,54 @@ mod assignment_expression {
     fn anonymous_function_definition(src: &str) -> Option<String> {
         Maker::new(src).assignment_expression().anonymous_function_definition().map(|x| x.to_string())
     }
+
+    #[test_case("a" => None; "location not in production")]
+    #[test_case("call()" => None; "fall-thru; no body")]
+    #[test_case("(function(){return call();})" => ssome("return call ( ) ;"); "fall-thru; has body")]
+    #[test_case("yield call()" => None; "yield; no body")]
+    #[test_case("yield function(){return call();}" => ssome("return call ( ) ;"); "yield; has body")]
+    #[test_case("x /* call() */ => x" => None; "arrow; no body")]
+    #[test_case("() => call()" => ssome("call ( )"); "arrow; has body")]
+    #[test_case("async x /* call() */ => x" => None; "async arrow; no body")]
+    #[test_case("async x => call()" => ssome("call ( )"); "async arrow; has body")]
+    #[test_case("a = call();" => None; "assignment; no body")]
+    #[test_case("a = function(){return call();}" => ssome("return call ( ) ;"); "assignment; body in rhs")]
+    #[test_case("a[(function(){return call();})()]=b" => ssome("return call ( ) ;"); "assignment; body in lhs")]
+    #[test_case("a += call();" => None; "op-assignment; no body")]
+    #[test_case("a += function(){return call();}" => ssome("return call ( ) ;"); "op-assignment; body in rhs")]
+    #[test_case("a[(function(){return call();})()]+=b" => ssome("return call ( ) ;"); "op-assignment; body in lhs")]
+    #[test_case("a &&= call();" => None; "land-assignment; no body")]
+    #[test_case("a &&= function(){return call();}" => ssome("return call ( ) ;"); "land-assignment; body in rhs")]
+    #[test_case("a[(function(){return call();})()]&&=b" => ssome("return call ( ) ;"); "land-assignment; body in lhs")]
+    #[test_case("a ||= call();" => None; "lor-assignment; no body")]
+    #[test_case("a ||= function(){return call();}" => ssome("return call ( ) ;"); "lor-assignment; body in rhs")]
+    #[test_case("a[(function(){return call();})()]||=b" => ssome("return call ( ) ;"); "lor-assignment; body in lhs")]
+    #[test_case("a ??= call();" => None; "coal-assignment; no body")]
+    #[test_case("a ??= function(){return call();}" => ssome("return call ( ) ;"); "coal-assignment; body in rhs")]
+    #[test_case("a[(function(){return call();})()]??=b" => ssome("return call ( ) ;"); "coal-assignment; body in lhs")]
+    #[test_case("[a] = call();" => None; "destructuring; no body")]
+    #[test_case("[a] = [function(){return call();}]" => ssome("return call ( ) ;"); "destructuring; body in rhs")]
+    #[test_case("[a=(function(){return call();})()]=b" => ssome("return call ( ) ;"); "destructuring; body in lhs")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).assignment_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("a" => false; "fall-thru, no tail call")]
+    #[test_case("call()" => true; "fall-thru, is call")]
+    #[test_case("yield call()" => false; "yield expression")]
+    #[test_case("() => call()" => false; "arrow function")]
+    #[test_case("async () => call()" => false; "async arrow function")]
+    #[test_case("a=call()" => false; "ordinary assignment")]
+    #[test_case("a+=call()" => false; "op-assignment")]
+    #[test_case("a&&=call()" => false; "land assignment")]
+    #[test_case("a||=call()" => false; "lor assignment")]
+    #[test_case("a??=call()" => false; "coalesce assignment")]
+    #[test_case("[a]=call()" => false; "destructuring assignment")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).assignment_expression().has_call_in_tail_position(&location)
+    }
 }
 
 mod assignment_operator {
@@ -660,6 +708,15 @@ mod assignment_pattern {
     fn location(src: &str) -> Location {
         Maker::new(src).assignment_pattern().location()
     }
+
+    #[test_case("{obj: call()}" => None; "obj pattern; no body")]
+    #[test_case("{obj: function(){return call();}}" => ssome("return call ( ) ;"); "obj pattern has body")]
+    #[test_case("[a=call()]" => None; "array pattern; no body")]
+    #[test_case("[a=function(){return call();}]" => ssome("return call ( ) ;"); "array pattern; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).assignment_pattern().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 mod object_assignment_pattern {
@@ -795,6 +852,23 @@ mod object_assignment_pattern {
     #[test_case(" {a,...b}" => Location { starting_line: 1, starting_column: 2, span: Span{ starting_index: 1, length: 8 } }; "list+rest")]
     fn location(src: &str) -> Location {
         Maker::new(src).object_assignment_pattern().location()
+    }
+
+    #[test_case("{}" => None; "empty")]
+    #[test_case("{ ...call() }" => None; "rest-only; no function body")]
+    #[test_case("{ ...(function(){return call();})() }" => ssome("return call ( ) ;"); "rest-only; body present")]
+    #[test_case("{ a, b = call() }" => None; "list-only; no function body")]
+    #[test_case("{ a = function(){return call();}, b }" => ssome("return call ( ) ;"); "list-only; body on left")]
+    #[test_case("{ a, b = function(){return call();} }" => ssome("return call ( ) ;"); "list-only body on right")]
+    #[test_case("{ a, b = call(), }" => None; "list-empty-rest; no function body")]
+    #[test_case("{ a = function(){return call();}, b, }" => ssome("return call ( ) ;"); "list-empty-rest; body on left")]
+    #[test_case("{ a, b= function(){return call();}, }" => ssome("return call ( ) ;"); "list-empty-rest body on right")]
+    #[test_case("{ a, ...call() }" => None; "list-rest; no function body")]
+    #[test_case("{ a = function(){return call();}, ...b }" => ssome("return call ( ) ;"); "list-rest; body on left")]
+    #[test_case("{ a, ...function(){return call();} }" => ssome("return call ( ) ;"); "list-rest body on right")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).assignment_pattern().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -987,6 +1061,24 @@ mod array_assignment_pattern {
     fn location(src: &str) -> Location {
         Maker::new(src).array_assignment_pattern().location()
     }
+
+    #[test_case("[]" => None; "location not in production")]
+    #[test_case("[,/*call()*/,,]" => None; "elisons only")]
+    #[test_case("[...call()]" => None; "rest-only; no body")]
+    #[test_case("[...(function(){return call();})()]" => ssome("return call ( ) ;"); "rest-only; body present")]
+    #[test_case("[/* call*() */...a]" => None; "rest-only; location not in rest element")]
+    #[test_case("[call()]" => None; "list-only; no body")]
+    #[test_case("[function(){return call();}]" => ssome("return call ( ) ;"); "list-only; body present")]
+    #[test_case("[a /* call() */]" => None; "list-only, location not in list")]
+    #[test_case("[call(),,,]" => None; "list-elision; no body")]
+    #[test_case("[function(){return call();},,,]" => ssome("return call ( ) ;"); "list-elision; body present")]
+    #[test_case("[/*call()*/ a,...b]" => None; "list-rest; no body")]
+    #[test_case("[function(){return call();},...b]" => ssome("return call ( ) ;"); "list-rest; body in list")]
+    #[test_case("[a,...(function(){return call();})()]" => ssome("return call ( ) ;"); "list-rest; body in rest")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).array_assignment_pattern().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 mod assignment_rest_property {
@@ -1054,6 +1146,14 @@ mod assignment_rest_property {
     #[test_case("...xyzzy" => false; "Rest (no)")]
     fn contains_arguments(src: &str) -> bool {
         AssignmentRestProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("...b" => None; "location not in production")]
+    #[test_case("...call()" => None; "no body")]
+    #[test_case("...(function(){return call();})()" => ssome("return call ( ) ;"); "body present")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).assignment_rest_property().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -1139,6 +1239,17 @@ mod assignment_property_list {
     fn contains_arguments(src: &str) -> bool {
         AssignmentPropertyList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("a" => None; "location not in production")]
+    #[test_case("a=call()" => None; "item; no body")]
+    #[test_case("a=function(){return call();}" => ssome("return call ( ) ;"); "item; body present")]
+    #[test_case("a=function(){return call();},b" => ssome("return call ( ) ;"); "list; body on left")]
+    #[test_case("a,b=function(){return call();}" => ssome("return call ( ) ;"); "list; body on right")]
+    #[test_case("a=call(),b" => None; "list; no body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).assignment_property_list().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 mod assignment_element_list {
@@ -1223,6 +1334,23 @@ mod assignment_element_list {
     fn contains_arguments(src: &str) -> bool {
         AssignmentElementList::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("  a,b" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 3 } }; "list")]
+    #[test_case("  myvar" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 5 } }; "item")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).assignment_element_list().location()
+    }
+
+    #[test_case("a,b" => None; "location not in production")]
+    #[test_case("a=call()" => None; "item; no body")]
+    #[test_case("a=function(){return call();}" => ssome("return call ( ) ;"); "item; body present")]
+    #[test_case("a=call(),b" => None; "list; no body")]
+    #[test_case("a=function(){return call();},b" => ssome("return call ( ) ;"); "list; body on left")]
+    #[test_case("a,b=function(){return call();}" => ssome("return call ( ) ;"); "list; body on right")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).assignment_element_list().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 mod assignment_elision_element {
@@ -1302,6 +1430,20 @@ mod assignment_elision_element {
     #[test_case(",xyzzy" => false; "Elision Item (no)")]
     fn contains_arguments(src: &str) -> bool {
         AssignmentElisionElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  ,,, a" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 5 } }; "has elisions")]
+    #[test_case("  myvar" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 5 } }; "no elision")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).assignment_elision_element().location()
+    }
+
+    #[test_case("a" => None; "location not in production")]
+    #[test_case("a=call()" => None; "body not in production")]
+    #[test_case("a=(function(){return call();})" => ssome("return call ( ) ;"); "body in production")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).assignment_elision_element().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -1404,6 +1546,17 @@ mod assignment_property {
     fn contains_arguments(src: &str) -> bool {
         AssignmentProperty::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("a" => None; "location not in production")]
+    #[test_case("a=call()" => None; "ident with izer; no body")]
+    #[test_case("a=function(){return call();}" => ssome("return call ( ) ;"); "ident with izer; body in izer")]
+    #[test_case("[call()]:10" => None; "property style; no body")]
+    #[test_case("[(function(){return call();})()]:10" => ssome("return call ( ) ;"); "property style; body in property name")]
+    #[test_case("[3]:function(){return call();}" => ssome("return call ( ) ;"); "property style; body in initializer")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).assignment_property().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 mod assignment_element {
@@ -1490,6 +1643,22 @@ mod assignment_element {
     fn contains_arguments(src: &str) -> bool {
         AssignmentElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
     }
+
+    #[test_case("  a=37" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 4 } }; "with izer")]
+    #[test_case("  myvar" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 5 } }; "without izer")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).assignment_element().location()
+    }
+
+    #[test_case("a" => None; "location not in production")]
+    #[test_case("a=call()" => None; "item with initializer; no body")]
+    #[test_case("a[(function(){return call();})()]" => ssome("return call ( ) ;"); "target only, with body")]
+    #[test_case("a[call()]" => None; "target only, without body")]
+    #[test_case("a=(function(){return call();})" => ssome("return call ( ) ;"); "initializer, with body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).assignment_element().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 mod assignment_rest_element {
@@ -1553,6 +1722,19 @@ mod assignment_rest_element {
     #[test_case("...no" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         AssignmentRestElement::parse(&mut newparser(src), Scanner::new(), true, true).unwrap().0.contains_arguments()
+    }
+
+    #[test_case("  ... /* thing */ element" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 23} })]
+    fn location(src: &str) -> Location {
+        Maker::new(src).assignment_rest_element().location()
+    }
+
+    #[test_case("...call()" => None; "no body")]
+    #[test_case("...(function(){return call();})()" => ssome("return call ( ) ;"); "body present")]
+    #[test_case("...a" => None; "location not in production")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).assignment_rest_element().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -1651,5 +1833,23 @@ mod destructuring_assignment_target {
             .destructuring_assignment_target()
             .identifier_ref()
             .map(|idref| String::from(idref.string_value()))
+    }
+
+    #[test_case(" a" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 1 } }; "lhs")]
+    #[test_case(" [a]" => Location { starting_line: 1, starting_column: 2, span: Span { starting_index: 1, length: 3 } }; "pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).destructuring_assignment_target().location()
+    }
+
+    #[test_case("[a=call()]" => None; "pattern; no body")]
+    #[test_case("[a=(function(){return call();})()]" => ssome("return call ( ) ;"); "pattern; has body")]
+    #[test_case("call()" => None; "lhs; no body")]
+    #[test_case("(function(){return call();})()" => ssome("return call ( ) ;"); "lhs; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .destructuring_assignment_target()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
     }
 }

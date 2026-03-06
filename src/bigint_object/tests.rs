@@ -116,3 +116,16 @@ fn this_bigint_value(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<BigIn
     let val = make_val();
     super::this_bigint_value(val).map(Rc::unwrap_or_clone).map_err(unwind_any_error)
 }
+
+#[test_case(Vec::new => serr("TypeError: Value cannot be converted to bigint"); "to_big_int fails")]
+#[test_case(|| vec![ECMAScriptValue::from(0), ECMAScriptValue::from(BigInt::from(20))] => sok("0n"); "zero bits")]
+#[test_case(|| vec![ECMAScriptValue::from(5), ECMAScriptValue::from(BigInt::from(127))] => sok("-1n"); "five bits, negative result")]
+#[test_case(|| vec![10.into(), BigInt::from(127).into()] => sok("127n"); "10 bits, positive result")]
+#[test_case(|| vec![wks(WksId::ToStringTag).into(), ECMAScriptValue::from(10)] => serr("TypeError: Symbol values cannot be converted to Number values"); "to_index fails")]
+fn bigint_as_int_n(make_args: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<String, String> {
+    setup_test_agent();
+    let args = make_args();
+    super::bigint_as_int_n(&ECMAScriptValue::Undefined, None, &args)
+        .map(|val| val.test_result_string())
+        .map_err(unwind_any_error)
+}

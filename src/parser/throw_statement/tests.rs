@@ -79,4 +79,12 @@ mod throw_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).throw_statement().location()
     }
+
+    #[test_case("throw a;" => None; "location not in expression")]
+    #[test_case("throw call();" => None; "expression has no body")]
+    #[test_case("throw function(){return call();};" => ssome("return call ( ) ;"); "body in expression")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).throw_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
 }

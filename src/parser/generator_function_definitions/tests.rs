@@ -169,6 +169,18 @@ mod generator_method {
     fn location(src: &str) -> Location {
         Maker::new(src).generator_method().location()
     }
+
+    #[test_case("*gen(x=call()){}" => None; "location in params; no body")]
+    #[test_case("*gen(x=function(){return call();}){}" => ssome("return call ( ) ;"); "location in params; has body")]
+    #[test_case("*gen(){call();}" => ssome("call ( ) ;"); "location in body")]
+    #[test_case("*gen(){ return (function(){return call();})();}" => ssome("return call ( ) ;"); "sub-body")]
+    #[test_case("*[call()](){}" => None; "location in name; no body")]
+    #[test_case("*[(function(){return call();})()](){}" => ssome("return call ( ) ;"); "location in name; has body")]
+    #[test_case("*/* call() */gen(){}" => None; "location not in params nor body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).generator_method().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // GENERATOR DECLARATION
@@ -423,6 +435,16 @@ mod generator_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).generator_declaration().bound_name().into()
     }
+
+    #[test_case("function *gen(x=call()){}" => None; "location in params; no body")]
+    #[test_case("function *gen(x=function(){return call();}){}" => ssome("return call ( ) ;"); "location in params; has body")]
+    #[test_case("function *gen(){call();}" => ssome("call ( ) ;"); "location in body")]
+    #[test_case("function *gen(){ return (function(){return call();})();}" => ssome("return call ( ) ;"); "sub-body")]
+    #[test_case("function /* call() */ *gen(){}" => None; "location not in params nor body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).generator_declaration().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // GENERATOR EXPRESSION
@@ -598,6 +620,16 @@ mod generator_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).generator_expression().location()
     }
+
+    #[test_case("function *(x=call()){}" => None; "location in params; no body")]
+    #[test_case("function *(x=function(){return call();}){}" => ssome("return call ( ) ;"); "location in params; has body")]
+    #[test_case("function *(){call();}" => ssome("call ( ) ;"); "location in body")]
+    #[test_case("function *(){ return (function(){return call();})();}" => ssome("return call ( ) ;"); "sub-body")]
+    #[test_case("function /* call() */ *(){}" => None; "location not in params nor body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).generator_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // GENERATOR BODY
@@ -686,6 +718,14 @@ mod generator_body {
     #[test_case("let a; const b=0; var c; function d() {}" => svec(&["c", "function d ( ) { }"]); "function body")]
     fn var_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).generator_body().var_scoped_declarations().iter().map(String::from).collect()
+    }
+
+    #[test_case("call()" => ssome("call ( ) ;"); "present in function body")]
+    #[test_case("(function(){return call();})" => ssome("return call ( ) ;"); "deeper")]
+    #[test_case("10" => None; "location not in body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).generator_body().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -845,5 +885,17 @@ mod yield_expression {
     #[test_case("   yield *u" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "from")]
     fn location(src: &str) -> Location {
         Maker::new(src).yield_expression().location()
+    }
+
+    #[test_case("yield" => None; "simple")]
+    #[test_case("yield call()" => None; "expression; no body")]
+    #[test_case("yield function(){return call();}" => ssome("return call ( ) ;"); "expression; body present")]
+    #[test_case("yield *call()" => None; "from; no body")]
+    #[test_case("yield *(function(){return call();})()" => ssome("return call ( ) ;"); "from; body present")]
+    #[test_case("yield /* call() */ b" => None; "expression; location not in expression")]
+    #[test_case("yield /* call() */ *b" => None; "from; location not in expression")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).yield_expression().body_containing_location(&location).map(|node| node.to_string())
     }
 }

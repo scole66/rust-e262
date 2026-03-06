@@ -123,4 +123,21 @@ mod return_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).return_statement().location()
     }
+
+    #[test_case("return;" => None; "bare return")]
+    #[test_case("return /* call() */ 1;" => None; "expression; location not in expression")]
+    #[test_case("return call();" => None; "expression; no body")]
+    #[test_case("return function(){return call();};" => ssome("return call ( ) ;"); "expression; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).return_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("return;" => false; "bare return")]
+    #[test_case("return 3+call();" => false; "exp; not tail")]
+    #[test_case("return call();" => true; "tail position")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).return_statement().has_call_in_tail_position(&location)
+    }
 }

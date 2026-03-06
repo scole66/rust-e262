@@ -976,7 +976,7 @@ for name in ${names[@]}; do
   location=$(mktemp -d)
   results=("${results[@]}" $location)
 
-  tst -o=${location}/coverage.profdata ${file}::${testmod}::${modname}
+  tst -o=${location}/coverage.profdata ${file}::${testmod}::${modname}:: ${file}::${testmod}::${modname}_test
   if [ $? -ne 0 ]; then
     for d in ${results[@]}; do
       rm -rf $d
@@ -985,7 +985,7 @@ for name in ${names[@]}; do
   fi
 
   namelist=${location}/namelist
-  report --no-color --name-regex=".+" --profile=${location}/coverage.profdata | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint" | sed -E 's/(.*):$/allowlist_fun:\1/' > $namelist
+  report --no-color --name-regex=".+" --profile=${location}/coverage.profdata | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint|pp_three" | sed -E 's/(.*):$/allowlist_fun:\1/' > $namelist
 
   echo "$name" > ${location}/name.txt
 done
