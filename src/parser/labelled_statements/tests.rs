@@ -188,6 +188,21 @@ mod labelled_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).labelled_statement().location()
     }
+
+    #[test_case("a:call();" => None; "location in statement; no body")]
+    #[test_case("a:(function(){return call();})();" => ssome("return call ( ) ;"); "location in statement; has body")]
+    #[test_case("a/*call()*/:x;" => None; "location between name and statement")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).labelled_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("a:return 3+call();" => false; "not tail")]
+    #[test_case("a:return call();" => true; "is tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).labelled_statement().has_call_in_tail_position(&location)
+    }
 }
 
 // LABELLED ITEM
@@ -398,5 +413,22 @@ mod labelled_item {
     #[test_case("function blue(){}" => svec(&["function blue ( ) { }"]); "function")]
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).labelled_item().lexically_scoped_declarations().iter().map(String::from).collect()
+    }
+
+    #[test_case("a:call();" => None; "statement; no body")]
+    #[test_case("a:(function(){return call();})();" => ssome("return call ( ) ;"); "statement; has body")]
+    #[test_case("a:function b(){return call();}" => ssome("return call ( ) ;"); "function; has body")]
+    #[test_case("a:function b(x=call()){}" => None; "function; no body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).labelled_item().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("a:return 3+call();" => false; "not tail")]
+    #[test_case("a:return call();" => true; "is tail")]
+    #[test_case("a:function bob(){call();}" => false; "labelled function")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).labelled_item().has_call_in_tail_position(&location)
     }
 }
