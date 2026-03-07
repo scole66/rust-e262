@@ -178,7 +178,7 @@ impl LabelledStatement {
     }
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        if self.location().contains(location) { self.item.body_containing_location(location) } else { None }
+        if self.item.location().contains(location) { self.item.body_containing_location(location) } else { None }
     }
 
     pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
@@ -435,13 +435,9 @@ impl LabelledItem {
     }
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        if self.location().contains(location) {
-            match self {
-                LabelledItem::Statement(node) => node.body_containing_location(location),
-                LabelledItem::Function(node) => node.body_containing_location(location),
-            }
-        } else {
-            None
+        match self {
+            LabelledItem::Statement(node) => node.body_containing_location(location),
+            LabelledItem::Function(node) => node.body_containing_location(location),
         }
     }
 

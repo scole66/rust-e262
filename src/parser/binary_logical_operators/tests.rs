@@ -158,6 +158,28 @@ mod logical_and_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).logical_and_expression().location()
     }
+
+    #[test_case("call()" => None; "fallthru; no body")]
+    #[test_case("function(){return call();}" => ssome("return call ( ) ;"); "fallthru; has body")]
+    #[test_case("call() && y" => None; "land; location in left; no body")]
+    #[test_case("function(){return call();} && y" => ssome("return call ( ) ;"); "land; location in left; has body")]
+    #[test_case("x && call()" => None; "land; location in right; no body")]
+    #[test_case("x && function(){return call();}" => ssome("return call ( ) ;"); "land; location in right; has body")]
+    #[test_case("x /* call() */ && y" => None; "land; location in neither right nor left")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).logical_and_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => true; "fallthru; in tail")]
+    #[test_case("3+call()" => false; "fallthru; no tail")]
+    #[test_case("call() && y" => false; "land; location on left")]
+    #[test_case("x && call()" => true; "land; tail on right")]
+    #[test_case("x && !call()" => false; "land; location on right; no tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).logical_and_expression().has_call_in_tail_position(&location)
+    }
 }
 
 // LOGICAL OR EXPRESSION
@@ -315,6 +337,28 @@ mod logical_or_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).logical_or_expression().location()
     }
+
+    #[test_case("call()" => None; "fallthru; no body")]
+    #[test_case("function(){return call();}" => ssome("return call ( ) ;"); "fallthru; has body")]
+    #[test_case("call() || y" => None; "lor; location in left; no body")]
+    #[test_case("function(){return call();} || y" => ssome("return call ( ) ;"); "lor; location in left; has body")]
+    #[test_case("x || call()" => None; "lor; location in right; no body")]
+    #[test_case("x || function(){return call();}" => ssome("return call ( ) ;"); "lor; location in right; has body")]
+    #[test_case("x /* call() */ || y" => None; "lor; location in neither right nor left")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).logical_or_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => true; "fallthru; in tail")]
+    #[test_case("3+call()" => false; "fallthru; no tail")]
+    #[test_case("call() || y" => false; "lor; location on left")]
+    #[test_case("x || call()" => true; "lor; tail on right")]
+    #[test_case("x || !call()" => false; "lor; location on right; no tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).logical_or_expression().has_call_in_tail_position(&location)
+    }
 }
 
 // COALESCE EXPRESSION
@@ -437,6 +481,24 @@ mod coalesce_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).coalesce_expression().location()
     }
+
+    #[test_case("call()??y" => None; "location in head; no body")]
+    #[test_case("(function(){return call();})()??y" => ssome("return call ( ) ;"); "location in head; has body")]
+    #[test_case("x??call()" => None; "location in tail; no body")]
+    #[test_case("x??(function(){return call();})()" => ssome("return call ( ) ;"); "location in tail; has body")]
+    #[test_case("x/*code()*/??y" => None; "location not in child productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).coalesce_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()??x" => false; "call not in tail")]
+    #[test_case("x??call()" => true; "call in tail position")]
+    #[test_case("x??(!call())" => false; "call last, but not tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).coalesce_expression().has_call_in_tail_position(&location)
+    }
 }
 
 // COALESCE EXPRESSION HEAD
@@ -548,6 +610,17 @@ mod coalesce_expression_head {
     #[test_case("  a+b??c" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "head is other")]
     fn location(src: &str) -> Location {
         Maker::new(src).coalesce_expression_head().location()
+    }
+
+    #[test_case("call()??b??c" => None; "chained; location in head; no body")]
+    #[test_case("(function(){return call();})()??b??c" => ssome("return call ( ) ;"); "chained; location in head; has body")]
+    #[test_case("a??call()??c" => None; "chained; location in tail; no body")]
+    #[test_case("a??(function(){return call();})()??c" => ssome("return call ( ) ;"); "chained; location in tail; has body")]
+    #[test_case("call()??b" => None; "simple; no body")]
+    #[test_case("(function(){return call();})()??b" => ssome("return call ( ) ;"); "simple; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).coalesce_expression_head().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -693,5 +766,23 @@ mod short_circuit_expression {
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
     fn location(src: &str) -> Location {
         Maker::new(src).short_circuit_expression().location()
+    }
+
+    #[test_case("call()" => None; "lor; no body")]
+    #[test_case("(function(){return call();})()" => ssome("return call ( ) ;"); "lor; has body")]
+    #[test_case("x??call()" => None; "coalesce; no body")]
+    #[test_case("x??(function(){return call();})()" => ssome("return call ( ) ;"); "coalesce; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).short_circuit_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("3+call()" => false; "lor; not tail")]
+    #[test_case("call()" => true; "lor; is tail")]
+    #[test_case("x??!call()" => false; "coalesce; not tail")]
+    #[test_case("x??call()" => true; "coalesce; is tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).short_circuit_expression().has_call_in_tail_position(&location)
     }
 }

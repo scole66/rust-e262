@@ -170,15 +170,17 @@ impl LogicalANDExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                LogicalANDExpression::BitwiseORExpression(node) => node.body_containing_location(location),
-                LogicalANDExpression::LogicalAND(left, right) => {
-                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
+        match self {
+            LogicalANDExpression::BitwiseORExpression(node) => node.body_containing_location(location),
+            LogicalANDExpression::LogicalAND(left, right) => {
+                if left.location().contains(location) {
+                    left.body_containing_location(location)
+                } else if right.location().contains(location) {
+                    right.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 
@@ -373,15 +375,17 @@ impl LogicalORExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                LogicalORExpression::LogicalANDExpression(node) => node.body_containing_location(location),
-                LogicalORExpression::LogicalOR(left, right) => {
-                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
+        match self {
+            LogicalORExpression::LogicalANDExpression(node) => node.body_containing_location(location),
+            LogicalORExpression::LogicalOR(left, right) => {
+                if left.location().contains(location) {
+                    left.body_containing_location(location)
+                } else if right.location().contains(location) {
+                    right.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 
@@ -534,8 +538,10 @@ impl CoalesceExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            self.head.body_containing_location(location).or_else(|| self.tail.body_containing_location(location))
+        if self.head.location().contains(location) {
+            self.head.body_containing_location(location)
+        } else if self.tail.location().contains(location) {
+            self.tail.body_containing_location(location)
         } else {
             None
         }
@@ -661,13 +667,9 @@ impl CoalesceExpressionHead {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                CoalesceExpressionHead::CoalesceExpression(node) => node.body_containing_location(location),
-                CoalesceExpressionHead::BitwiseORExpression(node) => node.body_containing_location(location),
-            }
-        } else {
-            None
+        match self {
+            CoalesceExpressionHead::CoalesceExpression(node) => node.body_containing_location(location),
+            CoalesceExpressionHead::BitwiseORExpression(node) => node.body_containing_location(location),
         }
     }
 }
@@ -821,13 +823,9 @@ impl ShortCircuitExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ShortCircuitExpression::LogicalORExpression(node) => node.body_containing_location(location),
-                ShortCircuitExpression::CoalesceExpression(node) => node.body_containing_location(location),
-            }
-        } else {
-            None
+        match self {
+            ShortCircuitExpression::LogicalORExpression(node) => node.body_containing_location(location),
+            ShortCircuitExpression::CoalesceExpression(node) => node.body_containing_location(location),
         }
     }
 
