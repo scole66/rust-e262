@@ -484,30 +484,43 @@ impl MemberExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                MemberExpression::PrimaryExpression(node) => node.body_containing_location(location),
-                MemberExpression::Expression(left, right, _) => {
-                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
-                }
-                MemberExpression::IdentifierName(node, ..) | MemberExpression::PrivateId(node, ..) => {
-                    node.body_containing_location(location)
-                }
-                MemberExpression::TemplateLiteral(left, right) => {
-                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
-                }
-                MemberExpression::SuperProperty(node) => node.body_containing_location(location),
-                MemberExpression::MetaProperty(node) => node.body_containing_location(location),
-                MemberExpression::NewArguments(left, right, _) => {
-                    left.body_containing_location(location).or_else(|| right.body_containing_location(location))
+        match self {
+            MemberExpression::PrimaryExpression(node) => node.body_containing_location(location),
+            MemberExpression::Expression(left, right, _) => {
+                if left.location().contains(location) {
+                    left.body_containing_location(location)
+                } else if right.location().contains(location) {
+                    right.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
+            MemberExpression::IdentifierName(node, ..) | MemberExpression::PrivateId(node, ..) => {
+                if node.location().contains(location) { node.body_containing_location(location) } else { None }
+            }
+            MemberExpression::TemplateLiteral(left, right) => {
+                if left.location().contains(location) {
+                    left.body_containing_location(location)
+                } else if right.location().contains(location) {
+                    right.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            MemberExpression::SuperProperty(node) => node.body_containing_location(location),
+            MemberExpression::MetaProperty(_) => None,
+            MemberExpression::NewArguments(left, right, _) => {
+                if left.location().contains(location) {
+                    left.body_containing_location(location)
+                } else if right.location().contains(location) {
+                    right.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
@@ -539,7 +552,7 @@ impl MemberExpression {
             MemberExpression::PrimaryExpression(primary_expression) => {
                 primary_expression.has_call_in_tail_position(location)
             }
-            MemberExpression::TemplateLiteral(member_expression, template_literal) => self.location() == *location,
+            MemberExpression::TemplateLiteral(..) => self.location() == *location,
             MemberExpression::Expression(..)
             | MemberExpression::IdentifierName(..)
             | MemberExpression::SuperProperty(..)
@@ -811,11 +824,6 @@ impl MetaProperty {
             }
         }
     }
-
-    #[expect(unused_variables)]
-    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        todo!()
-    }
 }
 
 // Arguments[Yield, Await] :
@@ -982,15 +990,15 @@ impl Arguments {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                Arguments::Empty { .. } => None,
-                Arguments::ArgumentList(n, _) | Arguments::ArgumentListComma(n, _) => {
+        match self {
+            Arguments::Empty { .. } => None,
+            Arguments::ArgumentList(n, _) | Arguments::ArgumentListComma(n, _) => {
+                if n.location().contains(location) {
                     n.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 }
@@ -1242,15 +1250,24 @@ impl ArgumentList {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ArgumentList::FallThru(n) | ArgumentList::Dots(n, _) => n.body_containing_location(location),
-                ArgumentList::List(n1, n2) | ArgumentList::ListDots(n1, n2) => {
-                    n1.body_containing_location(location).or_else(|| n2.body_containing_location(location))
+        match self {
+            ArgumentList::FallThru(n) => n.body_containing_location(location),
+            ArgumentList::Dots(n, _) => {
+                if n.location().contains(location) {
+                    n.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
+            ArgumentList::List(n1, n2) | ArgumentList::ListDots(n1, n2) => {
+                if n1.location().contains(location) {
+                    n1.body_containing_location(location)
+                } else if n2.location().contains(location) {
+                    n2.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -1460,13 +1477,15 @@ impl NewExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                NewExpression::MemberExpression(n) => n.body_containing_location(location),
-                NewExpression::NewExpression(n, _) => n.body_containing_location(location),
+        match self {
+            NewExpression::MemberExpression(n) => n.body_containing_location(location),
+            NewExpression::NewExpression(n, _) => {
+                if n.location().contains(location) {
+                    n.body_containing_location(location)
+                } else {
+                    None
+                }
             }
-        } else {
-            None
         }
     }
 
@@ -1604,10 +1623,10 @@ impl CallMemberExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            self.member_expression
-                .body_containing_location(location)
-                .or_else(|| self.arguments.body_containing_location(location))
+        if self.member_expression.location().contains(location) {
+            self.member_expression.body_containing_location(location)
+        } else if self.arguments.location().contains(location) {
+            self.arguments.body_containing_location(location)
         } else {
             None
         }
@@ -1798,7 +1817,11 @@ impl ImportCall {
     }
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-        self.assignment_expression.body_containing_location(location)
+        if self.assignment_expression.location().contains(location) {
+            self.assignment_expression.body_containing_location(location)
+        } else {
+            None
+        }
     }
 }
 
@@ -2139,26 +2162,40 @@ impl CallExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                CallExpression::CallMemberExpression(boxed) => boxed.body_containing_location(location),
-                CallExpression::SuperCall(boxed) => boxed.body_containing_location(location),
-                CallExpression::ImportCall(boxed) => boxed.body_containing_location(location),
-                CallExpression::CallThenArguments(ce, args) => {
-                    ce.body_containing_location(location).or_else(|| args.body_containing_location(location))
-                }
-                CallExpression::CallThenExpression(ce, exp, _) => {
-                    ce.body_containing_location(location).or_else(|| exp.body_containing_location(location))
-                }
-                CallExpression::CallThenName(ce, _, _) | CallExpression::CallThenPrivateId(ce, _, _) => {
+        match self {
+            CallExpression::CallMemberExpression(boxed) => boxed.body_containing_location(location),
+            CallExpression::SuperCall(boxed) => boxed.body_containing_location(location),
+            CallExpression::ImportCall(boxed) => boxed.body_containing_location(location),
+            CallExpression::CallThenArguments(ce, args) => {
+                if ce.location().contains(location) {
                     ce.body_containing_location(location)
-                }
-                CallExpression::CallThenTemplateLiteral(ce, tl) => {
-                    ce.body_containing_location(location).or_else(|| tl.body_containing_location(location))
+                } else if args.location().contains(location) {
+                    args.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
+            CallExpression::CallThenExpression(ce, exp, _) => {
+                if ce.location().contains(location) {
+                    ce.body_containing_location(location)
+                } else if exp.location().contains(location) {
+                    exp.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            CallExpression::CallThenName(ce, _, _) | CallExpression::CallThenPrivateId(ce, _, _) => {
+                if ce.location().contains(location) { ce.body_containing_location(location) } else { None }
+            }
+            CallExpression::CallThenTemplateLiteral(ce, tl) => {
+                if ce.location().contains(location) {
+                    ce.body_containing_location(location)
+                } else if tl.location().contains(location) {
+                    tl.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -2415,14 +2452,10 @@ impl LeftHandSideExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                LeftHandSideExpression::New(node) => node.body_containing_location(location),
-                LeftHandSideExpression::Call(node) => node.body_containing_location(location),
-                LeftHandSideExpression::Optional(node) => node.body_containing_location(location),
-            }
-        } else {
-            None
+        match self {
+            LeftHandSideExpression::New(node) => node.body_containing_location(location),
+            LeftHandSideExpression::Call(node) => node.body_containing_location(location),
+            LeftHandSideExpression::Optional(node) => node.body_containing_location(location),
         }
     }
 
@@ -2633,24 +2666,37 @@ impl OptionalExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                OptionalExpression::Member(me, oc) => {
-                    me.body_containing_location(location).or_else(|| oc.body_containing_location(location))
-                }
-                OptionalExpression::Call(ce, oc) => {
-                    ce.body_containing_location(location).or_else(|| oc.body_containing_location(location))
-                }
-                OptionalExpression::Opt(oe, oc) => {
-                    oe.body_containing_location(location).or_else(|| oc.body_containing_location(location))
+        match self {
+            OptionalExpression::Member(me, oc) => {
+                if me.location().contains(location) {
+                    me.body_containing_location(location)
+                } else if oc.location().contains(location) {
+                    oc.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
+            OptionalExpression::Call(ce, oc) => {
+                if ce.location().contains(location) {
+                    ce.body_containing_location(location)
+                } else if oc.location().contains(location) {
+                    oc.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            OptionalExpression::Opt(oe, oc) => {
+                if oe.location().contains(location) {
+                    oe.body_containing_location(location)
+                } else if oc.location().contains(location) {
+                    oc.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
@@ -2663,7 +2709,11 @@ impl OptionalExpression {
         //         also a possible tail position call. A function call cannot return a Reference Record, so such a
         //         GetValue operation will always return the same value as the actual function call result.
         //
-        todo!()
+        match self {
+            OptionalExpression::Member(_, oc) | OptionalExpression::Call(_, oc) | OptionalExpression::Opt(_, oc) => {
+                oc.has_call_in_tail_position(location)
+            }
+        }
     }
 }
 
@@ -3052,79 +3102,89 @@ impl OptionalChain {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                OptionalChain::Args(node, _) => node.body_containing_location(location),
-                OptionalChain::Exp(node, _) => node.body_containing_location(location),
-                OptionalChain::Ident(_, _) | OptionalChain::PrivateId(_, _) => None,
-                OptionalChain::Template(node, _) => node.body_containing_location(location),
-                OptionalChain::PlusArgs(lst, args) => {
-                    lst.body_containing_location(location).or_else(|| args.body_containing_location(location))
-                }
-                OptionalChain::PlusExp(lst, exp, _) => {
-                    lst.body_containing_location(location).or_else(|| exp.body_containing_location(location))
-                }
-                OptionalChain::PlusIdent(lst, _, _) | OptionalChain::PlusPrivateId(lst, _, _) => {
-                    lst.body_containing_location(location)
-                }
-                OptionalChain::PlusTemplate(lst, tl) => {
-                    lst.body_containing_location(location).or_else(|| tl.body_containing_location(location))
+        match self {
+            OptionalChain::Args(node, _) => {
+                if node.location().contains(location) {
+                    node.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
+            OptionalChain::Exp(node, _) => {
+                if node.location().contains(location) {
+                    node.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            OptionalChain::Ident(_, _) | OptionalChain::PrivateId(_, _) => None,
+            OptionalChain::Template(node, _) => {
+                if node.location().contains(location) {
+                    node.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            OptionalChain::PlusArgs(lst, args) => {
+                if lst.location().contains(location) {
+                    lst.body_containing_location(location)
+                } else if args.location().contains(location) {
+                    args.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            OptionalChain::PlusExp(lst, exp, _) => {
+                if lst.location().contains(location) {
+                    lst.body_containing_location(location)
+                } else if exp.location().contains(location) {
+                    exp.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            OptionalChain::PlusIdent(lst, _, _) | OptionalChain::PlusPrivateId(lst, _, _) => {
+                if lst.location().contains(location) { lst.body_containing_location(location) } else { None }
+            }
+            OptionalChain::PlusTemplate(lst, tl) => {
+                if lst.location().contains(location) {
+                    lst.body_containing_location(location)
+                } else if tl.location().contains(location) {
+                    tl.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+        }
+    }
+
+    pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
+        // Static Semantics: HasCallInTailPosition
+        // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
+        // MemberExpression Parse Node, or an OptionalChain Parse Node) and returns a Boolean.
+        //
+        // Note 1: call is a Parse Node that represents a specific range of source text. When the following algorithms
+        //         compare call to another Parse Node, it is a test of whether they represent the same source text.
+        //
+        // Note 2: A potential tail position call that is immediately followed by return GetValue of the call result is
+        //         also a possible tail position call. A function call cannot return a Reference Record, so such a
+        //         GetValue operation will always return the same value as the actual function call result.
+        //
+        match self {
+            OptionalChain::Exp(..)
+            | OptionalChain::Ident(..)
+            | OptionalChain::Template(..)
+            | OptionalChain::PrivateId(..)
+            | OptionalChain::PlusExp(..)
+            | OptionalChain::PlusIdent(..)
+            | OptionalChain::PlusTemplate(..)
+            | OptionalChain::PlusPrivateId(..) => false,
+            OptionalChain::Args(..) | OptionalChain::PlusArgs(..) => self.location() == *location,
         }
     }
 }
 
-impl ParsedText {
-    pub(crate) fn is_in_tail_position(&self, location: &Location, strict: bool) -> bool {
-        // Static Semantics: IsInTailPosition ( call )
-        //
-        // The abstract operation IsInTailPosition takes argument call (a CallExpression Parse Node, a MemberExpression
-        // Parse Node, or an OptionalChain Parse Node) and returns a Boolean. It performs the following steps when
-        // called:
-        //
-        //  1. If IsStrict(call) is false, return false.
-        //  2. If call is not contained within a FunctionBody, a ConciseBody, or an AsyncConciseBody, return false.
-        //  3. Let body be the FunctionBody, ConciseBody, or AsyncConciseBody that most closely contains call.
-        //  4. If body is the FunctionBody of a GeneratorBody, return false.
-        //  5. If body is the FunctionBody of an AsyncFunctionBody, return false.
-        //  6. If body is the FunctionBody of an AsyncGeneratorBody, return false.
-        //  7. If body is an AsyncConciseBody, return false.
-        //  8. Return the result of HasCallInTailPosition of body with argument call.
-        //
-        // Note: Tail Position calls are only defined in strict mode code because of a common non-standard language
-        //       extension (see 10.2.4) that enables observation of the chain of caller contexts.
-        if !strict {
-            return false;
-        }
-        let body = self.body_containing_location(location);
-        match &body {
-            None | Some(ContainingBody::AsyncConcise(_)) => false,
-            Some(ContainingBody::Concise(body)) => {
-                // Otherwise, HasCallInTailPosition of body with argument call.
-                body.has_call_in_tail_position(location)
-            }
-            Some(ContainingBody::Function(body)) => {
-                // If body is the FunctionBody of a GeneratorBody, return false.
-                if body.is_generator_body() {
-                    return false;
-                }
-                // If body is the FunctionBody of an AsyncFunctionBody, return false.
-                if body.is_async_function_body() {
-                    return false;
-                }
-                // If body is the FunctionBody of an AsyncGeneratorBody, return false.
-                if body.is_async_generator_body() {
-                    return false;
-                }
-                // Otherwise, HasCallInTailPosition of body with argument call.
-                body.has_call_in_tail_position(location)
-            }
-        }
-    }
-}
+impl ParsedText {}
 
 #[cfg(test)]
 mod tests;

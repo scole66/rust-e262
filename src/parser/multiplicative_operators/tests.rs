@@ -238,16 +238,29 @@ mod multiplicative_expression {
         Maker::new(src).multiplicative_expression().assignment_target_type(strict)
     }
 
-    //#[test_case("a*b" => false; "expr")]
-    //#[test_case("function bob(){}" => true; "function fallthru")]
-    //#[test_case("1" => false; "literal fallthru")]
-    //fn is_named_function(src: &str) -> bool {
-    //    Maker::new(src).multiplicative_expression().is_named_function()
-    //}
-
     #[test_case("  a*b" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "expr")]
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
     fn location(src: &str) -> Location {
         Maker::new(src).multiplicative_expression().location()
+    }
+
+    #[test_case("call()" => None; "fall-thru; no body")]
+    #[test_case("(function(){return call();})" => ssome("return call ( ) ;"); "fall-thru; has body")]
+    #[test_case("call()*b" => None; "multiply; locationj in left; no body")]
+    #[test_case("(function(){return call();})()*b" => ssome("return call ( ) ;"); "multiply; location in left; has body")]
+    #[test_case("a*call()" => None; "multiply; location in right; no body")]
+    #[test_case("a*(function(){return call();})()" => ssome("return call ( ) ;"); "multiply; location in right; has body")]
+    #[test_case("a/*call()*/*b" => None; "multiply; location between productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).multiplicative_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => true; "fall-thru; in tail")]
+    #[test_case("!call()" => false; "fall-thru; not tail")]
+    #[test_case("call() * 3" => false; "multiplicative expr")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).multiplicative_expression().has_call_in_tail_position(&location)
     }
 }

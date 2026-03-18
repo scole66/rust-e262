@@ -299,21 +299,36 @@ impl TryStatement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                TryStatement::Catch { block, catch, .. } => {
-                    block.body_containing_location(location).or_else(|| catch.body_containing_location(location))
+        match self {
+            TryStatement::Catch { block, catch, .. } => {
+                if block.location().contains(location) {
+                    block.body_containing_location(location)
+                } else if catch.location().contains(location) {
+                    catch.body_containing_location(location)
+                } else {
+                    None
                 }
-                TryStatement::Finally { block, finally, .. } => {
-                    block.body_containing_location(location).or_else(|| finally.body_containing_location(location))
-                }
-                TryStatement::Full { block, catch, finally, .. } => block
-                    .body_containing_location(location)
-                    .or_else(|| catch.body_containing_location(location))
-                    .or_else(|| finally.body_containing_location(location)),
             }
-        } else {
-            None
+            TryStatement::Finally { block, finally, .. } => {
+                if block.location().contains(location) {
+                    block.body_containing_location(location)
+                } else if finally.location().contains(location) {
+                    finally.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
+            TryStatement::Full { block, catch, finally, .. } => {
+                if block.location().contains(location) {
+                    block.body_containing_location(location)
+                } else if catch.location().contains(location) {
+                    catch.body_containing_location(location)
+                } else if finally.location().contains(location) {
+                    finally.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -507,7 +522,15 @@ impl Catch {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) { self.block.body_containing_location(location) } else { None }
+        if let Some(node) = &self.parameter
+            && node.location().contains(location)
+        {
+            node.body_containing_location(location)
+        } else if self.block.location().contains(location) {
+            self.block.body_containing_location(location)
+        } else {
+            None
+        }
     }
 
     pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
@@ -642,7 +665,7 @@ impl Finally {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) { self.block.body_containing_location(location) } else { None }
+        if self.block.location().contains(location) { self.block.body_containing_location(location) } else { None }
     }
 
     pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
@@ -784,7 +807,6 @@ impl CatchParameter {
         }
     }
 
-    #[cfg(test)]
     pub(crate) fn location(&self) -> Location {
         match self {
             CatchParameter::Ident(node) => node.location(),
@@ -792,16 +814,11 @@ impl CatchParameter {
         }
     }
 
-    #[cfg(test)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                CatchParameter::Ident(..) => None,
-                CatchParameter::Pattern(bp) => bp.body_containing_location(location),
-            }
-        } else {
-            None
+        match self {
+            CatchParameter::Ident(..) => None,
+            CatchParameter::Pattern(bp) => bp.body_containing_location(location),
         }
     }
 }

@@ -213,18 +213,20 @@ impl EqualityExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                EqualityExpression::RelationalExpression(node) => node.body_containing_location(location),
-                EqualityExpression::Equal(ee, re)
-                | EqualityExpression::NotEqual(ee, re)
-                | EqualityExpression::StrictEqual(ee, re)
-                | EqualityExpression::NotStrictEqual(ee, re) => {
-                    ee.body_containing_location(location).or_else(|| re.body_containing_location(location))
+        match self {
+            EqualityExpression::RelationalExpression(node) => node.body_containing_location(location),
+            EqualityExpression::Equal(ee, re)
+            | EqualityExpression::NotEqual(ee, re)
+            | EqualityExpression::StrictEqual(ee, re)
+            | EqualityExpression::NotStrictEqual(ee, re) => {
+                if ee.location().contains(location) {
+                    ee.body_containing_location(location)
+                } else if re.location().contains(location) {
+                    re.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 

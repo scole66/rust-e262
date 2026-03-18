@@ -97,6 +97,13 @@ mod unique_formal_parameters {
     fn contains_expressions(src: &str) -> bool {
         Maker::new(src).unique_formal_parameters().contains_expression()
     }
+
+    #[test_case("a,b=call(),c" => None; "no body")]
+    #[test_case("a,b=(function(){return call();}),c" => ssome("return call ( ) ;"); "has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).unique_formal_parameters().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // FORMAL PARAMETERS
@@ -362,6 +369,24 @@ mod formal_parameters {
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).formal_parameters().contains_expression()
     }
+
+    #[test_case("" => None; "empty")]
+    #[test_case("...[x=call()]" => None; "rest-only; no body")]
+    #[test_case("...[x=(function(){return call();})]" => ssome("return call ( ) ;"); "rest-only; has body")]
+    #[test_case("x,y=call(),z" => None; "list-only; no body")]
+    #[test_case("x,y=function(){return call();},z" => ssome("return call ( ) ;"); "list-only; has body")]
+    #[test_case("x,y=call(),z," => None; "list-comma; no body")]
+    #[test_case("x,y=function(){return call();},z," => ssome("return call ( ) ;"); "list-comma; has body")]
+    #[test_case("x,y /*call()*/ ," => None; "list-comma; location not in list")]
+    #[test_case("x=call(),y,...z" => None; "list-rest; location in left; no body")]
+    #[test_case("x=function(){return call();},y,...z" => ssome("return call ( ) ;"); "list-rest; location in left; has body")]
+    #[test_case("x,y,...[z=call()]" => None; "list-rest; location in right; no body")]
+    #[test_case("x,y,...[z=function(){return call();}]" => ssome("return call ( ) ;"); "list-rest; location in right; has body")]
+    #[test_case("x,y,/*call()*/...z" => None; "list-rest; location between productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).formal_parameters().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // FORMAL PARAMETER LIST
@@ -525,6 +550,18 @@ mod formal_parameter_list {
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).formal_parameter_list().contains_expression()
     }
+
+    #[test_case("a=call()" => None; "item; no body")]
+    #[test_case("a=function(){return call();}" => ssome("return call ( ) ;"); "item; has body")]
+    #[test_case("a=call(),b" => None; "list; location on left; no body")]
+    #[test_case("a=function(){return call();},b" => ssome("return call ( ) ;"); "list; location on left; has body")]
+    #[test_case("a,b=call()" => None; "list; location on right; no body")]
+    #[test_case("a,b=function(){return call();}" => ssome("return call ( ) ;"); "list; location on right; has body")]
+    #[test_case("a,/*call()*/b" => None; "list; location between productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).formal_parameter_list().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // FUNCTION REST PARAMETER
@@ -601,6 +638,13 @@ mod function_rest_parameter {
     #[test_case("...{a=0}" => true; "with expr")]
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).function_rest_parameter().contains_expression()
+    }
+
+    #[test_case("...{a=call()}" => None; "no body")]
+    #[test_case("...{a=function(){return call();}}" => ssome("return call ( ) ;"); "has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).function_rest_parameter().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -703,5 +747,12 @@ mod formal_parameter {
     #[test_case("a=0" => true; "with expr")]
     fn contains_expression(src: &str) -> bool {
         Maker::new(src).formal_parameter().contains_expression()
+    }
+
+    #[test_case("a=call()" => None; "no body")]
+    #[test_case("a=function(){return call();}" => ssome("return call ( ) ;"); "has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).formal_parameter().body_containing_location(&location).map(|node| node.to_string())
     }
 }

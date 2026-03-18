@@ -437,32 +437,6 @@ mod member_expression {
         Maker::new(src).member_expression().assignment_target_type(strict)
     }
 
-    //#[test_case("a[b]" => false; "brackets")]
-    //#[test_case("a.b" => false; "property id")]
-    //#[test_case("a`${b}`" => false; "template")]
-    //#[test_case("super.a" => false; "super prop")]
-    //#[test_case("new.target" => false; "meta")]
-    //#[test_case("new a(b)" => false; "new me")]
-    //#[test_case("a.#b" => false; "private id")]
-    //#[test_case("function bob(){}" => true; "function fallthru")]
-    //#[test_case("1" => false; "literal fallthru")]
-    //fn is_named_function(src: &str) -> bool {
-    //    Maker::new(src).member_expression().is_named_function()
-    //}
-
-    //#[test_case("a[b]" => false; "brackets")]
-    //#[test_case("a.b" => false; "property id")]
-    //#[test_case("a`${b}`" => false; "template")]
-    //#[test_case("super.a" => false; "super prop")]
-    //#[test_case("new.target" => false; "meta")]
-    //#[test_case("new a(b)" => false; "new me")]
-    //#[test_case("a.#b" => false; "private id")]
-    //#[test_case("beetle" => true; "id")]
-    //#[test_case("1" => false; "literal fallthru")]
-    //fn is_identifier_ref(src: &str) -> bool {
-    //    Maker::new(src).member_expression().is_identifier_ref()
-    //}
-
     #[test_case("a[b]" => None; "brackets")]
     #[test_case("a.b" => None; "property id")]
     #[test_case("a`${b}`" => None; "template")]
@@ -500,6 +474,52 @@ mod member_expression {
     #[test_case("a.#b" => false; "private id")]
     fn is_destructuring(src: &str) -> bool {
         Maker::new(src).member_expression().is_destructuring()
+    }
+
+    #[test_case("(call())", "call()" => true; "fall-thru; has tail")]
+    #[test_case("(3+call())", "call()" => false; "fall-thru; no tail")]
+    #[test_case("a`${x}`", "a`${x}`" => true; "template literal; production match")]
+    #[test_case("a`${call()}`", "call()" => false; "template literal; no match")]
+    #[test_case("a[call()]", "call()" => false; "computed-property")]
+    #[test_case("a.a", "a.a" => false; "identifier property")]
+    #[test_case("super.call", "call" => false; "super property")]
+    #[test_case("new.target", "new.target" => false; "meta property")]
+    #[test_case("new a.b(call())", "call()" => false; "new me")]
+    #[test_case("a.#a", "a.#a" => false; "private name")]
+    fn has_call_in_tail_position(src: &str, needle: &str) -> bool {
+        let location = find_text(src, needle);
+        Maker::new(src).member_expression().has_call_in_tail_position(&location)
+    }
+
+    #[test_case("(call())" => None; "primary-expression; no body")]
+    #[test_case("(function(){return call();})" => ssome("return call ( ) ;"); "primary-expression; has body")]
+    #[test_case("a[call()]" => None; "computed-property; location in right; no body")]
+    #[test_case("a[(function(){return call();})()]" => ssome("return call ( ) ;"); "computed-property; location in right; has body")]
+    #[test_case("(call())[0]" => None; "computed-property; location in left; no body")]
+    #[test_case("((function(){return call();})())[0]" => ssome("return call ( ) ;"); "computed-property; location in left; has body")]
+    #[test_case("a/*call()*/[1]" => None; "computed-property; location between child productions")]
+    #[test_case("(call()).a" => None; "named-property; location in left; no body")]
+    #[test_case("((function(){return call();})()).a" => ssome("return call ( ) ;"); "named-property; location in left; has body")]
+    #[test_case("a/*call()*/.b" => None; "named-property; location between child productions")]
+    #[test_case("(call()).#a" => None; "private-property; location in left; no body")]
+    #[test_case("((function(){return call();})()).#a" => ssome("return call ( ) ;"); "private-property; location in left; has body")]
+    #[test_case("a/*call()*/.#b" => None; "private-property; location between child productions")]
+    #[test_case("a`${call()}`" => None; "tagged-template; location in right; no body")]
+    #[test_case("a`${(function(){return call();})()}`" => ssome("return call ( ) ;"); "tagged-template; location in right; has body")]
+    #[test_case("(call())``" => None; "tagged-template; location in left; no body")]
+    #[test_case("((function(){return call();})())``" => ssome("return call ( ) ;"); "tagged-template; location in left; has body")]
+    #[test_case("a/*call()*/``" => None; "tagged-template; location between productions")]
+    #[test_case("super[call()]" => None; "super-property; no body")]
+    #[test_case("super[(function(){return call();})()]" => ssome("return call ( ) ;"); "super-property; has body")]
+    #[test_case("new.target" => None; "meta-property")]
+    #[test_case("new a(call())" => None; "new-expression; location in right; no body")]
+    #[test_case("new a(function(){return call();})" => ssome("return call ( ) ;"); "new-expression; location in right; has body")]
+    #[test_case("new (call())()" => None; "new-expression; location in left; no body")]
+    #[test_case("new ((function(){return call();})())()" => ssome("return call ( ) ;"); "new-expression; location in left; has body")]
+    #[test_case("new a/*call()*/()" => None; "new-expression; location between productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).member_expression().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -754,6 +774,25 @@ mod meta_property {
     #[test_case("  import.meta" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 11 }}; "import.meta")]
     fn location(src: &str) -> Location {
         Maker::new(src).meta_property().location()
+    }
+
+    mod into {
+        use super::*;
+        #[test]
+        fn member_expression() {
+            let meta_prop = Maker::new("new.target").meta_property();
+            let exp = MemberExpression::from(meta_prop);
+            assert_eq!(exp.to_string(), "new . target");
+        }
+    }
+
+    #[test]
+    fn me_boxer() {
+        let node = Maker::new("new.target").meta_property();
+        let scanner = Scanner { line: 1, column: 10, start_idx: 11 };
+        let (node_out, scanner_out) = MemberExpression::me_boxer((node, scanner));
+        assert_eq!(scanner, scanner_out);
+        assert_eq!(node_out.to_string(), "new . target");
     }
 }
 
@@ -1142,12 +1181,14 @@ mod argument_list {
     #[test_case("a=call()" => None; "fallthru, no match")]
     #[test_case("...a=(function() { return call(); })()" => ssome("return call ( ) ;"); "dots, matches")]
     #[test_case("...a=call()" => None; "dots, no match")]
+    #[test_case(".../*call()*/a" => None; "dots; location not in child")]
     #[test_case("a,b=(function() { return call(); })()" => ssome("return call ( ) ;"); "list, match in assignment expression")]
     #[test_case("a,b=call()" => None; "list, no match (right)")]
     #[test_case("a=(function() { return call(); })(), b" => ssome("return call ( ) ;"); "list, match in left list")]
     #[test_case("a=call(), b" => None; "list, no match in left list")]
     #[test_case("a,...b=(function() { return call(); })()" => ssome("return call ( ) ;"); "list+dots, match in assignment expression")]
     #[test_case("a,...b=call()" => None; "list+dots, no match")]
+    #[test_case("a /* call() */,...b" => None; "list+dots, location not in productions")]
     #[test_case("a=(function() { return call(); })(), ...b" => ssome("return call ( ) ;"); "list+dots, match in left list")]
     #[test_case("a=call(), ...b" => None; "list+dots, no match in left list")]
     fn body_containing_location(src: &str) -> Option<String> {
@@ -1311,20 +1352,6 @@ mod new_expression {
         Maker::new(src).new_expression().location()
     }
 
-    //#[test_case("new a" => false; "new exp")]
-    //#[test_case("function bob(){}" => true; "function fallthru")]
-    //#[test_case("1" => false; "literal fallthru")]
-    //fn is_named_function(src: &str) -> bool {
-    //    Maker::new(src).new_expression().is_named_function()
-    //}
-
-    //#[test_case("idref" => true; "Id Ref")]
-    //#[test_case("10" => false; "literal")]
-    //#[test_case("new a" => false; "other new expr")]
-    //fn is_identifier_ref(src: &str) -> bool {
-    //    Maker::new(src).new_expression().is_identifier_ref()
-    //}
-
     #[test_case("idref" => ssome("idref"); "Id Ref")]
     #[test_case("10" => None; "literal")]
     #[test_case("new a" => None; "other new expr")]
@@ -1337,6 +1364,24 @@ mod new_expression {
     #[test_case("[a]" => true; "destructuring")]
     fn is_destructuring(src: &str) -> bool {
         Maker::new(src).new_expression().is_destructuring()
+    }
+
+    #[test_case("(call())" => None; "fall-thru; no body")]
+    #[test_case("(function(){return call();})" => ssome("return call ( ) ;"); "fall-thru; has body")]
+    #[test_case("new (call())" => None; "new-expr; no body")]
+    #[test_case("new ((function(){return call();})())" => ssome("return call ( ) ;"); "new-expr; has body")]
+    #[test_case("new /* call() */ Boolean" => None; "new-expr; location not in child production")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).new_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("(call())" => true; "fall-thru; in tail")]
+    #[test_case("3 + call()" => false; "fall-thru; no tail")]
+    #[test_case("new (call())" => false; "new expr")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).new_expression().has_call_in_tail_position(&location)
     }
 }
 
@@ -1612,6 +1657,14 @@ mod import_call {
     #[test_case("  import(foo)" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 11 }}; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).import_call().location()
+    }
+
+    #[test_case("import (call())" => None; "item; no body")]
+    #[test_case("import ((function(){return call();})())" => ssome("return call ( ) ;"); "item; has body")]
+    #[test_case("import /* call() */ (a)" => None; "item; location not in production")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).import_call().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -2055,19 +2108,26 @@ mod call_expression {
     #[test_case("super(function(){return call();})" => ssome("return call ( ) ;"); "super call with body")]
     #[test_case("import(call())" => None; "import call no body")]
     #[test_case("import(function(){return call();})" => ssome("return call ( ) ;"); "import call with body")]
-    #[test_case("a(call())()" => None; "call+args; no body")]
-    #[test_case("a(function(){return call();})()" => ssome("return call ( ) ;"); "call+args; body in call")]
-    #[test_case("a()(function(){return call();})" => ssome("return call ( ) ;"); "call+args; body in args")]
-    #[test_case("a(call())[]" => None; "call+exp; no body")]
-    #[test_case("a(function(){return call();})[]" => ssome("return call ( ) ;"); "call+exp; body in call")]
-    #[test_case("a()[function(){return call();}]" => ssome("return call ( ) ;"); "call+exp; body in exp")]
+    #[test_case("a(call())()" => None; "call+args; location left; no body")]
+    #[test_case("a(function(){return call();})()" => ssome("return call ( ) ;"); "call+args; location left; has body")]
+    #[test_case("a()(call())" => None; "call+args; location right; no body")]
+    #[test_case("a()(function(){return call();})" => ssome("return call ( ) ;"); "call+args; location right; has body")]
+    #[test_case("a() /* call() */ ()" => None; "call+args; location between productions")]
+    #[test_case("a(call())[b]" => None; "call+exp; location left; no body")]
+    #[test_case("a(function(){return call();})[b]" => ssome("return call ( ) ;"); "call+exp; location left; has body")]
+    #[test_case("a()[call()]" => None; "call+exp; location right; no body")]
+    #[test_case("a()[function(){return call();}]" => ssome("return call ( ) ;"); "call+exp; location right; has body")]
+    #[test_case("a() /* call() */ [b]" => None; "call+exp; location between productions")]
     #[test_case("a(call()).name" => None; "call+name; no body")]
     #[test_case("a(function(){return call();}).name" => ssome("return call ( ) ;"); "call+name; body in call")]
+    #[test_case("a() /* call() */ .name" => None; "call+name; location not in child productions")]
     #[test_case("a(call()).#name" => None; "call+private; no body")]
     #[test_case("a(function(){return call();}).#name" => ssome("return call ( ) ;"); "call+private; body in call")]
-    #[test_case("a(call())``" => None; "call+template; no body")]
-    #[test_case("a(function(){return call();})``" => ssome("return call ( ) ;"); "call+template; body in call")]
-    #[test_case("a()`${function(){return call();}}`" => ssome("return call ( ) ;"); "call+template; body in template")]
+    #[test_case("a(call())``" => None; "call+template; location left; no body")]
+    #[test_case("a(function(){return call();})``" => ssome("return call ( ) ;"); "call+template; location left; has body")]
+    #[test_case("a()`${call()}`" => None; "call+template; location right; no body")]
+    #[test_case("a()`${function(){return call();}}`" => ssome("return call ( ) ;"); "call+template; location right; has body")]
+    #[test_case("a() /* call() */ ``" => None; "call+template; location between productions")]
     fn body_containing_location(src: &str) -> Option<String> {
         let location = find_call(src);
         Maker::new(src).call_expression().body_containing_location(&location).map(|node| node.to_string())
@@ -2301,6 +2361,37 @@ mod optional_expression {
     #[test_case("  a?.b?.#c" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "private optional exp")]
     fn location(src: &str) -> Location {
         Maker::new(src).optional_expression().location()
+    }
+
+    #[test_case("a[call()]?.a" => None; "member-exp; location on left; no body")]
+    #[test_case("a[(function(){return call();})()]?.a" => ssome("return call ( ) ;"); "member-exp; location on left; has body")]
+    #[test_case("a?.[call()]" => None; "member-exp; location on right; no body")]
+    #[test_case("a?.[(function(){return call();})()]" => ssome("return call ( ) ;"); "member-exp; location on right; has body")]
+    #[test_case("a /* call() */ ?.b" => None; "member-exp; location not in child productions")]
+    #[test_case("call()?.a" => None; "call-exp; location on left; no body")]
+    #[test_case("(function(){return call();})()?.a" => ssome("return call ( ) ;"); "call-exp; location on left; has body")]
+    #[test_case("a()?.[call()]" => None; "call-exp; location on right; no body")]
+    #[test_case("a()?.[(function(){return call();})()]" => ssome("return call ( ) ;"); "call-exp; location on right; has body")]
+    #[test_case("a() /* call() */ ?.a" => None; "call-exp; location between child productions")]
+    #[test_case("a[call()]?.a?.a" => None; "optional-exp; location on left; no body")]
+    #[test_case("a[(function(){return call();})()]?.a?.a" => ssome("return call ( ) ;"); "optional-exp; location on left; has body")]
+    #[test_case("a?.a?.[call()]" => None; "optional-exp; location on right; no body")]
+    #[test_case("a?.a?.[(function(){return call();})()]" => ssome("return call ( ) ;"); "optional-exp; location on right; has body")]
+    #[test_case("a?.a /* call() */ ?.b" => None; "optional-exp; location not in child productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).optional_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("a?.call()", "?.call()" => true; "member; has tail call")]
+    #[test_case("a?.[call()]", "call()" => false; "member; no tail")]
+    #[test_case("call()?.a", "call()" => false; "call expr; no tail")]
+    #[test_case("a()?.call()", "?.call()" => true; "call expr; in tail")]
+    #[test_case("call()?.a?.b", "call()" => false; "optional expr; no tail")]
+    #[test_case("a?.b?.call()", "?.call()" => true; "optional expr; in tail")]
+    fn has_call_in_tail_position(src: &str, needle: &str) -> bool {
+        let location = find_text(src, needle);
+        Maker::new(src).optional_expression().has_call_in_tail_position(&location)
     }
 }
 
@@ -2765,6 +2856,69 @@ mod optional_chain {
     fn location(src: &str) -> Location {
         Maker::new(src).optional_chain().location()
     }
+
+    #[test_case("?.(call())" => None; "args; no body")]
+    #[test_case("?.(function(){return call();})" => ssome("return call ( ) ;"); "args; has body")]
+    #[test_case("?./*call()*/()" => None; "args; location not in child")]
+    #[test_case("?.[call()]" => None; "computed-property; no body")]
+    #[test_case("?.[(function(){return call();})()]" => ssome("return call ( ) ;"); "computed-property; has body")]
+    #[test_case("?./*call()*/[0]" => None; "computed-property; location not in child")]
+    #[test_case("?.a" => None; "property-name")]
+    #[test_case("?.#a" => None; "private-name")]
+    #[test_case("?.`${call()}`" => None; "template-literal; no body")]
+    #[test_case("?.`${(function(){return call();})()}`" => ssome("return call ( ) ;"); "template-literal; has body")]
+    #[test_case("?./*call()*/``" => None; "template-literal; location not in child")]
+    #[test_case("?.a(call())" => None; "chain-args; location on right; no body")]
+    #[test_case("?.a(function(){return call();})" => ssome("return call ( ) ;"); "chain-args; location on right; has body")]
+    #[test_case("?.(call())()" => None; "chain-args; location on left; no body")]
+    #[test_case("?.(function(){return call();})()" => ssome("return call ( ) ;"); "chain-args; location on left; has body")]
+    #[test_case("?.a/*call()*/()" => None; "chain-args; location not in child")]
+    #[test_case("?.a[call()]" => None; "chain-computed-property; location on right; no body")]
+    #[test_case("?.a[(function(){return call();})()]" => ssome("return call ( ) ;"); "chain-computed-property; location on right; has body")]
+    #[test_case("?.(call())[0]" => None; "chain-computed-property; location on left; no body")]
+    #[test_case("?.((function(){return call();})())[0]" => ssome("return call ( ) ;"); "chain-computed-property; location on left; has body")]
+    #[test_case("?.a/*call()*/[0]" => None; "chain-computed-property; location not in child")]
+    #[test_case("?.(call()).a" => None; "chain-property-name; no body")]
+    #[test_case("?.((function(){return call();})()).a" => ssome("return call ( ) ;"); "chain-property-name; has body")]
+    #[test_case("?.()./*call()*/a" => None; "chain-property-name; location not in child")]
+    #[test_case("?.(call()).#a" => None; "chain-private-name; no body")]
+    #[test_case("?.((function(){return call();})()).#a" => ssome("return call ( ) ;"); "chain-private-name; has body")]
+    #[test_case("?.()./*call()*/#a" => None; "chain-private-name; location not in child")]
+    #[test_case("?.a`${call()}`" => None; "chain-template-literal; location on right; no body")]
+    #[test_case("?.a`${(function(){return call();})()}`" => ssome("return call ( ) ;"); "chain-template-literal; location on right; has body")]
+    #[test_case("?.(call())``" => None; "chain-template-literal; location on left; no body")]
+    #[test_case("?.((function(){return call();})())``" => ssome("return call ( ) ;"); "chain-template-literal; location on left; has body")]
+    #[test_case("?.a/*call()*/``" => None; "chain-template-literal; location not in child")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).optional_chain().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("?.[call()]", "call()" => false; "computed-property")]
+    #[test_case("?.a", "?.a" => false; "property-name")]
+    #[test_case("?.#a", "?.#a" => false; "private-name")]
+    #[test_case("?.`${call()}`", "call()" => false; "template-literal")]
+    #[test_case("?.a[call()]", "call()" => false; "chain + computed-property")]
+    #[test_case("?.(call()).a", "call()" => false; "chain + property-name")]
+    #[test_case("?.(call()).#a", "call()" => false; "chain + private-name")]
+    #[test_case("?.(call())``", "call()" => false; "chain + template-literal")]
+    #[test_case("?.()", "?.()" => true; "args; in tail")]
+    #[test_case("?.(call())", "call()" => false; "args; no tail")]
+    #[test_case("?.call()", "?.call()" => true; "chain + args; in tail")]
+    #[test_case("?.a(call())", "call()" => false; "chain + args; not tail")]
+    fn has_call_in_tail_position(src: &str, needle: &str) -> bool {
+        let location = find_text(src, needle);
+        Maker::new(src).optional_chain().has_call_in_tail_position(&location)
+    }
+
+    #[test_case("function a() { let z = 3 + b?.(0); return z?.(1); }", "?.(0)", true => false; "Not tail position")]
+    #[test_case("function a() { let z = 3 + b?.(0); return z?.(1); }", "?.(1)", true => true; "In tail position")]
+    fn is_in_tail_position(src: &str, target: &str, strict: bool) -> bool {
+        let text = parse_text(src, ParseGoal::Script, strict, false);
+        let target_loc = find_text(src, target);
+        let node = text.find_optional_chain_at(&target_loc).unwrap();
+        node.is_in_tail_position(&text, strict)
+    }
 }
 
 // LEFT-HAND-SIDE EXPRESSION
@@ -3003,5 +3157,27 @@ mod left_hand_side_expression {
     #[test_case("a?.b" => false; "optional expression")]
     fn is_destructuring(src: &str) -> bool {
         Maker::new(src).left_hand_side_expression().is_destructuring()
+    }
+
+    #[test_case("new (call())" => None; "new expr; no body")]
+    #[test_case("new ((function(){return call();})())" => ssome("return call ( ) ;"); "new expr; has body")]
+    #[test_case("call()" => None; "call expr; no body")]
+    #[test_case("(function(){return call();})()" => ssome("return call ( ) ;"); "call expr; has body")]
+    #[test_case("call()?.x" => None; "optional expr; no body")]
+    #[test_case("(function(){return call();})()?.x" => ssome("return call ( ) ;"); "optional expr; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).left_hand_side_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()", "call()" => true; "call expr; in tail")]
+    #[test_case("a(call())", "call()" => false; "call expr; not tail")]
+    #[test_case("a[call()]", "call()" => false; "member exp; not tail")]
+    #[test_case("(call())", "call()" => true; "member exp; in tail")]
+    #[test_case("a?.call()", "?.call()" => true; "optional exp; in tail")]
+    #[test_case("call()?.a", "call()" => false; "optional exp; not tail")]
+    fn has_call_in_tail_position(src: &str, matcher: &str) -> bool {
+        let location = find_text(src, matcher);
+        Maker::new(src).left_hand_side_expression().has_call_in_tail_position(&location)
     }
 }

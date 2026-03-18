@@ -264,6 +264,39 @@ mod try_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).try_statement().location()
     }
+
+    #[test_case("try { call(); } catch {}" => None; "catch-only; location left; no body")]
+    #[test_case("try { (function(){return call();})(); } catch {}" => ssome("return call ( ) ;"); "catch-only; location left; has body")]
+    #[test_case("try {} catch { call(); }" => None; "catch-only; location right; no body")]
+    #[test_case("try {} catch { (function(){return call();})(); }" => ssome("return call ( ) ;"); "catch-only; location right; has body")]
+    #[test_case("try /* call() */ {} catch {}" => None; "catch-only; location not in productions")]
+    #[test_case("try { call(); } finally {}" => None; "finally-only; location left; no body")]
+    #[test_case("try { (function(){return call();})(); } finally {}" => ssome("return call ( ) ;"); "finally-only; location left; has body")]
+    #[test_case("try {} finally { call(); }" => None; "finally-only; location right; no body")]
+    #[test_case("try {} finally { (function(){return call();})(); }" => ssome("return call ( ) ;"); "finally-only; location right; has body")]
+    #[test_case("try /* call() */ {} finally {}" => None; "finally-only; location not in productions")]
+    #[test_case("try { call(); } catch {} finally {}" => None; "catch-finally; location left; no body")]
+    #[test_case("try { (function(){return call();})(); } catch {} finally {}" => ssome("return call ( ) ;"); "catch-finally; location left; has body")]
+    #[test_case("try {} catch { call(); } finally {}" => None; "catch-finally; location middle; no body")]
+    #[test_case("try {} catch { (function(){return call();})(); } finally {}" => ssome("return call ( ) ;"); "catch-finally; location middle; has body")]
+    #[test_case("try {} catch {} finally { call(); }" => None; "catch-finally; location right; no body")]
+    #[test_case("try {} catch {} finally { (function(){return call();})(); }" => ssome("return call ( ) ;"); "catch-finally; location right; has body")]
+    #[test_case("try /* call() */ {} catch {} finally {}" => None; "catch-finally; location not in productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).try_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("try {} catch { call(); }" => false; "catch-only; no tail call")]
+    #[test_case("try {} catch { return call(); }" => true; "catch-only; has tail call")]
+    #[test_case("try {} finally { call(); }" => false; "finally-only; no tail call")]
+    #[test_case("try {} finally { return call(); }" => true; "finally-only; has tail call")]
+    #[test_case("try {} catch { return call(); } finally { }" => false; "catch-finally; no tail call")]
+    #[test_case("try {} catch {} finally { return call(); }" => true; "catch-finally; has tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).try_statement().has_call_in_tail_position(&location)
+    }
 }
 
 // CATCH
@@ -422,6 +455,28 @@ mod catch {
     fn location(src: &str) -> Location {
         Maker::new(src).catch().location()
     }
+
+    #[test_case("catch ([x=call()]){}" => None; "with-param; location on left; no body")]
+    #[test_case("catch ([x=(function(){return call();})()]){}" => ssome("return call ( ) ;"); "with-param; location on left; has body")]
+    #[test_case("catch (e){call();}" => None; "with-param; location on right; no body")]
+    #[test_case("catch (e){(function(){return call();})();}" => ssome("return call ( ) ;"); "with-param; location on right; has body")]
+    #[test_case("catch (e)/*call()*/{}" => None; "with-param; location between productions")]
+    #[test_case("catch{call();}" => None; "no-param; no body")]
+    #[test_case("catch{(function(){return call();})();}" => ssome("return call ( ) ;"); "no-param; has body")]
+    #[test_case("catch/*call()*/{}" => None; "no-param; location not in block")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).catch().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("catch(e){call();}" => false; "with-param; no tail call")]
+    #[test_case("catch(e){return call();}" => true; "with-param; has tail call")]
+    #[test_case("catch{call();}" => false; "no-params; no tail call")]
+    #[test_case("catch{return call();}" => true; "no-params; has tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).catch().has_call_in_tail_position(&location)
+    }
 }
 
 // FINALLY
@@ -518,6 +573,21 @@ mod finally {
     fn location(src: &str) -> Location {
         Maker::new(src).finally().location()
     }
+
+    #[test_case("finally{call();}" => None; "no body")]
+    #[test_case("finally{(function(){return call();})();}" => ssome("return call ( ) ;"); "has body")]
+    #[test_case("finally/*call()*/{}" => None; "location not in block")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).finally().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("finally{call();}" => false; "no tail call")]
+    #[test_case("finally{ return call(); }" => true; "has tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).finally().has_call_in_tail_position(&location)
+    }
 }
 
 // CATCH PARAMETER
@@ -610,5 +680,19 @@ mod catch_parameter {
     #[test_case("{a}" => false; "pat (no)")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).catch_parameter().contains_arguments()
+    }
+
+    #[test_case("   blue" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 4 } }; "binding-identifier")]
+    #[test_case("   {a}" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 3 } }; "binding-pattern")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).catch_parameter().location()
+    }
+
+    #[test_case("a" => None; "identifier")]
+    #[test_case("[x=call()]" => None; "pattern; no body")]
+    #[test_case("[x=(function(){return call();})()]" => ssome("return call ( ) ;"); "pattern; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).catch_parameter().body_containing_location(&location).map(|node| node.to_string())
     }
 }

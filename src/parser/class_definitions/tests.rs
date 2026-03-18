@@ -160,6 +160,17 @@ mod class_declaration {
     fn bound_name(src: &str) -> String {
         Maker::new(src).class_declaration().bound_name().into()
     }
+
+    #[test_case("class a { b=call(); }" => None; "named; location in tail; no body")]
+    #[test_case("class a { b(){call();} }" => ssome("call ( ) ;"); "named; location in tail; with body")]
+    #[test_case("class a /* call() */ { }" => None; "named; location not in tail")]
+    #[test_case("class { b=call(); }" => None; "unnamed; location in tail; no body")]
+    #[test_case("class { b(){call();} }" => ssome("call ( ) ;"); "unnamed; location in tail; with body")]
+    #[test_case("class /* call() */ { }" => None; "unnamed; location not in tail")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).class_declaration().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // CLASS EXPRESSION
@@ -263,6 +274,14 @@ mod class_expression {
     #[test_case("   class {}" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).class_expression().location()
+    }
+
+    #[test_case("class a { b=call(); }" => None; "location in tail; no body")]
+    #[test_case("class a { a(){ return call(); } }" => ssome("return call ( ) ;"); "location in tail; has body")]
+    #[test_case("class /*call()*/ a {}" => None; "location not in tail")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).class_expression().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -450,6 +469,16 @@ mod class_tail {
     fn location(src: &str) -> Location {
         Maker::new(src).class_tail().location()
     }
+
+    #[test_case("extends call() {}" => None; "heritage; no body")]
+    #[test_case("extends (function(){return call();})() {}" => ssome("return call ( ) ;"); "heritage; has body")]
+    #[test_case("extends a /* code() */ {}" => None; "location not in child productions")]
+    #[test_case("{ [call()]() { } }" => None; "classbody; no body")]
+    #[test_case("{ a() { return call(); } }" => ssome("return call ( ) ;"); "classbody; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).class_tail().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // CLASS HERITAGE
@@ -522,6 +551,14 @@ mod class_heritage {
     #[test_case("   extends bool" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 12 } }; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).class_heritage().location()
+    }
+
+    #[test_case("extends call()" => None; "no body")]
+    #[test_case("extends (function(){return call();})()" => ssome("return call ( ) ;"); "has body")]
+    #[test_case("extends /* call() */ Boolean" => None; "location not in expression")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).class_heritage().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -627,6 +664,11 @@ mod class_body {
     #[test_case("a(){} b(){} constructor(foo){} beetlejuice;" => svec(&["a ( ) { }", "b ( ) { }", "beetlejuice ;"]); "constructor present")]
     fn non_constructor_elements(src: &str) -> Vec<String> {
         Maker::new(src).class_body().non_constructor_elements().into_iter().map(ToString::to_string).collect::<Vec<_>>()
+    }
+
+    #[test_case("  a(){}" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 5 } })]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_body().location()
     }
 
     #[test_case("a(z=call()){return z;}" => None; "no body in production")]
@@ -841,6 +883,30 @@ mod class_element_list {
     #[test_case("   a; b;" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 5 } }; "list")]
     fn location(src: &str) -> Location {
         Maker::new(src).class_element_list().location()
+    }
+
+    #[test_case("a(){}" => svec(&["a ( ) { }"]); "item; not constructor")]
+    #[test_case("constructor(...args){}" => svec(&[]); "item; is a constructor")]
+    #[test_case("a(){} constructor(...args){super(...args)} b(x){return x*2;}" => svec(&["a ( ) { }", "b ( x ) { return x * 2 ; }"]); "list")]
+    fn non_constructor_elements(src: &str) -> Vec<String> {
+        Maker::new(src)
+            .class_element_list()
+            .non_constructor_elements()
+            .into_iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+    }
+
+    #[test_case("a=call();" => None; "item; no body")]
+    #[test_case("a=(function(){return call();})();" => ssome("return call ( ) ;"); "item; has body")]
+    #[test_case("a=call(); b=1;" => None; "list; location in left; no body")]
+    #[test_case("a=(function(){return call();})(); b=1;" => ssome("return call ( ) ;"); "list; location in left; has body")]
+    #[test_case("a=1; b=call();" => None; "list; location in right; no body")]
+    #[test_case("a=1; b=(function(){return call();})();" => ssome("return call ( ) ;"); "list; location in right; has body")]
+    #[test_case("a=1; /* call() */ b=1;" => None; "list; location between elements")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).class_element_list().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -1197,6 +1263,26 @@ mod class_element {
     fn location(src: &str) -> Location {
         Maker::new(src).class_element().location()
     }
+
+    #[test_case("a(){call();}" => ssome("call ( ) ;"); "method; location in body")]
+    #[test_case("[call()](){a();}" => None; "method; location in name; no body")]
+    #[test_case("[(function(){return call();})()](){a();}" => ssome("return call ( ) ;"); "method; location in name; has body")]
+    #[test_case("static a(){call();}" => ssome("call ( ) ;"); "static method; location in body")]
+    #[test_case("static [call()](){a();}" => None; "static method; location in name; no body")]
+    #[test_case("static [(function(){return call();})()](){a();}" => ssome("return call ( ) ;"); "static method; location in name; has body")]
+    #[test_case("static /* call() */ a(){}" => None; "static method; location not in productions")]
+    #[test_case("a=call();" => None; "field; no body")]
+    #[test_case("a=(function(){return call();})();" => ssome("return call ( ) ;"); "field; has body")]
+    #[test_case("static a=call();" => None; "static field; no body")]
+    #[test_case("static a=(function(){return call();})();" => ssome("return call ( ) ;"); "static field; has body")]
+    #[test_case("static /*call()*/ a=b;" => None; "static field; location not in child productions")]
+    #[test_case(";" => None; "empty")]
+    #[test_case("static { call(); }" => None; "static block; no body")]
+    #[test_case("static { (function(){return call();})() }" => ssome("return call ( ) ;"); "static block; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).class_element().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 mod ce_kind {
@@ -1354,6 +1440,16 @@ mod field_definition {
     fn location(src: &str) -> Location {
         Maker::new(src).field_definition().location()
     }
+
+    #[test_case("[call()]" => None; "location in name; no body")]
+    #[test_case("[(function(){return call();})()]" => ssome("return call ( ) ;"); "location in name; has body")]
+    #[test_case("a=call()" => None; "location in izer; no body")]
+    #[test_case("a=(function(){return call();})()" => ssome("return call ( ) ;"); "location in izer; has body")]
+    #[test_case("a/*call()*/=b" => None; "location in neither child production")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).field_definition().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 // CLASS ELEMENT NAME
@@ -1480,6 +1576,14 @@ mod class_element_name {
     fn location(src: &str) -> Location {
         Maker::new(src).class_element_name().location()
     }
+
+    #[test_case("#private" => None; "private name")]
+    #[test_case("[call()]" => None; "prop-name; no body")]
+    #[test_case("[(function(){return call();})()]" => ssome("return call ( ) ;"); "prop-name; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).class_element_name().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 mod class_static_block {
@@ -1548,6 +1652,14 @@ mod class_static_block {
     fn location(src: &str) -> Location {
         Maker::new(src).class_static_block().location()
     }
+
+    #[test_case("static /*call()*/ { a; }" => None; "location not in statements")]
+    #[test_case("static { call(); }" => None; "location in statements, but no body")]
+    #[test_case("static { (function(){ return call(); })(); }" => ssome("return call ( ) ;"); "location in statements; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).class_static_block().body_containing_location(&location).map(|node| node.to_string())
+    }
 }
 
 mod class_static_block_body {
@@ -1600,6 +1712,18 @@ mod class_static_block_body {
     #[test_case("" => false; "no")]
     fn contains_arguments(src: &str) -> bool {
         Maker::new(src).class_static_block_body().contains_arguments()
+    }
+
+    #[test_case("   34; " => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 3 }}; "typical")]
+    fn location(src: &str) -> Location {
+        Maker::new(src).class_static_block_body().location()
+    }
+
+    #[test_case("call();" => None; "no body")]
+    #[test_case("(function(){return call();})();" => ssome("return call ( ) ;"); "has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).class_static_block_body().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -1723,5 +1847,16 @@ mod class_static_block_statement_list {
     #[test_case("   stuff();" => Location { starting_line: 1, starting_column: 4, span: Span { starting_index: 3, length: 8 }}; "typical")]
     fn location(src: &str) -> Location {
         Maker::new(src).class_static_block_statement_list().location()
+    }
+
+    #[test_case("" => None; "empty")]
+    #[test_case("call();" => None; "no body")]
+    #[test_case("(function(){return call();})();" => ssome("return call ( ) ;"); "has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src)
+            .class_static_block_statement_list()
+            .body_containing_location(&location)
+            .map(|node| node.to_string())
     }
 }

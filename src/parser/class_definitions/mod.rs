@@ -159,14 +159,10 @@ impl ClassDeclaration {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ClassDeclaration::Named { tail, .. } | ClassDeclaration::Unnamed { tail, .. } => {
-                    tail.body_containing_location(location)
-                }
+        match self {
+            ClassDeclaration::Named { tail, .. } | ClassDeclaration::Unnamed { tail, .. } => {
+                if tail.location().contains(location) { tail.body_containing_location(location) } else { None }
             }
-        } else {
-            None
         }
     }
 }
@@ -289,7 +285,7 @@ impl ClassExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) { self.tail.body_containing_location(location) } else { None }
+        if self.tail.location().contains(location) { self.tail.body_containing_location(location) } else { None }
     }
 }
 
@@ -471,8 +467,14 @@ impl ClassTail {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location.contains(location) {
-            if let Some(body) = &self.body { body.body_containing_location(location) } else { None }
+        if let Some(heritage) = &self.heritage
+            && heritage.location().contains(location)
+        {
+            heritage.body_containing_location(location)
+        } else if let Some(body) = &self.body
+            && body.location().contains(location)
+        {
+            body.body_containing_location(location)
         } else {
             None
         }
@@ -574,11 +576,10 @@ impl ClassHeritage {
         self.exp.early_errors(errs, strict);
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        if self.exp.location().contains(location) { self.exp.body_containing_location(location) } else { None }
+    }
 }
 
 // ClassBody[Yield, Await] :
@@ -753,6 +754,10 @@ impl ClassBody {
         // The syntax-directed operation NonConstructorElements takes no arguments and returns a List of ClassElement
         // Parse Nodes.
         self.0.non_constructor_elements()
+    }
+
+    pub(crate) fn location(&self) -> Location {
+        self.0.location()
     }
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
@@ -1032,7 +1037,13 @@ impl ClassElementList {
         match self {
             ClassElementList::Item(item) => item.body_containing_location(location),
             ClassElementList::List(list, item) => {
-                list.body_containing_location(location).or_else(|| item.body_containing_location(location))
+                if list.location().contains(location) {
+                    list.body_containing_location(location)
+                } else if item.location().contains(location) {
+                    item.body_containing_location(location)
+                } else {
+                    None
+                }
             }
         }
     }
@@ -1430,10 +1441,10 @@ impl ClassElement {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         match self {
             ClassElement::Standard { method } | ClassElement::Static { method, .. } => {
-                method.body_containing_location(location)
+                if method.location().contains(location) { method.body_containing_location(location) } else { None }
             }
             ClassElement::Field { field, .. } | ClassElement::StaticField { field, .. } => {
-                field.body_containing_location(location)
+                if field.location().contains(location) { field.body_containing_location(location) } else { None }
             }
             ClassElement::StaticBlock { block } => block.body_containing_location(location),
             ClassElement::Empty { .. } => None,
@@ -1596,9 +1607,15 @@ impl FieldDefinition {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        self.name
-            .body_containing_location(location)
-            .or_else(|| self.init.as_ref().and_then(|init| init.body_containing_location(location)))
+        if self.name.location().contains(location) {
+            self.name.body_containing_location(location)
+        } else if let Some(init) = &self.init
+            && init.location().contains(location)
+        {
+            init.body_containing_location(location)
+        } else {
+            None
+        }
     }
 }
 
@@ -1874,10 +1891,9 @@ impl ClassStaticBlock {
         self.block.early_errors(errs, strict);
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        if self.block.location().contains(location) { self.block.body_containing_location(location) } else { None }
     }
 }
 
@@ -1998,11 +2014,14 @@ impl ClassStaticBlockBody {
         self.0.contains_arguments()
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn location(&self) -> Location {
+        self.0.location()
+    }
+
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        self.0.body_containing_location(location)
+    }
 }
 
 // ClassStaticBlockStatementList :
@@ -2221,11 +2240,13 @@ impl ClassStaticBlockStatementList {
         }
     }
 
-    //#[expect(unused_variables)]
-    //pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
-    //    // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-    //    todo!()
-    //}
+    pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
+        // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
+        match self {
+            ClassStaticBlockStatementList::Statements(node) => node.body_containing_location(location),
+            ClassStaticBlockStatementList::Empty(_) => None,
+        }
+    }
 }
 
 #[cfg(test)]

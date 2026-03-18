@@ -144,10 +144,10 @@ impl SwitchStatement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            self.expression
-                .body_containing_location(location)
-                .or_else(|| self.case_block.body_containing_location(location))
+        if self.expression.location().contains(location) {
+            self.expression.body_containing_location(location)
+        } else if self.case_block.location().contains(location) {
+            self.case_block.body_containing_location(location)
         } else {
             None
         }
@@ -491,19 +491,30 @@ impl CaseBlock {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                CaseBlock::NoDefault(case_clauses, ..) => {
-                    case_clauses.as_ref().and_then(|cc| cc.body_containing_location(location))
+        match self {
+            CaseBlock::NoDefault(None, _) => None,
+            CaseBlock::NoDefault(Some(case_clauses), ..) => {
+                if case_clauses.location().contains(location) {
+                    case_clauses.body_containing_location(location)
+                } else {
+                    None
                 }
-                CaseBlock::HasDefault(case_clauses, default_clause, case_clauses1, ..) => case_clauses
-                    .as_ref()
-                    .and_then(|cc| cc.body_containing_location(location))
-                    .or_else(|| default_clause.body_containing_location(location))
-                    .or_else(|| case_clauses1.as_ref().and_then(|cc| cc.body_containing_location(location))),
             }
-        } else {
-            None
+            CaseBlock::HasDefault(case_clauses, default_clause, case_clauses1, ..) => {
+                if let Some(node) = case_clauses
+                    && node.location().contains(location)
+                {
+                    node.body_containing_location(location)
+                } else if default_clause.location().contains(location) {
+                    default_clause.body_containing_location(location)
+                } else if let Some(node) = case_clauses1
+                    && node.location().contains(location)
+                {
+                    node.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -746,15 +757,17 @@ impl CaseClauses {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                CaseClauses::Item(case_clause) => case_clause.body_containing_location(location),
-                CaseClauses::List(case_clauses, case_clause) => case_clauses
-                    .body_containing_location(location)
-                    .or_else(|| case_clause.body_containing_location(location)),
+        match self {
+            CaseClauses::Item(case_clause) => case_clause.body_containing_location(location),
+            CaseClauses::List(case_clauses, case_clause) => {
+                if case_clauses.location().contains(location) {
+                    case_clauses.body_containing_location(location)
+                } else if case_clause.location().contains(location) {
+                    case_clause.body_containing_location(location)
+                } else {
+                    None
+                }
             }
-        } else {
-            None
         }
     }
 
@@ -943,8 +956,12 @@ impl CaseClause {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            if let Some(statements) = &self.statements { statements.body_containing_location(location) } else { None }
+        if self.expression.location().contains(location) {
+            self.expression.body_containing_location(location)
+        } else if let Some(node) = &self.statements
+            && node.location().contains(location)
+        {
+            node.body_containing_location(location)
         } else {
             None
         }
@@ -1123,8 +1140,10 @@ impl DefaultClause {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            self.list.as_ref().and_then(|item| item.body_containing_location(location))
+        if let Some(node) = &self.list
+            && node.location().contains(location)
+        {
+            node.body_containing_location(location)
         } else {
             None
         }

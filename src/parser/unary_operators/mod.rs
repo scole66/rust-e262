@@ -316,20 +316,22 @@ impl UnaryExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                UnaryExpression::UpdateExpression(node) => node.body_containing_location(location),
-                UnaryExpression::Delete { ue, .. }
-                | UnaryExpression::Void { ue, .. }
-                | UnaryExpression::Typeof { ue, .. }
-                | UnaryExpression::NoOp { ue, .. }
-                | UnaryExpression::Negate { ue, .. }
-                | UnaryExpression::Complement { ue, .. }
-                | UnaryExpression::Not { ue, .. } => ue.body_containing_location(location),
-                UnaryExpression::Await(ae) => ae.body_containing_location(location),
+        match self {
+            UnaryExpression::UpdateExpression(node) => node.body_containing_location(location),
+            UnaryExpression::Delete { ue: node, .. }
+            | UnaryExpression::Void { ue: node, .. }
+            | UnaryExpression::Typeof { ue: node, .. }
+            | UnaryExpression::NoOp { ue: node, .. }
+            | UnaryExpression::Negate { ue: node, .. }
+            | UnaryExpression::Complement { ue: node, .. }
+            | UnaryExpression::Not { ue: node, .. } => {
+                if node.location().contains(location) {
+                    node.body_containing_location(location)
+                } else {
+                    None
+                }
             }
-        } else {
-            None
+            UnaryExpression::Await(node) => node.body_containing_location(location),
         }
     }
 

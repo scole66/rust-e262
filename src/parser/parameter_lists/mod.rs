@@ -125,7 +125,7 @@ impl UniqueFormalParameters {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) { self.formals.body_containing_location(location) } else { None }
+        self.formals.body_containing_location(location)
     }
 }
 
@@ -424,16 +424,26 @@ impl FormalParameters {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                FormalParameters::Empty(_) => None,
-                FormalParameters::Rest(formals) => formals.body_containing_location(location),
-                FormalParameters::List(formals)
-                | FormalParameters::ListComma(formals, ..)
-                | FormalParameters::ListRest(formals, ..) => formals.body_containing_location(location),
+        match self {
+            FormalParameters::Empty(_) => None,
+            FormalParameters::Rest(formals) => formals.body_containing_location(location),
+            FormalParameters::List(formals) => formals.body_containing_location(location),
+            FormalParameters::ListComma(formals, ..) => {
+                if formals.location().contains(location) {
+                    formals.body_containing_location(location)
+                } else {
+                    None
+                }
             }
-        } else {
-            None
+            FormalParameters::ListRest(formals, rest) => {
+                if formals.location().contains(location) {
+                    formals.body_containing_location(location)
+                } else if rest.location().contains(location) {
+                    rest.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 }
@@ -644,15 +654,17 @@ impl FormalParameterList {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                FormalParameterList::Item(formal) => formal.body_containing_location(location),
-                FormalParameterList::List(formals, formal) => {
-                    formals.body_containing_location(location).or_else(|| formal.body_containing_location(location))
+        match self {
+            FormalParameterList::Item(formal) => formal.body_containing_location(location),
+            FormalParameterList::List(formals, formal) => {
+                if formals.location().contains(location) {
+                    formals.body_containing_location(location)
+                } else if formal.location().contains(location) {
+                    formal.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 }
@@ -749,10 +761,9 @@ impl FunctionRestParameter {
         self.element.contains_expression()
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        todo!()
+        self.element.body_containing_location(location)
     }
 }
 
@@ -876,7 +887,7 @@ impl FormalParameter {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) { self.element.body_containing_location(location) } else { None }
+        self.element.body_containing_location(location)
     }
 }
 

@@ -202,17 +202,19 @@ impl ShiftExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                ShiftExpression::AdditiveExpression(node) => node.body_containing_location(location),
-                ShiftExpression::LeftShift(se, ae)
-                | ShiftExpression::SignedRightShift(se, ae)
-                | ShiftExpression::UnsignedRightShift(se, ae) => {
-                    se.body_containing_location(location).or_else(|| ae.body_containing_location(location))
+        match self {
+            ShiftExpression::AdditiveExpression(node) => node.body_containing_location(location),
+            ShiftExpression::LeftShift(se, ae)
+            | ShiftExpression::SignedRightShift(se, ae)
+            | ShiftExpression::UnsignedRightShift(se, ae) => {
+                if se.location().contains(location) {
+                    se.body_containing_location(location)
+                } else if ae.location().contains(location) {
+                    ae.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 

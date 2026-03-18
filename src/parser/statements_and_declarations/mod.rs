@@ -447,22 +447,18 @@ impl Statement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                Statement::Block(node) => node.body_containing_location(location),
-                Statement::Variable(node) => node.body_containing_location(location),
-                Statement::Expression(node) => node.body_containing_location(location),
-                Statement::If(node) => node.body_containing_location(location),
-                Statement::Breakable(node) => node.body_containing_location(location),
-                Statement::Return(node) => node.body_containing_location(location),
-                Statement::With(node) => node.body_containing_location(location),
-                Statement::Labelled(node) => node.body_containing_location(location),
-                Statement::Throw(node) => node.body_containing_location(location),
-                Statement::Try(node) => node.body_containing_location(location),
-                Statement::Break(_) | Statement::Continue(_) | Statement::Empty(_) | Statement::Debugger(_) => None,
-            }
-        } else {
-            None
+        match self {
+            Statement::Block(node) => node.body_containing_location(location),
+            Statement::Variable(node) => node.body_containing_location(location),
+            Statement::Expression(node) => node.body_containing_location(location),
+            Statement::If(node) => node.body_containing_location(location),
+            Statement::Breakable(node) => node.body_containing_location(location),
+            Statement::Return(node) => node.body_containing_location(location),
+            Statement::With(node) => node.body_containing_location(location),
+            Statement::Labelled(node) => node.body_containing_location(location),
+            Statement::Throw(node) => node.body_containing_location(location),
+            Statement::Try(node) => node.body_containing_location(location),
+            Statement::Break(_) | Statement::Continue(_) | Statement::Empty(_) | Statement::Debugger(_) => None,
         }
     }
 
@@ -771,14 +767,10 @@ impl Declaration {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                Declaration::Hoistable(node) => node.body_containing_location(location),
-                Declaration::Class(node) => node.body_containing_location(location),
-                Declaration::Lexical(node) => node.body_containing_location(location),
-            }
-        } else {
-            None
+        match self {
+            Declaration::Hoistable(node) => node.body_containing_location(location),
+            Declaration::Class(node) => node.body_containing_location(location),
+            Declaration::Lexical(node) => node.body_containing_location(location),
         }
     }
 }
@@ -1100,15 +1092,9 @@ impl BreakableStatement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                BreakableStatement::Iteration(iteration_statement) => {
-                    iteration_statement.body_containing_location(location)
-                }
-                BreakableStatement::Switch(switch_statement) => switch_statement.body_containing_location(location),
-            }
-        } else {
-            None
+        match self {
+            BreakableStatement::Iteration(node) => node.body_containing_location(location),
+            BreakableStatement::Switch(node) => node.body_containing_location(location),
         }
     }
 
@@ -1125,10 +1111,8 @@ impl BreakableStatement {
         //         GetValue operation will always return the same value as the actual function call result.
         //
         match self {
-            BreakableStatement::Iteration(iteration_statement) => {
-                iteration_statement.has_call_in_tail_position(location)
-            }
-            BreakableStatement::Switch(switch_statement) => switch_statement.has_call_in_tail_position(location),
+            BreakableStatement::Iteration(node) => node.has_call_in_tail_position(location),
+            BreakableStatement::Switch(node) => node.has_call_in_tail_position(location),
         }
     }
 }
