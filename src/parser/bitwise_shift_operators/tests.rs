@@ -243,4 +243,36 @@ mod shift_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).shift_expression().location()
     }
+
+    #[test_case("call()" => None; "fall-thru; no body")]
+    #[test_case("(function(){return call();})" => ssome("return call ( ) ;"); "fall-thru; has body")]
+    #[test_case("call()<<b" => None; "shl; location on left; no body")]
+    #[test_case("(function(){return call();})()<<b" => ssome("return call ( ) ;"); "shl; location on left; has body")]
+    #[test_case("a<<call()" => None; "shl; location on right; no body")]
+    #[test_case("a<<(function(){return call();})()" => ssome("return call ( ) ;"); "shl; location on right; has body")]
+    #[test_case("a/*call()*/<<b" => None; "shl; location not in child productions")]
+    #[test_case("call()>>b" => None; "sshr; location on left; no body")]
+    #[test_case("(function(){return call();})()>>b" => ssome("return call ( ) ;"); "sshr; location on left; has body")]
+    #[test_case("a>>call()" => None; "sshr; location on right; no body")]
+    #[test_case("a>>(function(){return call();})()" => ssome("return call ( ) ;"); "sshr; location on right; has body")]
+    #[test_case("a/*call()*/>>b" => None; "sshr; location not in child productions")]
+    #[test_case("call()>>>b" => None; "ushr; location on left; no body")]
+    #[test_case("(function(){return call();})()>>>b" => ssome("return call ( ) ;"); "ushr; location on left; has body")]
+    #[test_case("a>>>call()" => None; "ushr; location on right; no body")]
+    #[test_case("a>>>(function(){return call();})()" => ssome("return call ( ) ;"); "ushr; location on right; has body")]
+    #[test_case("a/*call()*/>>>b" => None; "ushr; location not in child productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).shift_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => true; "fall-thru; in tail pos")]
+    #[test_case("!call()" => false; "fall-thru; not tail")]
+    #[test_case("a<<call()" => false; "shl")]
+    #[test_case("a>>call()" => false; "sshr")]
+    #[test_case("a>>>call()" => false; "ushr")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).shift_expression().has_call_in_tail_position(&location)
+    }
 }

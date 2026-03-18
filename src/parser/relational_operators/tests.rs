@@ -516,4 +516,52 @@ mod relational_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).relational_expression().location()
     }
+
+    #[test_case("call()" => None; "fall-thru; no body")]
+    #[test_case("(function () { return call(); })" => ssome("return call ( ) ;"); "fall-thru; has body")]
+    #[test_case("#pid in call()" => None; "private id; location in expr; no body")]
+    #[test_case("#pid in function(){return call();}" => ssome("return call ( ) ;"); "private id; location in expr; has body")]
+    #[test_case("#pid /* call() */ in a" => None; "private-id; location not in expression")]
+    #[test_case("call() < 0" => None; "less; location in left; no body")]
+    #[test_case("function(){return call();} < 0" => ssome("return call ( ) ;"); "less; location in left; has body")]
+    #[test_case("a < call()" => None; "less; location in right; no body")]
+    #[test_case("a < function(){return call();}" => ssome("return call ( ) ;"); "less; location in right; has body")]
+    #[test_case("a /* call() */ < b" => None; "less; location between productions")]
+    #[test_case("call() > 0" => None; "greater; location in left; no body")]
+    #[test_case("function(){return call();} > 0" => ssome("return call ( ) ;"); "greater; location in left; has body")]
+    #[test_case("a > call()" => None; "greater; location in right; no body")]
+    #[test_case("a > function(){return call();}" => ssome("return call ( ) ;"); "greater; location in right; has body")]
+    #[test_case("a /* call() */ > b" => None; "greater; location between productions")]
+    #[test_case("call() <= 0" => None; "less-or-equal; location in left; no body")]
+    #[test_case("function(){return call();} <= 0" => ssome("return call ( ) ;"); "less-or-equal; location in left; has body")]
+    #[test_case("a <= call()" => None; "less-or-equal; location in right; no body")]
+    #[test_case("a <= function(){return call();}" => ssome("return call ( ) ;"); "less-or-equal; location in right; has body")]
+    #[test_case("a /* call() */ <= b" => None; "less-or-equal; location between productions")]
+    #[test_case("call() >= 0" => None; "greater-or-equal; location in left; no body")]
+    #[test_case("function(){return call();} >= 0" => ssome("return call ( ) ;"); "greater-or-equal; location in left; has body")]
+    #[test_case("a >= call()" => None; "greater-or-equal; location in right; no body")]
+    #[test_case("a >= function(){return call();}" => ssome("return call ( ) ;"); "greater-or-equal; location in right; has body")]
+    #[test_case("a /* call() */ >= b" => None; "greater-or-equal; location between productions")]
+    #[test_case("call() instanceof 0" => None; "instanceof; location in left; no body")]
+    #[test_case("function(){return call();} instanceof 0" => ssome("return call ( ) ;"); "instanceof; location in left; has body")]
+    #[test_case("a instanceof call()" => None; "instanceof; location in right; no body")]
+    #[test_case("a instanceof function(){return call();}" => ssome("return call ( ) ;"); "instanceof; location in right; has body")]
+    #[test_case("a /* call() */ instanceof b" => None; "instanceof; location between productions")]
+    #[test_case("call() in 0" => None; "in; location in left; no body")]
+    #[test_case("function(){return call();} in 0" => ssome("return call ( ) ;"); "in; location in left; has body")]
+    #[test_case("a in call()" => None; "in; location in right; no body")]
+    #[test_case("a in function(){return call();}" => ssome("return call ( ) ;"); "in; location in right; has body")]
+    #[test_case("a /* call() */ in b" => None; "in; location between productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).relational_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => true; "fallthru; tail pos")]
+    #[test_case("3+call()" => false; "fallthru; not tail")]
+    #[test_case("0 > call()" => false; "anything else")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).relational_expression().has_call_in_tail_position(&location)
+    }
 }

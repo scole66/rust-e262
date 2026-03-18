@@ -235,15 +235,17 @@ impl MultiplicativeExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                MultiplicativeExpression::ExponentiationExpression(node) => node.body_containing_location(location),
-                MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(first, _, last) => {
-                    first.body_containing_location(location).or_else(|| last.body_containing_location(location))
+        match self {
+            MultiplicativeExpression::ExponentiationExpression(node) => node.body_containing_location(location),
+            MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(first, _, last) => {
+                if first.location().contains(location) {
+                    first.body_containing_location(location)
+                } else if last.location().contains(location) {
+                    last.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
         }
     }
 
@@ -266,9 +268,7 @@ impl MultiplicativeExpression {
         //      MultiplicativeExpression MultiplicativeOperator ExponentiationExpression
         //  1. Return false.
         match self {
-            MultiplicativeExpression::ExponentiationExpression(exponentiation_expression) => {
-                exponentiation_expression.has_call_in_tail_position(location)
-            }
+            MultiplicativeExpression::ExponentiationExpression(node) => node.has_call_in_tail_position(location),
             MultiplicativeExpression::MultiplicativeExpressionExponentiationExpression(..) => false,
         }
     }

@@ -143,6 +143,23 @@ mod switch_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).switch_statement().location()
     }
+
+    #[test_case("switch(call()){}" => None; "location in expression; no body")]
+    #[test_case("switch((function(){return call();})()){}" => ssome("return call ( ) ;"); "location in expression; has body")]
+    #[test_case("switch(a){case 1: call();}" => None; "location in case blocks; no body")]
+    #[test_case("switch(a){case 1: (function(){return call();})();}" => ssome("return call ( ) ;"); "location in case blocks; has body")]
+    #[test_case("switch /* call() */ (a){}" => None; "location outside of productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).switch_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("switch(call()){}" => false; "no tail calls")]
+    #[test_case("switch(a){case 1: return call();}" => true; "has a tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).switch_statement().has_call_in_tail_position(&location)
+    }
 }
 
 // CASE BLOCK
@@ -447,14 +464,30 @@ mod case_block {
 
     #[test_case("{}" => None; "location not in production")]
     #[test_case("{ case call(): ; }" => None; "no default; no body")]
+    #[test_case("{ /* call() */ case 1: b; }" => None; "no default; location not in production")]
     #[test_case("{ case 3: (function(){return call();});}" => ssome("return call ( ) ;"); "no default; body present")]
     #[test_case("{ case 1: call(); default: 10; case 2: 12; }" => None; "with default; no body")]
     #[test_case("{ case 1: (function(){return call();}); default: 10; case 2: 12; }" => ssome("return call ( ) ;"); "with default; body left")]
     #[test_case("{ case 1: 1; default: (function(){return call();}); case 2: 2; }" => ssome("return call ( ) ;"); "with default; body in default")]
     #[test_case("{ case 1: 1; default: 'd'; case 2: (function(){return call();}); }" => ssome("return call ( ) ;"); "with default; body right")]
+    #[test_case("{ case 1: a; /* call() */ default: z; case 2: b; }" => None; "with default; location between clauses")]
     fn body_containing_location(src: &str) -> Option<String> {
         let location = find_call(src);
         Maker::new(src).case_block().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("{ case 1: call(); }" => false; "no-default; no tail call")]
+    #[test_case("{ case 1: return call(); }" => true; "no-default; has tail call")]
+    #[test_case("{}" => false; "no-default; no-clauses")]
+    #[test_case("{ case 1:; default: call(); case 2:;}" => false; "has default; location in default; no tail call")]
+    #[test_case("{ case 1:; default: return call(); case 2:;}" => true; "has default; location in default; has tail call")]
+    #[test_case("{ case 1:call(); default:; case 2:;}" => false; "has default; location in early; no tail call")]
+    #[test_case("{ case 1:return call(); default:; case 2:;}" => true; "has default; location in early; has tail call")]
+    #[test_case("{ case 1:; default:; case 2:call();}" => false; "has default; location in late; no tail call")]
+    #[test_case("{ case 1:; default:; case 2:return call();}" => true; "has default; location in late; has tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).case_block().has_call_in_tail_position(&location)
     }
 }
 
@@ -603,6 +636,34 @@ mod case_clauses {
     fn to_vec(src: &str) -> Vec<String> {
         Maker::new(src).case_clauses().to_vec().iter().map(|c| format!("{c}")).collect::<Vec<_>>()
     }
+
+    #[test_case("  case 78: foo; case 11: break;" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 29 } })]
+    fn location(src: &str) -> Location {
+        Maker::new(src).case_clauses().location()
+    }
+
+    #[test_case("case call():" => None; "item; no body")]
+    #[test_case("case (function(){return call();})():" => ssome("return call ( ) ;"); "item; has body")]
+    #[test_case("case call():a; case 0: b;" => None; "multi; location in left; no body")]
+    #[test_case("case (function(){return call();})():a; case 0:b;" => ssome("return call ( ) ;"); "multi; location in left; has body")]
+    #[test_case("case 0:a; case 1:call();" => None; "multi; location in right; no body")]
+    #[test_case("case 0:a; case 1:(function(){return call();})();" => ssome("return call ( ) ;"); "multi; location in right; has body")]
+    #[test_case("case 1:a; /* call() */ case 2:b;" => None; "multi; location between items")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).case_clauses().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("case 8: call();" => false; "single-item; no tail call")]
+    #[test_case("case 0: return call();" => true; "single-item; has tail call")]
+    #[test_case("case 1: call(); case 2: foo;" => false; "multi-item; location in left; no tail call")]
+    #[test_case("case 1: return call(); case 2: foo;" => true; "multi-item; location in left; has tail call")]
+    #[test_case("case 1: foo; case 2: call();" => false; "multi-item; location in right; no tail call")]
+    #[test_case("case 1: foo; case 2: return call();" => true; "multi-item; location in right; has tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).case_clauses().has_call_in_tail_position(&location)
+    }
 }
 
 // CASE CLAUSE
@@ -743,6 +804,30 @@ mod case_clause {
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).case_clause().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
     }
+
+    #[test_case("  case 78: foo;" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 13 } })]
+    fn location(src: &str) -> Location {
+        Maker::new(src).case_clause().location()
+    }
+
+    #[test_case("case call():" => None; "location in expression; no body")]
+    #[test_case("case (function(){return call();})():" => ssome("return call ( ) ;"); "location in expression; has body")]
+    #[test_case("case 0: call();" => None; "location in statements; no body")]
+    #[test_case("case 0: (function(){return call();})();" => ssome("return call ( ) ;"); "location in statements; has body")]
+    #[test_case("case /* call() */ 0: foo;" => None; "has statements; location not in productions")]
+    #[test_case("case /* call() */ 0:" => None; "no statements; location not in expression")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).case_clause().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("case call():" => false; "empty")]
+    #[test_case("case 0: call();" => false; "with statement; not tail call")]
+    #[test_case("case 0: return call();" => true; "with statement; has tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).case_clause().has_call_in_tail_position(&location)
+    }
 }
 
 // DEFAULT CLAUSE
@@ -879,5 +964,27 @@ mod default_clause {
     #[test_case("default: thing(); let a=3; thong(a);" => svec(&["let a = 3 ;"]); "item")]
     fn lexically_scoped_declarations(src: &str) -> Vec<String> {
         Maker::new(src).default_clause().lexically_scoped_declarations().iter().map(String::from).collect::<Vec<_>>()
+    }
+
+    #[test_case("  default: foo;" => Location { starting_line: 1, starting_column: 3, span: Span { starting_index: 2, length: 13 } })]
+    fn location(src: &str) -> Location {
+        Maker::new(src).default_clause().location()
+    }
+
+    #[test_case("default: call();" => None; "with-statement-list; no body")]
+    #[test_case("default: (function(){return call();})();" => ssome("return call ( ) ;"); "with-statement-list; has body")]
+    #[test_case("default: /* call() */ x();" => None; "with-statment-list; location outside of statments")]
+    #[test_case("default:" => None; "no-statement-list")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).default_clause().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("default:" => false; "no statement-list")]
+    #[test_case("default: call();" => false; "has statment list; no tail call")]
+    #[test_case("default: return call();" => true; "has statement list; has tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).default_clause().has_call_in_tail_position(&location)
     }
 }

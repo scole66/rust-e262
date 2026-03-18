@@ -1104,516 +1104,57 @@ impl ParsedText {
             ParsedText::FormalParameters(formal_parameters) => formal_parameters.body_containing_location(location),
             ParsedText::FunctionBody(function_body) => function_body.body_containing_location(location),
             ParsedText::GeneratorBody(generator_body) => generator_body.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::AsyncFunctionBody(_) => {
-                //async_function_body.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::AsyncGeneratorBody(_) => {
-                //async_generator_body.body_containing_location(location)
-                None
-            }
-            ParsedText::FunctionExpression(function_expression) => {
-                function_expression.body_containing_location(location)
-            }
-            ParsedText::GeneratorExpression(generator_expression) => {
-                generator_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::AsyncFunctionExpression(async_function_expression) => {
-                async_function_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::AsyncGeneratorExpression(async_generator_expression) => {
-                async_generator_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::FunctionDeclaration(function_declaration) => {
-                function_declaration.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::AsyncFunctionDeclaration(async_function_declaration) => {
-                async_function_declaration.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::AsyncGeneratorDeclaration(async_generator_declaration) => {
-                async_generator_declaration.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::GeneratorDeclaration(generator_declaration) => {
-                generator_declaration.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::PrimaryExpression(primary_expression) => primary_expression.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::FieldDefinition(field_definition) => field_definition.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ParenthesizedExpression(parenthesized_expression) => {
-                parenthesized_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::ObjectLiteral(object_literal) => object_literal.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::PropertyDefinitionList(property_definition_list) => {
-                property_definition_list.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::PropertyDefinition(property_definition) => {
-                property_definition.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::ArrowFunction(arrow_function) => arrow_function.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::PropertyName(property_name) => property_name.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ComputedPropertyName(computed_property_name) => {
-                computed_property_name.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::MemberExpression(member_expression) => member_expression.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::NewExpression(new_expression) => new_expression.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::CallExpression(call_expression) => call_expression.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::CallMemberExpression(call_member_expression) => {
-                call_member_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::LeftHandSideExpression(left_hand_side_expression) => {
-                left_hand_side_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::Arguments(arguments) => arguments.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ArgumentList(argument_list) => argument_list.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::AdditiveExpression(additive_expression) => {
-                additive_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::ArrayAssignmentPattern(_) => {
-                //array_assignment_pattern.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::ArrayBindingPattern(_) => {
-                //array_binding_pattern.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::ArrayLiteral(array_literal) => array_literal.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ArrowFormalParameters(_) => {
-                //arrow_formal_parameters.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::ArrowParameters(_) => {
-                //arrow_parameters.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::AssignmentElement(_) => {
-                //assignment_element.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::AssignmentElementList(_) => {
-                None
-                //assignment_element_list.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::AssignmentElisionElement(_) => {
-                None
-                //assignment_elision_element.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::AssignmentExpression(assignment_expression) => {
-                assignment_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::AssignmentPattern(assignment_pattern) => assignment_pattern.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::AssignmentProperty(_) => {
-                //assignment_property.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::AssignmentPropertyList(_) => {
-                //assignment_property_list.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::AssignmentRestElement(_) => {
-                //assignment_rest_element.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::AssignmentRestProperty(_) => {
-                //assignment_rest_property.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::AsyncArrowBindingIdentifier(_) => {
-                //async_arrow_binding_identifier.body_containing_location(location)
-                None
-            }
-            //#[cfg(test)]
-            //ParsedText::AsyncArrowFunction(async_arrow_function) => {
-            //    async_arrow_function.body_containing_location(location)
-            //}
-            //#[cfg(test)]
-            //ParsedText::AsyncArrowHead(async_arrow_head) => {
-            //    //async_arrow_head.body_containing_location(location)
-            //    None
-            //}
-            //#[cfg(test)]
-            //ParsedText::AsyncConciseBody(async_concise_body) => {
-            //    //async_concise_body.body_containing_location(location)
-            //    None
-            //}
-            //#[cfg(test)]
-            //ParsedText::AsyncGeneratorMethod(async_generator_method) => {
-            //    async_generator_method.body_containing_location(location)
-            //}
-            //#[cfg(test)]
-            //ParsedText::AsyncMethod(async_method) => async_method.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::AwaitExpression(await_expression) => await_expression.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::BindingElement(binding_element) => binding_element.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::BindingElementList(_) => {
-                //binding_element_list.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::BindingElisionElement(_) => {
-                //binding_elision_element.body_containing_location(location)
-                None
-            }
-            //#[cfg(test)]
-            //ParsedText::BindingIdentifier(binding_identifier) => binding_identifier.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::BindingList(binding_list) => binding_list.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::BindingPattern(binding_pattern) => binding_pattern.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::BindingProperty(_) => {
-                //binding_property.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::BindingPropertyList(_) => {
-                //binding_property_list.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::BindingRestElement(_) => {
-                //binding_rest_element.body_containing_location(location)
-                None
-            }
-            //#[cfg(test)]
-            //ParsedText::BindingRestProperty(binding_rest_property) => {
-            //    //binding_rest_property.body_containing_location(location)
-            //    None
-            //}
-            #[cfg(test)]
-            ParsedText::BitwiseANDExpression(bitwise_andexpression) => {
-                bitwise_andexpression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::BitwiseORExpression(bitwise_orexpression) => {
-                bitwise_orexpression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::BitwiseXORExpression(bitwise_xorexpression) => {
-                bitwise_xorexpression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::Block(block) => block.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::BlockStatement(block_statement) => block_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::BreakableStatement(breakable_statement) => {
-                breakable_statement.body_containing_location(location)
-            }
-            //#[cfg(test)]
-            //ParsedText::BreakStatement(break_statement) => break_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::CaseBlock(case_block) => case_block.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::CaseClause(case_clause) => case_clause.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::CaseClauses(case_clauses) => case_clauses.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::Catch(catch) => catch.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::CatchParameter(catch_parameter) => catch_parameter.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::ClassBody(class_body) => class_body.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ClassDeclaration(class_declaration) => class_declaration.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::ClassElement(class_element) => class_element.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::ClassElementList(class_element_list) => class_element_list.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ClassElementName(class_element_name) => class_element_name.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::ClassExpression(class_expression) => class_expression.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::ClassHeritage(class_heritage) => {
-            //    //class_heritage.body_containing_location(location)
-            //    None
-            //}
-            //#[cfg(test)]
-            //ParsedText::ClassStaticBlock(class_static_block) => class_static_block.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ClassStaticBlockBody(_) => {
-                //class_static_block_body.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::ClassStaticBlockStatementList(_) => {
-                //class_static_block_statement_list.body_containing_location(location)
-                None
-            }
-            //#[cfg(test)]
-            //ParsedText::ClassTail(class_tail) => class_tail.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::CoalesceExpression(coalesce_expression) => {
-                coalesce_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::CoalesceExpressionHead(coalesce_expression_head) => {
-                coalesce_expression_head.body_containing_location(location)
-            }
-            //#[cfg(test)]
-            //ParsedText::ConciseBody(concise_body) => {
-            //    //concise_body.body_containing_location(location)
-            //    None
-            //}
-            #[cfg(test)]
-            ParsedText::ConditionalExpression(conditional_expression) => {
-                conditional_expression.body_containing_location(location)
-            }
-            //#[cfg(test)]
-            //ParsedText::ContinueStatement(continue_statement) => continue_statement.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::CoverInitializedName(cover_initialized_name) => {
-            //    cover_initialized_name.body_containing_location(location)
-            //}
-            //#[cfg(test)]
-            //ParsedText::CoverParenthesizedExpressionAndArrowParameterList(
-            //    cover_parenthesized_expression_and_arrow_parameter_list,
-            //) => cover_parenthesized_expression_and_arrow_parameter_list.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::DebuggerStatement(debugger_statement) => debugger_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::Declaration(declaration) => declaration.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::DefaultClause(default_clause) => default_clause.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::DestructuringAssignmentTarget(_) => {
-                //destructuring_assignment_target.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::DoWhileStatement(do_while_statement) => do_while_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ElementList(element_list) => element_list.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::Elisions(elisions) => elisions.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::EmptyStatement(empty_statement) => empty_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::EqualityExpression(equality_expression) => {
-                equality_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::ExponentiationExpression(exponentiation_expression) => {
-                exponentiation_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::Expression(expression) => expression.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ExpressionBody(_) => {
-                //expression_body.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::ExpressionStatement(expression_statement) => {
-                expression_statement.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::Finally(finally) => finally.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ForBinding(_) => {
-                //for_binding.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::ForDeclaration(_) => {
-                //for_declaration.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::ForInOfStatement(for_in_of_statement) => for_in_of_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::FormalParameter(formal_parameter) => formal_parameter.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::FormalParameterList(formal_parameter_list) => {
-                formal_parameter_list.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::ForStatement(for_statement) => for_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::FunctionRestParameter(function_rest_parameter) => {
-                function_rest_parameter.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::FunctionStatementList(function_statement_list) => {
-                function_statement_list.body_containing_location(location)
-            }
-            //#[cfg(test)]
-            //ParsedText::GeneratorMethod(generator_method) => generator_method.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::IfStatement(if_statement) => if_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::Initializer(initializer) => initializer.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::IterationStatement(iteration_statement) => {
-                iteration_statement.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::LabelledItem(labelled_item) => labelled_item.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::LabelledStatement(labelled_statement) => labelled_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::LexicalBinding(lexical_binding) => lexical_binding.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::LexicalDeclaration(lexical_declaration) => {
-                lexical_declaration.body_containing_location(location)
+            ParsedText::FunctionExpression(node) => node.body_containing_location(location),
+            ParsedText::GeneratorExpression(node) => node.body_containing_location(location),
+            #[cfg(test)]
+            _ => self.dbg_body_containing_location(location),
+        }
+    }
+
+    pub(crate) fn is_in_tail_position(&self, location: &Location, strict: bool) -> bool {
+        // Static Semantics: IsInTailPosition ( call )
+        //
+        // The abstract operation IsInTailPosition takes argument call (a CallExpression Parse Node, a MemberExpression
+        // Parse Node, or an OptionalChain Parse Node) and returns a Boolean. It performs the following steps when
+        // called:
+        //
+        //  1. If IsStrict(call) is false, return false.
+        //  2. If call is not contained within a FunctionBody, a ConciseBody, or an AsyncConciseBody, return false.
+        //  3. Let body be the FunctionBody, ConciseBody, or AsyncConciseBody that most closely contains call.
+        //  4. If body is the FunctionBody of a GeneratorBody, return false.
+        //  5. If body is the FunctionBody of an AsyncFunctionBody, return false.
+        //  6. If body is the FunctionBody of an AsyncGeneratorBody, return false.
+        //  7. If body is an AsyncConciseBody, return false.
+        //  8. Return the result of HasCallInTailPosition of body with argument call.
+        //
+        // Note: Tail Position calls are only defined in strict mode code because of a common non-standard language
+        //       extension (see 10.2.4) that enables observation of the chain of caller contexts.
+        if !strict {
+            return false;
+        }
+        let body = self.body_containing_location(location);
+        match &body {
+            None | Some(ContainingBody::AsyncConcise(_)) => false,
+            Some(ContainingBody::Concise(body)) => {
+                // Otherwise, HasCallInTailPosition of body with argument call.
+                body.has_call_in_tail_position(location)
+            }
+            Some(ContainingBody::Function(body)) => {
+                // If body is the FunctionBody of a GeneratorBody, return false.
+                if body.is_generator_body() {
+                    return false;
+                }
+                // If body is the FunctionBody of an AsyncFunctionBody, return false.
+                if body.is_async_function_body() {
+                    return false;
+                }
+                // If body is the FunctionBody of an AsyncGeneratorBody, return false.
+                if body.is_async_generator_body() {
+                    return false;
+                }
+                // Otherwise, HasCallInTailPosition of body with argument call.
+                body.has_call_in_tail_position(location)
             }
-            //#[cfg(test)]
-            //ParsedText::Literal(literal) => literal.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::LiteralPropertyName(literal_property_name) => {
-            //    literal_property_name.body_containing_location(location)
-            //}
-            #[cfg(test)]
-            ParsedText::LogicalANDExpression(logical_andexpression) => {
-                logical_andexpression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::LogicalORExpression(logical_orexpression) => {
-                logical_orexpression.body_containing_location(location)
-            }
-            //#[cfg(test)]
-            //ParsedText::MetaProperty(meta_property) => meta_property.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::MethodDefinition(method_definition) => method_definition.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::MultiplicativeExpression(multiplicative_expression) => {
-                multiplicative_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::ObjectAssignmentPattern(_) => {
-                //object_assignment_pattern.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::ObjectBindingPattern(_) => {
-                //object_binding_pattern.body_containing_location(location)
-                None
-            }
-            #[cfg(test)]
-            ParsedText::OptionalChain(optional_chain) => optional_chain.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::OptionalExpression(optional_expression) => {
-                optional_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::PropertySetParameterList(property_set_parameter_list) => {
-                property_set_parameter_list.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::RelationalExpression(relational_expression) => {
-                relational_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::ReturnStatement(return_statement) => return_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ScriptBody(script_body) => script_body.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ShiftExpression(shift_expression) => shift_expression.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ShortCircuitExpression(short_circuit_expression) => {
-                short_circuit_expression.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::SingleNameBinding(single_name_binding) => {
-                single_name_binding.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::SpreadElement(spread_element) => spread_element.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::Statement(statement) => statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::StatementList(statement_list) => statement_list.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::StatementListItem(statement_list_item) => {
-                statement_list_item.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::SubstitutionTemplate(substitution_template) => {
-                substitution_template.body_containing_location(location)
-            }
-            //#[cfg(test)]
-            //ParsedText::SuperCall(super_call) => super_call.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::SuperProperty(super_property) => super_property.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::SwitchStatement(switch_statement) => switch_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::TemplateLiteral(template_literal) => template_literal.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::TemplateMiddleList(template_middle_list) => {
-                template_middle_list.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::TemplateSpans(template_spans) => template_spans.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::ThrowStatement(throw_statement) => throw_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::TryStatement(try_statement) => try_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::UnaryExpression(unary_expression) => unary_expression.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::UniqueFormalParameters(unique_formal_parameters) => {
-                unique_formal_parameters.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::UpdateExpression(update_expression) => update_expression.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::VariableDeclaration(variable_declaration) => {
-                variable_declaration.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::VariableDeclarationList(variable_declaration_list) => {
-                variable_declaration_list.body_containing_location(location)
-            }
-            #[cfg(test)]
-            ParsedText::VariableStatement(variable_statement) => variable_statement.body_containing_location(location),
-            #[cfg(test)]
-            ParsedText::WhileStatement(while_statement) => while_statement.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::WithStatement(with_statement) => with_statement.body_containing_location(location),
-            //#[cfg(test)]
-            //ParsedText::YieldExpression(yield_expression) => yield_expression.body_containing_location(location),
         }
     }
 }

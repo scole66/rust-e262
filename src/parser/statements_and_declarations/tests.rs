@@ -599,6 +599,61 @@ mod statement {
     fn location(src: &str) -> Location {
         Maker::new(src).statement().location()
     }
+
+    #[test_case("{ call(); }" => None; "block-statement; no body")]
+    #[test_case("{ function a() { return call(); } }" => ssome("return call ( ) ;"); "block-statement; has body")]
+    #[test_case("var x=call();" => None; "variable-statement; no body")]
+    #[test_case("var x=function(){return call();};" => ssome("return call ( ) ;"); "variable-statement; has body")]
+    #[test_case(";" => None; "empty-statement")]
+    #[test_case("call();" => None; "expression-statement; no body")]
+    #[test_case("(function(){return call();})();" => ssome("return call ( ) ;"); "expression-statement; has body")]
+    #[test_case("if (call()) ;" => None; "if-statement; no body")]
+    #[test_case("if (1) (function(){return call();})();" => ssome("return call ( ) ;"); "if-statement; has body")]
+    #[test_case("switch (call()) { default: ; }" => None; "breakable-statment; no body")]
+    #[test_case("switch (a) { default: (function(){return call();})(); }" => ssome("return call ( ) ;"); "breakable-statement; has body")]
+    #[test_case("continue;" => None; "continue-statement")]
+    #[test_case("break;" => None; "break-statement")]
+    #[test_case("return call();" => None; "return-statement; no body")]
+    #[test_case("return (function(){return call();})();" => ssome("return call ( ) ;"); "return-statement; has body")]
+    #[test_case("with (call()) {}" => None; "with-statement; no body")]
+    #[test_case("with (function(){return call();}) {}" => ssome("return call ( ) ;"); "with-statement; has body")]
+    #[test_case("l: call();" => None; "labelled-statement; no body")]
+    #[test_case("l: (function(){return call();})();" => ssome("return call ( ) ;"); "labelled-statement; has body")]
+    #[test_case("throw call();" => None; "throw-statement; no body")]
+    #[test_case("throw function(){return call();};" => ssome("return call ( ) ;"); "throw-statement; has body")]
+    #[test_case("try { call(); } catch (e) {}" => None; "try-statement; no body")]
+    #[test_case("try { (function(){return call();})(); } catch (e) {}" => ssome("return call ( ) ;"); "try-statement; has body")]
+    #[test_case("debugger;" => None; "debugger-statement")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("var x=call();" => false; "variable-statement")]
+    #[test_case(";" => false; "empty-statement")]
+    #[test_case("call();" => false; "expression-statement")]
+    #[test_case("continue;" => false; "continue-statement")]
+    #[test_case("break;" => false; "break-statement")]
+    #[test_case("throw call();" => false; "throw-statement")]
+    #[test_case("debugger;" => false; "debugger-statement")]
+    #[test_case("{ call(); }" => false; "block-statement; no tail")]
+    #[test_case("{ return call(); }" => true; "block-statement; has tail")]
+    #[test_case("if (1) { call(); }" => false; "if-statement; no tail")]
+    #[test_case("if (1) { return call(); }" => true; "if-statement; has tail")]
+    #[test_case("while (true) { call(); }" => false; "breakable-statement; no tail")]
+    #[test_case("while (true) { return call(); }" => true; "breakable-statement; has tail")]
+    #[test_case("return 3+call();" => false; "return-statement; no tail")]
+    #[test_case("return call();" => true; "return-statement; has tail")]
+    #[test_case("with (call()) {}" => false; "with-statement; no tail")]
+    #[test_case("with (o) { return call(); }" => true; "with-statement; has tail")]
+    #[test_case("l: call();" => false; "labelled-statement; no tail")]
+    #[test_case("l: return call();" => true; "labelled-statement; has tail")]
+    #[test_case("try { call(); } catch (e) {}" => false; "try-statement; no tail")]
+    #[test_case("try { } finally { return call(); }" => true; "try-statement; has tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).statement().has_call_in_tail_position(&location)
+    }
 }
 
 mod hoistable_decl_part {
@@ -836,6 +891,17 @@ mod declaration {
     #[test_case("   const pixie = bullywug;" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 23 } }; "lexical decl")]
     fn location(src: &str) -> Location {
         Maker::new(src).declaration().location()
+    }
+
+    #[test_case("function a(arg=call()){}" => None; "hoistable-declaration; no body")]
+    #[test_case("function a(){ call(); }" => ssome("call ( ) ;"); "hoistable-declaration; has body")]
+    #[test_case("class a { f=call(); }" => None; "class-declaration; no body")]
+    #[test_case("class a { a(){call();}}" => ssome("call ( ) ;"); "class-declaration; has body")]
+    #[test_case("let a=call();" => None; "lexical-declaration; no body")]
+    #[test_case("let a=(function(){return call();})();" => ssome("return call ( ) ;"); "lexical-declaration; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).declaration().body_containing_location(&location).map(|node| node.to_string())
     }
 }
 
@@ -1217,5 +1283,23 @@ mod breakable_statement {
     #[test_case("   switch (x) { case 1: break; }" => Location { starting_line: 1, starting_column: 4, span:Span { starting_index: 3, length: 29 } }; "switch stmt")]
     fn location(src: &str) -> Location {
         Maker::new(src).breakable_statement().location()
+    }
+
+    #[test_case("while(true){call();}" => None; "iteration-statement; no body")]
+    #[test_case("while(true){(function(){return call();})();}" => ssome("return call ( ) ;"); "iteration-statement; has body")]
+    #[test_case("switch(call()){default:;}" => None; "switch-statement; no body")]
+    #[test_case("switch(a){default: (function(){return call();})();}" => ssome("return call ( ) ;"); "switch-statement; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).breakable_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("while(call()){}" => false; "iteration-statement; no tail")]
+    #[test_case("while(true){return call();}" => true; "iteration-statement; has tail")]
+    #[test_case("switch(call()){default:;}" => false; "switch-statement; no tail")]
+    #[test_case("switch(a){default:return call();}" => true; "switch-statement; has tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).breakable_statement().has_call_in_tail_position(&location)
     }
 }

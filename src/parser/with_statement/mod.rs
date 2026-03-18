@@ -142,16 +142,15 @@ impl WithStatement {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            self.expression
-                .body_containing_location(location)
-                .or_else(|| self.statement.body_containing_location(location))
+        if self.expression.location().contains(location) {
+            self.expression.body_containing_location(location)
+        } else if self.statement.location().contains(location) {
+            self.statement.body_containing_location(location)
         } else {
             None
         }
     }
 
-    #[expect(unused_variables)]
     pub(crate) fn has_call_in_tail_position(&self, location: &Location) -> bool {
         // Static Semantics: HasCallInTailPosition
         // The syntax-directed operation HasCallInTailPosition takes argument call (a CallExpression Parse Node, a
@@ -164,7 +163,10 @@ impl WithStatement {
         //         also a possible tail position call. A function call cannot return a Reference Record, so such a
         //         GetValue operation will always return the same value as the actual function call result.
         //
-        todo!()
+        // WithStatement :
+        //  with ( Expression ) Statement
+        // 1. Return HasCallInTailPosition of Statement with argument call.
+        self.statement.has_call_in_tail_position(location)
     }
 }
 

@@ -297,21 +297,29 @@ impl RelationalExpression {
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.location().contains(location) {
-            match self {
-                RelationalExpression::ShiftExpression(node) => node.body_containing_location(location),
-                RelationalExpression::PrivateIn(_, se, _) => se.body_containing_location(location),
-                RelationalExpression::Less(re, se)
-                | RelationalExpression::Greater(re, se)
-                | RelationalExpression::LessEqual(re, se)
-                | RelationalExpression::GreaterEqual(re, se)
-                | RelationalExpression::InstanceOf(re, se)
-                | RelationalExpression::In(re, se) => {
-                    re.body_containing_location(location).or_else(|| se.body_containing_location(location))
+        match self {
+            RelationalExpression::ShiftExpression(node) => node.body_containing_location(location),
+            RelationalExpression::PrivateIn(_, se, _) => {
+                if se.location().contains(location) {
+                    se.body_containing_location(location)
+                } else {
+                    None
                 }
             }
-        } else {
-            None
+            RelationalExpression::Less(re, se)
+            | RelationalExpression::Greater(re, se)
+            | RelationalExpression::LessEqual(re, se)
+            | RelationalExpression::GreaterEqual(re, se)
+            | RelationalExpression::InstanceOf(re, se)
+            | RelationalExpression::In(re, se) => {
+                if re.location().contains(location) {
+                    re.body_containing_location(location)
+                } else if se.location().contains(location) {
+                    se.body_containing_location(location)
+                } else {
+                    None
+                }
+            }
         }
     }
 

@@ -180,4 +180,27 @@ mod conditional_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).conditional_expression().location()
     }
+
+    #[test_case("a/*call()*/?b:c" => None; "location not in child productions")]
+    #[test_case("call()?b:c" => None; "location in condition; no body")]
+    #[test_case("(function(){return call();})()?b:c" => ssome("return call ( ) ;"); "location in condition; has body")]
+    #[test_case("a?call():c" => None; "location in thenish; no body")]
+    #[test_case("a?(function(){return call();})():c" => ssome("return call ( ) ;"); "location in thenish; has body")]
+    #[test_case("a?b:call()" => None; "location in elseish; no body")]
+    #[test_case("a?b:(function(){return call();})()" => ssome("return call ( ) ;"); "location in elseish; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).conditional_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => true; "fallthru; tail call")]
+    #[test_case("!call()" => false; "fallthru; not tail")]
+    #[test_case("a?call():b" => true; "thenish; tail call")]
+    #[test_case("a?!call():b" => false; "thenish; not tail")]
+    #[test_case("a?b:call()" => true; "elseish; tail call")]
+    #[test_case("a?b:!call()" => false; "elseish; not tail")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).conditional_expression().has_call_in_tail_position(&location)
+    }
 }

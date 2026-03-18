@@ -62,6 +62,28 @@ impl ParseError {
     }
 }
 
+impl fmt::Display for ParsedFunctionExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParsedFunctionExpression::Function(node) => node.fmt(f),
+            ParsedFunctionExpression::Generator(node) => node.fmt(f),
+            ParsedFunctionExpression::AsyncFunction(node) => node.fmt(f),
+            ParsedFunctionExpression::AsyncGenerator(node) => node.fmt(f),
+        }
+    }
+}
+
+impl fmt::Display for ParsedBody {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParsedBody::Function(node) => node.fmt(f),
+            ParsedBody::Generator(node) => node.fmt(f),
+            ParsedBody::AsyncFunction(node) => node.fmt(f),
+            ParsedBody::AsyncGenerator(node) => node.fmt(f),
+        }
+    }
+}
+
 mod pe_code {
     use super::*;
     use test_case::test_case;
@@ -1122,28 +1144,140 @@ mod parsed_text {
     use super::*;
     use test_case::test_case;
 
-    #[test_case(
-        || ParsedText::FormalParameters(Maker::new("").formal_parameters())
-        => serr("Expected a Script or Syntax Errors");
-        "not script"
-    )]
-    #[test_case(
-        || ParsedText::Script(Maker::new("let a = 3;").script())
-        => sok("let a = 3 ;");
-        "a legit script"
-    )]
-    #[test_case(
-        || ParsedText::Errors(vec![create_type_error_object("testing error a"), create_type_error_object("testing second")])
-        => sok("TypeError: testing error a, TypeError: testing second");
-        "and errors."
-    )]
-    fn try_from(make_text: impl FnOnce() -> ParsedText) -> Result<String, String> {
-        setup_test_agent();
-        let pt = make_text();
-        let result: Result<Rc<Script>, Vec<Object>> = pt.try_into().map_err(|e: anyhow::Error| e.to_string())?;
-        match result {
-            Ok(script) => Ok(script.to_string()),
-            Err(errs) => Ok(errs.iter().map(unwind_any_error_object).join(", ")),
+    mod try_into {
+        use super::*;
+        use test_case::test_case;
+
+        #[test_case(
+            || ParsedText::FormalParameters(Maker::new("").formal_parameters())
+            => serr("Expected a Script or Syntax Errors");
+            "not script"
+        )]
+        #[test_case(
+            || ParsedText::Script(Maker::new("let a = 3;").script())
+            => sok("let a = 3 ;");
+            "a legit script"
+        )]
+        #[test_case(
+            || ParsedText::Errors(vec![create_type_error_object("testing error a"), create_type_error_object("testing second")])
+            => sok("TypeError: testing error a, TypeError: testing second");
+            "and errors."
+        )]
+        fn script(make_text: impl FnOnce() -> ParsedText) -> Result<String, String> {
+            setup_test_agent();
+            let pt = make_text();
+            let result: Result<Rc<Script>, Vec<Object>> = pt.try_into().map_err(|e: anyhow::Error| e.to_string())?;
+            match result {
+                Ok(script) => Ok(script.to_string()),
+                Err(errs) => Ok(errs.iter().map(unwind_any_error_object).join(", ")),
+            }
+        }
+
+        #[test_case(
+            || ParsedText::FormalParameters(Maker::new("a, b, c").formal_parameters())
+            => sok("a , b , c");
+            "legit"
+        )]
+        #[test_case(
+            || ParsedText::Errors(vec![create_type_error_object("testing error a"), create_type_error_object("testing second")])
+            => sok("TypeError: testing error a, TypeError: testing second");
+            "and errors."
+        )]
+        #[test_case(
+            || ParsedText::Script(Maker::new("let a = 3;").script())
+            => serr("Expected FormalParameters or Syntax Errors");
+            "not FormalParameters"
+        )]
+        fn formal_parameters(make_text: impl FnOnce() -> ParsedText) -> Result<String, String> {
+            setup_test_agent();
+            let pt = make_text();
+            let result: Result<Rc<FormalParameters>, Vec<Object>> =
+                pt.try_into().map_err(|e: anyhow::Error| e.to_string())?;
+            match &result {
+                Ok(node) => Ok(node.to_string()),
+                Err(errs) => Ok(errs.iter().map(unwind_any_error_object).join(", ")),
+            }
+        }
+
+        #[test_case(
+            || ParsedText::Errors(vec![create_type_error_object("testing error a"), create_type_error_object("testing second")])
+            => sok("TypeError: testing error a, TypeError: testing second");
+            "errors"
+        )]
+        #[test_case(
+            || ParsedText::FunctionBody(Maker::new("return a;").function_body())
+            => sok("return a ;");
+            "function-body"
+        )]
+        #[test_case(
+            || ParsedText::GeneratorBody(Maker::new("return a;").generator_body())
+            => sok("return a ;");
+            "generator-body"
+        )]
+        #[test_case(
+            || ParsedText::AsyncFunctionBody(Maker::new("return a;").async_function_body())
+            => sok("return a ;");
+            "async-function-body"
+        )]
+        #[test_case(
+            || ParsedText::AsyncGeneratorBody(Maker::new("return a;").async_generator_body())
+            => sok("return a ;");
+            "async-generator-body"
+        )]
+        #[test_case(
+            || ParsedText::Script(Maker::new("let a = 3;").script())
+            => serr("Expected Some kind of function body or Syntax Errors");
+            "not a body"
+        )]
+        fn parsed_body(make_text: impl FnOnce() -> ParsedText) -> Result<String, String> {
+            setup_test_agent();
+            let pt = make_text();
+            let result: Result<ParsedBody, Vec<Object>> = pt.try_into().map_err(|e: anyhow::Error| e.to_string())?;
+            match &result {
+                Ok(node) => Ok(node.to_string()),
+                Err(errs) => Ok(errs.iter().map(unwind_any_error_object).join(", ")),
+            }
+        }
+
+        #[test_case(
+            || ParsedText::Errors(vec![create_type_error_object("testing error a"), create_type_error_object("testing second")])
+            => sok("TypeError: testing error a, TypeError: testing second");
+            "errors"
+        )]
+        #[test_case(
+            || ParsedText::FunctionExpression(Maker::new("function () {}").function_expression())
+            => sok("function ( ) { }");
+            "function-expression"
+        )]
+        #[test_case(
+            || ParsedText::GeneratorExpression(Maker::new("function *(){}").generator_expression())
+            => sok("function * ( ) { }");
+            "generator-expression"
+        )]
+        #[test_case(
+            || ParsedText::AsyncFunctionExpression(Maker::new("async function (){}").async_function_expression())
+            => sok("async function ( ) { }");
+            "async-function-expression"
+        )]
+        #[test_case(
+            || ParsedText::AsyncGeneratorExpression(Maker::new("async function *(){}").async_generator_expression())
+            => sok("async function * ( ) { }");
+            "async-generator-expression"
+        )]
+        #[test_case(
+            || ParsedText::Script(Maker::new("let a = 3;").script())
+            => serr("Expected Some kind of function expression or Syntax Errors");
+            "not a function expression"
+        )]
+        fn parsed_function_expression(make_text: impl FnOnce() -> ParsedText) -> Result<String, String> {
+            setup_test_agent();
+            let pt = make_text();
+            let result: Result<ParsedFunctionExpression, Vec<Object>> =
+                pt.try_into().map_err(|e: anyhow::Error| e.to_string())?;
+            match &result {
+                Ok(node) => Ok(node.to_string()),
+                Err(errs) => Ok(errs.iter().map(unwind_any_error_object).join(", ")),
+            }
         }
     }
 
@@ -1364,6 +1498,86 @@ mod parsed_text {
             ParsedText::WhileStatement(node) => format!("WhileStatement({node})"),
             //ParsedText::WithStatement(node) => format!("WithStatement({node})"),
             //ParsedText::YieldExpression(node) => format!("YieldExpression({node})"),
+        }
+    }
+
+    #[test_case("call()", "call()", false => false; "not strict")]
+    #[test_case("function a(){ return call(); }; a();", "call()", true => true; "function body with tail")]
+    #[test_case("function a(){ return 2+call(); }; a();", "call()", true => false; "function body no tail")]
+    #[test_case("function *a(){ return call(); }; a();", "call()", true => false; "generator body")]
+    #[test_case("async function a(){ return call(); }; a();", "call()", true => false; "async function body")]
+    #[test_case("async function *a(){ return call(); }; a();", "call()", true => false; "async generator body")]
+    #[test_case("call()", "call()", true => false; "not in a function")]
+    #[test_case("let s = async () => call(); s();", "call()", true => false; "async concise")]
+    #[test_case("let s = () => call(); s();", "call()", true => true; "consice with tail")]
+    #[test_case("let s = () => !call(); s();", "call()", true => false; "consice no tail")]
+    fn is_in_tail_position(src: &str, needle: &str, strict: bool) -> bool {
+        let text = parser::parse_text(src, ParseGoal::Script, strict, false);
+        let target_loc = find_text(src, needle);
+        text.is_in_tail_position(&target_loc, strict)
+    }
+
+    #[test_case(SourceTree::empty => None; "empty")]
+    #[test_case(|| Maker::new("call();").script_ast().1 => None; "script; no body")]
+    #[test_case(|| Maker::new("function a(){return call();}").script_ast().1 => ssome("return call ( ) ;"); "script; has body")]
+    #[test_case(|| Maker::new("a=call()").formal_parameters_ast().1 => None; "formal-parameters; no body")]
+    #[test_case(|| Maker::new("a=function(){return call();}").formal_parameters_ast().1 => ssome("return call ( ) ;"); "formal-parameters; has body")]
+    #[test_case(|| Maker::new("call();").function_body_ast().1 => ssome("call ( ) ;"); "function-body")]
+    #[test_case(|| Maker::new("call();").generator_body_ast().1 => ssome("call ( ) ;"); "generator-body")]
+    #[test_case(|| Maker::new("call();").async_function_body_ast().1 => ssome("call ( ) ;"); "async-function-body")]
+    #[test_case(|| Maker::new("call();").async_generator_body_ast().1 => ssome("call ( ) ;"); "async-generator-body")]
+    #[test_case(|| Maker::new("function(){return call();}").function_expression_ast().1 => ssome("return call ( ) ;"); "function-expression with body")]
+    #[test_case(|| Maker::new("function/*call()*/(){}").function_expression_ast().1 => None; "function-expression no body")]
+    #[test_case(|| Maker::new("function *(){call();}").generator_expression_ast().1 => ssome("call ( ) ;"); "generator-expression has body")]
+    #[test_case(|| Maker::new("function/*call()*/ *(){}").generator_expression_ast().1 => None; "generator-expression; no body")]
+    #[test_case(|| Maker::new("async function () { call() ; }").async_function_expression_ast().1 => ssome("call ( ) ;"); "async-function-expression; has body")]
+    #[test_case(|| Maker::new("async function(z=call()) { }").async_function_expression_ast().1 => None; "async-function-expression; no body")]
+    #[test_case(|| Maker::new("async function *() { call(); }").async_generator_expression_ast().1 => ssome("call ( ) ;"); "async-generator-expression; has body")]
+    #[test_case(|| Maker::new("async function *(z=call()) {}").async_generator_expression_ast().1 => None; "async-generator-expression; no body")]
+    #[test_case(|| Maker::new("function a(){call();}").function_declaration_ast().1 => ssome("call ( ) ;"); "function-declaration; has body")]
+    #[test_case(|| Maker::new("function a(z=call()){}").function_declaration_ast().1 => None; "function-declaration; no body")]
+    #[test_case(|| Maker::new("async function x(){call();}").async_function_declaration_ast().1 => ssome("call ( ) ;"); "async-function-declaration; has body")]
+    #[test_case(|| Maker::new("async function x(z=call()){}").async_function_declaration_ast().1 => None; "async-function-declaration; no body")]
+    fn body_containing_location(make_text: impl FnOnce() -> SourceTree) -> Option<String> {
+        let source = make_text();
+        let text = source.ast;
+        let location = find_call(&source.text);
+        text.body_containing_location(&location).map(|node| node.to_string())
+    }
+}
+
+mod parsed_body {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(|| BodySource::Function(Maker::new("hello;").function_body()) => sok("hello ;"); "function-body")]
+    #[test_case(|| BodySource::Generator(Maker::new("hello;").generator_body()) => sok("hello ;"); "generator-body")]
+    #[test_case(|| BodySource::AsyncFunction(Maker::new("hello;").async_function_body()) => sok("hello ;"); "async-function-body")]
+    #[test_case(|| BodySource::AsyncGenerator(Maker::new("hello;").async_generator_body()) => sok("hello ;"); "async-generator-body")]
+    #[test_case(|| BodySource::ConciseBody(Maker::new("x").concise_body()) => serr("Some kind of normal function body expected"); "concise-body")]
+    fn try_from_body_source(make_item: impl FnOnce() -> BodySource) -> Result<String, String> {
+        let item = make_item();
+        let result: ParsedBody = item.try_into().map_err(|e: anyhow::Error| e.to_string())?;
+        Ok(result.to_string())
+    }
+
+    #[test_case(|| ParsedText::Empty => serr("Expected Some kind of function body or Syntax Errors"); "not a body")]
+    #[test_case(
+            || ParsedText::Errors(vec![create_type_error_object("testing error a"), create_type_error_object("testing second")])
+            => sok("TypeError: testing error a; TypeError: testing second");
+            "errors"
+    )]
+    #[test_case(||ParsedText::FunctionBody(Maker::new("x").function_body()) => sok("x ;"); "function-body")]
+    #[test_case(||ParsedText::GeneratorBody(Maker::new("x").generator_body()) => sok("x ;"); "generator-body")]
+    #[test_case(||ParsedText::AsyncFunctionBody(Maker::new("x").async_function_body()) => sok("x ;"); "async-function-body")]
+    #[test_case(||ParsedText::AsyncGeneratorBody(Maker::new("x").async_generator_body()) => sok("x ;"); "async-generator-body")]
+    fn try_from_parsed_text_into_result(make_item: impl FnOnce() -> ParsedText) -> Result<String, String> {
+        setup_test_agent();
+        let item = make_item();
+        let result: Result<ParsedBody, _> = item.try_into().map_err(|e: anyhow::Error| e.to_string())?;
+        match result {
+            Ok(pt) => Ok(pt.to_string()),
+            Err(errs) => Ok(errs.iter().map(unwind_any_error_object).join("; ")),
         }
     }
 }

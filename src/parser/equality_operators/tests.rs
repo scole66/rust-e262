@@ -317,4 +317,39 @@ mod equality_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).equality_expression().location()
     }
+
+    #[test_case("call()==b" => None; "equality; location in left; no body")]
+    #[test_case("(function(){return call();})()==b" => ssome("return call ( ) ;"); "equality; location in left; has body")]
+    #[test_case("a==call()" => None; "equality; location in right; no body")]
+    #[test_case("a==(function(){return call();})()" => ssome("return call ( ) ;"); "equality; location in right; has body")]
+    #[test_case("call()===b" => None; "strict-equality; location in left; no body")]
+    #[test_case("(function(){return call();})()===b" => ssome("return call ( ) ;"); "strict-equality; location in left; has body")]
+    #[test_case("a===call()" => None; "strict-equality; location in right; no body")]
+    #[test_case("a===(function(){return call();})()" => ssome("return call ( ) ;"); "strict-equality; location in right; has body")]
+    #[test_case("call()!=b" => None; "inequality; location in left; no body")]
+    #[test_case("(function(){return call();})()!=b" => ssome("return call ( ) ;"); "inequality; location in left; has body")]
+    #[test_case("a!=call()" => None; "inequality; location in right; no body")]
+    #[test_case("a!=(function(){return call();})()" => ssome("return call ( ) ;"); "inequality; location in right; has body")]
+    #[test_case("call()!==b" => None; "strict-inequality; location in left; no body")]
+    #[test_case("(function(){return call();})()!==b" => ssome("return call ( ) ;"); "strict-inequality; location in left; has body")]
+    #[test_case("a!==call()" => None; "strict-inequality; location in right; no body")]
+    #[test_case("a!==(function(){return call();})()" => ssome("return call ( ) ;"); "strict-inequality; location in right; has body")]
+    #[test_case("call()" => None; "fall-thru; no body")]
+    #[test_case("(function(){return call();})()" => ssome("return call ( ) ;"); "fall-thru; has body")]
+    #[test_case("a/*call()*/==b" => None; "location not in child productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).equality_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => true; "fall thru; in tail")]
+    #[test_case("!call()" => false; "fall thru; no tail")]
+    #[test_case("a==call()" => false; "equality")]
+    #[test_case("a===call()" => false; "strict-equality")]
+    #[test_case("a!=call()" => false; "inequality")]
+    #[test_case("a!==call()" => false; "strict-inequality")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).equality_expression().has_call_in_tail_position(&location)
+    }
 }

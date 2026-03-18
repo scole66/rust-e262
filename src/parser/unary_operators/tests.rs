@@ -450,13 +450,6 @@ mod unary_expression {
         Maker::new(src).unary_expression().assignment_target_type(strict)
     }
 
-    //#[test_case("-a" => false; "expr")]
-    //#[test_case("function bob(){}" => true; "function fallthru")]
-    //#[test_case("1" => false; "literal fallthru")]
-    //fn is_named_function(src: &str) -> bool {
-    //    Maker::new(src).unary_expression().is_named_function()
-    //}
-
     #[test_case("  delete a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "delete")]
     #[test_case("  void a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 6 }}; "void")]
     #[test_case("  typeof a" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 8 }}; "typeof kwd")]
@@ -468,5 +461,50 @@ mod unary_expression {
     #[test_case("  998" => Location{ starting_line: 1, starting_column: 3, span: Span{ starting_index: 2, length: 3 }}; "literal")]
     fn location(src: &str) -> Location {
         Maker::new(src).unary_expression().location()
+    }
+
+    #[test_case("call()" => None; "fall-thru; no body")]
+    #[test_case("(function(){return call();})" => ssome("return call ( ) ;"); "fall-thru; has body")]
+    #[test_case("delete call()" => None; "delete; no body")]
+    #[test_case("delete (function(){return call();})" => ssome("return call ( ) ;"); "delete; has body")]
+    #[test_case("delete /* call() */ a" => None; "delete; location not in child")]
+    #[test_case("void call()" => None; "void; no body")]
+    #[test_case("void (function(){return call();})" => ssome("return call ( ) ;"); "void; has body")]
+    #[test_case("void /* call() */ a" => None; "void; location not in child")]
+    #[test_case("typeof call()" => None; "typeof; no body")]
+    #[test_case("typeof (function(){return call();})" => ssome("return call ( ) ;"); "typeof; has body")]
+    #[test_case("typeof /* call() */ a" => None; "typeof; location not in child")]
+    #[test_case("+ call()" => None; "no-op; no body")]
+    #[test_case("+ (function(){return call();})" => ssome("return call ( ) ;"); "no-op; has body")]
+    #[test_case("+ /* call() */ a" => None; "no-op; location not in child")]
+    #[test_case("- call()" => None; "negate; no body")]
+    #[test_case("- (function(){return call();})" => ssome("return call ( ) ;"); "negate; has body")]
+    #[test_case("- /* call() */ a" => None; "negate; location not in child")]
+    #[test_case("~ call()" => None; "complement; no body")]
+    #[test_case("~ (function(){return call();})" => ssome("return call ( ) ;"); "complement; has body")]
+    #[test_case("~ /* call() */ a" => None; "complement; location not in child")]
+    #[test_case("! call()" => None; "not; no body")]
+    #[test_case("! (function(){return call();})" => ssome("return call ( ) ;"); "not; has body")]
+    #[test_case("! /* call() */ a" => None; "not; location not in child")]
+    #[test_case("await call()" => None; "await; no body")]
+    #[test_case("await (function(){return call();})" => ssome("return call ( ) ;"); "await; has body")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).unary_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => true; "fall-thru; has tail call")]
+    #[test_case("call().a" => false; "fall-thru; no tail call")]
+    #[test_case("delete call()" => false; "delete; no tail call")]
+    #[test_case("void call()" => false; "void; no tail call")]
+    #[test_case("typeof call()" => false; "typeof; no tail call")]
+    #[test_case("+ call()" => false; "no-op; no tail call")]
+    #[test_case("- call()" => false; "negate; no tail call")]
+    #[test_case("~ call()" => false; "complement; no tail call")]
+    #[test_case("! call()" => false; "not; no tail call")]
+    #[test_case("await call()" => false; "await; no tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).unary_expression().has_call_in_tail_position(&location)
     }
 }

@@ -168,4 +168,24 @@ mod exponentiation_expression {
     fn location(src: &str) -> Location {
         Maker::new(src).exponentiation_expression().location()
     }
+
+    #[test_case("call()**b" => None; "exponentiation; location in left; no body")]
+    #[test_case("(function(){return call();})()**b" => ssome("return call ( ) ;"); "exponentiation; location in left; has body")]
+    #[test_case("a**call()" => None; "exponentiation; location in right; no body")]
+    #[test_case("a**(function(){return call();})()" => ssome("return call ( ) ;"); "exponentiation; location in right; has body")]
+    #[test_case("call()" => None; "fall-thru; no body")]
+    #[test_case("(function(){return call();})()" => ssome("return call ( ) ;"); "fall-thru; has body")]
+    #[test_case("a/*call()*/**b" => None; "location not in child productions")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).exponentiation_expression().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("call()" => true; "fall-thru; in tail")]
+    #[test_case("!call()" => false; "fall-thru; not tail")]
+    #[test_case("a**call()" => false; "exponentiation")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).exponentiation_expression().has_call_in_tail_position(&location)
+    }
 }

@@ -166,4 +166,22 @@ mod with_statement {
     fn location(src: &str) -> Location {
         Maker::new(src).with_statement().location()
     }
+
+    #[test_case("with (call()) {}" => None; "location in expression; no body")]
+    #[test_case("with ((function(){return call();})()) {}" => ssome("return call ( ) ;"); "location in expression; has body")]
+    #[test_case("with (a) { call(); }" => None; "location in statement; no body")]
+    #[test_case("with (a) { (function(){return call();})(); }" => ssome("return call ( ) ;"); "location in statement; has body")]
+    #[test_case("with (a) /* call() */ {}" => None; "location between children")]
+    fn body_containing_location(src: &str) -> Option<String> {
+        let location = find_call(src);
+        Maker::new(src).with_statement().body_containing_location(&location).map(|node| node.to_string())
+    }
+
+    #[test_case("with (call()) {}" => false; "location not in statement")]
+    #[test_case("with (a) { call(); }" => false; "not a tail call")]
+    #[test_case("with (a) { return call(); }" => true; "is a tail call")]
+    fn has_call_in_tail_position(src: &str) -> bool {
+        let location = find_call(src);
+        Maker::new(src).with_statement().has_call_in_tail_position(&location)
+    }
 }
