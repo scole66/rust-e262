@@ -2290,7 +2290,6 @@ mod proxy_object {
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(uses_ordinary_get_prototype_of);
-    false_function!(is_bigint_object);
 
     none_function!(to_number_obj);
     none_function!(to_array_object);

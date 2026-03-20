@@ -284,10 +284,6 @@ impl ObjectInterface for BigIntObject {
     fn to_bigint_object(&self) -> Option<&BigIntObject> {
         Some(self)
     }
-    #[cfg(test)]
-    fn is_bigint_object(&self) -> bool {
-        true
-    }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self))
@@ -404,11 +400,6 @@ impl BigIntObject {
     }
     pub(crate) fn object(prototype: Option<Object>, value: Rc<BigInt>) -> Object {
         Object { o: Rc::new(Self::new(prototype, value)) }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn value(&self) -> Rc<BigInt> {
-        Rc::clone(&self.bigint_data)
     }
 }
 

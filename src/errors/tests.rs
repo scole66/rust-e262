@@ -406,7 +406,6 @@ fn error_object_other_automatic_functions() {
     assert!(!no.o.is_generator_object());
     assert!(no.o.to_generator_object().is_none());
     assert!(no.o.to_bigint_object().is_none());
-    assert!(!no.o.is_bigint_object());
 }
 
 #[test]

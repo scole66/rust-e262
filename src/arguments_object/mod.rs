@@ -1,14 +1,15 @@
 use super::*;
+use std::fmt;
 
 pub(crate) struct ParameterMap {
     env: Rc<dyn EnvironmentRecord>,
     properties: Vec<Option<JSString>>,
 }
 
-impl std::fmt::Debug for ParameterMap {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for ParameterMap {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ParameterMap")
-            .field("env", &format!("{:?}", &self.env)) // turn off "alterate" flag for env
+            .field("env", &format!("{:?}", &self.env)) // turn off "alternate" flag for env
             .field("properties", &self.properties)
             .finish()
     }
@@ -344,67 +345,6 @@ impl ArgumentsObject {
         }
     }
 }
-
-// CreateMappedArgumentsObject ( func, formals, argumentsList, env )
-//
-// The abstract operation CreateMappedArgumentsObject takes arguments func (an Object), formals (a Parse Node),
-// argumentsList (a List), and env (an Environment Record) and returns an arguments exotic object. It performs the
-// following steps when called:
-//
-// [ 🏃 = runtime; 🧑‍💻 = compile]
-//
-//🧑‍💻  1. Assert: formals does not contain a rest parameter, any binding patterns, or any initializers. It may contain
-//🧑‍💻     duplicate identifiers.
-//🏃  2. Let len be the number of elements in argumentsList.
-//🏃  3. Let obj be MakeBasicObject(« [[Prototype]], [[Extensible]], [[ParameterMap]] »).
-//🏃  4. Set obj.[[GetOwnProperty]] as specified in 10.4.4.1.
-//🏃  5. Set obj.[[DefineOwnProperty]] as specified in 10.4.4.2.
-//🏃  6. Set obj.[[Get]] as specified in 10.4.4.3.
-//🏃  7. Set obj.[[Set]] as specified in 10.4.4.4.
-//🏃  8. Set obj.[[Delete]] as specified in 10.4.4.5.
-//🏃  9. Set obj.[[Prototype]] to %Object.prototype%.
-//🏃 10. Let map be OrdinaryObjectCreate(null).
-//🏃 11. Set obj.[[ParameterMap]] to map.
-//🧑‍💻 12. Let parameterNames be the BoundNames of formals.
-//🧑‍💻 13. Let numberOfParameters be the number of elements in parameterNames.
-//🏃 14. Let index be 0.
-//🏃 15. Repeat, while index < len,
-//🏃     a. Let val be argumentsList[index].
-//🏃     b. Perform ! CreateDataPropertyOrThrow(obj, ! ToString(𝔽(index)), val).
-//🏃     c. Set index to index + 1.
-//🏃 16. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len), [[Writable]]: true,
-//🏃     [[Enumerable]]: false, [[Configurable]]: true }).
-//🧑‍💻 17. Let mappedNames be a new empty List.
-//🧑‍💻 18. Set index to numberOfParameters - 1.
-//🧑‍💻 19. Repeat, while index ≥ 0,
-//🧑‍💻     a. Let name be parameterNames[index].
-//🧑‍💻     b. If name is not an element of mappedNames, then
-//🧑‍💻          i. Add name as an element of the list mappedNames.
-//🧑‍💻         ii. If index < len, then
-//🏃             1. Let g be MakeArgGetter(name, env).
-//🏃             2. Let p be MakeArgSetter(name, env).
-//🏃             3. Perform ! map.[[DefineOwnProperty]](! ToString(𝔽(index)), PropertyDescriptor { [[Set]]: p, [[Get]]:
-//🏃                g, [[Enumerable]]: false, [[Configurable]]: true }).
-//🧑‍💻     c. Set index to index - 1.
-//🏃 20. Perform ! DefinePropertyOrThrow(obj, @@iterator, PropertyDescriptor { [[Value]]: %Array.prototype.values%,
-//🏃     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
-//🏃 21. Perform ! DefinePropertyOrThrow(obj, "callee", PropertyDescriptor { [[Value]]: func, [[Writable]]: true,
-//🏃     [[Enumerable]]: false, [[Configurable]]: true }).
-//🏃 22. Return obj.
-
-// Steps 2-16 + 20-21: CreateMappedArgsObj; On the stack should be: the function args and the function object. Steps 10-11 are really "Attach an empty ParameterMap". On exit the args obj is on the stack.
-// Steps 19.b.ii.1-3: AttachMappedArg; a two-argument insn: (string index; arg number); arg obj should be on top of the stack. (It stays on the stack at insn exit.)
-
-// So the sequence looks like:
-// PUSH function obj
-// PUSH arg0
-// PUSH arg1
-// PUSH arg2
-// PUSH 3
-// CreateMappedArgsObj
-// AttachMappedArg arg2 2
-// AttachMappedArg arg1 1
-// AttachMappedArg arg0 0
 
 #[cfg(test)]
 mod tests;
