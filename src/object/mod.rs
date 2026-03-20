@@ -1239,10 +1239,6 @@ pub(crate) trait ObjectInterface: Debug {
     fn to_bigint_object(&self) -> Option<&BigIntObject> {
         None
     }
-    #[cfg(test)]
-    fn is_bigint_object(&self) -> bool {
-        false
-    }
     fn to_builtin_function_with_revocable_proxy_slot(&self) -> Option<&BuiltinFunctionWithRevokableProxySlot> {
         None
     }

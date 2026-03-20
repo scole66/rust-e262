@@ -1089,6 +1089,139 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 // BigInt.prototype.valueOf
 #[test_case("BigInt.prototype.valueOf.call()" => serr("Thrown: TypeError: Value is not a Big Int"); "BigInt.prototype.valueOf: ThisBigIntValue throws")]
 #[test_case("56n.valueOf()" => vok(Rc::new(BigInt::from(56))); "BigInt.prototype.valueOf normal")]
+// BigInt: More tests to see how much coverage I can actually get to
+#[test_case("BigInt.prototype.valueOf.call({a: 3})" => serr("Thrown: TypeError: Value is not a Big Int"); "this_bigint_value: bad object")]
+#[test_case("Object(3n).valueOf()" => vok(Rc::new(BigInt::from(3))); "this_bigint_value: from a bigint object")]
+#[test_case("'a' in Object(3n)" => vok(false); "bigint-object [[HasProperty]]")]
+#[test_case("BigInt.asIntN(16, { valueOf() { throw 10; } })" => serr("Thrown: 10"); "to_big_int: with value that throws")]
+#[test_case("Object.isExtensible(Object(3n))" => vok(true); "BigInt [[IsExtensible]]")]
+#[test_case("'constructor' in Object.setPrototypeOf(Object(3n), null)" => vok(false); "BigInt [[SetPrototypeOf]]")]
+#[test_case("let o = Object(3n); o.prop = 10; Object.getOwnPropertyNames(o).join(', ')" => vok("prop"); "BigInt [[OwnPropertyKeys]]")]
+#[test_case("let o = Object(3n); Object.preventExtensions(o); o.b = 10; o.b" => vok(ECMAScriptValue::Undefined); "BigInt [[PreventExtensions]]")]
+#[test_case("let o = Object(3n); o.a = 10; delete o.a; Object.getOwnPropertyNames(o).join(', ')" => vok(""); "BigInt [[Delete]]")]
+#[test_case("Object.setPrototypeOf({}, Object(3n)).valueOf()" => serr("Thrown: TypeError: Value is not a Big Int"); "BigInt uses_ordinary_get_prototype_of coverage")]
+// Tests for coverage in src/arguments_object.rs
+#[test_case("
+    function make_ao(x, y, z) {
+      return arguments;
+    }
+    let o = Object.setPrototypeOf({}, make_ao(1, 2, 3));
+    `${o[0]},${o[1]},${o[2]}`
+    "
+    => vok("1,2,3");
+    "ArgumentsObject: uses_ordinary_get_prototype_of coverage"
+)]
+#[test_case("
+    function make_ao(x, y, z) {
+      return arguments;
+    }
+    make_ao(1, 2, 3).toString()
+    "
+    => vok("[object Arguments]");
+    "ArgumentsObject: kind coverage"
+)]
+#[test_case("
+    function make_ao(x, y, z) {
+      return arguments;
+    }
+    let ao=make_ao(1, 2, 3);
+    Object.setPrototypeOf(ao, { color: 'blue' });
+    ao.color
+    "
+    => vok("blue");
+    "ArgumentsObject: [[SetPrototypeOf]]"
+)]
+#[test_case("
+    function make_ao(x, y, z) {
+      return arguments;
+    }
+    let ao=make_ao(1, 2, 3);
+    Object.preventExtensions(ao);
+    Object.isExtensible(ao)
+    "
+    => vok(false);
+    "ArgumentsObject: [[PreventExtensions]]"
+)]
+#[test_case("
+    function make_uao(x, y, z=10) {
+      return arguments;
+    }
+    let ao=make_uao(1, 2, 3);
+    ao[2]
+    "
+    => vok(3);
+    "ArgumentsObject: [[GetOwnProperty]] (the unmapped form)"
+)]
+#[test_case("
+    function make_ao(x, y, z) {
+      return arguments;
+    }
+    let ao=make_ao(1, 2, 3);
+    Object.defineProperty(ao, '0', { writable: false });
+    ao[0] = 45;
+    ao[0]
+    "
+    => vok(1);
+    "ArgumentsObject: [[DefineOwnProperty]]: mapped value is changed to read-only with no value"
+)]
+#[test_case("
+    function make_ao(x, y, z) {
+      return arguments;
+    }
+    let ao=make_ao(1, 2, 3);
+    Object.defineProperty(ao, '0', { writable: true, value: 27 });
+    ao[0] = 45;
+    ao[0]
+    "
+    => vok(45);
+    "ArgumentsObject: [[DefineOwnProperty]]: mapped value is changed (still writable, though)"
+)]
+#[test_case("
+    function make_ao(x, y, z) {
+      return arguments;
+    }
+    let ao=make_ao(1, 2, 3);
+    Object.defineProperty(ao, '0', { configurable: false, writable: false });
+    Object.defineProperty(ao, '0', { value: 56 });
+    "
+    => serr("Thrown: TypeError: Property cannot be assigned to");
+    "ArgumentsObject [[DefineOwnProperty]]: the ordinary_define_own_property returns 'not allowed'"
+)]
+#[test_case("
+    let ao=(function(x,y,z){return arguments;})(1,2,3);
+    0 in ao
+    "
+    => vok(true);
+    "ArgumentsObject [[HasProperty]]"
+)]
+#[test_case("
+    let ao=(function(x,y,z){return arguments;})(1,2,3);
+    let oo = {};
+    Object.setPrototypeOf(oo, ao);
+    oo[0] = 12;
+    oo[0]
+    "
+    => vok(12);
+    "ArgumentsObject [[Set]] where the receiver is not the arguments object"
+)]
+#[test_case("
+    let ao = (function(x,y,z){return arguments;})(1,2,3);
+    delete ao[0];
+    delete ao.bob;
+    Object.getOwnPropertyNames(ao).join(', ')
+    "
+    => vok("1, 2, length, callee");
+    "ArgumentsObject [[Delete]] just coverage, mapped form"
+)]
+#[test_case("
+    let uao = (function(x,y=10,z){return arguments;})(1,2,3);
+    delete uao[0];
+    delete uao.bob;
+    Object.getOwnPropertyNames(uao).join(', ')
+    "
+    => vok("1, 2, length, callee");
+    "ArgumentsObject [[Delete]] just coverage, unmapped form"
+)]
 // 2025/07/31 - destructuring broken in catch parameters
 #[test_case("try{throw[10];}catch([z]){z;}" => vok(10); "catch parameter destructuring")]
 #[test_case("try{throw 10;}catch([z]){}" => serr("Thrown: TypeError: object is not iterable"); "catch parameter bad destructuring")]

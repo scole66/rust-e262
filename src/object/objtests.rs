@@ -4651,7 +4651,6 @@ mod ordinary_object {
     default_set_test!();
     default_own_property_keys_test!();
     false_function!(is_array_object);
-    false_function!(is_bigint_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_generator_object);
@@ -4713,7 +4712,6 @@ mod immutable_prototype_exotic_object {
     default_set_test!();
     default_own_property_keys_test!();
     false_function!(is_array_object);
-    false_function!(is_bigint_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_generator_object);
@@ -5102,7 +5100,6 @@ mod dead_object {
     }
 
     false_function!(is_array_object);
-    false_function!(is_bigint_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_generator_object);

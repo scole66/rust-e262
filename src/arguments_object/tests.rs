@@ -627,7 +627,6 @@ mod arguments_object {
     fn make() -> Object {
         test_ao()
     }
-    false_function!(is_bigint_object);
     false_function!(is_generator_object);
     none_function!(to_bigint_object);
     none_function!(to_bound_function_object);

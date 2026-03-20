@@ -201,7 +201,6 @@ mod symbol_object {
         assert!(obj.o.to_arguments_object().is_none());
     }
 
-    false_function!(is_bigint_object);
     false_function!(is_generator_object);
     none_function!(to_bigint_object);
     none_function!(to_for_in_iterator);

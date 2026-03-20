@@ -222,7 +222,6 @@ mod array_object {
         let a = ArrayObject::create(0.0, None).unwrap();
         assert!(a.o.is_array_object());
     }
-    false_function!(is_bigint_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_generator_object);

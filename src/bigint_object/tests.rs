@@ -3,6 +3,12 @@ use crate::tests::*;
 use ahash::AHashMap;
 use test_case::test_case;
 
+impl BigIntObject {
+    pub(crate) fn value(&self) -> Rc<BigInt> {
+        Rc::clone(&self.bigint_data)
+    }
+}
+
 mod bigint_object {
     use super::*;
 
@@ -50,13 +56,6 @@ mod bigint_object {
     default_prevent_extensions_test!();
     default_own_property_keys_test!();
     default_set_prototype_of_test!();
-
-    #[test]
-    fn is_bigint_object() {
-        setup_test_agent();
-        let obj = make();
-        assert!(obj.o.is_bigint_object());
-    }
 
     #[test]
     fn to_bigint_object() {
