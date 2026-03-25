@@ -1,5 +1,5 @@
-CARGO_PROFDATA=$(find $HOME/.rustup -name llvm-profdata)
-CARGO_COV=$(find $HOME/.rustup -name llvm-cov)
+CARGO_PROFDATA=$(find $(rustc --print sysroot) -name llvm-profdata)
+CARGO_COV=$(find $(rustc --print sysroot) -name llvm-cov)
 
 function objects() {
     for file in $( \
