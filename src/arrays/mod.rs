@@ -218,7 +218,7 @@ impl ArrayObject {
             "length",
             PotentialPropertyDescriptor::new().value(length).writable(true).enumerable(false).configurable(false),
         )
-        .expect("Setting length property on new Array should never fail");
+        .expect(GOODOBJ);
         Ok(a)
     }
 
@@ -691,14 +691,13 @@ pub(crate) fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
 
     // Array.prototype [ @@iterator ] ( )
     // The initial value of the @@iterator property is %Array.prototype.values%,
-    let array_prototype_values =
-        array_prototype.get(&"values".into()).expect("a property just added should be gettable");
+    let array_prototype_values = array_prototype.get(&"values".into()).expect(GOODOBJ);
     let values_ppd = PotentialPropertyDescriptor::new()
         .value(array_prototype_values.clone())
         .enumerable(false)
         .writable(true)
         .configurable(true);
-    define_property_or_throw(&array_prototype, wks(WksId::Iterator), values_ppd).expect("property should be ok to add");
+    define_property_or_throw(&array_prototype, wks(WksId::Iterator), values_ppd).expect(GOODOBJ);
 
     // Array.prototype [ @@unscopables ]
     // The initial value of the %Symbol.unscopables% data property is an object created by the following steps:
@@ -749,16 +748,14 @@ pub(crate) fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
         "toSpliced",
         "values",
     ] {
-        unscopable_list
-            .create_data_property_or_throw(name, true)
-            .expect("during intialization, properties should be easy to add");
+        unscopable_list.create_data_property_or_throw(name, true).expect(GOODOBJ);
     }
     let ppd = PotentialPropertyDescriptor::new()
         .value(ECMAScriptValue::from(unscopable_list))
         .writable(false)
         .enumerable(false)
         .configurable(true);
-    define_property_or_throw(&array_prototype, wks(WksId::Unscopables), ppd).expect("provisioning should work");
+    define_property_or_throw(&array_prototype, wks(WksId::Unscopables), ppd).expect(GOODOBJ);
 
     // Array.prototype.constructor
     //
@@ -795,8 +792,7 @@ pub(crate) fn provision_array_iterator_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }.
     let tag_ppd =
         PotentialPropertyDescriptor::new().writable(false).enumerable(false).configurable(true).value("Array Iterator");
-    define_property_or_throw(&array_iterator_prototype, wks(WksId::ToStringTag), tag_ppd)
-        .expect("object setup should be fine");
+    define_property_or_throw(&array_iterator_prototype, wks(WksId::ToStringTag), tag_ppd).expect(GOODOBJ);
 
     let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
     macro_rules! prototype_function {
@@ -885,11 +881,11 @@ fn array_constructor_function(
                     int_len
                 }
                 _ => {
-                    array.create_data_property_or_throw("0", len).expect("Property creation should be successful");
+                    array.create_data_property_or_throw("0", len).expect(GOODOBJ);
                     1
                 }
             };
-            array.set("length", int_len, true).expect("Set should succeed");
+            array.set("length", int_len, true).expect(GOODOBJ);
             Ok(array.into())
         }
         _ => {
@@ -897,7 +893,7 @@ fn array_constructor_function(
             let array = array_create(arg_count, Some(proto))
                 .expect("it takes 96 GB to hold a number of args big enough to fail. we won't get there.");
             for (k, arg) in arguments.iter().enumerate().take(number_of_args) {
-                array.create_data_property_or_throw(k, arg.clone()).expect("property creation should succeed");
+                array.create_data_property_or_throw(k, arg.clone()).expect(GOODOBJ);
             }
             Ok(array.into())
         }
@@ -3383,9 +3379,7 @@ fn array_prototype_to_reversed(
     for k in 0..len {
         let from = len - k - 1;
         let from_value = obj.get(&PropertyKey::from(from))?;
-        array
-            .create_data_property_or_throw(k, from_value)
-            .expect("integer valued properties on fresh array objects should not be awkward");
+        array.create_data_property_or_throw(k, from_value).expect(GOODOBJ);
     }
     Ok(ECMAScriptValue::from(array))
 }
@@ -3425,9 +3419,7 @@ fn array_prototype_to_sorted(
     let sort_compare = move |x: &ECMAScriptValue, y: &ECMAScriptValue| compare_array_elements(x, y, &comparator);
     let sorted_list = sort_indexed_properties(&obj, len, sort_compare, Holes::Include)?;
     for (j, item) in sorted_list.into_iter().map(|(_, item)| item).enumerate() {
-        array
-            .create_data_property_or_throw(j, item)
-            .expect("writing integer properties on a freshly create array should be fine");
+        array.create_data_property_or_throw(j, item).expect(GOODOBJ);
     }
     Ok(ECMAScriptValue::from(array))
 }
@@ -3517,16 +3509,16 @@ fn array_prototype_to_spliced(
     let mut reader = actual_start + actual_skip_count;
     while index < actual_start {
         let i_value = obj.get(&PropertyKey::from(index))?;
-        array.create_data_property_or_throw(index, i_value).expect("integer fields in a fresh array should work");
+        array.create_data_property_or_throw(index, i_value).expect(GOODOBJ);
         index += 1;
     }
     for item in items.into_iter().cloned() {
-        array.create_data_property_or_throw(index, item).expect("integer fields in a fresh array should work");
+        array.create_data_property_or_throw(index, item).expect(GOODOBJ);
         index += 1;
     }
     while index < new_len {
         let from_value = obj.get(&PropertyKey::from(reader))?;
-        array.create_data_property_or_throw(index, from_value).expect("integer fields in a fresh array should work");
+        array.create_data_property_or_throw(index, from_value).expect(GOODOBJ);
         index += 1;
         reader += 1;
     }
