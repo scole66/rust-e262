@@ -550,6 +550,7 @@ pub(crate) fn set_default_global_bindings() {
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     // Atomics
     // JSON
+    global_data!("JSON", intrinsic(IntrinsicId::Json), true, false, true);
     // Math
     global_data!("Math", intrinsic(IntrinsicId::Math), true, false, true);
     // Reflect

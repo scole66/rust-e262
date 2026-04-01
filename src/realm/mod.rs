@@ -37,13 +37,14 @@ pub(crate) enum IntrinsicId {
     ForInIteratorPrototype,
     Function,
     FunctionPrototype,
-    IsFinite,
-    IsNaN,
-    IteratorPrototype,
     GeneratorFunction,
     GeneratorFunctionPrototype,
     GeneratorFunctionPrototypePrototype,
     GeneratorFunctionPrototypePrototypeNext,
+    IsFinite,
+    IsNaN,
+    IteratorPrototype,
+    Json,
     Map,
     MapPrototype,
     MapIteratorPrototype,
@@ -126,7 +127,7 @@ pub(crate) struct Intrinsics {
     pub(crate) is_finite: Object,          // isFinite	The isFinite function (19.2.2)
     pub(crate) is_nan: Object,             // isNaN	The isNaN function (19.2.3)
     pub(crate) iterator_prototype: Object, // An object that all standard built-in iterator objects indirectly inherit from
-    //pub(crate) json: Object,               // JSON	The JSON object (25.5)
+    pub(crate) json: Object,               // JSON	The JSON object (25.5)
     pub(crate) map: Object,                        // Map	The Map constructor (24.1.1)
     pub(crate) map_prototype: Object,              // Map's prototype object
     pub(crate) map_iterator_prototype: Object,     // The prototype of Map iterator objects (24.1.5)
@@ -231,7 +232,7 @@ impl Intrinsics {
             is_finite: dead.clone(),
             is_nan: dead.clone(),
             iterator_prototype: dead.clone(),
-            //json: dead.clone(),
+            json: dead.clone(),
             map: dead.clone(),
             map_prototype: dead.clone(),
             map_iterator_prototype: dead.clone(),
@@ -305,13 +306,14 @@ impl Intrinsics {
             IntrinsicId::ForInIteratorPrototype => &self.for_in_iterator_prototype,
             IntrinsicId::Function => &self.function,
             IntrinsicId::FunctionPrototype => &self.function_prototype,
-            IntrinsicId::IsFinite => &self.is_finite,
-            IntrinsicId::IsNaN => &self.is_nan,
-            IntrinsicId::IteratorPrototype => &self.iterator_prototype,
             IntrinsicId::GeneratorFunction => &self.generator_function,
             IntrinsicId::GeneratorFunctionPrototype => &self.generator_function_prototype,
             IntrinsicId::GeneratorFunctionPrototypePrototype => &self.generator_function_prototype_prototype,
             IntrinsicId::GeneratorFunctionPrototypePrototypeNext => &self.generator_function_prototype_prototype_next,
+            IntrinsicId::IsFinite => &self.is_finite,
+            IntrinsicId::IsNaN => &self.is_nan,
+            IntrinsicId::IteratorPrototype => &self.iterator_prototype,
+            IntrinsicId::Json => &self.json,
             IntrinsicId::Map => &self.map,
             IntrinsicId::MapPrototype => &self.map_prototype,
             IntrinsicId::MapIteratorPrototype => &self.map_iterator_prototype,
@@ -536,7 +538,7 @@ pub(crate) fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     provision_regexp_intrinsic(realm_rec);
     provision_date_intrinsic(realm_rec);
     provision_map_intrinsic(realm_rec);
-    provision_regexp_intrinsic(realm_rec);
+    provision_json_intrinsic(realm_rec);
 
     macro_rules! intrinsic_function {
         ( $intrinsicid:ident, $name:expr_2021, $length:expr_2021 ) => {
