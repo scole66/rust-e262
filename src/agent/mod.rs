@@ -524,6 +524,7 @@ pub(crate) fn set_default_global_bindings() {
     // ReferenceError ( . . . )
     constructor_property!(ReferenceError);
     // RegExp ( . . . )
+    constructor_property!(RegExp);
     // Set ( . . . )
     // SharedArrayBuffer ( . . . )
     // String ( . . . )
