@@ -1207,7 +1207,6 @@ pub(crate) trait ObjectInterface: Debug {
     fn is_date_object(&self) -> bool {
         false
     }
-    #[cfg(test)]
     fn is_regexp_object(&self) -> bool {
         false
     }

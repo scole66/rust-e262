@@ -123,7 +123,6 @@ impl ObjectInterface for RegExpObject {
     fn to_regexp_object(&self) -> Option<&RegExpObject> {
         Some(self)
     }
-    #[cfg(test)]
     fn is_regexp_object(&self) -> bool {
         true
     }
@@ -370,12 +369,115 @@ fn reg_exp_initialize(obj: Object, pattern: ECMAScriptValue, flags: ECMAScriptVa
     Ok(obj)
 }
 
+impl ECMAScriptValue {
+    pub(crate) fn is_regexp(&self) -> Completion<bool> {
+        // IsRegExp ( argument )
+        //
+        // The abstract operation IsRegExp takes argument argument (an ECMAScript language value) and returns either a
+        // normal completion containing a Boolean or a throw completion. It performs the following steps when called:
+        //
+        // 1. If argument is not an Object, return false.
+        // 2. Let matcher be ? Get(argument, %Symbol.match%).
+        // 3. If matcher is not undefined, return ToBoolean(matcher).
+        // 4. If argument has a [[RegExpMatcher]] internal slot, return true.
+        // 5. Return false.
+        match self.object_ref() {
+            Some(obj) => {
+                let key = PropertyKey::from(wks(WksId::Match));
+                let matcher = obj.get(&key)?;
+                match matcher {
+                    ECMAScriptValue::Undefined => Ok(obj.o.is_regexp_object()),
+                    _ => Ok(matcher.into_boolean()),
+                }
+            }
+            None => Ok(false),
+        }
+    }
+
+    pub(crate) fn to_regexp_object(&self) -> Option<&RegExpObject> {
+        match self {
+            ECMAScriptValue::Object(obj) => obj.o.to_regexp_object(),
+            _ => None,
+        }
+    }
+}
+
 fn regexp_constructor_function(
     _this_value: &ECMAScriptValue,
-    _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // RegExp ( pattern, flags )
+    // This function performs the following steps when called:
+    //
+    // 1. Let patternIsRegExp be ? IsRegExp(pattern).
+    // 2. If NewTarget is undefined, then
+    //    a. Let newTarget be the active function object.
+    //    b. If patternIsRegExp is true and flags is undefined, then
+    //       i. Let patternConstructor be ? Get(pattern, "constructor").
+    //       ii. If SameValue(newTarget, patternConstructor) is true, return pattern.
+    // 3. Else,
+    //    a. Let newTarget be NewTarget.
+    // 4. If pattern is an Object and pattern has a [[RegExpMatcher]] internal slot, then
+    //    a. Let P be pattern.[[OriginalSource]].
+    //    b. If flags is undefined, let F be pattern.[[OriginalFlags]].
+    //    c. Else, let F be flags.
+    // 5. Else if patternIsRegExp is true, then
+    //    a. Let P be ? Get(pattern, "source").
+    //    b. If flags is undefined, then
+    //       i. Let F be ? Get(pattern, "flags").
+    //    c. Else,
+    //       i. Let F be flags.
+    // 6. Else,
+    //    a. Let P be pattern.
+    //    b. Let F be flags.
+    // 7. Let O be ? RegExpAlloc(newTarget).
+    // 8. Return ? RegExpInitialize(O, P, F).
+    //
+    // Note: If pattern is supplied using a StringLiteral, the usual escape sequence substitutions are performed before
+    // the String is processed by this function. If pattern must contain an escape sequence to be recognized by this
+    // function, any U+005C (REVERSE SOLIDUS) code points must be escaped within the StringLiteral to prevent them being
+    // removed when the contents of the StringLiteral are formed.
+    let mut args = FuncArgs::from(arguments);
+    let pattern = args.next_arg();
+    let flags = args.next_arg();
+
+    let pattern_is_reg_exp = pattern.is_regexp()?;
+    let ref_holder;
+
+    let nt = match new_target {
+        Some(object) => object,
+        None => {
+            let nt = active_function_object().expect("the current constructor should be the active function object");
+            if pattern_is_reg_exp && flags.is_undefined() {
+                let key = PropertyKey::from("constructor");
+                let pattern_constructor = pattern.get(&key)?;
+                if pattern_constructor.same_value(&ECMAScriptValue::Object(nt.clone())) {
+                    return Ok(pattern);
+                }
+            }
+            ref_holder = nt;
+            &ref_holder
+        }
+    };
+
+    let (p, f) = if let Some(pattern) = pattern.to_regexp_object() {
+        let data = pattern.regexp_data.borrow();
+        let p = ECMAScriptValue::String(data.original_source.clone());
+        let f = if flags.is_undefined() { ECMAScriptValue::String(data.original_flags.clone()) } else { flags };
+        (p, f)
+    } else if pattern_is_reg_exp {
+        let source_key = PropertyKey::from("source");
+        let p = pattern.get(&source_key)?;
+        let flags_key = PropertyKey::from("flags");
+        let f = if flags.is_undefined() { pattern.get(&flags_key)? } else { flags };
+        (p, f)
+    } else {
+        (pattern, flags)
+    };
+
+    let obj = reg_exp_alloc(nt)?;
+    reg_exp_initialize(obj, p, f).map(ECMAScriptValue::Object)
 }
 
 #[expect(clippy::unnecessary_wraps)]
@@ -385,15 +487,13 @@ fn regexp_species(
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
     // get RegExp [ %Symbol.species% ]
-    // RegExp[%Symbol.species%] is an accessor property whose set accessor function is undefined. Its get
-    // accessor function performs the following steps when called:
+    // RegExp[%Symbol.species%] is an accessor property whose set accessor function is undefined. Its get accessor
+    // function performs the following steps when called:
     //
     // 1. Return the this value.
     //
-    // Note
-    // RegExp prototype methods normally use their this value's constructor to create a derived object.
-    // However, a subclass constructor may over-ride that default behaviour by redefining its %Symbol.species%
-    // property.
+    // Note: RegExp prototype methods normally use their this value's constructor to create a derived object. However, a
+    // subclass constructor may over-ride that default behaviour by redefining its %Symbol.species% property.
     Ok(this_value.clone())
 }
 
