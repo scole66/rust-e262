@@ -124,21 +124,21 @@ pub(crate) struct Intrinsics {
     //pub(crate) int8_array: Object,               // Int8Array	The Int8Array constructor (23.2)
     //pub(crate) int16_array: Object,              // Int16Array	The Int16Array constructor (23.2)
     //pub(crate) int32_array: Object,              // Int32Array	The Int32Array constructor (23.2)
-    pub(crate) is_finite: Object,          // isFinite	The isFinite function (19.2.2)
-    pub(crate) is_nan: Object,             // isNaN	The isNaN function (19.2.3)
+    pub(crate) is_finite: Object,                  // isFinite	The isFinite function (19.2.2)
+    pub(crate) is_nan: Object,                     // isNaN	The isNaN function (19.2.3)
     pub(crate) iterator_prototype: Object, // An object that all standard built-in iterator objects indirectly inherit from
     pub(crate) json: Object,               // JSON	The JSON object (25.5)
-    pub(crate) map: Object,                        // Map	The Map constructor (24.1.1)
-    pub(crate) map_prototype: Object,              // Map's prototype object
-    pub(crate) map_iterator_prototype: Object,     // The prototype of Map iterator objects (24.1.5)
-    pub(crate) math: Object,                       // Math	The Math object (21.3)
-    pub(crate) number: Object,                     // Number	The Number constructor (21.1.1)
-    pub(crate) number_prototype: Object,           //
-    pub(crate) object: Object,                     // Object	The Object constructor (20.1.1)
-    pub(crate) object_prototype: Object,           // The Object prototype object
+    pub(crate) map: Object,                // Map	The Map constructor (24.1.1)
+    pub(crate) map_prototype: Object,      // Map's prototype object
+    pub(crate) map_iterator_prototype: Object, // The prototype of Map iterator objects (24.1.5)
+    pub(crate) math: Object,               // Math	The Math object (21.3)
+    pub(crate) number: Object,             // Number	The Number constructor (21.1.1)
+    pub(crate) number_prototype: Object,   //
+    pub(crate) object: Object,             // Object	The Object constructor (20.1.1)
+    pub(crate) object_prototype: Object,   // The Object prototype object
     pub(crate) object_prototype_to_string: Object, // The initial value of %ObjectPrototype%.toString
-    pub(crate) parse_float: Object,                // parseFloat	The parseFloat function (19.2.4)
-    pub(crate) parse_int: Object,                  // parseInt	The parseInt function (19.2.5)
+    pub(crate) parse_float: Object,        // parseFloat	The parseFloat function (19.2.4)
+    pub(crate) parse_int: Object,          // parseInt	The parseInt function (19.2.5)
     //pub(crate) promise: Object,            // Promise	The Promise constructor (27.2.3)
     pub(crate) proxy: Object,                     // Proxy	The Proxy constructor (28.2.1)
     pub(crate) range_error: Object,               // RangeError	The RangeError constructor (20.5.5.2)

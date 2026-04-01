@@ -448,7 +448,8 @@ fn regexp_constructor_function(
     let nt = match new_target {
         Some(object) => object,
         None => {
-            ref_holder = active_function_object().expect("the current constructor should be the active function object");
+            ref_holder =
+                active_function_object().expect("the current constructor should be the active function object");
             if pattern_is_reg_exp && flags.is_undefined() {
                 let key = PropertyKey::from("constructor");
                 let pattern_constructor = pattern.get(&key)?;

@@ -4,7 +4,7 @@ use super::*;
 
 pub(crate) fn provision_json_intrinsic(realm: &Rc<RefCell<Realm>>) {
     // The JSON object:
-    // 
+    //
     //   * is %JSON%.
     //   * is the initial value of the "JSON" property of the global object.
     //   * is an ordinary object.
