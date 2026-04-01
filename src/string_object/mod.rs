@@ -409,7 +409,7 @@ pub(crate) fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(string_prototype_replace, "replace", 2.0);
     prototype_function!(string_prototype_replace_all, "replaceAll", 2.0);
     prototype_function!(string_prototype_search, "search", 1.0);
-    prototype_function!(string_prototype_slice, "slice", 1.0);
+    prototype_function!(string_prototype_slice, "slice", 2.0);
     prototype_function!(string_prototype_split, "split", 2.0);
     prototype_function!(string_prototype_starts_with, "startsWith", 1.0);
     prototype_function!(string_prototype_substring, "substring", 2.0);
@@ -987,11 +987,72 @@ fn string_prototype_search(
 }
 // 22.1.3.21 String.prototype.slice ( start, end )
 fn string_prototype_slice(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.prototype.slice ( start, end )
+    //
+    // This method returns a substring of the result of converting this object to a String, starting from index start
+    // and running to, but not including, index end (or through the end of the String if end is undefined). If start is
+    // negative, it is treated as sourceLength + start where sourceLength is the length of the String. If end is
+    // negative, it is treated as sourceLength + end where sourceLength is the length of the String. The result is a
+    // String value, not a String object.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let O be the this value.
+    // 2. Perform ? RequireObjectCoercible(O).
+    // 3. Let S be ? ToString(O).
+    // 4. Let len be the length of S.
+    // 5. Let intStart be ? ToIntegerOrInfinity(start).
+    // 6. If intStart = -∞, let from be 0.
+    // 7. Else if intStart < 0, let from be max(len + intStart, 0).
+    // 8. Else, let from be min(intStart, len).
+    // 9. If end is undefined, let intEnd be len; else let intEnd be ? ToIntegerOrInfinity(end).
+    // 10. If intEnd = -∞, let to be 0.
+    // 11. Else if intEnd < 0, let to be max(len + intEnd, 0).
+    // 12. Else, let to be min(intEnd, len).
+    // 13. If from ≥ to, return the empty String.
+    // 14. Return the substring of S from from to to.
+    //
+    // Note: This method is intentionally generic; it does not require that its this value be a String object. Therefore
+    // it can be transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+    let start = args.next_arg();
+    let end = args.next_arg();
+
+    let obj = this_value;
+    obj.require_object_coercible()?;
+    let string = to_string(obj.clone())?;
+    let len = to_f64(string.len()).expect("f64s should be able to hold string lengths");
+
+    let int_start = start.to_integer_or_infinity()?;
+    let from = to_usize(if int_start == f64::NEG_INFINITY {
+        0.0
+    } else if int_start < 0.0 {
+        (int_start + len).max(0.0)
+    } else {
+        int_start.min(len)
+    })
+    .expect("infinities should be handled");
+
+    let int_end = if end.is_undefined() { len } else { end.to_integer_or_infinity()? };
+    let to = to_usize(if int_end == f64::NEG_INFINITY {
+        0.0
+    } else if int_end < 0.0 {
+        (len + int_end).max(0.0)
+    } else {
+        int_end.min(len)
+    })
+    .expect("infinities should be handled");
+
+    if from >= to {
+        Ok(ECMAScriptValue::from(""))
+    } else {
+        let buf = &string.as_slice()[from..to];
+        Ok(ECMAScriptValue::String(JSString::from(buf)))
+    }
 }
 
 // 22.1.3.22 String.prototype.split ( separator, limit )

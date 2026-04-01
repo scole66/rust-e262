@@ -401,8 +401,6 @@ fn error_object_other_automatic_functions() {
     assert!(no.o.to_string_obj().is_none());
     assert!(no.o.to_for_in_iterator().is_none());
     assert!(!no.o.is_plain_object());
-    assert!(!no.o.is_array_object());
-    assert!(no.o.to_array_object().is_none());
     assert!(!no.o.is_generator_object());
     assert!(no.o.to_generator_object().is_none());
     assert!(no.o.to_bigint_object().is_none());

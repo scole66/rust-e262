@@ -274,9 +274,9 @@ pub(crate) fn utf16_encode_code_point(cp: u32, dst: &mut [u16; 2]) -> anyhow::Re
         dst[0] = cp as u16;
         Ok(&mut dst[0..1])
     } else if cp <= 0x10_FFFF {
-        let c = (cp - 0x10_0000) as u16;
-        dst[0] = c / 0x400 + 0xD800;
-        dst[1] = c % 0x400 + 0xDC00;
+        let c = cp - 0x1_0000;
+        dst[0] = (c / 0x400) as u16 + 0xD800;
+        dst[1] = (c % 0x400) as u16 + 0xDC00;
         Ok(&mut dst[0..2])
     } else {
         Err(InternalRuntimeError::CodePointOutOfRange)?

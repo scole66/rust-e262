@@ -271,3 +271,17 @@ mod is_str_whitespace {
 fn string_to_bigint(s: &str) -> Option<Rc<BigInt>> {
     JSString::from(s).to_bigint()
 }
+
+#[test_case(0x0000 => Ok(vec![0x0000_u16]); "nul")]
+#[test_case(0x0040 => Ok(vec![0x0040_u16]); "no encoding needed")]
+#[test_case(0xFFFF => Ok(vec![0xFFFF_u16]); "last bmp code point")]
+#[test_case(0xD800 => Ok(vec![0xD800_u16]); "high surrogate code point passed through")]
+#[test_case(0xDFFF => Ok(vec![0xDFFF_u16]); "low surrogate code point passed through")]
+#[test_case(0x10000 => Ok(vec![0xD800_u16, 0xDC00_u16]); "first supplementary code point")]
+#[test_case(0x1F62D => Ok(vec![0xD83D_u16, 0xDE2D_u16]); "crying face emoji")]
+#[test_case(0x10_FFFF => Ok(vec![0xDBFF_u16, 0xDFFF_u16]); "maximum valid code point")]
+#[test_case(0x11_0000 => Err("Code point value out of range".to_string()); "first code point above unicode max")]
+fn utf16_encode_code_point(cp: u32) -> Result<Vec<u16>, String> {
+    let mut buf = [0; 2];
+    super::utf16_encode_code_point(cp, &mut buf).map(Vec::from).map_err(|e| e.to_string())
+}

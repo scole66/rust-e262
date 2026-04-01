@@ -27,11 +27,16 @@ use super::*;
 //
 // https://tc39.es/ecma262/#sec-requireobjectcoercible
 pub(crate) fn require_object_coercible(argument: &ECMAScriptValue) -> Completion<()> {
-    match argument {
-        ECMAScriptValue::Undefined | ECMAScriptValue::Null => {
-            Err(create_type_error("Undefined and null are not allowed in this context"))
+    argument.require_object_coercible()
+}
+impl ECMAScriptValue {
+    pub(crate) fn require_object_coercible(&self) -> Completion<()> {
+        match self {
+            ECMAScriptValue::Undefined | ECMAScriptValue::Null => {
+                Err(create_type_error("Undefined and null are not allowed in this context"))
+            }
+            _ => Ok(()),
         }
-        _ => Ok(()),
     }
 }
 

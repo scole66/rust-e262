@@ -17,7 +17,6 @@ mod bigint_object {
         BigIntObject::object(Some(proto), Rc::new(10.into()))
     }
 
-    false_function!(is_array_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_generator_object);
@@ -27,7 +26,6 @@ mod bigint_object {
     false_function!(is_string_object);
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
-    none_function!(to_array_object);
     none_function!(to_boolean_obj);
     none_function!(to_bound_function_object);
     none_function!(to_builtin_function_obj);

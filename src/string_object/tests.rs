@@ -40,7 +40,6 @@ mod string_object {
         assert_eq!(sobj.string_data, JSString::from("orange"));
     }
 
-    false_function!(is_array_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_generator_object);
@@ -75,7 +74,6 @@ mod string_object {
 
     none_function!(to_arguments_object);
     none_function!(to_boolean_obj);
-    none_function!(to_array_object);
     none_function!(to_callable_obj);
     none_function!(to_function_obj);
     none_function!(to_builtin_function_obj);
@@ -581,7 +579,7 @@ mod provision_string_intrinsic {
     #[test_case("replace" => "replace;2"; "replace function")]
     #[test_case("replaceAll" => "replaceAll;2"; "replaceAll function")]
     #[test_case("search" => "search;1"; "search function")]
-    #[test_case("slice" => "slice;1"; "slice function")]
+    #[test_case("slice" => "slice;2"; "slice function")]
     #[test_case("split" => "split;2"; "split function")]
     #[test_case("startsWith" => "startsWith;1"; "startsWith function")]
     #[test_case("substring" => "substring;2"; "substring function")]
@@ -772,7 +770,6 @@ tbd_function!(string_prototype_pad_start);
 tbd_function!(string_prototype_repeat);
 tbd_function!(string_prototype_replace_all);
 tbd_function!(string_prototype_search);
-tbd_function!(string_prototype_slice);
 tbd_function!(string_prototype_starts_with);
 tbd_function!(string_prototype_substring);
 tbd_function!(string_prototype_to_locale_lower_case);

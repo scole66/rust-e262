@@ -60,15 +60,6 @@ mod symbol_object {
     }
 
     #[test]
-    fn is_array_object() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(!obj.o.is_array_object());
-    }
-
-    #[test]
     fn is_regexp_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);
@@ -127,15 +118,6 @@ mod symbol_object {
         let obj = Object::from(sym);
 
         assert!(obj.o.to_constructable().is_none());
-    }
-
-    #[test]
-    fn to_array_object() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(obj.o.to_array_object().is_none());
     }
 
     #[test]

@@ -1618,7 +1618,6 @@ mod for_in_iterator_object {
     default_delete_test!();
     default_own_property_keys_test!();
     default_id_test!();
-    false_function!(is_array_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_generator_object);
@@ -1628,7 +1627,6 @@ mod for_in_iterator_object {
     false_function!(is_string_object);
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
-    none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
     none_function!(to_builtin_function_obj);

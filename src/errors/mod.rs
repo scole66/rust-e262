@@ -99,13 +99,11 @@ pub(crate) fn create_eval_error(message: impl Into<JSString>) -> AbruptCompletio
     AbruptCompletion::Throw { value: ECMAScriptValue::Object(create_eval_error_object(message)) }
 }
 
-#[cfg(test)]
 pub(crate) fn create_uri_error_object(message: impl Into<JSString>) -> Object {
     let cstr = intrinsic(IntrinsicId::URIError);
     create_native_error_object(message, &cstr, IntrinsicId::URIErrorPrototype, None)
 }
 
-#[cfg(test)]
 pub(crate) fn create_uri_error(message: impl Into<JSString>) -> AbruptCompletion {
     AbruptCompletion::Throw { value: ECMAScriptValue::Object(create_uri_error_object(message)) }
 }

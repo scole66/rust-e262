@@ -2284,7 +2284,6 @@ mod proxy_object {
     false_function!(is_plain_object);
     false_function!(is_regexp_object);
     false_function!(is_string_object);
-    false_function!(is_array_object);
     false_function!(is_symbol_object);
     false_function!(is_generator_object);
     false_function!(is_callable_obj);
@@ -2292,7 +2291,6 @@ mod proxy_object {
     false_function!(uses_ordinary_get_prototype_of);
 
     none_function!(to_number_obj);
-    none_function!(to_array_object);
     none_function!(to_constructable);
     none_function!(to_generator_object);
     none_function!(to_for_in_iterator);

@@ -24,6 +24,7 @@ mod environment_record;
 mod errors;
 mod execution_context;
 mod function_object;
+mod locale;
 mod map;
 mod math;
 mod number_object;
