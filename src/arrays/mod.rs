@@ -133,13 +133,6 @@ impl ObjectInterface for ArrayObject {
     fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
         Ok(ordinary_own_property_keys(self))
     }
-    fn is_array_object(&self) -> bool {
-        true
-    }
-    #[cfg(test)]
-    fn to_array_object(&self) -> Option<&ArrayObject> {
-        Some(self)
-    }
     fn kind(&self) -> ObjectTag {
         ObjectTag::Array
     }
@@ -379,11 +372,12 @@ impl ArrayObject {
         if !old_len_desc.writable {
             return Ok(false);
         }
-        let new_writable = if new_len_desc.writable.is_none() || new_len_desc.writable.unwrap() {
-            true
-        } else {
-            new_len_desc.writable = Some(true);
-            false
+        let new_writable = match &new_len_desc.writable {
+            None | Some(true) => true,
+            Some(false) => {
+                new_len_desc.writable = Some(true);
+                false
+            }
         };
         let succeeded = ordinary_define_own_property(self, "length", new_len_desc.clone()).unwrap();
         if !succeeded {
@@ -706,7 +700,65 @@ pub(crate) fn provision_array_intrinsic(realm: &Rc<RefCell<Realm>>) {
         .configurable(true);
     define_property_or_throw(&array_prototype, wks(WksId::Iterator), values_ppd).expect("property should be ok to add");
 
-    //prototype_function!(array_prototype_[, "[", ); // @@unscopables ]
+    // Array.prototype [ @@unscopables ]
+    // The initial value of the %Symbol.unscopables% data property is an object created by the following steps:
+    //
+    // 1. Let unscopableList be OrdinaryObjectCreate(null).
+    // 2. Perform ! CreateDataPropertyOrThrow(unscopableList, "at", true).
+    // 3. Perform ! CreateDataPropertyOrThrow(unscopableList, "copyWithin", true).
+    // 4. Perform ! CreateDataPropertyOrThrow(unscopableList, "entries", true).
+    // 5. Perform ! CreateDataPropertyOrThrow(unscopableList, "fill", true).
+    // 6. Perform ! CreateDataPropertyOrThrow(unscopableList, "find", true).
+    // 7. Perform ! CreateDataPropertyOrThrow(unscopableList, "findIndex", true).
+    // 8. Perform ! CreateDataPropertyOrThrow(unscopableList, "findLast", true).
+    // 9. Perform ! CreateDataPropertyOrThrow(unscopableList, "findLastIndex", true).
+    // 10. Perform ! CreateDataPropertyOrThrow(unscopableList, "flat", true).
+    // 11. Perform ! CreateDataPropertyOrThrow(unscopableList, "flatMap", true).
+    // 12. Perform ! CreateDataPropertyOrThrow(unscopableList, "includes", true).
+    // 13. Perform ! CreateDataPropertyOrThrow(unscopableList, "keys", true).
+    // 14. Perform ! CreateDataPropertyOrThrow(unscopableList, "toReversed", true).
+    // 15. Perform ! CreateDataPropertyOrThrow(unscopableList, "toSorted", true).
+    // 16. Perform ! CreateDataPropertyOrThrow(unscopableList, "toSpliced", true).
+    // 17. Perform ! CreateDataPropertyOrThrow(unscopableList, "values", true).
+    // 18. Return unscopableList.
+    //
+    // This property has the attributes { [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }.
+    //
+    // Note: The own property names of this object are property names that were not included as standard properties of
+    // Array.prototype prior to the ECMAScript 2015 specification. These names are ignored for with statement binding
+    // purposes in order to preserve the behaviour of existing code that might use one of these names as a binding in an
+    // outer scope that is shadowed by a with statement whose binding object is an Array.
+    //
+    // The reason that "with" is not included in the unscopableList is because it is already a reserved word.
+    let unscopable_list = ordinary_object_create(None);
+    for name in [
+        "at",
+        "copyWithin",
+        "entries",
+        "fill",
+        "find",
+        "findIndex",
+        "findLast",
+        "findLastIndex",
+        "flat",
+        "flatMap",
+        "includes",
+        "keys",
+        "toReversed",
+        "toSorted",
+        "toSpliced",
+        "values",
+    ] {
+        unscopable_list
+            .create_data_property_or_throw(name, true)
+            .expect("during intialization, properties should be easy to add");
+    }
+    let ppd = PotentialPropertyDescriptor::new()
+        .value(ECMAScriptValue::from(unscopable_list))
+        .writable(false)
+        .enumerable(false)
+        .configurable(true);
+    define_property_or_throw(&array_prototype, wks(WksId::Unscopables), ppd).expect("provisioning should work");
 
     // Array.prototype.constructor
     //
@@ -2919,7 +2971,6 @@ fn array_prototype_sort(
     Ok(obj.into())
 }
 
-#[expect(dead_code)]
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum Holes {
     Include,
@@ -3171,19 +3222,24 @@ fn array_prototype_splice(
     // This method is intentionally generic; it does not require that its this value be an Array. Therefore it can be
     // transferred to other kinds of objects for use as a method.
     let mut args = FuncArgs::from(arguments);
-    let start = args.next_arg();
-    let delete_count = args.next_arg();
+    let (start, start_present) = match args.next_if_exists() {
+        Some(value) => (value, true),
+        None => (ECMAScriptValue::Undefined, false),
+    };
+    let (delete_count, delete_present) = match args.next_if_exists() {
+        Some(value) => (value, true),
+        None => (ECMAScriptValue::Undefined, false),
+    };
     let items = args.remaining();
 
     let o = to_object(this_value.clone())?;
     let len = o.length_of_array_like()?;
     let relative_start = start.to_integer_or_infinity()?;
     let actual_start = if relative_start < 0.0 { (len + relative_start).max(0.0) } else { relative_start.min(len) };
-    #[expect(clippy::cast_precision_loss)]
-    let item_count = items.len() as f64;
-    let actual_delete_count = if start.is_undefined() {
+    let item_count = to_f64(items.len()).expect("usize should fit into an f64");
+    let actual_delete_count = if !start_present {
         0.0
-    } else if delete_count.is_undefined() {
+    } else if !delete_present {
         len - actual_start
     } else {
         let dc = delete_count.to_integer_or_infinity()?;
@@ -3236,42 +3292,245 @@ fn array_prototype_splice(
             k -= 1.0;
         }
     }
-    k = actual_start;
-    for item in items {
-        o.set(k, item.clone(), true)?;
-        k += 1.0;
+    let actual_start = to_usize(actual_start).expect("array lenghts should fit");
+    for (propkey, value) in (actual_start..).zip(items.cloned()) {
+        o.set(propkey, value, true)?;
     }
     o.set("length", len - actual_delete_count + item_count, true)?;
     Ok(a)
 }
 
 fn array_prototype_to_locale_string(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.toLocaleString ( [ reserved1 [ , reserved2 ] ] )
+    //
+    // An ECMAScript implementation that includes the ECMA-402 Internationalization API must implement this method as
+    // specified in the ECMA-402 specification. If an ECMAScript implementation does not include the ECMA-402 API the
+    // following specification of this method is used.
+    //
+    // Note 1: The first edition of ECMA-402 did not include a replacement specification for this method.
+    //
+    // The meanings of the optional parameters to this method are defined in the ECMA-402 specification; implementations
+    // that do not include ECMA-402 support must not use those parameter positions for anything else.
+    //
+    // This method performs the following steps when called:
+    //
+    // 1. Let array be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(array).
+    // 3. Let separator be the implementation-defined list-separator String value appropriate for the host environment's
+    //    current locale (such as ", ").
+    // 4. Let R be the empty String.
+    // 5. Let k be 0.
+    // 6. Repeat, while k < len,
+    //    a. If k > 0, set R to the string-concatenation of R and separator.
+    //    b. Let element be ? Get(array, ! ToString(𝔽(k))).
+    //    c. If element is neither undefined nor null, then
+    //       i. Let S be ? ToString(? Invoke(element, "toLocaleString")).
+    //       ii. Set R to the string-concatenation of R and S.
+    //    d. Set k to k + 1.
+    // 7. Return R.
+    //
+    // Note 2: This method converts the elements of the array to Strings using their toLocaleString methods, and then
+    // concatenates these Strings, separated by occurrences of an implementation-defined locale-sensitive separator
+    // String. This method is analogous to toString except that it is intended to yield a locale-sensitive result
+    // corresponding with conventions of the host environment's current locale.
+    //
+    // Note 3: This method is intentionally generic; it does not require that its this value be an Array. Therefore it
+    // can be transferred to other kinds of objects for use as a method.
+    let array = to_object(this_value.clone())?;
+    let len = to_usize(array.length_of_array_like()?).expect("LengthOfArrayLike should clamp the value");
+    let separator = locale::LIST_SEPARATOR;
+    let mut result = JSString::from("");
+    for k in 0..len {
+        if k > 0 {
+            result = result.concat(separator);
+        }
+        let element = array.get(&PropertyKey::from(k))?;
+        if element != ECMAScriptValue::Undefined && element != ECMAScriptValue::Null {
+            let stringified = to_string(element.invoke(&PropertyKey::from("toLocaleString"), &[])?)?;
+            result = result.concat(stringified);
+        }
+    }
+    Ok(ECMAScriptValue::String(result))
 }
+
 fn array_prototype_to_reversed(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.toReversed ( )
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let A be ? ArrayCreate(len).
+    // 4. Let k be 0.
+    // 5. Repeat, while k < len,
+    //    a. Let from be ! ToString(𝔽(len - k - 1)).
+    //    b. Let Pk be ! ToString(𝔽(k)).
+    //    c. Let fromValue be ? Get(O, from).
+    //    d. Perform ! CreateDataPropertyOrThrow(A, Pk, fromValue).
+    //    e. Set k to k + 1.
+    // 6. Return A.
+    let obj = to_object(this_value.clone())?;
+    let len = obj.length_of_array_like()?;
+    let array = array_create(len, None)?;
+    let len = to_usize(len).expect("LengthOfArrayLike should clamp this value");
+    for k in 0..len {
+        let from = len - k - 1;
+        let from_value = obj.get(&PropertyKey::from(from))?;
+        array
+            .create_data_property_or_throw(k, from_value)
+            .expect("integer valued properties on fresh array objects should not be awkward");
+    }
+    Ok(ECMAScriptValue::from(array))
 }
+
 fn array_prototype_to_sorted(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.toSorted ( comparator )
+    // This method performs the following steps when called:
+    //
+    // 1. If comparator is not undefined and IsCallable(comparator) is false, throw a TypeError exception.
+    // 2. Let O be ? ToObject(this value).
+    // 3. Let len be ? LengthOfArrayLike(O).
+    // 4. Let A be ? ArrayCreate(len).
+    // 5. Let SortCompare be a new Abstract Closure with parameters (x, y) that captures comparator and performs the
+    //    following steps when called:
+    //    a. Return ? CompareArrayElements(x, y, comparator).
+    // 6. Let sortedList be ? SortIndexedProperties(O, len, SortCompare, read-through-holes).
+    // 7. Let j be 0.
+    // 8. Repeat, while j < len,
+    //    a. Perform ! CreateDataPropertyOrThrow(A, ! ToString(𝔽(j)), sortedList[j]).
+    //    b. Set j to j + 1.
+    // 9. Return A.
+    let mut args = FuncArgs::from(arguments);
+    let comparator = args.next_arg();
+
+    if comparator != ECMAScriptValue::Undefined && !comparator.is_callable() {
+        return Err(create_type_error("comparitor must be callable"));
+    }
+
+    let obj = to_object(this_value.clone())?;
+    let len = obj.length_of_array_like()?;
+    let array = array_create(len, None)?;
+
+    let sort_compare = move |x: &ECMAScriptValue, y: &ECMAScriptValue| compare_array_elements(x, y, &comparator);
+    let sorted_list = sort_indexed_properties(&obj, len, sort_compare, Holes::Include)?;
+    for (j, item) in sorted_list.into_iter().map(|(_, item)| item).enumerate() {
+        array
+            .create_data_property_or_throw(j, item)
+            .expect("writing integer properties on a freshly create array should be fine");
+    }
+    Ok(ECMAScriptValue::from(array))
 }
+
 fn array_prototype_to_spliced(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.toSpliced ( start, skipCount, ...items )
+    // This method performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let relativeStart be ? ToIntegerOrInfinity(start).
+    // 4. If relativeStart = -∞, let actualStart be 0.
+    // 5. Else if relativeStart < 0, let actualStart be max(len + relativeStart, 0).
+    // 6. Else, let actualStart be min(relativeStart, len).
+    // 7. Let insertCount be the number of elements in items.
+    // 8. If start is not present, then
+    //    a. Let actualSkipCount be 0.
+    // 9. Else if skipCount is not present, then
+    //    a. Let actualSkipCount be len - actualStart.
+    // 10. Else,
+    //     a. Let sc be ? ToIntegerOrInfinity(skipCount).
+    //     b. Let actualSkipCount be the result of clamping sc between 0 and len - actualStart.
+    // 11. Let newLen be len + insertCount - actualSkipCount.
+    // 12. If newLen > 2**53 - 1, throw a TypeError exception.
+    // 13. Let A be ? ArrayCreate(newLen).
+    // 14. Let i be 0.
+    // 15. Let r be actualStart + actualSkipCount.
+    // 16. Repeat, while i < actualStart,
+    //     a. Let Pi be ! ToString(𝔽(i)).
+    //     b. Let iValue be ? Get(O, Pi).
+    //     c. Perform ! CreateDataPropertyOrThrow(A, Pi, iValue).
+    //     d. Set i to i + 1.
+    // 17. For each element E of items, do
+    //     a. Let Pi be ! ToString(𝔽(i)).
+    //     b. Perform ! CreateDataPropertyOrThrow(A, Pi, E).
+    //     c. Set i to i + 1.
+    // 18. Repeat, while i < newLen,
+    //     a. Let Pi be ! ToString(𝔽(i)).
+    //     b. Let from be ! ToString(𝔽(r)).
+    //     c. Let fromValue be ? Get(O, from).
+    //     d. Perform ! CreateDataPropertyOrThrow(A, Pi, fromValue).
+    //     e. Set i to i + 1.
+    //     f. Set r to r + 1.
+    // 19. Return A.
+    let mut args = FuncArgs::from(arguments);
+    let (start, start_exists) = match args.next_if_exists() {
+        Some(value) => (value, true),
+        None => (ECMAScriptValue::Undefined, false),
+    };
+    let (skip_count, skip_count_exists) = match args.next_if_exists() {
+        Some(value) => (value, true),
+        None => (ECMAScriptValue::Undefined, false),
+    };
+    let items = args.remaining().collect::<Vec<_>>();
+
+    let obj = to_object(this_value.clone())?;
+    let len = obj.length_of_array_like()?;
+    let relative_start = start.to_integer_or_infinity()?;
+    let actual_start = if relative_start == f64::NEG_INFINITY {
+        0.0
+    } else if relative_start < 0.0 {
+        (len + relative_start).max(0.0)
+    } else {
+        len.min(relative_start)
+    };
+    let insert_count = to_f64(items.len()).expect("values should fit");
+    let actual_skip_count = if !start_exists {
+        0.0
+    } else if !skip_count_exists {
+        len - actual_start
+    } else {
+        skip_count.to_integer_or_infinity()?.clamp(0.0, len - actual_start)
+    };
+    let new_len = len + insert_count - actual_skip_count;
+    if new_len > 9_007_199_254_740_991.0 {
+        return Err(create_type_error("Array.prototype.toSpliced: resulting array too large"));
+    }
+    let array = array_create(new_len, None)?;
+    let new_len = to_usize(new_len).expect("lengths should fit");
+    let actual_start = to_usize(actual_start).expect("lengths should fit");
+    let actual_skip_count = to_usize(actual_skip_count).expect("lengths should fit");
+    let mut index = 0;
+    let mut reader = actual_start + actual_skip_count;
+    while index < actual_start {
+        let i_value = obj.get(&PropertyKey::from(index))?;
+        array.create_data_property_or_throw(index, i_value).expect("integer fields in a fresh array should work");
+        index += 1;
+    }
+    for item in items.into_iter().cloned() {
+        array.create_data_property_or_throw(index, item).expect("integer fields in a fresh array should work");
+        index += 1;
+    }
+    while index < new_len {
+        let from_value = obj.get(&PropertyKey::from(reader))?;
+        array.create_data_property_or_throw(index, from_value).expect("integer fields in a fresh array should work");
+        index += 1;
+        reader += 1;
+    }
+    Ok(array.into())
 }
 
 // Array.prototype.toString ( )
@@ -3296,11 +3555,71 @@ fn array_prototype_to_string(
 }
 
 fn array_prototype_unshift(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Array.prototype.unshift ( ...items )
+    //
+    // This method prepends the arguments to the start of the array, such that their order within the array is the same
+    // as the order in which they appear in the argument list.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let O be ? ToObject(this value).
+    // 2. Let len be ? LengthOfArrayLike(O).
+    // 3. Let argCount be the number of elements in items.
+    // 4. If argCount > 0, then
+    //    a. If len + argCount > 2**53 - 1, throw a TypeError exception.
+    //    b. Let k be len.
+    //    c. Repeat, while k > 0,
+    //       i. Let from be ! ToString(𝔽(k - 1)).
+    //       ii. Let to be ! ToString(𝔽(k + argCount - 1)).
+    //       iii. Let fromPresent be ? HasProperty(O, from).
+    //       iv. If fromPresent is true, then
+    //           1. Let fromValue be ? Get(O, from).
+    //           2. Perform ? Set(O, to, fromValue, true).
+    //       v. Else,
+    //          1. Assert: fromPresent is false.
+    //          2. Perform ? DeletePropertyOrThrow(O, to).
+    //       vi. Set k to k - 1.
+    //    d. Let j be +0𝔽.
+    //    e. For each element E of items, do
+    //       i. Perform ? Set(O, ! ToString(j), E, true).
+    //       ii. Set j to j + 1𝔽.
+    // 5. Perform ? Set(O, "length", 𝔽(len + argCount), true).
+    // 6. Return 𝔽(len + argCount).
+    //
+    // The "length" property of this method is 1𝔽.
+    //
+    // Note: This method is intentionally generic; it does not require that its this value be an Array. Therefore it can
+    // be transferred to other kinds of objects for use as a method.
+    let mut args = FuncArgs::from(arguments);
+
+    let obj = to_object(this_value.clone())?;
+    let len = to_usize(obj.length_of_array_like()?).expect("LOAL should return a usize-able value");
+    let arg_count = args.count();
+    if arg_count > 0 {
+        if len + arg_count > (1 << 53) - 1 {
+            return Err(create_type_error("Array.prototype.unshift: resulting array too large"));
+        }
+        for k in (1..=len).rev() {
+            let from = PropertyKey::from(k - 1);
+            let to = PropertyKey::from(k + arg_count - 1);
+            let from_present = obj.has_property(&from)?;
+            if from_present {
+                let from_value = obj.get(&from)?;
+                obj.set(to, from_value, true)?;
+            } else {
+                obj.delete_property_or_throw(&to)?;
+            }
+        }
+        for (j, element) in args.remaining().cloned().enumerate() {
+            obj.set(j, element, true)?;
+        }
+    }
+    obj.set("length", arg_count + len, true)?;
+    Ok(ECMAScriptValue::from(len + arg_count))
 }
 
 // Array.prototype.values ( )

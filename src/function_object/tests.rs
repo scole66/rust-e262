@@ -1179,7 +1179,6 @@ mod function_object {
         )
     }
 
-    false_function!(is_array_object);
     false_function!(is_date_object);
     false_function!(is_generator_object);
     false_function!(is_plain_object);
@@ -1188,7 +1187,6 @@ mod function_object {
     false_function!(is_string_object);
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
-    none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
     none_function!(to_bound_function_object);
@@ -1502,7 +1500,6 @@ mod built_in_function_object {
     default_get_own_property_test!();
     default_get_test!(|| PropertyKey::from("proto_sentinel"), ECMAScriptValue::from(true));
 
-    false_function!(is_array_object);
     false_function!(is_date_object);
     false_function!(is_generator_object);
     false_function!(is_plain_object);
@@ -1511,7 +1508,6 @@ mod built_in_function_object {
     false_function!(is_string_object);
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
-    none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
     none_function!(to_bound_function_object);

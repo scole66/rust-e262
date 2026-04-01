@@ -828,7 +828,7 @@ impl From<HexChar> for char {
     }
 }
 
-fn mv_of_hex_digit(digit: HexChar) -> u32 {
+pub(crate) fn mv_of_hex_digit(digit: HexChar) -> u32 {
     let ch: char = digit.into();
     let code = ch as u32;
     if ch.is_ascii_digit() {

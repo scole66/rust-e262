@@ -249,16 +249,6 @@ fn throw_type_error_test() {
     assert_eq!(msg, "Generic TypeError");
 }
 
-#[test_case(super::decode_uri => panics "not yet implemented"; "decode_uri")]
-#[test_case(super::decode_uri_component => panics "not yet implemented"; "decode_uri_component")]
-#[test_case(super::encode_uri => panics "not yet implemented"; "encode_uri")]
-#[test_case(super::encode_uri_component => panics "not yet implemented"; "encode_uri_component")]
-#[test_case(super::parse_float => panics "not yet implemented"; "parse_float")]
-fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
-    setup_test_agent();
-    f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
-}
-
 #[test_case(|| vec!["1Z:".into(), 36.into()] => sok("71"); "ignores trailing")]
 #[test_case(|| vec![wks(WksId::ToPrimitive).into()] => serr("TypeError: Symbols may not be converted to strings"); "to_string throws")]
 #[test_case(|| vec!["   +10".into()] => sok("10"); "leading whitespace and + sign")]
@@ -276,6 +266,17 @@ fn parse_int(make_vals: impl FnOnce() -> Vec<ECMAScriptValue>) -> Result<String,
     setup_test_agent();
     let arguments = make_vals();
     super::parse_int(&ECMAScriptValue::Undefined, None, arguments.as_slice())
+        .map_err(unwind_any_error)
+        .map(|v| v.test_result_string())
+}
+
+#[test_case(|| "not-a-number".into() => sok("NaN"); "not-a-number")]
+#[test_case(|| "          2.3 plus lots of horses".into() => sok("2.3"); "strip the noise")]
+#[test_case(|| wks(WksId::Unscopables).into() => serr("TypeError: Symbols may not be converted to strings"); "tostring fails")]
+fn parse_float(make_val: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+    setup_test_agent();
+    let arg = make_val();
+    super::parse_float(&ECMAScriptValue::Undefined, None, &[arg])
         .map_err(unwind_any_error)
         .map(|v| v.test_result_string())
 }

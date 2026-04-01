@@ -1023,21 +1023,22 @@ impl ECMAScriptValue {
     }
 }
 
+const STR_WHITE_SPACE: &str = r"(?:[\t\v\f \u{a0}\u{feff}\n\r\u{2028}\u{2029}]+)";
+const DECIMAL_DIGITS: &str = "(?:[0-9]+)";
+const EXPONENT_PART: &str = "(?:[eE][-+]?[0-9]+)";
+pub(crate) static STR_UNSIGNED_DECIMAL_LITERAL: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        r"(?:Infinity|{DECIMAL_DIGITS}\.{DECIMAL_DIGITS}?{EXPONENT_PART}?|\.{DECIMAL_DIGITS}{EXPONENT_PART}?|{DECIMAL_DIGITS}{EXPONENT_PART}?)"
+    )
+});
+pub(crate) static STR_DECIMAL_LITERAL: LazyLock<String> =
+    LazyLock::new(|| format!(r"(?P<decimal>[-+]?{})", *STR_UNSIGNED_DECIMAL_LITERAL));
+
 impl JSString {
     pub(crate) fn to_number(&self) -> f64 {
-        static STR_WHITE_SPACE: &str = r"(?:[\t\v\f \u{a0}\u{feff}\n\r\u{2028}\u{2029}]+)";
-        static DECIMAL_DIGITS: &str = "(?:[0-9]+)";
-        static EXPONENT_PART: &str = "(?:[eE][-+]?[0-9]+)";
-        static STR_UNSIGNED_DECIMAL_LITERAL: LazyLock<String> = LazyLock::new(|| {
-            format!(
-                r"(?:Infinity|{DECIMAL_DIGITS}\.{DECIMAL_DIGITS}?{EXPONENT_PART}?|\.{DECIMAL_DIGITS}{EXPONENT_PART}?|{DECIMAL_DIGITS}{EXPONENT_PART}?)"
-            )
-        });
-        static STR_DECIMAL_LITERAL: LazyLock<String> =
-            LazyLock::new(|| format!(r"(?P<decimal>[-+]?{})", *STR_UNSIGNED_DECIMAL_LITERAL));
-        static BINARY_INTEGER_LITERAL: &str = "(?:0[bB](?P<binary>[01]+))";
-        static OCTAL_INTEGER_LITERAL: &str = "(?:0[oO](?P<octal>[0-7]+))";
-        static HEX_INTEGER_LITERAL: &str = "(?:0[xX](?P<hex>[0-9a-fA-F]+))";
+        const BINARY_INTEGER_LITERAL: &str = "(?:0[bB](?P<binary>[01]+))";
+        const OCTAL_INTEGER_LITERAL: &str = "(?:0[oO](?P<octal>[0-7]+))";
+        const HEX_INTEGER_LITERAL: &str = "(?:0[xX](?P<hex>[0-9a-fA-F]+))";
         static NONDECIMAL_INTEGER_LITERAL: LazyLock<String> =
             LazyLock::new(|| format!("(?:{BINARY_INTEGER_LITERAL}|{OCTAL_INTEGER_LITERAL}|{HEX_INTEGER_LITERAL})"));
         static STR_NUMERIC_LITERAL: LazyLock<String> =

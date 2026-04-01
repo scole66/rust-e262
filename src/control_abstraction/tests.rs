@@ -349,7 +349,6 @@ mod generator_object {
         GeneratorObject::object(Some(gp), GeneratorState::Undefined, "TestingBrand")
     }
 
-    false_function!(is_array_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_plain_object);
@@ -358,7 +357,6 @@ mod generator_object {
     false_function!(is_string_object);
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
-    none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
     none_function!(to_builtin_function_obj);

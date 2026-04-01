@@ -4650,7 +4650,6 @@ mod ordinary_object {
     default_get_test!(|| "proto_sentinel".into(), ECMAScriptValue::from(true));
     default_set_test!();
     default_own_property_keys_test!();
-    false_function!(is_array_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_generator_object);
@@ -4659,7 +4658,6 @@ mod ordinary_object {
     false_function!(is_string_object);
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
-    none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
     none_function!(to_builtin_function_obj);
@@ -4711,7 +4709,6 @@ mod immutable_prototype_exotic_object {
     default_get_test!(|| "proto_sentinel".into(), ECMAScriptValue::from(true));
     default_set_test!();
     default_own_property_keys_test!();
-    false_function!(is_array_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_generator_object);
@@ -4722,7 +4719,6 @@ mod immutable_prototype_exotic_object {
     false_function!(is_symbol_object);
     false_function!(uses_ordinary_get_prototype_of);
     none_function!(to_arguments_object);
-    none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
     none_function!(to_builtin_function_obj);
@@ -5099,7 +5095,6 @@ mod dead_object {
         DeadObject::object()
     }
 
-    false_function!(is_array_object);
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_generator_object);
@@ -5110,7 +5105,6 @@ mod dead_object {
     false_function!(is_symbol_object);
     false_function!(uses_ordinary_get_prototype_of);
     none_function!(to_arguments_object);
-    none_function!(to_array_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
     none_function!(to_builtin_function_obj);

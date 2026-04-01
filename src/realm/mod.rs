@@ -1,9 +1,12 @@
 use super::*;
+use ahash::AHashSet;
 use itertools::Itertools;
 use num::{BigInt, ToPrimitive};
+use regex::Regex;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
+use std::sync::LazyLock;
 
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub(crate) enum IntrinsicId {
@@ -489,8 +492,6 @@ pub(crate) fn create_realm(id: RealmId) -> Rc<RefCell<Realm>> {
 //  4. Perform AddRestrictedFunctionProperties(intrinsics.[[%Function.prototype%]], realmRec).
 //  5. Return intrinsics.
 pub(crate) fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
-    // ToDo: All of step 3.
-
     // %Object.prototype%
     let object_prototype = immutable_prototype_exotic_object_create(None);
     realm_rec.borrow_mut().intrinsics.object_prototype = object_prototype.clone();
@@ -511,9 +512,6 @@ pub(crate) fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
 
     provision_function_intrinsic(realm_rec);
     provision_boolean_intrinsic(realm_rec);
-
-    ///////////////////////////////////////////////////////////////////
-    // %Number% and %Number.prototype%
     provision_number_intrinsic(realm_rec);
     provision_big_int_intrinsic(realm_rec);
     provision_error_intrinsic(realm_rec);
@@ -659,33 +657,326 @@ pub(crate) fn do_nothing(
     Ok(ECMAScriptValue::Undefined)
 }
 
+fn parse_hex_octet(string: &JSString, position: usize) -> Result<u8, Vec<Object>> {
+    // 19.2.6.7 ParseHexOctet ( string, position )
+    //
+    // The abstract operation ParseHexOctet takes arguments string (a String) and position (a non-negative integer) and
+    // returns either a non-negative integer or a non-empty List of SyntaxError objects. It parses a sequence of two
+    // hexadecimal characters at the specified position in string into an unsigned 8-bit integer. It performs the
+    // following steps when called:
+    //
+    // 1. Let len be the length of string.
+    // 2. Assert: position + 2 ≤ len.
+    // 3. Let hexDigits be the substring of string from position to position + 2.
+    // 4. Let parseResult be ParseText(hexDigits, HexDigits[~Sep]).
+    // 5. If parseResult is not a Parse Node, return parseResult.
+    // 6. Let n be the MV of parseResult.
+    // 7. Assert: n is in the inclusive interval from 0 to 255.
+    // 8. Return n.
+
+    let len = string.len();
+    assert!(position + 2 <= len);
+    let hex_digits = &string.as_slice()[position..position + 2];
+    let left_char = char::from_u32(u32::from(hex_digits[0]))
+        .ok_or_else(|| vec![create_syntax_error_object("Invalid Hex Digit", None)])?;
+    let left = HexChar::try_from(left_char).map_err(|e| vec![create_syntax_error_object(e, None)])?;
+    let right_char = char::from_u32(u32::from(hex_digits[1]))
+        .ok_or_else(|| vec![create_syntax_error_object("Invalid Hex Digit", None)])?;
+    let right = HexChar::try_from(right_char).map_err(|e| vec![create_syntax_error_object(e, None)])?;
+    let left_mv = mv_of_hex_digit(left);
+    let right_mv = mv_of_hex_digit(right);
+    let combined = left_mv << 4 | right_mv;
+    Ok(u8::try_from(combined).expect("two hex digits should never be greater than 255"))
+}
+
+fn decode(string: &JSString, preserve_escape_set: &JSString) -> Completion<JSString> {
+    // Decode ( string, preserveEscapeSet )
+    //
+    // The abstract operation Decode takes arguments string (a String) and preserveEscapeSet (a String) and returns
+    // either a normal completion containing a String or a throw completion. It performs URI unescaping and decoding,
+    // preserving any escape sequences that correspond to Basic Latin characters in preserveEscapeSet. It performs the
+    // following steps when called:
+    //
+    // 1. Let len be the length of string.
+    // 2. Let R be the empty String.
+    // 3. Let k be 0.
+    // 4. Repeat, while k < len,
+    //    a. Let C be the code unit at index k within string.
+    //    b. Let S be C.
+    //    c. If C is the code unit 0x0025 (PERCENT SIGN), then
+    //       i. If k + 3 > len, throw a URIError exception.
+    //       ii. Let escape be the substring of string from k to k + 3.
+    //       iii. Let B be ParseHexOctet(string, k + 1).
+    //       iv. If B is not an integer, throw a URIError exception.
+    //       v. Set k to k + 2.
+    //       vi. Let n be the number of leading 1 bits in B.
+    //       vii. If n = 0, then
+    //            1. Let asciiChar be the code unit whose numeric value is B.
+    //            2. If preserveEscapeSet contains asciiChar, set S to escape; else set S to asciiChar.
+    //       viii. Else,
+    //             1. If n = 1 or n > 4, throw a URIError exception.
+    //             2. Let Octets be « B ».
+    //             3. Let j be 1.
+    //             4. Repeat, while j < n,
+    //                a. Set k to k + 1.
+    //                b. If k + 3 > len, throw a URIError exception.
+    //                c. If the code unit at index k within string is not the code unit 0x0025 (PERCENT SIGN), throw a
+    //                   URIError exception.
+    //                d. Let continuationByte be ParseHexOctet(string, k + 1).
+    //                e. If continuationByte is not an integer, throw a URIError exception.
+    //                f. Append continuationByte to Octets.
+    //                g. Set k to k + 2.
+    //                h. Set j to j + 1.
+    //             5. Assert: The length of Octets is n.
+    //             6. If Octets does not contain a valid UTF-8 encoding of a Unicode code point, throw a URIError
+    //                exception.
+    //             7. Let V be the code point obtained by applying the UTF-8 transformation to Octets, that is, from a
+    //                List of octets into a 21-bit value.
+    //             8. Set S to UTF16EncodeCodePoint(V).
+    //    d. Set R to the string-concatenation of R and S.
+    //    e. Set k to k + 1.
+    // 5. Return R.
+    //
+    // Note: RFC 3629 prohibits the decoding of invalid UTF-8 octet sequences. For example, the invalid sequence 0xC0
+    // 0x80 must not decode into the code unit 0x0000. Implementations of the Decode algorithm are required to throw a
+    // URIError when encountering such invalid sequences.
+    let len = string.len();
+    let mut result: Vec<u16> = vec![];
+    let mut read_index = 0;
+    while read_index < len {
+        let char_from_source = string[read_index];
+        let decoded = if char_from_source == 0x0025 {
+            if read_index + 3 > len {
+                return Err(create_uri_error(format!(
+                    "escape terminated by end of string: {}",
+                    JSString::from(&string.as_slice()[read_index..])
+                )));
+            }
+            let complete_escape_index_start = read_index;
+            let escape = &string.as_slice()[read_index..read_index + 3];
+            let b = parse_hex_octet(string, read_index + 1)
+                .map_err(|_| create_uri_error(format!("Invalid escape sequence: {}", JSString::from(escape))))?;
+            read_index += 2;
+            let leading_ones = b.leading_ones();
+            match leading_ones {
+                0 => {
+                    let ascii_char = u16::from(b);
+                    if preserve_escape_set.as_slice().contains(&ascii_char) {
+                        Vec::from(escape)
+                    } else {
+                        vec![ascii_char]
+                    }
+                }
+                2..=4 => {
+                    let mut octets = vec![b];
+                    let mut j = 1;
+                    while j < leading_ones {
+                        read_index += 1;
+                        if read_index + 3 > len {
+                            return Err(create_uri_error(format!(
+                                "escape terminated by end of string: {}",
+                                JSString::from(&string.as_slice()[read_index..])
+                            )));
+                        }
+                        if string[read_index] != 0x0025 {
+                            return Err(create_uri_error(format!(
+                                "malformed multi byte escape sequence: {}",
+                                JSString::from(&string.as_slice()[complete_escape_index_start..read_index + 3])
+                            )));
+                        }
+                        let continuation_byte = parse_hex_octet(string, read_index + 1).map_err(|_| {
+                            create_uri_error(format!(
+                                "Invalid escape sequence: {}",
+                                JSString::from(&string.as_slice()[read_index..read_index + 3])
+                            ))
+                        })?;
+                        octets.push(continuation_byte);
+                        read_index += 2;
+                        j += 1;
+                    }
+                    assert_eq!(leading_ones as usize, octets.len());
+                    let octets = str::from_utf8(octets.as_slice())
+                        .map_err(|e| create_uri_error(format!("Bad utf-8 endcoding: {e}")))?;
+                    let mut char_iter = octets.chars();
+                    let v = char_iter.next().expect("there should be at least one char");
+                    assert!(char_iter.next().is_none(), "there should only have been one char");
+                    let mut buffer: [u16; 2] = [0, 0];
+                    let s_buf = utf16_encode_code_point(v as u32, &mut buffer)
+                        .expect("good code points should convert without error");
+                    Vec::from(s_buf)
+                }
+                _ => {
+                    return Err(create_uri_error(format!("Invalid escape sequence: {}", JSString::from(escape))));
+                }
+            }
+        } else {
+            vec![char_from_source]
+        };
+        result.extend_from_slice(decoded.as_slice());
+        read_index += 1;
+    }
+    Ok(JSString::from(result))
+}
+
 fn decode_uri(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // decodeURI ( encodedURI )
+    //
+    // This function computes a new version of a URI in which each escape sequence and UTF-8 encoding of the sort that
+    // might be introduced by the encodeURI function is replaced with the UTF-16 encoding of the code point that it
+    // represents. Escape sequences that could not have been introduced by encodeURI are not replaced.
+    //
+    // It is the %decodeURI% intrinsic object.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let uriString be ? ToString(encodedURI).
+    // 2. Let preserveEscapeSet be ";/?:@&=+$,#".
+    // 3. Return ? Decode(uriString, preserveEscapeSet).
+    let mut args = FuncArgs::from(arguments);
+    let encoded_uri = args.next_arg();
+
+    let uri_string = to_string(encoded_uri)?;
+    let preserve_escape_set = JSString::from(";/?:@&=+$,#");
+    decode(&uri_string, &preserve_escape_set).map(ECMAScriptValue::from)
 }
+
 fn decode_uri_component(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // decodeURIComponent ( encodedURIComponent )
+    // This function computes a new version of a URI in which each escape sequence and UTF-8 encoding of the sort that
+    // might be introduced by the encodeURIComponent function is replaced with the UTF-16 encoding of the code point
+    // that it represents.
+    //
+    // It is the %decodeURIComponent% intrinsic object.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let componentString be ? ToString(encodedURIComponent).
+    // 2. Let preserveEscapeSet be the empty String.
+    // 3. Return ? Decode(componentString, preserveEscapeSet).
+    let mut args = FuncArgs::from(arguments);
+    let encoded_uri_component = args.next_arg();
+
+    let component_string = to_string(encoded_uri_component)?;
+    decode(&component_string, &JSString::from("")).map(ECMAScriptValue::from)
 }
+
+fn encode(string: &JSString, extra_unescaped: &JSString) -> Completion<JSString> {
+    // Encode ( string, extraUnescaped )
+    //
+    // The abstract operation Encode takes arguments string (a String) and extraUnescaped (a String) and returns either
+    // a normal completion containing a String or a throw completion. It performs URI encoding and escaping,
+    // interpreting string as a sequence of UTF-16 encoded code points as described in 6.1.4. If a character is
+    // identified as unreserved in RFC 2396 or appears in extraUnescaped, it is not escaped. It performs the following
+    // steps when called:
+    //
+    // 1. Let len be the length of string.
+    // 2. Let R be the empty String.
+    // 3. Let alwaysUnescaped be the string-concatenation of the ASCII word characters and "-.!~*'()".
+    // 4. Let unescapedSet be the string-concatenation of alwaysUnescaped and extraUnescaped.
+    // 5. Let k be 0.
+    // 6. Repeat, while k < len,
+    //    a. Let C be the code unit at index k within string.
+    //    b. If unescapedSet contains C, then
+    //       i. Set k to k + 1.
+    //       ii. Set R to the string-concatenation of R and C.
+    //    c. Else,
+    //       i. Let cp be CodePointAt(string, k).
+    //       ii. If cp.[[IsUnpairedSurrogate]] is true, throw a URIError exception.
+    //       iii. Set k to k + cp.[[CodeUnitCount]].
+    //       iv. Let Octets be the List of octets resulting by applying the UTF-8 transformation to cp.[[CodePoint]].
+    //       v. For each element octet of Octets, do
+    //          1. Let hex be the String representation of octet, formatted as an uppercase hexadecimal number.
+    //          2. Set R to the string-concatenation of R, "%", and StringPad(hex, 2, "0", start).
+    // 7. Return R.
+    //
+    // Note: Because percent-encoding is used to represent individual octets, a single code point may be expressed as
+    // multiple consecutive escape sequences (one for each of its 8-bit UTF-8 code units).
+    const ALWAYS_UNESCAPED: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-.!~*'()";
+    let len = string.len();
+    let mut result = JSString::from("");
+    let unescaped_set = ALWAYS_UNESCAPED
+        .chars()
+        .map(|c| u16::try_from(c).expect("ascii range"))
+        .chain(extra_unescaped.as_slice().iter().copied())
+        .collect::<AHashSet<_>>();
+    let mut k = 0;
+    while k < len {
+        let c = string[k];
+        if unescaped_set.contains(&c) {
+            k += 1;
+            result = result.concat(JSString::from(&[c][..]));
+        } else {
+            let cp = code_point_at(string, k);
+            if cp.is_unpaired_surrogate {
+                return Err(create_uri_error("unpaired surrogate can't be encoded"));
+            }
+            k += cp.code_unit_count as usize;
+            let mut buf = [0; 4];
+            let octets = (char::try_from(cp.code_point).expect("came from a code point")).encode_utf8(&mut buf);
+            for byte in octets.bytes() {
+                result = result.concat(JSString::from(format!("%{byte:0X}")));
+            }
+        }
+    }
+    Ok(result)
+}
+
 fn encode_uri(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // encodeURI ( uri )
+    //
+    // This function computes a new version of a UTF-16 encoded (6.1.4) URI in which each instance of certain code
+    // points is replaced by one, two, three, or four escape sequences representing the UTF-8 encoding of the code
+    // point.
+    //
+    // It is the %encodeURI% intrinsic object.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let uriString be ? ToString(uri).
+    // 2. Let extraUnescaped be ";/?:@&=+$,#".
+    // 3. Return ? Encode(uriString, extraUnescaped).
+    let mut args = FuncArgs::from(arguments);
+    let uri = args.next_arg();
+
+    let uri_string = to_string(uri)?;
+    encode(&uri_string, &JSString::from(";/?:@&=+$,#")).map(ECMAScriptValue::from)
 }
+
 fn encode_uri_component(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // encodeURIComponent ( uriComponent )
+    //
+    // This function computes a new version of a UTF-16 encoded (6.1.4) URI in which each instance of certain code
+    // points is replaced by one, two, three, or four escape sequences representing the UTF-8 encoding of the code
+    // point.
+    //
+    // It is the %encodeURIComponent% intrinsic object.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let componentString be ? ToString(uriComponent).
+    // 2. Let extraUnescaped be the empty String.
+    // 3. Return ? Encode(componentString, extraUnescaped).
+    let mut args = FuncArgs::from(arguments);
+    let uri_component = args.next_arg();
+
+    let component_string = to_string(uri_component)?;
+    encode(&component_string, &JSString::from("")).map(ECMAScriptValue::from)
 }
 
 fn eval(
@@ -737,9 +1028,42 @@ fn is_nan(
 fn parse_float(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // parseFloat ( string ) This function produces a Number value dictated by interpretation of the contents of the
+    // string argument as a decimal literal.
+    //
+    // It is the %parseFloat% intrinsic object.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let inputString be ? ToString(string).
+    // 2. Let trimmedString be ! TrimString(inputString, start).
+    // 3. Let trimmed be StringToCodePoints(trimmedString).
+    // 4. Let trimmedPrefix be the longest prefix of trimmed that satisfies the syntax of a StrDecimalLiteral, which
+    //    might be trimmed itself. If there is no such prefix, return NaN.
+    // 5. Let parsedNumber be ParseText(trimmedPrefix, StrDecimalLiteral).
+    // 6. Assert: parsedNumber is a Parse Node.
+    // 7. Return the StringNumericValue of parsedNumber.
+    //
+    // Note: This function may interpret only a leading portion of string as a Number value; it ignores any code units
+    // that cannot be interpreted as part of the notation of a decimal literal, and no indication is given that any such
+    // code units were ignored.
+    static MATCHER: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(&format!("^{}", *STR_DECIMAL_LITERAL)).expect("pregenerated regex strings should be free of errors")
+    });
+
+    let mut args = FuncArgs::from(arguments);
+    let string = args.next_arg();
+
+    let trimmed_string = trim_string(string, TrimHint::Start)?;
+    let trimmed_string = String::from(trimmed_string);
+    if let Some(captures) = MATCHER.captures(&trimmed_string) {
+        let s = captures.name("decimal").expect("group should be in pattern");
+        Ok(ECMAScriptValue::Number(s.as_str().parse::<f64>().expect("regex should guarantee good parse")))
+    } else {
+        Ok(ECMAScriptValue::Number(f64::NAN))
+    }
 }
 
 fn parse_int(

@@ -1214,13 +1214,6 @@ pub(crate) trait ObjectInterface: Debug {
     fn to_regexp_object(&self) -> Option<&RegExpObject> {
         None
     }
-    fn is_array_object(&self) -> bool {
-        false
-    }
-    #[cfg(test)]
-    fn to_array_object(&self) -> Option<&ArrayObject> {
-        None
-    }
     #[cfg(test)]
     fn is_proxy_object(&self) -> bool {
         false
@@ -1572,7 +1565,7 @@ impl Object {
     //      c. Return ? IsArray(target).
     //  4. Return false.
     pub(crate) fn is_array(&self) -> Completion<bool> {
-        if self.o.is_array_object() {
+        if self.o.kind() == ObjectTag::Array {
             Ok(true)
         } else {
             match self.o.to_proxy_object() {

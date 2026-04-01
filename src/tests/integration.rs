@@ -555,6 +555,8 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 //    Todo: this needs classes
 
 // Array Functions
+// Array.from
+#[test_case("Array.from([1, 2, 3]).join(', ')" => vok("1, 2, 3"); "one array argument")]
 // Array.isArray
 //   Array.isArray(13) -> false
 //   Array.isArray([1, 2, 3]) -> true
@@ -1221,6 +1223,183 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     "
     => vok("1, 2, length, callee");
     "ArgumentsObject [[Delete]] just coverage, unmapped form"
+)]
+// Array Exotic Objects
+#[test_case("Object.setPrototypeOf({}, []).length" => vok(0); "ArrayObject: uses_ordinary_get_prototype_of coverage")]
+#[test_case(
+    "
+    let p = [1, 2, 3];
+    p.status = 'prototype';
+    let c = [];
+    Object.setPrototypeOf(c, p);
+    c.status
+    "
+    => vok("prototype");
+    "ArrayObject: [[SetPrototypeOf]]"
+)]
+#[test_case("Object.prototype.toString.call([])" => vok("[object Array]"); "ArrayObject: kind")]
+#[test_case(
+    "[].length={ valueOf() { throw 'nope'; }}"
+    => serr("Thrown: nope");
+    "ArrayObject::SetLength: invalid uint32"
+)]
+#[test_case(
+    "
+    [].length = {
+        call_number: 0,
+        valueOf() {
+            this.call_number += 1;
+            switch (this.call_number) {
+                case 2: throw `Thrown on call ${this.call_number}`;
+                default: return 20;
+            }
+        }
+    };"
+    => serr("Thrown: Thrown on call 2");
+    "ArrayObject::SetLength: invalid tonumber"
+)]
+#[test_case(
+    "[].length=0.5" => serr("Thrown: RangeError: Invalid array length"); "ArrayObject::SetLength; fractional length"
+)]
+#[test_case(
+    "
+    let a = [];
+    Object.defineProperty(a, 'length', { writable: false, value: 100 });
+    Object.defineProperty(a, 'length', { value: 10 });
+    a.length
+    "
+    => serr("Thrown: TypeError: Property cannot be assigned to");
+    "ArrayObject::SetLength: prior length was read-only (line 373)"
+)]
+#[test_case(
+    "
+    let a = [];
+    Object.defineProperty(a, 'length', { writable: true, value: 100 });
+    Object.defineProperty(a, 'length', { writable: false, value: 10 });
+    a.length
+    "
+    => vok(10);
+    "ArrayObject::SetLength: reducing length and making it read-only (line 378)"
+)]
+#[test_case(
+    "
+    let a = [];
+    Object.defineProperty(a, 'length', { writable: true, value: 100, configurable: false });
+    Object.defineProperty(a, 'length', { configurable: true, value: 10 });
+    a.length
+    "
+    => serr("Thrown: TypeError: Property cannot be assigned to");
+    "ArrayObject::SetLength: reducing length and making it configurable (line 384)"
+)]
+#[test_case(
+    "
+    let a = [1, 2, 3, 4, 5];
+    Object.defineProperty(a, 'length', { value: 2 });
+    a.join(', ')
+    "
+    => vok("1, 2");
+    "ArrayObject::SetLength: reducing length and removing elements"
+)]
+#[test_case(
+    "
+    let a = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    Object.defineProperty(a, '10', { value: 'bob', configurable: false });
+    a.length = 3;
+    a.join(', ')
+    "
+    => vok("1, 2, 3, 4, 5, 6, 7, 8, 9, , bob");
+    "ArrayObject::SetLength: reducing length and failing to remove elements"
+)]
+#[test_case(
+    "
+    let a = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    Object.defineProperty(a, '10', { value: 'bob', configurable: false });
+    Object.defineProperty(a, 'length', { value: 6, writable: false });
+    "
+    => serr("Thrown: TypeError: Property cannot be assigned to");
+    "ArrayObject::SetLength: reducing length and failing to remove elements; length read-only (line 402)"
+)]
+#[test_case("
+    const { proxy, revoke } = Proxy.revocable([], {});
+    revoke();
+    Array.prototype.concat.call(proxy, [1]);
+    "
+    => serr("Thrown: TypeError: Proxy has been revoked");
+    "ArrayObject::ArraySpeciesCreate: revoked proxy (line 482)"
+)]
+#[test_case("
+    let a = [];
+    Object.defineProperty(a, 'constructor', { get: () => { throw 'integration test'; } });
+    a.concat([1])
+    "
+    => serr("Thrown: integration test");
+    "ArrayObject::ArraySpeciesCreate: getting this's constructor fails (line 486)"
+)]
+#[test_case("
+    let a = [];
+    Object.defineProperty(a, 'constructor', { value: undefined });
+    const z = a.concat([1]);
+    z.join(', ')
+    "
+    => vok("1");
+    "ArrayObject::ArraySpeciesCreate: this's constructor isn't an object (line 496)"
+)]
+#[test_case("
+    const arr = [];
+    arr.constructor = {
+        get [Symbol.species]() {
+            throw 'integration test';
+        }
+    };
+    arr.concat([1]);
+    "
+    => serr("Thrown: integration test");
+    "ArrayObject::ArraySpeciesCreate: this's constructor has a bad %%Species%% (line 499)"
+)]
+#[test_case("
+    const arr = [];
+    arr.constructor = {
+        [Symbol.species]: null,
+    };
+    const z = arr.concat([1]);
+    z.join(', ')
+    "
+    => vok("1");
+    "ArrayObject::ArraySpeciesCreate: this's constructor has a null %%Species%% (line 501)"
+)]
+#[test_case("
+    const TOO_LONG = 0x100000000;
+    const p = new Proxy([], {
+      get(target, prop, receiver) {
+        if (prop === 'length') return TOO_LONG;
+        if (prop === 'constructor') return { [Symbol.species]: undefined };
+        return Reflect.get(target, prop, receiver);
+      }
+    });
+    p.slice(0);
+    "
+    => serr("Thrown: RangeError: Array lengths greater than 4294967295 are not allowed");
+    "ArrayObject::ArraySpeciesCreate: this's constructor is undefined, and length is too large (line 507)"
+)]
+#[test_case("
+    const a = [];
+    a.constructor = 10;
+    a.slice(0);
+    "
+    => serr("Thrown: TypeError: Array species constructor invalid");
+    "ArrayObject::ArraySpeciesCreate: this's constructor not an object (line 510)"
+)]
+#[test_case("
+    let p = new Proxy(Array, {
+        get(target, prop, receiver) {
+          if (prop === 'prototype') { throw 'integration test'; };
+          return Reflect.get(target, prop, receiver);
+        }
+    });
+    const a = new p();
+    "
+    => serr("Thrown: integration test");
+    "Array Constructor Function: can't get prototype (line 814)"
 )]
 // 2025/07/31 - destructuring broken in catch parameters
 #[test_case("try{throw[10];}catch([z]){z;}" => vok(10); "catch parameter destructuring")]

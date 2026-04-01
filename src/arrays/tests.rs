@@ -216,12 +216,6 @@ mod array_object {
         let list = a.o.own_property_keys().unwrap();
         assert_eq!(list, vec!["length".into()]);
     }
-    #[test]
-    fn is_array_object() {
-        setup_test_agent();
-        let a = ArrayObject::create(0.0, None).unwrap();
-        assert!(a.o.is_array_object());
-    }
     false_function!(is_callable_obj);
     false_function!(is_date_object);
     false_function!(is_generator_object);
@@ -341,10 +335,12 @@ mod array_object {
         fn zero_elements(make_desc: fn() -> PotentialPropertyDescriptor) -> Result<(bool, Vec<PropertyInfo>), String> {
             setup_test_agent();
             let aobj = ArrayObject::create(0.0, None).unwrap();
-            let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc();
 
-            a.set_length(desc).map(|success| (success, a.common.borrow().propdump())).map_err(unwind_any_error)
+            aobj.o
+                .define_own_property(PropertyKey::from("length"), desc)
+                .map(|success| (success, aobj.o.common_object_data().borrow().propdump()))
+                .map_err(unwind_any_error)
         }
 
         #[test]
@@ -357,11 +353,14 @@ mod array_object {
                 PotentialPropertyDescriptor { writable: Some(false), ..Default::default() },
             )
             .unwrap();
-            let a = aobj.o.to_array_object().unwrap();
 
-            let result = a
-                .set_length(PotentialPropertyDescriptor { value: Some(1000.0.into()), ..Default::default() })
-                .map(|success| (success, a.common.borrow().propdump()))
+            let result = aobj
+                .o
+                .define_own_property(
+                    PropertyKey::from("length"),
+                    PotentialPropertyDescriptor { value: Some(1000.0.into()), ..Default::default() },
+                )
+                .map(|success| (success, aobj.o.common_object_data().borrow().propdump()))
                 .map_err(unwind_any_error);
             assert_eq!(
                 result,
@@ -443,10 +442,12 @@ mod array_object {
             aobj.set("0", "blue", true).unwrap();
             aobj.set("100", "green", true).unwrap();
             aobj.set("500", "red", true).unwrap();
-            let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc();
 
-            a.set_length(desc).map(|success| (success, a.common.borrow().propdump())).map_err(unwind_any_error)
+            aobj.o
+                .define_own_property(PropertyKey::from("length"), desc)
+                .map(|success| (success, aobj.o.common_object_data().borrow().propdump()))
+                .map_err(unwind_any_error)
         }
 
         #[test_case(fifty => Ok((false, vec![
@@ -506,10 +507,12 @@ mod array_object {
             )
             .unwrap();
             aobj.set("500", "red", true).unwrap();
-            let a = aobj.o.to_array_object().unwrap();
             let desc = make_desc();
 
-            a.set_length(desc).map(|success| (success, a.common.borrow().propdump())).map_err(unwind_any_error)
+            aobj.o
+                .define_own_property(PropertyKey::from("length"), desc)
+                .map(|success| (success, aobj.o.common_object_data().borrow().propdump()))
+                .map_err(unwind_any_error)
         }
     }
 }
@@ -787,16 +790,6 @@ fn defaults() {
     assert_eq!(a.o.is_proxy_object(), false);
 }
 
-#[test_case(super::array_prototype_to_locale_string => panics "not yet implemented"; "array_prototype_to_locale_string")]
-#[test_case(super::array_prototype_to_reversed => panics "not yet implemented"; "array_prototype_to_reversed")]
-#[test_case(super::array_prototype_to_sorted => panics "not yet implemented"; "array_prototype_to_sorted")]
-#[test_case(super::array_prototype_to_spliced => panics "not yet implemented"; "array_prototype_to_spliced")]
-#[test_case(super::array_prototype_unshift => panics "not yet implemented"; "array_prototype_unshift")]
-fn todo(f: fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue>) {
-    setup_test_agent();
-    f(&ECMAScriptValue::Undefined, None, &[]).unwrap();
-}
-
 #[test_case(|| ECMAScriptValue::Undefined => vok(false); "not an array")]
 #[test_case(
     || create_array_from_list(&[ECMAScriptValue::from(23)]).into()
@@ -1065,7 +1058,6 @@ fn provision_array_intrinsic() {
     let proto_intrinsic = intrinsic(IntrinsicId::ArrayPrototype);
     let prototype = Object::try_from(data_validation(prototype_pd, false, false, false)).unwrap();
     assert_eq!(proto_intrinsic, prototype);
-    assert!(prototype.o.is_array_object());
     let proto_proto = prototype.o.get_prototype_of().unwrap().unwrap();
     assert_eq!(proto_proto, intrinsic(IntrinsicId::ObjectPrototype));
 
