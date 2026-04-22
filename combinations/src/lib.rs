@@ -73,13 +73,7 @@ impl<T> Combination<T> {
         let mut c = (0..size).collect::<Vec<_>>();
         c.push(items.len());
         c.push(0);
-        Combination {
-            source: items.to_vec(),
-            c,
-            j: size,
-            t: size,
-            done: false,
-        }
+        Combination { source: items.to_vec(), c, j: size, t: size, done: false }
     }
 }
 
@@ -97,10 +91,7 @@ where
         if self.done {
             None
         } else {
-            let result = self.c[0..self.t]
-                .iter()
-                .map(|&idx| self.source[idx].clone())
-                .collect::<Vec<_>>();
+            let result = self.c[0..self.t].iter().map(|&idx| self.source[idx].clone()).collect::<Vec<_>>();
 
             let mut x;
             if self.j > 0 {
@@ -209,12 +200,7 @@ where
     /// ```
     pub fn new(items: &[T]) -> Self {
         let n = items.len();
-        Permutation {
-            items: items.to_vec(),
-            n,
-            a: (0..=n).collect::<Vec<_>>(),
-            done: false,
-        }
+        Permutation { items: items.to_vec(), n, a: (0..=n).collect::<Vec<_>>(), done: false }
     }
 }
 
@@ -229,12 +215,7 @@ where
             None
         } else {
             // Algorithm L from Knuth 7.2.1.2. Generating all permutations.
-            let result = Some(
-                self.a[1..=self.n]
-                    .iter()
-                    .map(|&idx| self.items[idx - 1].clone())
-                    .collect::<Vec<_>>(),
-            );
+            let result = Some(self.a[1..=self.n].iter().map(|&idx| self.items[idx - 1].clone()).collect::<Vec<_>>());
 
             let mut j = self.n - 1;
             while j > 0 && self.a[j + 1] <= self.a[j] {
