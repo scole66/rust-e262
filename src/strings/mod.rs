@@ -246,6 +246,23 @@ impl JSString {
         code_points
     }
 
+    pub(crate) fn to_code_points_with_map(&self) -> (Vec<u32>, Vec<usize>) {
+        let size = self.len();
+        let mut code_points: Vec<u32> = Vec::with_capacity(size);
+        let mut map = Vec::with_capacity(size);
+        let mut position = 0;
+        while position < size {
+            let cp = code_point_at(self, position);
+            code_points.push(cp.code_point);
+            let cur_output_len = code_points.len();
+            for _ in 0..cp.code_unit_count {
+                map.push(cur_output_len - 1);
+            }
+            position += cp.code_unit_count as usize;
+        }
+        (code_points, map)
+    }
+
     //pub(crate) fn is_string_well_formed_unicode(&self) -> bool {
     //    let len = self.len();
     //    let mut k = 0;

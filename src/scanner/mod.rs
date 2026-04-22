@@ -843,10 +843,7 @@ pub(crate) fn mv_of_hex_digit(digit: HexChar) -> u32 {
 fn identifier_name_string_value(id_text: &str) -> JSString {
     let mut result: Vec<u16> = vec![];
     let mut iter = id_text.chars();
-    loop {
-        let Some(ch) = iter.next() else {
-            break;
-        };
+    while let Some(ch) = iter.next() {
         if ch == '\\' {
             // We know the strings are valid constructions, so we don't need to
             // check error conditions here. We'll rely on the panics from unwrap
@@ -1255,14 +1252,10 @@ where
                 latest.start_idx += 1;
                 previous_was_digit = true;
             }
-            '_' => {
-                if sep && previous_was_digit {
-                    latest.column += 1;
-                    latest.start_idx += 1;
-                    previous_was_digit = false;
-                } else {
-                    break;
-                }
+            '_' if sep && previous_was_digit => {
+                latest.column += 1;
+                latest.start_idx += 1;
+                previous_was_digit = false;
             }
             _ => {
                 break;

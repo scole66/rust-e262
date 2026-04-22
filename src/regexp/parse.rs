@@ -1,10 +1,11 @@
 #![expect(dead_code)]
 use super::*;
+use combinations::Combination;
 
 const PREVIOUSLY_SCANNED: &str = "previously scanned char should still exist";
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum UnicodeMode {
+pub(crate) enum UnicodeMode {
     Allowed,
     Denied,
 }
@@ -14,7 +15,7 @@ enum NamedCaptureGroups {
     Denied,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum UnicodeSetsMode {
+pub(crate) enum UnicodeSetsMode {
     Allowed,
     Denied,
 }
@@ -300,7 +301,7 @@ impl ClassSetCharacter {
 //      RegExpUnicodeEscapeSequence[?UnicodeMode]
 //      IdentityEscape[?UnicodeMode]
 #[derive(Debug, Clone, Eq, PartialEq)]
-enum CharacterEscape {
+pub(crate) enum CharacterEscape {
     ControlEscape(ControlEscape),
     CAsciiLetter(AsciiLetter),
     Zero,
@@ -396,7 +397,7 @@ impl CharacterEscape {
 // ControlEscape :: one of
 //      f n r t v
 #[derive(Debug, Clone, Eq, PartialEq)]
-enum ControlEscape {
+pub(crate) enum ControlEscape {
     Eff,
     En,
     Ar,
@@ -420,7 +421,7 @@ impl ControlEscape {
 // AsciiLetter :: one of
 //      a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct AsciiLetter(char);
+pub(crate) struct AsciiLetter(char);
 impl AsciiLetter {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let ch = scanner.peek();
@@ -436,7 +437,7 @@ impl AsciiLetter {
 // HexEscapeSequence ::
 //      x HexDigit HexDigit
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct HexEscapeSequence(u8);
+pub(crate) struct HexEscapeSequence(u8);
 impl HexEscapeSequence {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
@@ -458,7 +459,7 @@ impl HexEscapeSequence {
 // [~UnicodeMode] u Hex4Digits
 // [+UnicodeMode] u{ CodePoint }
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct RegExpUnicodeEscapeSequence(u32);
+pub(crate) struct RegExpUnicodeEscapeSequence(u32);
 impl RegExpUnicodeEscapeSequence {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
@@ -554,7 +555,7 @@ impl RegExpUnicodeEscapeSequence {
 //      [+UnicodeMode] /
 //      [~UnicodeMode] SourceCharacter but not UnicodeIDContinue
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct IdentityEscape(u32);
+pub(crate) struct IdentityEscape(u32);
 impl IdentityEscape {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
         match mode {
@@ -597,7 +598,7 @@ impl IdentityEscape {
 //      CharacterEscape[?UnicodeMode]
 //      [+NamedCaptureGroups] k GroupName[?UnicodeMode]
 #[derive(Debug, Clone, Eq, PartialEq)]
-enum AtomEscape {
+pub(crate) enum AtomEscape {
     DecimalEscape(DecimalEscape),
     CharacterClassEscape(CharacterClassEscape),
     CharacterEscape(CharacterEscape),
@@ -633,7 +634,7 @@ impl AtomEscape {
 // NonZeroDigit :: one of
 //      1 2 3 4 5 6 7 8 9
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-struct DecimalEscape(u32);
+pub(crate) struct DecimalEscape(u32);
 
 impl DecimalEscape {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -658,7 +659,7 @@ impl DecimalEscape {
 //      [+UnicodeMode] p{ UnicodePropertyValueExpression }
 //      [+UnicodeMode] P{ UnicodePropertyValueExpression }
 #[derive(Debug, Clone, Eq, PartialEq)]
-enum CharacterClassEscape {
+pub(crate) enum CharacterClassEscape {
     Digit,
     NotDigit,
     Whitespace,
@@ -705,7 +706,7 @@ impl CharacterClassEscape {
 //      UnicodePropertyName = UnicodePropertyValue
 //      LoneUnicodePropertyNameOrValue
 #[derive(Debug, Clone, Eq, PartialEq)]
-enum UnicodePropertyValueExpression {
+pub(crate) enum UnicodePropertyValueExpression {
     NameValue { name: UnicodePropertyName, value: UnicodePropertyValue },
     Lone(LoneUnicodePropertyNameOrValue),
 }
@@ -736,7 +737,7 @@ impl UnicodePropertyValueExpression {
 // UnicodePropertyNameCharacters ::
 //      UnicodePropertyNameCharacter UnicodePropertyNameCharactersopt
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct UnicodePropertyName(String);
+pub(crate) struct UnicodePropertyName(String);
 
 impl UnicodePropertyName {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -755,7 +756,7 @@ impl UnicodePropertyName {
 // UnicodePropertyValueCharacters ::
 //      UnicodePropertyValueCharacter UnicodePropertyValueCharactersopt
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct UnicodePropertyValue(String);
+pub(crate) struct UnicodePropertyValue(String);
 
 impl UnicodePropertyValue {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -772,7 +773,7 @@ impl UnicodePropertyValue {
 // LoneUnicodePropertyNameOrValue ::
 //      UnicodePropertyValueCharacters
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct LoneUnicodePropertyNameOrValue(String);
+pub(crate) struct LoneUnicodePropertyNameOrValue(String);
 
 impl LoneUnicodePropertyNameOrValue {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -785,7 +786,7 @@ impl LoneUnicodePropertyNameOrValue {
 // GroupSpecifier[UnicodeMode] ::
 //      ? GroupName[?UnicodeMode]
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct GroupSpecifier(GroupName);
+pub(crate) struct GroupSpecifier(GroupName);
 impl GroupSpecifier {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
@@ -794,12 +795,16 @@ impl GroupSpecifier {
         new_scanner.read_idx += amt;
         Some((Self(name), new_scanner.read_idx - scanner.read_idx))
     }
+
+    pub(crate) fn capturing_group_name(&self) -> JSString {
+        self.0.capturing_group_name()
+    }
 }
 
 // GroupName[UnicodeMode] ::
 //      < RegExpIdentifierName[?UnicodeMode] >
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct GroupName(RegExpIdentifierName);
+pub(crate) struct GroupName(RegExpIdentifierName);
 
 impl GroupName {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
@@ -809,6 +814,19 @@ impl GroupName {
         new_scanner.read_idx += amt_used;
         new_scanner.consume('>')?;
         Some((Self(name), new_scanner.read_idx - scanner.read_idx))
+    }
+
+    pub(crate) fn capturing_group_name(&self) -> JSString {
+        // Static Semantics: CapturingGroupName
+        //
+        // The syntax-directed operation CapturingGroupName takes no arguments and returns a String. It is defined
+        // piecewise over the following productions:
+        //
+        // GroupName :: < RegExpIdentifierName >
+        // 1. Let idTextUnescaped be the RegExpIdentifierCodePoints of RegExpIdentifierName.
+        // 2. Return CodePointsToString(idTextUnescaped).
+        let id_text_unescaped = self.0.reg_exp_identifier_code_points();
+        JSString::from(id_text_unescaped)
     }
 }
 
@@ -831,6 +849,22 @@ impl RegExpIdentifierName {
             new_scanner.read_idx += amt_used;
         }
         Some((Self(name), new_scanner.read_idx - scanner.read_idx))
+    }
+
+    pub(crate) fn reg_exp_identifier_code_points(&self) -> String {
+        // Static Semantics: RegExpIdentifierCodePoints
+        //
+        // The syntax-directed operation RegExpIdentifierCodePoints takes no arguments and returns a List of code
+        // points. It is defined piecewise over the following productions:
+        //
+        // RegExpIdentifierName :: RegExpIdentifierStart
+        // 1. Let cp be the RegExpIdentifierCodePoint of RegExpIdentifierStart.
+        // 2. Return « cp ».
+        // RegExpIdentifierName :: RegExpIdentifierName RegExpIdentifierPart
+        // 1. Let cps be the RegExpIdentifierCodePoints of the derived RegExpIdentifierName.
+        // 2. Let cp be the RegExpIdentifierCodePoint of RegExpIdentifierPart.
+        // 3. Return the list-concatenation of cps and « cp ».
+        self.0.clone()
     }
 }
 
@@ -891,7 +925,7 @@ impl RegExpIdentifierPart {
 // Pattern[UnicodeMode, UnicodeSetsMode, NamedCaptureGroups] ::
 //      Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Pattern(Disjunction);
+pub(crate) struct Pattern(pub(crate) Disjunction);
 impl Pattern {
     fn parse(
         scanner: &Scanner,
@@ -906,29 +940,77 @@ impl Pattern {
     pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         self.0.count_left_capturing_parens_within()
     }
+
+    pub(crate) fn early_errors(&self) -> Vec<Object> {
+        let mut errs = vec![];
+        if self.count_left_capturing_parens_within() >= 4_294_967_295 {
+            errs.push(create_syntax_error_object("Too many captures", None));
+        }
+        let group_specifiers = self.all_group_specifiers();
+        if group_specifiers.len() >= 2 {
+            let combo_iter = Combination::new(&group_specifiers, 2);
+            for pair in combo_iter {
+                let (x, y) = {
+                    match pair.as_slice() {
+                        &[x, y] => (x, y),
+                        _ => unreachable!(),
+                    }
+                };
+                if x.capturing_group_name() == y.capturing_group_name() && self.might_both_participate(x, y) {
+                    errs.push(create_syntax_error_object(
+                        format!("Group name '{}' used multiple times", x.capturing_group_name()),
+                        None,
+                    ));
+                }
+            }
+        }
+        let mut sub_production_errors = self.0.early_errors();
+        errs.append(&mut sub_production_errors);
+        errs
+    }
+
+    pub(crate) fn all_group_specifiers(&self) -> Vec<&GroupSpecifier> {
+        self.0.all_group_specifiers()
+    }
+
+    pub fn might_both_participate(&self, x: &GroupSpecifier, y: &GroupSpecifier) -> bool {
+        // Static Semantics: MightBothParticipate ( x, y )
+        //
+        // The abstract operation MightBothParticipate takes arguments x (a Parse Node) and y (a Parse Node) and returns
+        // a Boolean. It performs the following steps when called:
+        //
+        // 1. Assert: x and y have the same enclosing Pattern.
+        // 2. If the enclosing Pattern contains a Disjunction :: Alternative | Disjunction Parse Node such that either x
+        //    is contained within the Alternative and y is contained within the derived Disjunction, or x is contained
+        //    within the derived Disjunction and y is contained within the Alternative, return false.
+        // 3. Return true.
+        self.0.might_both_participate(x, y)
+    }
+
+    pub(crate) fn group_name_associations(&self) -> Vec<Option<&GroupName>> {
+        self.0.group_name_associations()
+    }
 }
 
-pub(crate) fn parse_pattern(pattern: &str, u: bool, v: bool) -> Completion<Pattern> {
+pub(crate) fn parse_pattern(pattern: &str, u: UnicodeMode, v: UnicodeSetsMode) -> Result<Pattern, Vec<Object>> {
     let scanner = Scanner::new(pattern);
-    if u && v {
-        return Err(create_syntax_error("invalid regexp flags", None));
+
+    if u == UnicodeMode::Allowed && v == UnicodeSetsMode::Allowed {
+        return Err(vec![create_syntax_error_object("invalid regexp flags", None)]);
     }
-    let (unicode, sets) = if v {
-        (UnicodeMode::Allowed, UnicodeSetsMode::Allowed)
-    } else if u {
-        (UnicodeMode::Allowed, UnicodeSetsMode::Denied)
-    } else {
-        (UnicodeMode::Denied, UnicodeSetsMode::Denied)
-    };
-    Pattern::parse(&scanner, unicode, sets, NamedCaptureGroups::Allowed)
-        .ok_or_else(|| create_syntax_error("invalid regexp", None))
+    let pattern = Pattern::parse(&scanner, u, v, NamedCaptureGroups::Allowed)
+        .ok_or_else(|| vec![create_syntax_error_object("invalid regexp", None)])?;
+
+    let errs = pattern.early_errors();
+
+    if errs.is_empty() { Ok(pattern) } else { Err(errs) }
 }
 
 // Disjunction[UnicodeMode, UnicodeSetsMode, NamedCaptureGroups] ::
 //      Alternative[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
 //      Alternative[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] | Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Disjunction(Vec<Alternative>);
+pub(crate) struct Disjunction(pub(crate) Vec<Alternative>);
 impl Disjunction {
     fn parse(
         scanner: &Scanner,
@@ -961,16 +1043,82 @@ impl Disjunction {
             }
         }
     }
+
     pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         self.0.iter().map(Alternative::count_left_capturing_parens_within).sum()
     }
+
+    pub(crate) fn might_both_participate(&self, x: &GroupSpecifier, y: &GroupSpecifier) -> bool {
+        // Static Semantics: MightBothParticipate ( x, y )
+        //
+        // The abstract operation MightBothParticipate takes arguments x (a Parse Node) and y (a Parse Node) and returns
+        // a Boolean. It performs the following steps when called:
+        //
+        // 1. Assert: x and y have the same enclosing Pattern.
+        // 2. If the enclosing Pattern contains a Disjunction :: Alternative | Disjunction Parse Node such that either x
+        //    is contained within the Alternative and y is contained within the derived Disjunction, or x is contained
+        //    within the derived Disjunction and y is contained within the Alternative, return false.
+        // 3. Return true.
+
+        // Note: due to the design of the AST, a given input node will reside in either one or none of the alternatives.
+        let alt_ids = self
+            .0
+            .iter()
+            .enumerate()
+            .filter_map(|(id, alt)| if alt.contains(x) || alt.contains(y) { Some(id) } else { None })
+            .collect::<Vec<_>>();
+
+        assert_eq!(alt_ids.len(), 2);
+        if alt_ids[0] == alt_ids[1] { self.0[alt_ids[0]].might_both_participate(x, y) } else { false }
+    }
+
+    #[expect(clippy::unused_self)]
+    pub(crate) fn early_errors(&self) -> Vec<Object> {
+        //todo!()
+        vec![]
+    }
+
+    pub(crate) fn contains(&self, gs: &GroupSpecifier) -> bool {
+        self.0.iter().any(|alt| alt.contains(gs))
+    }
+
+    pub(crate) fn all_group_specifiers(&self) -> Vec<&GroupSpecifier> {
+        self.0.iter().flat_map(|alt| alt.all_group_specifiers()).collect()
+    }
+
+    pub(crate) fn group_name_associations(&self) -> Vec<Option<&GroupName>> {
+        self.0.iter().flat_map(Alternative::group_name_associations).collect()
+    }
+}
+
+fn run_m2a(m1: &Matcher, m2: &Matcher, state: MatchState, continuation: MatcherContinuation) -> Option<MatchState> {
+    let r = m1.as_ref()(state.clone(), continuation.clone());
+    match r {
+        Some(state) => Some(state),
+        None => m2.as_ref()(state, continuation),
+    }
+}
+
+fn match_two_alternatives(m1: Matcher, m2: Matcher) -> Matcher {
+    // MatchTwoAlternatives ( m1, m2 )
+    //
+    // The abstract operation MatchTwoAlternatives takes arguments m1 (a Matcher) and m2 (a Matcher) and returns a
+    // Matcher. It performs the following steps when called:
+    //
+    // 1. Return a new Matcher with parameters (x, c) that captures m1 and m2 and performs the following steps when called:
+    //    a. Assert: x is a MatchState.
+    //    b. Assert: c is a MatcherContinuation.
+    //    c. Let r be m1(x, c).
+    //    d. If r is not failure, return r.
+    //    e. Return m2(x, c).
+    Rc::new(move |state, continuation| run_m2a(&m1, &m2, state, continuation))
 }
 
 // Alternative[UnicodeMode, UnicodeSetsMode, NamedCaptureGroups] ::
 //      [empty]
 //      Alternative[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] Term[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Alternative(Vec<Term>);
+pub(crate) struct Alternative(pub(crate) Vec<Term>);
 impl Alternative {
     fn parse(
         scanner: &Scanner,
@@ -986,8 +1134,25 @@ impl Alternative {
         }
         (Self(results), new_scanner.read_idx - scanner.read_idx)
     }
+
     pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         self.0.iter().map(Term::count_left_capturing_parens_within).sum()
+    }
+
+    pub(crate) fn contains(&self, gs: &GroupSpecifier) -> bool {
+        self.0.iter().any(|term| term.contains(gs))
+    }
+
+    pub(crate) fn might_both_participate(&self, x: &GroupSpecifier, y: &GroupSpecifier) -> bool {
+        self.0.iter().any(|term| term.might_both_participate(x, y))
+    }
+
+    pub(crate) fn all_group_specifiers(&self) -> Vec<&GroupSpecifier> {
+        self.0.iter().flat_map(|term| term.all_group_specifiers()).collect()
+    }
+
+    pub(crate) fn group_name_associations(&self) -> Vec<Option<&GroupName>> {
+        self.0.iter().flat_map(Term::group_name_associations).collect()
     }
 }
 
@@ -996,7 +1161,7 @@ impl Alternative {
 //      Atom[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
 //      Atom[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] Quantifier
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Term {
+pub(crate) enum Term {
     Assertion(Assertion),
     Atom(Atom, Option<Quantifier>),
 }
@@ -1022,10 +1187,38 @@ impl Term {
             None
         }
     }
+
     pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         match self {
             Term::Assertion(assertion) => assertion.count_left_capturing_parens_within(),
             Term::Atom(atom, _) => atom.count_left_capturing_parens_within(),
+        }
+    }
+    pub(crate) fn might_both_participate(&self, x: &GroupSpecifier, y: &GroupSpecifier) -> bool {
+        match self {
+            Term::Assertion(assertion) => assertion.might_both_participate(x, y),
+            Term::Atom(atom, _) => atom.might_both_participate(x, y),
+        }
+    }
+
+    pub(crate) fn contains(&self, gs: &GroupSpecifier) -> bool {
+        match self {
+            Term::Assertion(assertion) => assertion.contains(gs),
+            Term::Atom(atom, _) => atom.contains(gs),
+        }
+    }
+
+    pub(crate) fn all_group_specifiers(&self) -> Vec<&GroupSpecifier> {
+        match self {
+            Term::Assertion(assertion) => assertion.all_group_specifiers(),
+            Term::Atom(atom, _) => atom.all_group_specifiers(),
+        }
+    }
+
+    pub(crate) fn group_name_associations(&self) -> Vec<Option<&GroupName>> {
+        match self {
+            Term::Assertion(assertion) => assertion.group_name_associations(),
+            Term::Atom(atom, _) => atom.group_name_associations(),
         }
     }
 }
@@ -1040,7 +1233,7 @@ impl Term {
 //      (?<= Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
 //      (?<! Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Assertion {
+pub(crate) enum Assertion {
     Start,
     End,
     WordBoundary,
@@ -1128,13 +1321,53 @@ impl Assertion {
             | Assertion::NegLookBehind(d) => d.count_left_capturing_parens_within(),
         }
     }
+
+    pub(crate) fn might_both_participate(&self, x: &GroupSpecifier, y: &GroupSpecifier) -> bool {
+        match self {
+            Assertion::Start | Assertion::End | Assertion::WordBoundary | Assertion::NotWordBoundary => false,
+            Assertion::LookAhead(disjunction)
+            | Assertion::NegLookAhead(disjunction)
+            | Assertion::LookBehind(disjunction)
+            | Assertion::NegLookBehind(disjunction) => disjunction.might_both_participate(x, y),
+        }
+    }
+
+    pub(crate) fn contains(&self, gs: &GroupSpecifier) -> bool {
+        match self {
+            Assertion::Start | Assertion::End | Assertion::WordBoundary | Assertion::NotWordBoundary => false,
+            Assertion::LookAhead(disjunction)
+            | Assertion::NegLookAhead(disjunction)
+            | Assertion::LookBehind(disjunction)
+            | Assertion::NegLookBehind(disjunction) => disjunction.contains(gs),
+        }
+    }
+
+    pub(crate) fn all_group_specifiers(&self) -> Vec<&GroupSpecifier> {
+        match self {
+            Assertion::Start | Assertion::End | Assertion::WordBoundary | Assertion::NotWordBoundary => vec![],
+            Assertion::LookAhead(disjunction)
+            | Assertion::NegLookAhead(disjunction)
+            | Assertion::LookBehind(disjunction)
+            | Assertion::NegLookBehind(disjunction) => disjunction.all_group_specifiers(),
+        }
+    }
+
+    pub(crate) fn group_name_associations(&self) -> Vec<Option<&GroupName>> {
+        match self {
+            Assertion::Start | Assertion::End | Assertion::WordBoundary | Assertion::NotWordBoundary => vec![],
+            Assertion::LookAhead(disjunction)
+            | Assertion::NegLookAhead(disjunction)
+            | Assertion::LookBehind(disjunction)
+            | Assertion::NegLookBehind(disjunction) => disjunction.group_name_associations(),
+        }
+    }
 }
 
 // Quantifier ::
 //      QuantifierPrefix
 //      QuantifierPrefix ?
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum Quantifier {
+pub(crate) enum Quantifier {
     Greedy(QuantifierPrefix),
     Restrained(QuantifierPrefix),
 }
@@ -1159,7 +1392,7 @@ impl Quantifier {
 //      { DecimalDigits[~Sep] ,}
 //      { DecimalDigits[~Sep] , DecimalDigits[~Sep] }
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-enum QuantifierPrefix {
+pub(crate) enum QuantifierPrefix {
     ZeroOrMore,
     OneOrMore,
     ZeroOrOne,
@@ -1213,7 +1446,7 @@ impl QuantifierPrefix {
 //      ( GroupSpecifier[?UnicodeMode]opt Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
 //      (?: Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum Atom {
+pub(crate) enum Atom {
     PatternCharacter(char),
     Dot,
     AtomEscape(AtomEscape),
@@ -1306,13 +1539,60 @@ impl Atom {
             Atom::UnGroupedDisjunction(d) => d.count_left_capturing_parens_within(),
         }
     }
+
+    pub(crate) fn might_both_participate(&self, x: &GroupSpecifier, y: &GroupSpecifier) -> bool {
+        match self {
+            Atom::PatternCharacter(_) | Atom::Dot | Atom::AtomEscape(_) | Atom::CharacterClass(_) => false,
+            Atom::GroupedDisjunction { group_specifier: _, disjunction } | Atom::UnGroupedDisjunction(disjunction) => {
+                disjunction.might_both_participate(x, y)
+            }
+        }
+    }
+
+    pub(crate) fn contains(&self, gs: &GroupSpecifier) -> bool {
+        match self {
+            Atom::PatternCharacter(_) | Atom::Dot | Atom::AtomEscape(_) | Atom::CharacterClass(_) => false,
+            Atom::GroupedDisjunction { group_specifier: Some(actual_gs), disjunction } => {
+                std::ptr::eq(gs, actual_gs) || disjunction.contains(gs)
+            }
+            Atom::GroupedDisjunction { group_specifier: None, disjunction }
+            | Atom::UnGroupedDisjunction(disjunction) => disjunction.contains(gs),
+        }
+    }
+
+    pub(crate) fn all_group_specifiers(&self) -> Vec<&GroupSpecifier> {
+        match self {
+            Atom::PatternCharacter(_) | Atom::Dot | Atom::AtomEscape(_) | Atom::CharacterClass(_) => vec![],
+            Atom::GroupedDisjunction { group_specifier: Some(gs), disjunction } => {
+                let mut result = vec![gs];
+                let mut disjunction_gs = disjunction.all_group_specifiers();
+                result.append(&mut disjunction_gs);
+                result
+            }
+            Atom::GroupedDisjunction { group_specifier: None, disjunction }
+            | Atom::UnGroupedDisjunction(disjunction) => disjunction.all_group_specifiers(),
+        }
+    }
+
+    pub(crate) fn group_name_associations(&self) -> Vec<Option<&GroupName>> {
+        match self {
+            Atom::PatternCharacter(_) | Atom::Dot | Atom::AtomEscape(_) | Atom::CharacterClass(_) => vec![],
+            Atom::GroupedDisjunction { group_specifier, disjunction } => {
+                let mut result = vec![group_specifier.as_ref().map(|gs| &gs.0)];
+                let mut disjunction_names = disjunction.group_name_associations();
+                result.append(&mut disjunction_names);
+                result
+            }
+            Atom::UnGroupedDisjunction(disjunction) => disjunction.group_name_associations(),
+        }
+    }
 }
 
 // CharacterClass[UnicodeMode, UnicodeSetsMode] ::
 //      [ [lookahead ≠ ^] ClassContents[?UnicodeMode, ?UnicodeSetsMode] ]
 //      [^ ClassContents[?UnicodeMode, ?UnicodeSetsMode] ]
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum CharacterClass {
+pub(crate) enum CharacterClass {
     Selection(ClassContents),
     Negation(ClassContents),
 }
@@ -1333,7 +1613,7 @@ impl CharacterClass {
 //      [~UnicodeSetsMode] NonemptyClassRanges[?UnicodeMode]
 //      [+UnicodeSetsMode] ClassSetExpression
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum ClassContents {
+pub(crate) enum ClassContents {
     None,
     NonemptyClassRanges(Box<NonemptyClassRanges>),
     ClassSetExpression(ClassSetExpression),
@@ -1364,7 +1644,7 @@ impl ClassContents {
 //      ClassAtom[?UnicodeMode] NonemptyClassRangesNoDash[?UnicodeMode]
 //      ClassAtom[?UnicodeMode] - ClassAtom[?UnicodeMode] ClassContents[?UnicodeMode, ~UnicodeSetsMode]
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum NonemptyClassRanges {
+pub(crate) enum NonemptyClassRanges {
     List(Vec<ClassAtom>),
     Range { head: Vec<ClassAtom>, tail: ClassAtom, content: ClassContents },
 }
@@ -1461,7 +1741,7 @@ impl NonemptyClassRangesNoDash {
 //      -
 //      ClassAtomNoDash[?UnicodeMode]
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum ClassAtom {
+pub(crate) enum ClassAtom {
     Char(u32),
     Class(CharacterClassEscape),
 }
@@ -1481,7 +1761,15 @@ impl ClassAtom {
             ))
         }
     }
+
+    fn character_value(&self) -> Option<u32> {
+        match self {
+            ClassAtom::Char(ch) => Some(*ch),
+            ClassAtom::Class(_) => None,
+        }
+    }
 }
+
 impl From<ClassAtomNoDash> for ClassAtom {
     fn from(value: ClassAtomNoDash) -> Self {
         match value {
@@ -1551,7 +1839,7 @@ impl ClassEscape {
 //      ClassIntersection
 //      ClassSubtraction
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum ClassSetExpression {
+pub(crate) enum ClassSetExpression {
     Union(ClassUnion),
     Intersection(ClassIntersection),
     Subtraction(ClassSubtraction),
@@ -1573,7 +1861,7 @@ impl ClassSetExpression {
 //      ClassSetRange ClassUnionopt
 //      ClassSetOperand ClassUnionopt
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum ClassUnion {
+pub(crate) enum ClassUnion {
     Range { range: ClassSetRange, union: Option<Box<ClassUnion>> },
     Operand { operand: ClassSetOperand, union: Option<Box<ClassUnion>> },
 }
@@ -1609,7 +1897,7 @@ impl ClassUnion {
 //      ClassSetOperand && [lookahead ≠ &] ClassSetOperand
 //      ClassIntersection && [lookahead ≠ &] ClassSetOperand
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct ClassIntersection(Vec<ClassSetOperand>);
+pub(crate) struct ClassIntersection(Vec<ClassSetOperand>);
 impl ClassIntersection {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         fn back_part(scanner: &Scanner) -> Option<(ClassSetOperand, usize)> {
@@ -1647,7 +1935,7 @@ impl ClassIntersection {
 //      ClassSetOperand -- ClassSetOperand
 //      ClassSubtraction -- ClassSetOperand
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct ClassSubtraction(Vec<ClassSetOperand>);
+pub(crate) struct ClassSubtraction(Vec<ClassSetOperand>);
 impl ClassSubtraction {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         fn back_part(scanner: &Scanner) -> Option<(ClassSetOperand, usize)> {
@@ -1680,7 +1968,7 @@ impl ClassSubtraction {
 // ClassSetRange ::
 //      ClassSetCharacter - ClassSetCharacter
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-struct ClassSetRange {
+pub(crate) struct ClassSetRange {
     first: u32,
     last: u32,
 }
@@ -1704,7 +1992,7 @@ impl ClassSetRange {
 //      ClassStringDisjunction
 //      ClassSetCharacter
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum ClassSetOperand {
+pub(crate) enum ClassSetOperand {
     NestedClass(NestedClass),
     ClassStringDisjunction(ClassStringDisjunction),
     ClassSetCharacter(u32),
@@ -1728,7 +2016,7 @@ impl ClassSetOperand {
 //      \ CharacterClassEscape[+UnicodeMode]
 // NOTE: The first two lines here are equivalent to CharacterClass.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum NestedClass {
+pub(crate) enum NestedClass {
     Class(Box<ClassContents>),
     NegatedClass(Box<ClassContents>),
     CharacterClassEscape(CharacterClassEscape),
@@ -1767,7 +2055,7 @@ impl NestedClass {
 // ClassStringDisjunction ::
 //      \q{ ClassStringDisjunctionContents }
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct ClassStringDisjunction(Vec<ClassString>);
+pub(crate) struct ClassStringDisjunction(Vec<ClassString>);
 impl ClassStringDisjunction {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
@@ -1806,7 +2094,7 @@ impl ClassStringDisjunctionContents {
 //      [empty]
 //      NonEmptyClassString
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct ClassString(Vec<u32>);
+pub(crate) struct ClassString(Vec<u32>);
 impl ClassString {
     fn parse(scanner: &Scanner) -> (Self, usize) {
         if let Some((string, amt)) = NonEmptyClassString::parse(scanner) {

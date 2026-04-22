@@ -837,7 +837,7 @@ fn parse_text(src: &str, goal: ParseGoal, strict: bool, direct: bool) -> String 
         ParsedText::Script(s) => format!("Script({s})"),
         ParsedText::Empty => "Empty".to_string(),
         ParsedText::Errors(errs) => errs.iter().map(unwind_any_error_object).join("; "),
-        ParsedText::FormalParameters(formal_parameters) => format!("FormalParameters({formal_parameters})",),
+        ParsedText::FormalParameters(formal_parameters) => format!("FormalParameters({formal_parameters})"),
         ParsedText::FunctionBody(function_body) => format!("FunctionBody({function_body})"),
         ParsedText::GeneratorBody(generator_body) => format!("GeneratorBody({generator_body})"),
         ParsedText::AsyncFunctionBody(async_function_body) => format!("AsyncFunctionBody({async_function_body})"),

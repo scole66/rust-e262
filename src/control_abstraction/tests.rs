@@ -545,13 +545,7 @@ mod generator_resume_abrupt {
         let res = match res_full {
             Ok(val) => val,
             Err(err) => match &err {
-                AbruptCompletion::Throw { value } => {
-                    if value == &ECMAScriptValue::from("special") {
-                        value.clone()
-                    } else {
-                        return Err(err);
-                    }
-                }
+                AbruptCompletion::Throw { value } if value == &ECMAScriptValue::from("special") => value.clone(),
                 _ => return Err(err),
             },
         };

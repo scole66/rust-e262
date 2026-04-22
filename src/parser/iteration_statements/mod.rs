@@ -1577,15 +1577,15 @@ impl ForInOfStatement {
                     }
                 }
             }
-            ForInOfStatement::In(lhs, ..) | ForInOfStatement::Of(lhs, ..) | ForInOfStatement::AwaitOf(lhs, ..) => {
+            ForInOfStatement::In(lhs, ..) | ForInOfStatement::Of(lhs, ..) | ForInOfStatement::AwaitOf(lhs, ..)
+                if lhs.assignment_target_type(strict) != ATTKind::Simple =>
+            {
                 // ForInOfStatement :
                 //  for ( LeftHandSideExpression in Expression ) Statement
                 //  for ( LeftHandSideExpression of AssignmentExpression ) Statement
                 //  for await ( LeftHandSideExpression of AssignmentExpression ) Statement
                 //  * It is a Syntax Error if AssignmentTargetType of LeftHandSideExpression is not simple.
-                if lhs.assignment_target_type(strict) != ATTKind::Simple {
-                    errs.push(create_syntax_error_object("Invalid assignment target", Some(lhs.location())));
-                }
+                errs.push(create_syntax_error_object("Invalid assignment target", Some(lhs.location())));
             }
             _ => (),
         }

@@ -1132,23 +1132,16 @@ impl ECMAScriptValue {
                         r.push(',');
                     }
                     let named_function_was_added = match value.as_ref() {
-                        Ok(v) => {
-                            if is_callable(v) {
-                                let name = to_string(
-                                    to_object(v.clone())
-                                        .unwrap()
-                                        .get(&"name".into())
-                                        .unwrap_or(ECMAScriptValue::Undefined),
-                                )
-                                .unwrap_or_else(|_| JSString::from("undefined"));
-                                if name == "undefined" {
-                                    false
-                                } else {
-                                    write!(r, "{key}:function {name}").unwrap();
-                                    true
-                                }
-                            } else {
+                        Ok(v) if is_callable(v) => {
+                            let name = to_string(
+                                to_object(v.clone()).unwrap().get(&"name".into()).unwrap_or(ECMAScriptValue::Undefined),
+                            )
+                            .unwrap_or_else(|_| JSString::from("undefined"));
+                            if name == "undefined" {
                                 false
+                            } else {
+                                write!(r, "{key}:function {name}").unwrap();
+                                true
                             }
                         }
                         _ => false,
