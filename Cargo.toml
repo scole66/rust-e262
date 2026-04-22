@@ -19,6 +19,7 @@ large_stack_arrays = "allow"  # Really only for debug builds. (I think the list 
 cc = "1.2"
 
 [dependencies]
+combinations = { path = "combinations" }
 num = { version = "0.4", features = ["num-bigint"] }
 libc = "0.2"
 itertools = "0.14"
