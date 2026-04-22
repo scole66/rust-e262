@@ -176,7 +176,7 @@ fn match_all_terms(terms: &mut impl Iterator<Item = Matcher>, direction: Directi
                 }
                 m
             }
-            [] => panic!("empty array in match_all_terms",),
+            [] => panic!("empty array in match_all_terms"),
         },
         Direction::Backward => todo!(),
     }

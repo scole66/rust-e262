@@ -53,13 +53,11 @@ impl ExpressionStatement {
                 let (second_token, _, _) = scan_token(&after_token, parser.source, InputElementGoal::RegExp);
                 second_token.matches_punct(Punctuator::LeftBracket)
             }
-            Token::Identifier(id) if id.matches(Keyword::Async) => {
-                if no_line_terminator(after_token, parser.source).is_ok() {
-                    let (second_token, _, _) = scan_token(&after_token, parser.source, InputElementGoal::RegExp);
-                    matches!(second_token, Token::Identifier(xx) if xx.matches(Keyword::Function))
-                } else {
-                    false
-                }
+            Token::Identifier(id)
+                if id.matches(Keyword::Async) && no_line_terminator(after_token, parser.source).is_ok() =>
+            {
+                let (second_token, _, _) = scan_token(&after_token, parser.source, InputElementGoal::RegExp);
+                matches!(second_token, Token::Identifier(xx) if xx.matches(Keyword::Function))
             }
             _ => false,
         };
