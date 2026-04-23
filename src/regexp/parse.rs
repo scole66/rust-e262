@@ -22,12 +22,12 @@ pub(crate) enum UnicodeSetsMode {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Scanner<'src> {
-    all: &'src str,
+    all: &'src [u32],
     read_idx: usize,
 }
 
 impl<'src> Scanner<'src> {
-    pub(crate) fn new(text: &'src str) -> Self {
+    pub(crate) fn new(text: &'src [u32]) -> Self {
         Scanner { all: text, read_idx: 0 }
     }
 
@@ -35,13 +35,13 @@ impl<'src> Scanner<'src> {
         self.read_idx >= self.all.len()
     }
 
-    pub(crate) fn peek(&self) -> Option<char> {
-        self.all.get(self.read_idx..).and_then(|s| s.chars().next())
+    pub(crate) fn peek(&self) -> Option<u32> {
+        self.all.get(self.read_idx..).and_then(|s| s.iter().next().copied())
     }
 
-    pub(crate) fn lookahead(&self, amt: usize) -> Option<char> {
+    pub(crate) fn lookahead(&self, amt: usize) -> Option<u32> {
         self.all.get(self.read_idx..).and_then(|s| {
-            let mut chars = s.chars();
+            let mut chars = s.iter().copied();
             for _ in 0..amt {
                 chars.next();
             }
@@ -49,19 +49,20 @@ impl<'src> Scanner<'src> {
         })
     }
 
-    pub(crate) fn advance(&mut self) -> Option<usize> {
-        self.all.get(self.read_idx..).and_then(|s| s.chars().next()).map(|ch| {
-            let ch_len = ch.len_utf8();
-            self.read_idx += ch_len;
-            ch_len
-        })
+    pub(crate) fn advance(&mut self) -> Option<()> {
+        if self.read_idx < self.all.len() {
+            self.read_idx += 1;
+            Some(())
+        } else {
+            None
+        }
     }
 
     pub(crate) fn consume(&mut self, target: char) -> Option<()> {
-        self.all.get(self.read_idx..).and_then(|s| s.chars().next()).and_then(|ch| {
+        let target = u32::from(target);
+        self.all.get(self.read_idx..).and_then(|s| s.iter().copied().next()).and_then(|ch| {
             if ch == target {
-                let ch_len = ch.len_utf8();
-                self.read_idx += ch_len;
+                self.read_idx += 1;
                 Some(())
             } else {
                 None
@@ -69,25 +70,35 @@ impl<'src> Scanner<'src> {
         })
     }
 
-    pub(crate) fn consume_any(&mut self) -> Option<char> {
-        self.all.get(self.read_idx..).and_then(|s| s.chars().next()).inspect(|ch| {
-            let ch_len = ch.len_utf8();
-            self.read_idx += ch_len;
+    pub(crate) fn consume_any(&mut self) -> Option<u32> {
+        self.all.get(self.read_idx..).and_then(|s| s.iter().copied().next()).inspect(|_| {
+            self.read_idx += 1;
         })
     }
 
     pub(crate) fn digit(&mut self, radix: u32) -> Option<u8> {
-        self.all.get(self.read_idx..).and_then(|s| s.chars().next()).and_then(|ch| ch.to_digit(radix)).map(|digit| {
-            self.read_idx += 1;
-            u8::try_from(digit).expect("one digit fits in a u8")
-        })
+        self.all
+            .get(self.read_idx..)
+            .and_then(|s| s.iter().copied().next())
+            .and_then(|ch| char::try_from(ch).ok())
+            .and_then(|ch| {
+                ch.to_digit(radix).map(|digit| {
+                    self.read_idx += 1;
+                    u8::try_from(digit).expect("one digit fits in a u8")
+                })
+            })
     }
 
     pub(crate) fn hex_digit(&mut self) -> Option<u8> {
-        self.all.get(self.read_idx..).and_then(|s| s.chars().next()).and_then(|ch| ch.to_digit(16)).map(|digit| {
-            self.read_idx += 1;
-            u8::try_from(digit).expect("one hex digit fits in a u8")
-        })
+        self.all
+            .get(self.read_idx..)
+            .and_then(|s| s.iter().copied().next())
+            .and_then(|ch| char::try_from(ch).ok())
+            .and_then(|ch| ch.to_digit(16))
+            .map(|digit| {
+                self.read_idx += 1;
+                u8::try_from(digit).expect("one hex digit fits in a u8")
+            })
     }
 
     pub(crate) fn advance_by_bytes(&mut self, amt: usize) {
@@ -95,36 +106,37 @@ impl<'src> Scanner<'src> {
     }
 
     pub(crate) fn matches_at(&self, ch: char, position: usize) -> Option<usize> {
-        self.lookahead(position).and_then(|newch| if newch == ch { Some(ch.len_utf8()) } else { None })
+        let target = u32::from(ch);
+        self.lookahead(position).and_then(|newch| if newch == target { Some(1) } else { None })
     }
 
-    fn is_ascii_letter(ch: char) -> bool {
+    fn is_ascii_letter(ch: u32) -> bool {
         // AsciiLetter :: one of
         //      a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
-        ch.is_ascii_alphabetic()
+        char::try_from(ch).map(|ch| ch.is_ascii_alphabetic()).ok().unwrap_or(false)
     }
 
-    fn is_decimal_digit(ch: char) -> bool {
+    fn is_decimal_digit(ch: u32) -> bool {
         // DecimalDigit :: one of
         //      0 1 2 3 4 5 6 7 8 9
-        ch.is_ascii_digit()
+        char::try_from(ch).map(|ch| ch.is_ascii_digit()).ok().unwrap_or(false)
     }
 
-    fn is_unicode_property_name_character(ch: char) -> bool {
+    fn is_unicode_property_name_character(ch: u32) -> bool {
         // UnicodePropertyNameCharacter ::
         //      AsciiLetter
         //      _
-        Self::is_ascii_letter(ch) || ch == '_'
+        Self::is_ascii_letter(ch) || ch == u32::from('_')
     }
 
-    fn is_unicode_property_value_character(ch: char) -> bool {
+    fn is_unicode_property_value_character(ch: u32) -> bool {
         // UnicodePropertyValueCharacter ::
         //      UnicodePropertyNameCharacter
         //      DecimalDigit
         Self::is_unicode_property_name_character(ch) || Self::is_decimal_digit(ch)
     }
 
-    fn consume_filter(&mut self, f: impl FnOnce(char) -> bool) -> Option<char> {
+    fn consume_filter(&mut self, f: impl FnOnce(u32) -> bool) -> Option<u32> {
         let ch = self.peek()?;
         if f(ch) {
             self.advance().expect(PREVIOUSLY_SCANNED);
@@ -134,39 +146,55 @@ impl<'src> Scanner<'src> {
         }
     }
 
-    pub(crate) fn unicode_property_name_character(&mut self) -> Option<char> {
+    pub(crate) fn unicode_property_name_character(&mut self) -> Option<u32> {
         self.consume_filter(Self::is_unicode_property_name_character)
     }
 
-    pub(crate) fn unicode_property_value_character(&mut self) -> Option<char> {
+    pub(crate) fn unicode_property_value_character(&mut self) -> Option<u32> {
         self.consume_filter(Self::is_unicode_property_value_character)
     }
 
-    fn is_identifier_start_char(ch: char) -> bool {
+    fn is_identifier_start_char(ch: u32) -> bool {
         // IdentifierStartChar ::
         //      UnicodeIDStart
         //      $
         //      _
-        is_unicode_id_start(ch) || ch == '$' || ch == '_'
+        if let Some(ch) = char::from_u32(ch) { is_unicode_id_start(ch) || ch == '$' || ch == '_' } else { false }
     }
 
-    pub(crate) fn identifier_start_char(&mut self) -> Option<char> {
+    pub(crate) fn identifier_start_char(&mut self) -> Option<u32> {
         self.consume_filter(Self::is_identifier_start_char)
     }
 
-    fn is_identifier_part_char(ch: char) -> bool {
+    fn is_identifier_part_char(ch: u32) -> bool {
         // IdentifierPartChar ::
         //      UnicodeIDContinue
         //      $
-        is_unicode_id_continue(ch) || ch == '$'
+        if let Some(ch) = char::from_u32(ch) { is_unicode_id_continue(ch) || ch == '$' } else { false }
     }
 
-    pub(crate) fn identifier_part_char(&mut self) -> Option<char> {
+    pub(crate) fn identifier_part_char(&mut self) -> Option<u32> {
         self.consume_filter(Self::is_identifier_part_char)
     }
 
-    fn is_pattern_char(ch: char) -> bool {
-        !['^', '$', '\\', '.', '*', '+', '?', '(', ')', '[', ']', '{', '}', '|'].contains(&ch)
+    fn is_pattern_char(ch: u32) -> bool {
+        ![
+            u32::from('^'),
+            u32::from('$'),
+            u32::from('\\'),
+            u32::from('.'),
+            u32::from('*'),
+            u32::from('+'),
+            u32::from('?'),
+            u32::from('('),
+            u32::from(')'),
+            u32::from('['),
+            u32::from(']'),
+            u32::from('{'),
+            u32::from('}'),
+            u32::from('|'),
+        ]
+        .contains(&ch)
     }
 }
 
@@ -179,22 +207,50 @@ impl ClassSetReservedPunctuator {
     pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_filter(|ch| {
-            ['&', '-', '!', '#', '%', ',', ':', ';', '<', '=', '>', '@', '`', '~'].contains(&ch)
+            [
+                u32::from('&'),
+                u32::from('-'),
+                u32::from('!'),
+                u32::from('#'),
+                u32::from('%'),
+                u32::from(','),
+                u32::from(':'),
+                u32::from(';'),
+                u32::from('<'),
+                u32::from('='),
+                u32::from('>'),
+                u32::from('@'),
+                u32::from('`'),
+                u32::from('~'),
+            ]
+            .contains(&ch)
         })?;
-        Some((Self(u32::from(ch)), new_scanner.read_idx - scanner.read_idx))
+        Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
     }
 }
 
 // ClassSetSyntaxCharacter :: one of
 //      ( ) [ ] { } / - \ |
 #[derive(Debug, Clone)]
-struct ClassSetSyntaxCharacter(char);
+struct ClassSetSyntaxCharacter(u32);
 
 impl ClassSetSyntaxCharacter {
     pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let ch = scanner.peek();
         if let Some(ch) = ch
-            && ['(', ')', '[', ']', '{', '}', '/', '-', '\\', '|'].contains(&ch)
+            && [
+                u32::from('('),
+                u32::from(')'),
+                u32::from('['),
+                u32::from(']'),
+                u32::from('{'),
+                u32::from('}'),
+                u32::from('/'),
+                u32::from('-'),
+                u32::from('\\'),
+                u32::from('|'),
+            ]
+            .contains(&ch)
         {
             return Some((Self(ch), 1));
         }
@@ -212,8 +268,28 @@ impl ClassSetReservedDoublePunctuator {
         let och_left = scanner.peek();
         let och_right = scanner.lookahead(1);
         if let (Some(ch_left), Some(ch_right)) = (och_left, och_right)
-            && ['&', '!', '#', '$', '%', '*', '+', ',', '.', ':', ';', '<', '=', '>', '?', '@', '^', '`', '~']
-                .contains(&ch_left)
+            && [
+                u32::from('&'),
+                u32::from('!'),
+                u32::from('#'),
+                u32::from('$'),
+                u32::from('%'),
+                u32::from('*'),
+                u32::from('+'),
+                u32::from(','),
+                u32::from('.'),
+                u32::from(':'),
+                u32::from(';'),
+                u32::from('<'),
+                u32::from('='),
+                u32::from('>'),
+                u32::from('?'),
+                u32::from('@'),
+                u32::from('^'),
+                u32::from('`'),
+                u32::from('~'),
+            ]
+            .contains(&ch_left)
             && ch_left == ch_right
         {
             return Some((Self {}, 2));
@@ -241,7 +317,7 @@ impl ClassSetCharacter {
             None
         } else if let Some((cssc, consumed)) = ClassSetSyntaxCharacter::parse(scanner) {
             let ClassSetSyntaxCharacter(cssc_match) = cssc;
-            if cssc_match == '\\' {
+            if cssc_match == u32::from('\\') {
                 let mut newscan = scanner.clone();
                 newscan.advance_by_bytes(consumed);
                 if let Some((ce, consumed)) = CharacterEscape::parse(&newscan, UnicodeMode::Allowed) {
@@ -253,9 +329,9 @@ impl ClassSetCharacter {
                         newscan.read_idx + consumed - scanner.read_idx,
                     ));
                 }
-                if newscan.peek() == Some('b') {
-                    let x = newscan.advance().expect(PREVIOUSLY_SCANNED);
-                    return Some((Self::LetterB, consumed + x));
+                if newscan.peek() == Some(u32::from('b')) {
+                    newscan.advance().expect(PREVIOUSLY_SCANNED);
+                    return Some((Self::LetterB, consumed + 1));
                 }
                 None
             } else {
@@ -265,7 +341,7 @@ impl ClassSetCharacter {
             // SourceCharacter but not ClassSetSyntaxCharacter
             let mut new_scanner = scanner.clone();
             let ch = new_scanner.consume_any()?;
-            Some((Self::SourceCharacter(u32::from(ch)), new_scanner.read_idx - scanner.read_idx))
+            Some((Self::SourceCharacter(ch), new_scanner.read_idx - scanner.read_idx))
         }
     }
 
@@ -316,19 +392,19 @@ impl CharacterEscape {
             return Some((Self::ControlEscape(ce), consumed));
         }
         let ch = scanner.peek();
-        if ch == Some('c') {
+        if ch == Some(u32::from('c')) {
             let mut new_scanner = scanner.clone();
-            let start = new_scanner.advance().expect(PREVIOUSLY_SCANNED);
+            new_scanner.advance().expect(PREVIOUSLY_SCANNED);
             if let Some((al, consumed)) = AsciiLetter::parse(&new_scanner) {
-                return Some((Self::CAsciiLetter(al), start + consumed));
+                return Some((Self::CAsciiLetter(al), 1 + consumed));
             }
-        } else if ch == Some('0') {
+        } else if ch == Some(u32::from('0')) {
             let lookahead = scanner.lookahead(1);
-            let lookahead_is_digit = if let Some(digit) = lookahead { digit.is_ascii_digit() } else { false };
+            let lookahead_is_digit = if let Some(digit) = lookahead { Scanner::is_decimal_digit(digit) } else { false };
             if !lookahead_is_digit {
                 let mut new_scanner = scanner.clone();
-                let len = new_scanner.advance().expect(PREVIOUSLY_SCANNED);
-                return Some((Self::Zero, len));
+                new_scanner.advance().expect(PREVIOUSLY_SCANNED);
+                return Some((Self::Zero, 1));
             }
         }
         if let Some((hes, consumed)) = HexEscapeSequence::parse(scanner) {
@@ -370,7 +446,7 @@ impl CharacterEscape {
                 //      1. Let ch be the code point matched by AsciiLetter.
                 //      2. Let i be the numeric value of ch.
                 //      3. Return the remainder of dividing i by 32.
-                u32::from(al.0) % 32
+                al.0 % 32
             }
             CharacterEscape::Zero => {
                 // CharacterEscape :: 0 [lookahead ∉ DecimalDigit]
@@ -408,11 +484,11 @@ impl ControlEscape {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let ch = scanner.peek();
         match ch {
-            Some('f') => Some((Self::Eff, 1)),
-            Some('n') => Some((Self::En, 1)),
-            Some('r') => Some((Self::Ar, 1)),
-            Some('t') => Some((Self::Tee, 1)),
-            Some('v') => Some((Self::Vee, 1)),
+            Some(x) if x == u32::from('f') => Some((Self::Eff, 1)),
+            Some(x) if x == u32::from('n') => Some((Self::En, 1)),
+            Some(x) if x == u32::from('r') => Some((Self::Ar, 1)),
+            Some(x) if x == u32::from('t') => Some((Self::Tee, 1)),
+            Some(x) if x == u32::from('v') => Some((Self::Vee, 1)),
             _ => None,
         }
     }
@@ -421,16 +497,16 @@ impl ControlEscape {
 // AsciiLetter :: one of
 //      a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub(crate) struct AsciiLetter(char);
+pub(crate) struct AsciiLetter(u32);
 impl AsciiLetter {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
-        let ch = scanner.peek();
-        if let Some(ch) = ch
-            && ch.is_ascii_alphabetic()
-        {
-            return Some((Self(ch), 1));
-        }
-        None
+        scanner.peek().and_then(|ch| {
+            if char::try_from(ch).ok().is_some_and(|as_char| as_char.is_ascii_alphabetic()) {
+                Some((Self(ch), 1))
+            } else {
+                None
+            }
+        })
     }
 }
 
@@ -478,7 +554,7 @@ impl RegExpUnicodeEscapeSequence {
                     // RegExpUnicodeEscapeSequence :: u{ CodePoint }
                     //      1. Return the MV of CodePoint.
                     let mut value = None;
-                    while new_scanner.peek()? != '}' {
+                    while new_scanner.peek()? != u32::from('}') {
                         let digit = u32::from(new_scanner.hex_digit()?);
                         value = Some(match value {
                             None => digit,
@@ -561,8 +637,26 @@ impl IdentityEscape {
         match mode {
             UnicodeMode::Allowed => {
                 let peeked = scanner.peek()?;
-                if ['^', '$', '\\', '.', '*', '+', '?', '(', ')', '[', ']', '{', '}', '|', '/'].contains(&peeked) {
-                    Some((Self(u32::from(peeked)), 1))
+                if [
+                    u32::from('^'),
+                    u32::from('$'),
+                    u32::from('\\'),
+                    u32::from('.'),
+                    u32::from('*'),
+                    u32::from('+'),
+                    u32::from('?'),
+                    u32::from('('),
+                    u32::from(')'),
+                    u32::from('['),
+                    u32::from(']'),
+                    u32::from('{'),
+                    u32::from('}'),
+                    u32::from('|'),
+                    u32::from('/'),
+                ]
+                .contains(&peeked)
+                {
+                    Some((Self(peeked), 1))
                 } else {
                     None
                 }
@@ -570,10 +664,12 @@ impl IdentityEscape {
             UnicodeMode::Denied => {
                 let mut new_scanner = scanner.clone();
                 let ch = new_scanner.consume_any()?;
-                if is_unicode_id_continue(ch) {
+                if let Some(as_ch) = char::from_u32(ch)
+                    && is_unicode_id_continue(as_ch)
+                {
                     None
                 } else {
-                    Some((Self(u32::from(ch)), new_scanner.read_idx - scanner.read_idx))
+                    Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
                 }
             }
         }
@@ -640,9 +736,11 @@ impl DecimalEscape {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         const NUMBER_OK: &str = "number chars should be transformable to digits";
         let mut new_scanner = scanner.clone();
-        let d1 = new_scanner.consume_filter(|c| ('1'..='9').contains(&c))?;
+        let d1 = new_scanner.consume_filter(|c| (u32::from('1')..=u32::from('9')).contains(&c))?;
+        let d1 = char::try_from(d1).expect("should be fine; we matched a value in 1..9");
         let mut value = d1.to_digit(10).expect(NUMBER_OK);
         while let Some(ch) = new_scanner.consume_filter(Scanner::is_decimal_digit) {
+            let ch = char::try_from(ch).expect("should be fine; we matched a value in 1..9");
             value = value.checked_mul(10)?.checked_add(ch.to_digit(10).expect(NUMBER_OK))?;
         }
         Some((Self(value), new_scanner.read_idx - scanner.read_idx))
@@ -688,6 +786,7 @@ impl CharacterClassEscape {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_any()?;
         let amt_used = new_scanner.read_idx - scanner.read_idx;
+        let ch = char::try_from(ch).ok()?;
         match (ch, mode) {
             ('d', _) => Some((Self::Digit, amt_used)),
             ('D', _) => Some((Self::NotDigit, amt_used)),
@@ -745,7 +844,7 @@ impl UnicodePropertyName {
         let mut new_scanner = scanner.clone();
         let mut name = String::new();
         while let Some(ch) = new_scanner.unicode_property_name_character() {
-            name.push(ch);
+            name.push(char::try_from(ch).expect("should be a valid, thanks to the prior call"));
         }
         if name.is_empty() { None } else { Some((Self(name), new_scanner.read_idx - scanner.read_idx)) }
     }
@@ -764,7 +863,7 @@ impl UnicodePropertyValue {
         let mut new_scanner = scanner.clone();
         let mut name = String::new();
         while let Some(ch) = new_scanner.unicode_property_value_character() {
-            name.push(ch);
+            name.push(char::try_from(ch).expect("value should be fine, it was just checked"));
         }
         if name.is_empty() { None } else { Some((Self(name), new_scanner.read_idx - scanner.read_idx)) }
     }
@@ -842,10 +941,10 @@ impl RegExpIdentifierName {
         let mut new_scanner = scanner.clone();
         let mut name = String::new();
         let (RegExpIdentifierStart(start), amt_used) = RegExpIdentifierStart::parse(&new_scanner, mode)?;
-        name.push(start);
+        name.push(char::from_u32(start).expect("char class should be fine"));
         new_scanner.read_idx += amt_used;
         while let Some((RegExpIdentifierPart(part), amt_used)) = RegExpIdentifierPart::parse(&new_scanner, mode) {
-            name.push(part);
+            name.push(char::from_u32(part).expect("char class should be fine"));
             new_scanner.read_idx += amt_used;
         }
         Some((Self(name), new_scanner.read_idx - scanner.read_idx))
@@ -872,19 +971,19 @@ impl RegExpIdentifierName {
 //      IdentifierStartChar
 //      \ RegExpUnicodeEscapeSequence[+UnicodeMode]
 //      [~UnicodeMode] UnicodeLeadSurrogate UnicodeTrailSurrogate
-struct RegExpIdentifierStart(char);
+struct RegExpIdentifierStart(u32);
 impl RegExpIdentifierStart {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_any()?;
         if Scanner::is_identifier_start_char(ch) {
             Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
-        } else if ch == '\\' {
+        } else if ch == u32::from('\\') {
             let (RegExpUnicodeEscapeSequence(ch), amt_read) =
                 RegExpUnicodeEscapeSequence::parse(&new_scanner, UnicodeMode::Allowed)?;
             new_scanner.read_idx += amt_read;
-            Some((Self(char::from_u32(ch)?), new_scanner.read_idx - scanner.read_idx))
-        } else if mode == UnicodeMode::Denied && u32::from(ch) >= 0x1_0000 && u32::from(ch) <= 0x10_ffff {
+            Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
+        } else if mode == UnicodeMode::Denied && (0x1_0000..=0x10_ffff).contains(&ch) {
             Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
         } else {
             None
@@ -896,19 +995,19 @@ impl RegExpIdentifierStart {
 //      IdentifierPartChar
 //      \ RegExpUnicodeEscapeSequence[+UnicodeMode]
 //      [~UnicodeMode] UnicodeLeadSurrogate UnicodeTrailSurrogate
-struct RegExpIdentifierPart(char);
+struct RegExpIdentifierPart(u32);
 impl RegExpIdentifierPart {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_any()?;
         if Scanner::is_identifier_part_char(ch) {
             Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
-        } else if ch == '\\' {
+        } else if ch == u32::from('\\') {
             let (RegExpUnicodeEscapeSequence(ch), amt_read) =
                 RegExpUnicodeEscapeSequence::parse(&new_scanner, UnicodeMode::Allowed)?;
             new_scanner.read_idx += amt_read;
-            Some((Self(char::from_u32(ch)?), new_scanner.read_idx - scanner.read_idx))
-        } else if mode == UnicodeMode::Denied && u32::from(ch) >= 0x1_0000 && u32::from(ch) <= 0x10_ffff {
+            Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
+        } else if mode == UnicodeMode::Denied && (0x1_0000..=0x10_ffff).contains(&ch) {
             Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
         } else {
             None
@@ -992,7 +1091,7 @@ impl Pattern {
     }
 }
 
-pub(crate) fn parse_pattern(pattern: &str, u: UnicodeMode, v: UnicodeSetsMode) -> Result<Pattern, Vec<Object>> {
+pub(crate) fn parse_pattern(pattern: &[u32], u: UnicodeMode, v: UnicodeSetsMode) -> Result<Pattern, Vec<Object>> {
     let scanner = Scanner::new(pattern);
 
     if u == UnicodeMode::Allowed && v == UnicodeSetsMode::Allowed {
@@ -1072,10 +1171,8 @@ impl Disjunction {
         if alt_ids[0] == alt_ids[1] { self.0[alt_ids[0]].might_both_participate(x, y) } else { false }
     }
 
-    #[expect(clippy::unused_self)]
     pub(crate) fn early_errors(&self) -> Vec<Object> {
-        //todo!()
-        vec![]
+        self.0.iter().flat_map(Alternative::early_errors).collect()
     }
 
     pub(crate) fn contains(&self, gs: &GroupSpecifier) -> bool {
@@ -1135,6 +1232,10 @@ impl Alternative {
         (Self(results), new_scanner.read_idx - scanner.read_idx)
     }
 
+    pub(crate) fn early_errors(&self) -> Vec<Object> {
+        self.0.iter().flat_map(Term::early_errors).collect()
+    }
+
     pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         self.0.iter().map(Term::count_left_capturing_parens_within).sum()
     }
@@ -1185,6 +1286,18 @@ impl Term {
             }
         } else {
             None
+        }
+    }
+
+    pub(crate) fn early_errors(&self) -> Vec<Object> {
+        match self {
+            Term::Assertion(assertion) => assertion.early_errors(),
+            Term::Atom(atom, None) => atom.early_errors(),
+            Term::Atom(atom, Some(quantifier)) => {
+                let mut errs = atom.early_errors();
+                errs.append(&mut quantifier.early_errors());
+                errs
+            }
         }
     }
 
@@ -1254,9 +1367,9 @@ impl Assertion {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('\\')?;
             let ch = new_scanner.consume_any()?;
-            let assertion = if ch == 'b' {
+            let assertion = if ch == u32::from('b') {
                 Some(Assertion::WordBoundary)
-            } else if ch == 'B' {
+            } else if ch == u32::from('B') {
                 Some(Assertion::NotWordBoundary)
             } else {
                 None
@@ -1275,9 +1388,9 @@ impl Assertion {
             let is_lookbehind = new_scanner.consume('<').is_some();
             let negate = {
                 let ch = new_scanner.consume_any()?;
-                if ch == '!' {
+                if ch == u32::from('!') {
                     true
-                } else if ch == '=' {
+                } else if ch == u32::from('=') {
                     false
                 } else {
                     return None;
@@ -1312,6 +1425,17 @@ impl Assertion {
             None
         }
     }
+
+    pub(crate) fn early_errors(&self) -> Vec<Object> {
+        match self {
+            Assertion::Start | Assertion::End | Assertion::WordBoundary | Assertion::NotWordBoundary => vec![],
+            Assertion::LookAhead(d)
+            | Assertion::NegLookAhead(d)
+            | Assertion::LookBehind(d)
+            | Assertion::NegLookBehind(d) => d.early_errors(),
+        }
+    }
+
     pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
         match self {
             Assertion::Start | Assertion::End | Assertion::WordBoundary | Assertion::NotWordBoundary => 0,
@@ -1382,6 +1506,14 @@ impl Quantifier {
             Some((Self::Greedy(q), new_scanner.read_idx - scanner.read_idx))
         }
     }
+
+    pub(crate) fn early_errors(&self) -> Vec<Object> {
+        match self {
+            Quantifier::Greedy(quantifier_prefix) | Quantifier::Restrained(quantifier_prefix) => {
+                quantifier_prefix.early_errors()
+            }
+        }
+    }
 }
 
 // QuantifierPrefix ::
@@ -1404,21 +1536,21 @@ impl QuantifierPrefix {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_any()?;
-        if ch == '*' {
+        if ch == u32::from('*') {
             Some((Self::ZeroOrMore, new_scanner.read_idx - scanner.read_idx))
-        } else if ch == '+' {
+        } else if ch == u32::from('+') {
             Some((Self::OneOrMore, new_scanner.read_idx - scanner.read_idx))
-        } else if ch == '?' {
+        } else if ch == u32::from('?') {
             Some((Self::ZeroOrOne, new_scanner.read_idx - scanner.read_idx))
-        } else if ch == '{' {
+        } else if ch == u32::from('{') {
             let mut val = u32::from(new_scanner.digit(10)?);
             while let Some(v) = new_scanner.digit(10) {
                 val = val.checked_mul(10)?.checked_add(u32::from(v))?;
             }
             let ch = new_scanner.consume_any()?;
-            if ch == '}' {
+            if ch == u32::from('}') {
                 Some((Self::Exactly(val), new_scanner.read_idx - scanner.read_idx))
-            } else if ch == ',' {
+            } else if ch == u32::from(',') {
                 if let Some(()) = new_scanner.consume('}') {
                     Some((Self::XOrMore(val), new_scanner.read_idx - scanner.read_idx))
                 } else {
@@ -1436,6 +1568,23 @@ impl QuantifierPrefix {
             None
         }
     }
+
+    pub(crate) fn early_errors(&self) -> Vec<Object> {
+        match self {
+            QuantifierPrefix::Range(low, high) if low > high => {
+                vec![create_syntax_error_object(
+                    format!("Quantifier range: {{{low},{high}}}: {{low}} is larger than {{high}}"),
+                    None,
+                )]
+            }
+            QuantifierPrefix::Range(_, _)
+            | QuantifierPrefix::ZeroOrMore
+            | QuantifierPrefix::OneOrMore
+            | QuantifierPrefix::ZeroOrOne
+            | QuantifierPrefix::Exactly(_)
+            | QuantifierPrefix::XOrMore(_) => vec![],
+        }
+    }
 }
 
 // Atom[UnicodeMode, UnicodeSetsMode, NamedCaptureGroups] ::
@@ -1447,7 +1596,7 @@ impl QuantifierPrefix {
 //      (?: Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Atom {
-    PatternCharacter(char),
+    PatternCharacter(u32),
     Dot,
     AtomEscape(AtomEscape),
     CharacterClass(CharacterClass),
@@ -1528,6 +1677,12 @@ impl Atom {
             new_scanner.read_idx += amt;
             Some((Self::UnGroupedDisjunction(Box::new(disj)), new_scanner.read_idx - scanner.read_idx))
         }
+    }
+
+    #[expect(clippy::unused_self)]
+    pub(crate) fn early_errors(&self) -> Vec<Object> {
+        //todo!()
+        vec![]
     }
 
     pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
@@ -1791,9 +1946,9 @@ impl ClassAtomNoDash {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_any()?;
-        if ch == ']' || ch == '-' {
+        if ch == u32::from(']') || ch == u32::from('-') {
             None
-        } else if ch == '\\' {
+        } else if ch == u32::from('\\') {
             let (escape, amt) = ClassEscape::parse(&new_scanner, mode)?;
             Some((
                 match escape {
@@ -1803,7 +1958,7 @@ impl ClassAtomNoDash {
                 new_scanner.read_idx + amt - scanner.read_idx,
             ))
         } else {
-            Some((Self::Char(u32::from(ch)), new_scanner.read_idx - scanner.read_idx))
+            Some((Self::Char(ch), new_scanner.read_idx - scanner.read_idx))
         }
     }
 }
@@ -1904,7 +2059,7 @@ impl ClassIntersection {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('&')?;
             new_scanner.consume('&')?;
-            if new_scanner.peek().unwrap_or(' ') == '&' {
+            if new_scanner.peek().unwrap_or(32) == u32::from('&') {
                 None
             } else {
                 let (operand, amt) = ClassSetOperand::parse(&new_scanner)?;
@@ -2025,11 +2180,11 @@ impl NestedClass {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_any()?;
-        if ch == '\\' {
+        if ch == u32::from('\\') {
             let (class, amt) = CharacterClassEscape::parse(&new_scanner, UnicodeMode::Allowed)?;
             new_scanner.read_idx += amt;
             Some((Self::CharacterClassEscape(class), new_scanner.read_idx - scanner.read_idx))
-        } else if ch == '[' {
+        } else if ch == u32::from('[') {
             match new_scanner.consume('^') {
                 None => {
                     let (contents, amt) =
