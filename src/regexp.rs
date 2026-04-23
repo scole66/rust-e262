@@ -861,7 +861,13 @@ fn reg_exp_initialize(obj: Object, pattern: ECMAScriptValue, flags: ECMAScriptVa
     if f.len() != flags_count {
         return Err(create_syntax_error(format!("invalid flags for regular expression: {f}"), None));
     }
-    let pattern_text = p.to_string();
+
+    let pattern_text = if unicode == UnicodeMode::Denied && unicode_sets == UnicodeSetsMode::Denied {
+        p.as_slice().iter().map(|ch| u32::from(*ch)).collect::<Vec<_>>()
+    } else {
+        String::from(&p).chars().map(u32::from).collect::<Vec<_>>()
+    };
+
     let parse_result = parse::parse_pattern(&pattern_text, unicode, unicode_sets).map_err(|errs| {
         create_syntax_error(
             errs.into_iter()
@@ -1240,4 +1246,4 @@ fn reg_exp_exec(r: &ECMAScriptValue, s: JSString) -> Completion<Option<Object>> 
 
 mod casefold;
 mod compile;
-mod parse;
+pub(crate) mod parse;

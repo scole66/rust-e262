@@ -1,5 +1,7 @@
 pub(crate) mod ranges;
 use super::*;
+use crate::regexp::parse::{UnicodeMode, UnicodeSetsMode, parse_pattern};
+use itertools::Itertools;
 use num::bigint::BigInt;
 use regex::Regex;
 use std::char;
@@ -2213,19 +2215,22 @@ impl RegularExpressionData {
         // Static Semantics: IsValidRegularExpressionLiteral ( literal )
         //
         // The abstract operation IsValidRegularExpressionLiteral takes argument literal (a RegularExpressionLiteral
-        // Parse Node). It determines if its argument is a valid regular expression literal. It performs the following
-        // steps when called:
+        // Parse Node) and returns a Boolean. It determines if its argument is a valid regular expression literal. It
+        // performs the following steps when called:
         //
-        //  1. If FlagText of literal contains any code points other than g, i, m, s, u, or y, or if it contains the
-        //     same code point more than once, return false.
-        //  2. Let patternText be BodyText of literal.
-        //  3. If FlagText of literal contains u, let u be true; else let u be false.
-        //  4. If u is false, then
+        //  1. Let flags be the FlagText of literal.
+        //  2. If flags contains any code points other than d, g, i, m, s, u, v, or y, or if flags contains any code
+        //     point more than once, return false.
+        //  3. If flags contains u, let u be true; else let u be false.
+        //  4. If flags contains v, let v be true; else let v be false.
+        //  5. Let patternText be the BodyText of literal.
+        //  6. If u is false and v is false, then
         //      a. Let stringValue be CodePointsToString(patternText).
         //      b. Set patternText to the sequence of code points resulting from interpreting each of the 16-bit
         //         elements of stringValue as a Unicode BMP code point. UTF-16 decoding is not applied to the elements.
-        //  5. Let parseResult be ParsePattern(patternText, u).
-        //  6. If parseResult is a Parse Node, return true; else return false.
+        //  7. Let parseResult be ParsePattern(patternText, u, v).
+        //  8. If parseResult is a Parse Node, return true.
+        //  9. Return false.
         macro_rules! flag_check {
             ( $name:ident, $ch:literal ) => {
                 if $name {
@@ -2242,6 +2247,7 @@ impl RegularExpressionData {
         let mut s_found = false;
         let mut u_found = false;
         let mut y_found = false;
+        let mut v_found = false;
         for ch in self.flags.chars() {
             match ch {
                 'g' => flag_check!(g_found, 'g'),
@@ -2249,6 +2255,7 @@ impl RegularExpressionData {
                 'm' => flag_check!(m_found, 'm'),
                 's' => flag_check!(s_found, 's'),
                 'u' => flag_check!(u_found, 'u'),
+                'v' => flag_check!(v_found, 'v'),
                 'y' => flag_check!(y_found, 'y'),
                 _ => {
                     return Err(format!("Unknown regex flag ‘{}’ in flags ‘{}’", ch, self.flags));
@@ -2256,10 +2263,25 @@ impl RegularExpressionData {
             }
         }
 
-        // todo!()
-        // There's more to do here --- there's a whole pattern parsing thing to make sure you've made a reasonable regex.
-        // Also some unicode vs straight u16 nonsense to handle.
-        Ok(())
+        let pattern_text = &self.body;
+        let pattern_text = if !u_found && !v_found {
+            let string_value = JSString::from(pattern_text.clone()); // utf-16 encoding applied
+            string_value.as_slice().iter().map(|ch| u32::from(*ch)).collect::<Vec<_>>()
+        } else {
+            pattern_text.chars().map(u32::from).collect::<Vec<_>>()
+        };
+        let parse_result = parse_pattern(
+            &pattern_text,
+            if u_found { UnicodeMode::Allowed } else { UnicodeMode::Denied },
+            if v_found { UnicodeSetsMode::Allowed } else { UnicodeSetsMode::Denied },
+        );
+
+        parse_result.map(|_| ()).map_err(|e| {
+            e.into_iter()
+                .map(|o| to_string(ECMAScriptValue::Object(o)).expect("errors should have good string representations"))
+                .map(String::from)
+                .join("\n")
+        })
     }
 }
 

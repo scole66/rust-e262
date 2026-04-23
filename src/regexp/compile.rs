@@ -38,7 +38,8 @@ impl std::fmt::Debug for RegExpData {
             .field("original_source", &self.original_source)
             .field("original_flags", &self.original_flags)
             .field("reg_exp_record", &self.reg_exp_record)
-            .finish_non_exhaustive()
+            .field("reg_exp_matcher", &self.reg_exp_matcher.as_ref().map(|_| "compiled matcher"))
+            .finish()
     }
 }
 
