@@ -65,6 +65,11 @@ impl<T> Combination<T> {
     ///     vec![20, 40],
     ///     vec![30, 40],
     /// ]);
+    ///
+    /// let singleton_iter = Combination::new(&[1, 2], 2);
+    /// assert_eq!(singleton_iter.collect::<Vec<_>>(), vec![
+    ///     vec![1, 2],
+    /// ]);
     /// ```
     pub fn new(items: &[T], size: usize) -> Combination<T>
     where
@@ -73,7 +78,7 @@ impl<T> Combination<T> {
         let mut c = (0..size).collect::<Vec<_>>();
         c.push(items.len());
         c.push(0);
-        Combination { source: items.to_vec(), c, j: size, t: size, done: false }
+        Combination { source: items.to_vec(), c, j: 0, t: size, done: size > items.len() }
     }
 }
 
@@ -93,7 +98,12 @@ where
         } else {
             let result = self.c[0..self.t].iter().map(|&idx| self.source[idx].clone()).collect::<Vec<_>>();
 
-            let mut x;
+            if self.t == 0 {
+                self.done = true;
+                return Some(result);
+            }
+
+            let x;
             if self.j > 0 {
                 x = self.j;
             } else {
@@ -104,8 +114,9 @@ where
                 self.j = 2;
                 loop {
                     self.c[self.j - 2] = self.j - 2;
-                    x = self.c[self.j - 1] + 1;
-                    if x != self.c[self.j] {
+                    let next_x = self.c[self.j - 1] + 1;
+                    if next_x != self.c[self.j] {
+                        x = next_x;
                         break;
                     }
                     self.j += 1;
