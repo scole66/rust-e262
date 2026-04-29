@@ -1492,5 +1492,192 @@ fn string_iterator_prototype_next(
     generator_resume(this_value, ECMAScriptValue::Undefined, "%StringIteratorPrototype%")
 }
 
+impl JSString {
+    pub(crate) fn get_substitution(
+        &self,
+        strx: &JSString,
+        position: usize,
+        captures: &[Option<JSString>],
+        named_captures: Option<&Object>,
+        replacement_template: &JSString,
+    ) -> Completion<JSString> {
+        // GetSubstitution ( matched, str, position, captures, namedCaptures, replacementTemplate )
+        //
+        // The abstract operation GetSubstitution takes arguments matched (a String), str (a String), position (a
+        // non-negative integer), captures (a List of either Strings or undefined), namedCaptures (an Object or
+        // undefined), and replacementTemplate (a String) and returns either a normal completion containing a String or
+        // a throw completion. For the purposes of this abstract operation, a decimal digit is a code unit in the
+        // inclusive interval from 0x0030 (DIGIT ZERO) to 0x0039 (DIGIT NINE). It performs the following steps when
+        // called:
+        //
+        macro_rules! c {
+              ($($ch:literal),* $(,)?) => {
+                [
+                    $(
+                        const {
+                            let ch = $ch as u32;
+                            assert!(
+                                ch <= u16::MAX as u32,
+                                "c!(...) requires chars in the BMP (encodable as one UTF-16 code unit)"
+                            );
+                            #[expect(clippy::cast_possible_truncation)]
+                            { ch as u16 }
+                        }
+                    ),*
+                ]
+            };
+        }
+
+        // 1. Let stringLength be the length of str.
+        let string_length = strx.len();
+        // 2. Assert: position ≤ stringLength.
+        // 3. Let result be the empty String.
+        let mut result = JSString::from("");
+        // 4. Let templateRemainder be replacementTemplate.
+        let mut template_remainder = replacement_template.as_slice();
+        let mut string_hold: JSString;
+        // 5. Repeat, while templateRemainder is not the empty String,
+        while !template_remainder.is_empty() {
+            // a. NOTE: The following steps isolate ref (a prefix of templateRemainder), determine refReplacement (its
+            //    replacement), and then append that replacement to result.
+            // b. If templateRemainder starts with "$$", then
+            let (reference, ref_replacement) = if template_remainder.starts_with(&c!['$', '$']) {
+                // i. Let ref be "$$".
+                let r = &template_remainder[0..2];
+                // ii. Let refReplacement be "$".
+                let ref_replacement = &c!['$'][..];
+                (r, ref_replacement)
+            // c. Else if templateRemainder starts with "$`", then
+            } else if template_remainder.starts_with(&c!['$', '`']) {
+                // i. Let ref be "$`".
+                let r = &template_remainder[0..2];
+                // ii. Let refReplacement be the substring of str from 0 to position.
+                let ref_replacement = &strx.as_slice()[0..position];
+                (r, ref_replacement)
+            // d. Else if templateRemainder starts with "$&", then
+            } else if template_remainder.starts_with(&c!['$', '&']) {
+                // i. Let ref be "$&".
+                let r = &template_remainder[0..2];
+                // ii. Let refReplacement be matched.
+                let ref_replacement = self.as_slice();
+                (r, ref_replacement)
+            // e. Else if templateRemainder starts with "$'" (0x0024 (DOLLAR SIGN) followed by 0x0027 (APOSTROPHE)), then
+            } else if template_remainder.starts_with(&c!['$', '\'']) {
+                // i. Let ref be "$'".
+                let r = &template_remainder[0..2];
+                // ii. Let matchLength be the length of matched.
+                let match_length = self.len();
+                // iii. Let tailPos be position + matchLength.
+                let tail_pos = position + match_length;
+                // iv. Let refReplacement be the substring of str from min(tailPos, stringLength).
+                let ref_replacement = &strx.as_slice()[tail_pos..string_length];
+                // v. NOTE: tailPos can exceed stringLength only if this abstract operation was invoked by a call to the
+                //    intrinsic %Symbol.replace% method of %RegExp.prototype% on an object whose "exec" property is not
+                //    the intrinsic %RegExp.prototype.exec%.
+                (r, ref_replacement)
+            // f. Else if templateRemainder starts with "$" followed by 1 or more decimal digits, then
+            } else if template_remainder.len() >= 2
+                && template_remainder[0] == '$' as u16
+                && (0x30..=0x39).contains(&template_remainder[1])
+            {
+                // i. If templateRemainder starts with "$" followed by 2 or more decimal digits, let digitCount be 2;
+                //    else let digitCount be 1.
+                let mut digit_count =
+                    if template_remainder.len() >= 3 && (0x30..=0x39).contains(&template_remainder[2]) { 2 } else { 1 };
+                // ii. Let digits be the substring of templateRemainder from 1 to 1 + digitCount.
+                let mut digits = &template_remainder[1..=digit_count];
+                // iii. Let index be ℝ(StringToNumber(digits)).
+                let mut index = digits
+                    .iter()
+                    .map(|big| char::try_from(u32::from(*big)).expect("digit values should transform"))
+                    .collect::<String>()
+                    .parse::<usize>()
+                    .expect("two digits should parse just fine");
+                // iv. Assert: 0 ≤ index ≤ 99.
+                // v. Let captureLen be the number of elements in captures.
+                let capture_len = captures.len();
+                // vi. If index > captureLen and digitCount = 2, then
+                if index > capture_len && digit_count == 2 {
+                    // 1. NOTE: When a two-digit replacement pattern specifies an index exceeding the count of capturing
+                    //    groups, it is treated as a one-digit replacement pattern followed by a literal digit.
+                    // 2. Set digitCount to 1.
+                    digit_count = 1;
+                    // 3. Set digits to the substring of digits from 0 to 1.
+                    digits = &digits[0..1];
+                    // 4. Set index to ℝ(StringToNumber(digits)).
+                    index = usize::from(digits[0]) - 0x30;
+                }
+                // vii. Let ref be the substring of templateRemainder from 0 to 1 + digitCount.
+                let r = &template_remainder[0..=digit_count];
+                // viii. If 1 ≤ index ≤ captureLen, then
+                let ref_replacement = if 1 <= capture_len {
+                    // 1. Let capture be captures[index - 1].
+                    let capture = captures[index - 1].as_ref();
+                    // 3. Else,
+                    if let Some(capture) = capture {
+                        // a. Let refReplacement be capture.
+                        capture.as_slice()
+                    // 2. If capture is undefined, then
+                    } else {
+                        // a. Let refReplacement be the empty String.
+                        &[][..]
+                    }
+                // ix. Else,
+                } else {
+                    // 1. Let refReplacement be ref.
+                    r
+                };
+                (r, ref_replacement)
+            // g. Else if templateRemainder starts with "$<", then
+            } else if template_remainder.starts_with(&c!['$', '<']) {
+                // i. Let gtPos be StringIndexOf(templateRemainder, ">", 0).
+                let gt_pos =
+                    template_remainder.iter().enumerate().find(|(_, ch)| **ch == '>' as u16).map(|(idx, _)| idx);
+                // iii. Else,
+                if let (Some(gt_pos), Some(named_captures)) = (gt_pos, named_captures.as_ref()) {
+                    // 1. Let ref be the substring of templateRemainder from 0 to gtPos + 1.
+                    let r = &template_remainder[0..=gt_pos];
+                    // 2. Let groupName be the substring of templateRemainder from 2 to gtPos.
+                    let group_name = &template_remainder[2..gt_pos];
+                    // 3. Assert: namedCaptures is an Object.
+                    // 4. Let capture be ? Get(namedCaptures, groupName).
+                    let capture = named_captures.get(&group_name.into())?;
+                    // 5. If capture is undefined, then
+                    let ref_replacement = if capture.is_undefined() {
+                        // a. Let refReplacement be the empty String.
+                        &[][..]
+                    // 6. Else,
+                    } else {
+                        // a. Let refReplacement be ? ToString(capture).
+                        string_hold = to_string(capture)?;
+                        string_hold.as_slice()
+                    };
+                    (r, ref_replacement)
+                // ii. If gtPos is not-found or namedCaptures is undefined, then
+                } else {
+                    // 1. Let ref be "$<".
+                    let r = &c!['$', '<'][..];
+                    // 2. Let refReplacement be ref.
+                    (r, r)
+                }
+            // h. Else,
+            } else {
+                // i. Let ref be the substring of templateRemainder from 0 to 1.
+                let r = &template_remainder[0..1];
+                // ii. Let refReplacement be ref.
+                (r, r)
+            };
+            // i. Let refLength be the length of ref.
+            let ref_length = reference.len();
+            // j. Set templateRemainder to the substring of templateRemainder from refLength.
+            template_remainder = &template_remainder[ref_length..];
+            // k. Set result to the string-concatenation of result and refReplacement.
+            result = result.concat(ref_replacement);
+        }
+        // 6. Return result.
+        Ok(result)
+    }
+}
+
 #[cfg(test)]
 mod tests;

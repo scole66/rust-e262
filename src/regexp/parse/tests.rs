@@ -31,20 +31,26 @@ mod class_set_character {
 //    }
 //}
 
+#[expect(clippy::unnecessary_wraps)]
+fn ssu(s: &str, u: usize) -> Option<(String, usize)> {
+    Some((s.to_string(), u))
+}
+
 mod term {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a*" => Some((Term::Atom(Atom::PatternCharacter(u32::from('a')), Some(Quantifier::Greedy(QuantifierPrefix::ZeroOrMore))), 2)); "with star quantifier")]
-    #[test_case("a{4}" => Some((Term::Atom(Atom::PatternCharacter(u32::from('a')), Some(Quantifier::Greedy(QuantifierPrefix::Exactly(4)))), 4)); "with exact quantifier")]
-    #[test_case("a{212,}" => Some((Term::Atom(Atom::PatternCharacter(u32::from('a')), Some(Quantifier::Greedy(QuantifierPrefix::XOrMore(212)))), 7)); "with or-more quantifier")]
-    #[test_case("a{212,1863}" => Some((Term::Atom(Atom::PatternCharacter(u32::from('a')), Some(Quantifier::Greedy(QuantifierPrefix::Range(212, 1863)))), 11)); "with range quantifier")]
-    #[test_case("^" => Some((Term::Assertion(Assertion::Start), 1)); "assertion")]
-    #[test_case("abc" => Some((Term::Atom(Atom::PatternCharacter(u32::from('a')), None), 1)); "atom with no quantifier")]
+    #[test_case("a*" => ssu("a*", 2); "with star quantifier")]
+    #[test_case("a{4}" => ssu("a{4}", 4); "with exact quantifier")]
+    #[test_case("a{212,}" => ssu("a{212,}", 7); "with or-more quantifier")]
+    #[test_case("a{212,1863}" => ssu("a{212,1863}", 11); "with range quantifier")]
+    #[test_case("^" => ssu("^", 1); "assertion")]
+    #[test_case("abc" => ssu("a", 1); "atom with no quantifier")]
     #[test_case("???" => None; "Not a valid Term")]
-    fn parse(src: &str) -> Option<(Term, usize)> {
+    fn parse(src: &str) -> Option<(String, usize)> {
         let src = src.chars().map(u32::from).collect::<Vec<_>>();
         let scanner = Scanner::new(&src);
         Term::parse(&scanner, UnicodeMode::Allowed, UnicodeSetsMode::Allowed, NamedCaptureGroups::Allowed)
+            .map(|(t, s)| (t.to_string(), s))
     }
 }

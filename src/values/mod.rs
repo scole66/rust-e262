@@ -446,6 +446,12 @@ impl From<JSString> for PropertyKey {
     }
 }
 
+impl From<&[u16]> for PropertyKey {
+    fn from(value: &[u16]) -> Self {
+        Self::String(JSString::from(value))
+    }
+}
+
 impl From<Symbol> for PropertyKey {
     fn from(source: Symbol) -> Self {
         Self::Symbol(source)
