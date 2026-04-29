@@ -1,6 +1,7 @@
 #![expect(dead_code)]
 use super::*;
 use combinations::Combination;
+use std::fmt;
 
 const PREVIOUSLY_SCANNED: &str = "previously scanned char should still exist";
 
@@ -20,15 +21,37 @@ pub(crate) enum UnicodeSetsMode {
     Denied,
 }
 
+pub(crate) struct JoinDisplay<'a, T> {
+    items: &'a [T],
+    sep: &'a str,
+}
+
+pub(crate) fn join_display<'a, T>(items: &'a [T], sep: &'a str) -> JoinDisplay<'a, T> {
+    JoinDisplay { items, sep }
+}
+
+impl<T: fmt::Display> fmt::Display for JoinDisplay<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, item) in self.items.iter().enumerate() {
+            if i > 0 {
+                f.write_str(self.sep)?;
+            }
+            write!(f, "{item}")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Scanner<'src> {
     all: &'src [u32],
     read_idx: usize,
+    left_capturing_parens: usize,
 }
 
 impl<'src> Scanner<'src> {
     pub(crate) fn new(text: &'src [u32]) -> Self {
-        Scanner { all: text, read_idx: 0 }
+        Scanner { all: text, read_idx: 0, left_capturing_parens: 0 }
     }
 
     pub(crate) fn done(&self) -> bool {
@@ -367,6 +390,41 @@ impl ClassSetCharacter {
             }
         }
     }
+
+    fn display_string(ch: u32) -> String {
+        if let Some(ctrl) = match ch {
+            0 => Some('0'),
+            8 => Some('b'),
+            9 => Some('t'),
+            10 => Some('n'),
+            11 => Some('v'),
+            12 => Some('f'),
+            13 => Some('r'),
+            _ => None,
+        } {
+            return format!("\\{ctrl}");
+        }
+
+        let as_char = char::try_from(ch);
+        if let Ok(ch) = as_char
+            && ['&', '-', '!', '#', '%', ',', ':', ';', '<', '=', '>', '@', '`', '~'].contains(&ch)
+        {
+            return format!("\\{ch}");
+        }
+        if (1..=26).contains(&ch) {
+            let repr = char::try_from(ch + 64).expect("should be fine");
+            return format!("\\c{repr}");
+        }
+        if (0x7f..=0xa0).contains(&ch) {
+            return format!("\\x{ch:x}");
+        }
+
+        if let Ok(ch) = as_char {
+            return format!("{ch}");
+        }
+
+        format!("\\u{{{ch:x}}}")
+    }
 }
 
 // CharacterEscape[UnicodeMode] ::
@@ -384,6 +442,21 @@ pub(crate) enum CharacterEscape {
     HexEscapeSequence(HexEscapeSequence),
     RegExpUnicodeEscapeSequence(RegExpUnicodeEscapeSequence),
     IdentityEscape(IdentityEscape),
+}
+
+impl fmt::Display for CharacterEscape {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CharacterEscape::ControlEscape(control_escape) => control_escape.fmt(f),
+            CharacterEscape::CAsciiLetter(ascii_letter) => write!(f, "c{ascii_letter}"),
+            CharacterEscape::Zero => write!(f, "0"),
+            CharacterEscape::HexEscapeSequence(hex_escape_sequence) => hex_escape_sequence.fmt(f),
+            CharacterEscape::RegExpUnicodeEscapeSequence(reg_exp_unicode_escape_sequence) => {
+                reg_exp_unicode_escape_sequence.fmt(f)
+            }
+            CharacterEscape::IdentityEscape(identity_escape) => identity_escape.fmt(f),
+        }
+    }
 }
 
 impl CharacterEscape {
@@ -480,6 +553,17 @@ pub(crate) enum ControlEscape {
     Tee,
     Vee,
 }
+impl fmt::Display for ControlEscape {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ControlEscape::Eff => write!(f, "f"),
+            ControlEscape::En => write!(f, "n"),
+            ControlEscape::Ar => write!(f, "r"),
+            ControlEscape::Tee => write!(f, "t"),
+            ControlEscape::Vee => write!(f, "v"),
+        }
+    }
+}
 impl ControlEscape {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let ch = scanner.peek();
@@ -498,6 +582,11 @@ impl ControlEscape {
 //      a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct AsciiLetter(u32);
+impl fmt::Display for AsciiLetter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", char::try_from(self.0).expect("ascii should be fine"))
+    }
+}
 impl AsciiLetter {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         scanner.peek().and_then(|ch| {
@@ -514,6 +603,11 @@ impl AsciiLetter {
 //      x HexDigit HexDigit
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct HexEscapeSequence(u8);
+impl fmt::Display for HexEscapeSequence {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "x{:x}", self.0)
+    }
+}
 impl HexEscapeSequence {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
@@ -536,6 +630,11 @@ impl HexEscapeSequence {
 // [+UnicodeMode] u{ CodePoint }
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct RegExpUnicodeEscapeSequence(u32);
+impl fmt::Display for RegExpUnicodeEscapeSequence {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0 > 0xffff { write!(f, "u{{{:x}}}", self.0) } else { write!(f, "u{:04x}", self.0) }
+    }
+}
 impl RegExpUnicodeEscapeSequence {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
@@ -632,6 +731,18 @@ impl RegExpUnicodeEscapeSequence {
 //      [~UnicodeMode] SourceCharacter but not UnicodeIDContinue
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct IdentityEscape(u32);
+impl fmt::Display for IdentityEscape {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let c = self.0;
+        if let Ok(ch) = char::try_from(c)
+            && !ch.is_control()
+        {
+            write!(f, "{ch}")
+        } else {
+            write!(f, "\\u{c:X}")
+        }
+    }
+}
 impl IdentityEscape {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
         match mode {
@@ -700,7 +811,16 @@ pub(crate) enum AtomEscape {
     CharacterEscape(CharacterEscape),
     GroupName(Box<GroupName>),
 }
-
+impl fmt::Display for AtomEscape {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AtomEscape::DecimalEscape(decimal_escape) => decimal_escape.fmt(f),
+            AtomEscape::CharacterClassEscape(character_class_escape) => character_class_escape.fmt(f),
+            AtomEscape::CharacterEscape(character_escape) => character_escape.fmt(f),
+            AtomEscape::GroupName(group_name) => write!(f, "k{group_name}"),
+        }
+    }
+}
 impl AtomEscape {
     fn parse(scanner: &Scanner, unicode: UnicodeMode, groups: NamedCaptureGroups) -> Option<(Self, usize)> {
         if let Some((de, amt)) = DecimalEscape::parse(scanner) {
@@ -778,6 +898,11 @@ fn group_specifiers_that_match(group_specifiers: &[&GroupSpecifier], this_group_
 //      1 2 3 4 5 6 7 8 9
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) struct DecimalEscape(usize);
+impl fmt::Display for DecimalEscape {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl DecimalEscape {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -819,6 +944,24 @@ pub(crate) enum CharacterClassEscape {
     NotWord,
     Property(Box<UnicodePropertyValueExpression>),
     NotProperty(Box<UnicodePropertyValueExpression>),
+}
+impl fmt::Display for CharacterClassEscape {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CharacterClassEscape::Digit => write!(f, "d"),
+            CharacterClassEscape::NotDigit => write!(f, "D"),
+            CharacterClassEscape::Whitespace => write!(f, "s"),
+            CharacterClassEscape::NotWhitespace => write!(f, "S"),
+            CharacterClassEscape::Word => write!(f, "w"),
+            CharacterClassEscape::NotWord => write!(f, "W"),
+            CharacterClassEscape::Property(unicode_property_value_expression) => {
+                write!(f, "p{{{unicode_property_value_expression}}}")
+            }
+            CharacterClassEscape::NotProperty(unicode_property_value_expression) => {
+                write!(f, "P{{{unicode_property_value_expression}}}")
+            }
+        }
+    }
 }
 
 impl CharacterClassEscape {
@@ -909,6 +1052,17 @@ impl CharacterClassEscape {
 pub(crate) enum UnicodePropertyValueExpression {
     NameValue { name: UnicodePropertyName, value: UnicodePropertyValue },
     Lone(LoneUnicodePropertyNameOrValue),
+}
+
+impl fmt::Display for UnicodePropertyValueExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            UnicodePropertyValueExpression::NameValue { name, value } => write!(f, "{name}={value}"),
+            UnicodePropertyValueExpression::Lone(lone_unicode_property_name_or_value) => {
+                lone_unicode_property_name_or_value.fmt(f)
+            }
+        }
+    }
 }
 
 struct PotentialPropertyValue {
@@ -1378,6 +1532,11 @@ impl UnicodePropertyValueExpression {
 //      UnicodePropertyNameCharacter UnicodePropertyNameCharactersopt
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct UnicodePropertyName(String);
+impl fmt::Display for UnicodePropertyName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl UnicodePropertyName {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -1397,6 +1556,11 @@ impl UnicodePropertyName {
 //      UnicodePropertyValueCharacter UnicodePropertyValueCharactersopt
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct UnicodePropertyValue(String);
+impl fmt::Display for UnicodePropertyValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl UnicodePropertyValue {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -1414,6 +1578,11 @@ impl UnicodePropertyValue {
 //      UnicodePropertyValueCharacters
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct LoneUnicodePropertyNameOrValue(String);
+impl fmt::Display for LoneUnicodePropertyNameOrValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl LoneUnicodePropertyNameOrValue {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -1427,6 +1596,11 @@ impl LoneUnicodePropertyNameOrValue {
 //      ? GroupName[?UnicodeMode]
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct GroupSpecifier(GroupName);
+impl fmt::Display for GroupSpecifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "?{}", self.0)
+    }
+}
 impl GroupSpecifier {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
@@ -1449,6 +1623,12 @@ impl GroupSpecifier {
 //      < RegExpIdentifierName[?UnicodeMode] >
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct GroupName(RegExpIdentifierName);
+
+impl fmt::Display for GroupName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "<{}>", self.0)
+    }
+}
 
 impl GroupName {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
@@ -1483,6 +1663,12 @@ impl GroupName {
 //      RegExpIdentifierName[?UnicodeMode] RegExpIdentifierPart[?UnicodeMode]
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct RegExpIdentifierName(String);
+
+impl fmt::Display for RegExpIdentifierName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 impl RegExpIdentifierName {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
@@ -1603,8 +1789,15 @@ impl RegExpIdentifierPart {
 
 // Pattern[UnicodeMode, UnicodeSetsMode, NamedCaptureGroups] ::
 //      Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) struct Pattern(pub(crate) Disjunction);
+
+impl fmt::Display for Pattern {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 impl Pattern {
     fn parse(
         scanner: &Scanner,
@@ -1689,8 +1882,14 @@ pub(crate) fn parse_pattern(pattern: &[u32], u: UnicodeMode, v: UnicodeSetsMode)
 // Disjunction[UnicodeMode, UnicodeSetsMode, NamedCaptureGroups] ::
 //      Alternative[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
 //      Alternative[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] | Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) struct Disjunction(pub(crate) Vec<Alternative>);
+impl fmt::Display for Disjunction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", join_display(&self.0, "|"))
+    }
+}
+
 impl Disjunction {
     fn parse(
         scanner: &Scanner,
@@ -1800,8 +1999,13 @@ fn match_two_alternatives(m1: Matcher, m2: Matcher) -> Matcher {
 // Alternative[UnicodeMode, UnicodeSetsMode, NamedCaptureGroups] ::
 //      [empty]
 //      Alternative[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] Term[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) struct Alternative(pub(crate) Vec<Term>);
+impl fmt::Display for Alternative {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", join_display(&self.0, ""))
+    }
+}
 impl Alternative {
     fn parse(
         scanner: &Scanner,
@@ -1852,8 +2056,22 @@ impl Alternative {
 //      Assertion[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
 //      Atom[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
 //      Atom[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] Quantifier
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Term {
+#[derive(Debug, Clone)]
+pub(crate) struct Term {
+    pub(crate) node: TermNode,
+    pub(crate) left_capturing_parens_before: usize,
+}
+impl fmt::Display for Term {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.node {
+            TermNode::Assertion(assertion) => assertion.fmt(f),
+            TermNode::Atom(atom, Some(quantifier)) => write!(f, "{atom}{quantifier}"),
+            TermNode::Atom(atom, None) => atom.fmt(f),
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub(crate) enum TermNode {
     Assertion(Assertion),
     Atom(Atom, Option<Quantifier>),
 }
@@ -1865,15 +2083,22 @@ impl Term {
         cgroups: NamedCaptureGroups,
     ) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
+        let left_capturing_parens_before = new_scanner.left_capturing_parens;
         if let Some((assertion, amt)) = Assertion::parse(&new_scanner, unicode, sets, cgroups) {
-            Some((Self::Assertion(assertion), amt))
+            Some((Self { node: TermNode::Assertion(assertion), left_capturing_parens_before }, amt))
         } else if let Some((atom, amt)) = Atom::parse(&new_scanner, unicode, sets, cgroups) {
             new_scanner.read_idx += amt;
             if let Some((q, amt)) = Quantifier::parse(&new_scanner) {
                 new_scanner.read_idx += amt;
-                Some((Self::Atom(atom, Some(q)), new_scanner.read_idx - scanner.read_idx))
+                Some((
+                    Self { node: TermNode::Atom(atom, Some(q)), left_capturing_parens_before },
+                    new_scanner.read_idx - scanner.read_idx,
+                ))
             } else {
-                Some((Self::Atom(atom, None), new_scanner.read_idx - scanner.read_idx))
+                Some((
+                    Self { node: TermNode::Atom(atom, None), left_capturing_parens_before },
+                    new_scanner.read_idx - scanner.read_idx,
+                ))
             }
         } else {
             None
@@ -1886,10 +2111,10 @@ impl Term {
         group_specifiers: &[&GroupSpecifier],
         usm: UnicodeSetsMode,
     ) -> Vec<Object> {
-        match self {
-            Term::Assertion(assertion) => assertion.early_errors(left_paren_count, group_specifiers, usm),
-            Term::Atom(atom, None) => atom.early_errors(left_paren_count, group_specifiers, usm),
-            Term::Atom(atom, Some(quantifier)) => {
+        match &self.node {
+            TermNode::Assertion(assertion) => assertion.early_errors(left_paren_count, group_specifiers, usm),
+            TermNode::Atom(atom, None) => atom.early_errors(left_paren_count, group_specifiers, usm),
+            TermNode::Atom(atom, Some(quantifier)) => {
                 let mut errs = atom.early_errors(left_paren_count, group_specifiers, usm);
                 errs.append(&mut quantifier.early_errors());
                 errs
@@ -1898,36 +2123,36 @@ impl Term {
     }
 
     pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
-        match self {
-            Term::Assertion(assertion) => assertion.count_left_capturing_parens_within(),
-            Term::Atom(atom, _) => atom.count_left_capturing_parens_within(),
+        match &self.node {
+            TermNode::Assertion(assertion) => assertion.count_left_capturing_parens_within(),
+            TermNode::Atom(atom, _) => atom.count_left_capturing_parens_within(),
         }
     }
     pub(crate) fn might_both_participate(&self, x: &GroupSpecifier, y: &GroupSpecifier) -> bool {
-        match self {
-            Term::Assertion(assertion) => assertion.might_both_participate(x, y),
-            Term::Atom(atom, _) => atom.might_both_participate(x, y),
+        match &self.node {
+            TermNode::Assertion(assertion) => assertion.might_both_participate(x, y),
+            TermNode::Atom(atom, _) => atom.might_both_participate(x, y),
         }
     }
 
     pub(crate) fn contains(&self, gs: &GroupSpecifier) -> bool {
-        match self {
-            Term::Assertion(assertion) => assertion.contains(gs),
-            Term::Atom(atom, _) => atom.contains(gs),
+        match &self.node {
+            TermNode::Assertion(assertion) => assertion.contains(gs),
+            TermNode::Atom(atom, _) => atom.contains(gs),
         }
     }
 
     pub(crate) fn all_group_specifiers(&self) -> Vec<&GroupSpecifier> {
-        match self {
-            Term::Assertion(assertion) => assertion.all_group_specifiers(),
-            Term::Atom(atom, _) => atom.all_group_specifiers(),
+        match &self.node {
+            TermNode::Assertion(assertion) => assertion.all_group_specifiers(),
+            TermNode::Atom(atom, _) => atom.all_group_specifiers(),
         }
     }
 
     pub(crate) fn group_name_associations(&self) -> Vec<Option<&GroupName>> {
-        match self {
-            Term::Assertion(assertion) => assertion.group_name_associations(),
-            Term::Atom(atom, _) => atom.group_name_associations(),
+        match &self.node {
+            TermNode::Assertion(assertion) => assertion.group_name_associations(),
+            TermNode::Atom(atom, _) => atom.group_name_associations(),
         }
     }
 }
@@ -1941,7 +2166,7 @@ impl Term {
 //      (?! Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
 //      (?<= Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
 //      (?<! Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) enum Assertion {
     Start,
     End,
@@ -1951,6 +2176,20 @@ pub(crate) enum Assertion {
     NegLookAhead(Box<Disjunction>),
     LookBehind(Box<Disjunction>),
     NegLookBehind(Box<Disjunction>),
+}
+impl fmt::Display for Assertion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Assertion::Start => write!(f, "^"),
+            Assertion::End => write!(f, "$"),
+            Assertion::WordBoundary => write!(f, "\\b"),
+            Assertion::NotWordBoundary => write!(f, "\\B"),
+            Assertion::LookAhead(disjunction) => write!(f, "(?={disjunction})"),
+            Assertion::NegLookAhead(disjunction) => write!(f, "(?!{disjunction})"),
+            Assertion::LookBehind(disjunction) => write!(f, "(?<={disjunction})"),
+            Assertion::NegLookBehind(disjunction) => write!(f, "(?<!{disjunction})"),
+        }
+    }
 }
 impl Assertion {
     fn parse(
@@ -2096,6 +2335,14 @@ pub(crate) enum Quantifier {
     Greedy(QuantifierPrefix),
     Restrained(QuantifierPrefix),
 }
+impl fmt::Display for Quantifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Quantifier::Greedy(quantifier_prefix) => quantifier_prefix.fmt(f),
+            Quantifier::Restrained(quantifier_prefix) => write!(f, "{quantifier_prefix}?"),
+        }
+    }
+}
 impl Quantifier {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
@@ -2132,6 +2379,18 @@ pub(crate) enum QuantifierPrefix {
     Exactly(u32),
     XOrMore(u32),
     Range(u32, u32),
+}
+impl fmt::Display for QuantifierPrefix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            QuantifierPrefix::ZeroOrMore => write!(f, "*"),
+            QuantifierPrefix::OneOrMore => write!(f, "+"),
+            QuantifierPrefix::ZeroOrOne => write!(f, "?"),
+            QuantifierPrefix::Exactly(n) => write!(f, "{{{}}}", *n),
+            QuantifierPrefix::XOrMore(n) => write!(f, "{{{},}}", *n),
+            QuantifierPrefix::Range(low, high) => write!(f, "{{{low},{high}}}"),
+        }
+    }
 }
 impl QuantifierPrefix {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -2195,14 +2454,42 @@ impl QuantifierPrefix {
 //      CharacterClass[?UnicodeMode, ?UnicodeSetsMode]
 //      ( GroupSpecifier[?UnicodeMode]opt Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
 //      (?: Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Atom {
+#[derive(Debug, Clone)]
+pub(crate) struct Atom {
+    pub(crate) node: AtomNode,
+    pub(crate) left_capturing_parens_before: usize,
+}
+#[derive(Debug, Clone)]
+pub(crate) enum AtomNode {
     PatternCharacter(u32),
     Dot,
     AtomEscape(AtomEscape),
     CharacterClass(CharacterClass),
     GroupedDisjunction { group_specifier: Option<GroupSpecifier>, disjunction: Box<Disjunction> },
     UnGroupedDisjunction(Box<Disjunction>),
+}
+impl fmt::Display for Atom {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.node {
+            AtomNode::PatternCharacter(c) => {
+                if let Ok(ch) = char::try_from(*c)
+                    && !ch.is_control()
+                {
+                    write!(f, "{ch}")
+                } else {
+                    write!(f, "\\u{c:X}")
+                }
+            }
+            AtomNode::Dot => write!(f, "."),
+            AtomNode::AtomEscape(atom_escape) => write!(f, "\\{atom_escape}"),
+            AtomNode::CharacterClass(character_class) => character_class.fmt(f),
+            AtomNode::GroupedDisjunction { group_specifier: Some(group_specifier), disjunction } => {
+                write!(f, "({group_specifier}{disjunction})")
+            }
+            AtomNode::GroupedDisjunction { group_specifier: None, disjunction } => write!(f, "({disjunction})"),
+            AtomNode::UnGroupedDisjunction(disjunction) => write!(f, "(?:{disjunction})"),
+        }
+    }
 }
 impl Atom {
     fn parse(
@@ -2258,25 +2545,39 @@ impl Atom {
         }
 
         let mut new_scanner = scanner.clone();
+        let left_capturing_parens_before = scanner.left_capturing_parens;
         if let Some(ch) = new_scanner.consume_filter(Scanner::is_pattern_char) {
-            Some((Self::PatternCharacter(ch), new_scanner.read_idx - scanner.read_idx))
+            Some((
+                Self { node: AtomNode::PatternCharacter(ch), left_capturing_parens_before },
+                new_scanner.read_idx - scanner.read_idx,
+            ))
         } else if let Some(()) = new_scanner.consume('.') {
-            Some((Self::Dot, new_scanner.read_idx - scanner.read_idx))
+            Some((Self { node: AtomNode::Dot, left_capturing_parens_before }, new_scanner.read_idx - scanner.read_idx))
         } else if let Some((ae, amt)) = slash_escape(&new_scanner, unicode, cgroups) {
-            Some((Self::AtomEscape(ae), amt))
+            Some((Self { node: AtomNode::AtomEscape(ae), left_capturing_parens_before }, amt))
         } else if let Some((class, amt)) = CharacterClass::parse(&new_scanner, unicode, sets) {
             new_scanner.read_idx += amt;
-            Some((Self::CharacterClass(class), new_scanner.read_idx - scanner.read_idx))
+            Some((
+                Self { node: AtomNode::CharacterClass(class), left_capturing_parens_before },
+                new_scanner.read_idx - scanner.read_idx,
+            ))
         } else if let Some((gs, disj, amt)) = grouped_disjunction(&new_scanner, unicode, sets, cgroups) {
             new_scanner.read_idx += amt;
+            new_scanner.left_capturing_parens += 1;
             Some((
-                Self::GroupedDisjunction { group_specifier: gs, disjunction: Box::new(disj) },
+                Self {
+                    node: AtomNode::GroupedDisjunction { group_specifier: gs, disjunction: Box::new(disj) },
+                    left_capturing_parens_before,
+                },
                 new_scanner.read_idx - scanner.read_idx,
             ))
         } else {
             let (disj, amt) = unnamed_group(&new_scanner, unicode, sets, cgroups)?;
             new_scanner.read_idx += amt;
-            Some((Self::UnGroupedDisjunction(Box::new(disj)), new_scanner.read_idx - scanner.read_idx))
+            Some((
+                Self { node: AtomNode::UnGroupedDisjunction(Box::new(disj)), left_capturing_parens_before },
+                new_scanner.read_idx - scanner.read_idx,
+            ))
         }
     }
 
@@ -2286,77 +2587,88 @@ impl Atom {
         group_specifiers: &[&GroupSpecifier],
         usm: UnicodeSetsMode,
     ) -> Vec<Object> {
-        match self {
-            Atom::PatternCharacter(_) | Atom::Dot => vec![],
-            Atom::AtomEscape(atom_escape) => atom_escape.early_errors(left_paren_count, group_specifiers, usm),
-            Atom::CharacterClass(character_class) => character_class.early_errors(usm),
-            Atom::GroupedDisjunction { group_specifier: Some(gs), disjunction } => {
+        match &self.node {
+            AtomNode::PatternCharacter(_) | AtomNode::Dot => vec![],
+            AtomNode::AtomEscape(atom_escape) => atom_escape.early_errors(left_paren_count, group_specifiers, usm),
+            AtomNode::CharacterClass(character_class) => character_class.early_errors(usm),
+            AtomNode::GroupedDisjunction { group_specifier: Some(gs), disjunction } => {
                 let mut errs = gs.early_errors();
                 errs.append(&mut disjunction.early_errors(left_paren_count, group_specifiers, usm));
                 errs
             }
-            Atom::GroupedDisjunction { group_specifier: None, disjunction }
-            | Atom::UnGroupedDisjunction(disjunction) => {
+            AtomNode::GroupedDisjunction { group_specifier: None, disjunction }
+            | AtomNode::UnGroupedDisjunction(disjunction) => {
                 disjunction.early_errors(left_paren_count, group_specifiers, usm)
             }
         }
     }
 
     pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
-        match self {
-            Atom::PatternCharacter(_) | Atom::Dot | Atom::AtomEscape(_) | Atom::CharacterClass(_) => 0,
-            Atom::GroupedDisjunction { group_specifier: _, disjunction } => {
+        match &self.node {
+            AtomNode::PatternCharacter(_) | AtomNode::Dot | AtomNode::AtomEscape(_) | AtomNode::CharacterClass(_) => 0,
+            AtomNode::GroupedDisjunction { group_specifier: _, disjunction } => {
                 1 + disjunction.count_left_capturing_parens_within()
             }
-            Atom::UnGroupedDisjunction(d) => d.count_left_capturing_parens_within(),
+            AtomNode::UnGroupedDisjunction(d) => d.count_left_capturing_parens_within(),
         }
     }
 
     pub(crate) fn might_both_participate(&self, x: &GroupSpecifier, y: &GroupSpecifier) -> bool {
-        match self {
-            Atom::PatternCharacter(_) | Atom::Dot | Atom::AtomEscape(_) | Atom::CharacterClass(_) => false,
-            Atom::GroupedDisjunction { group_specifier: _, disjunction } | Atom::UnGroupedDisjunction(disjunction) => {
-                disjunction.might_both_participate(x, y)
+        match &self.node {
+            AtomNode::PatternCharacter(_) | AtomNode::Dot | AtomNode::AtomEscape(_) | AtomNode::CharacterClass(_) => {
+                false
             }
+            AtomNode::GroupedDisjunction { group_specifier: _, disjunction }
+            | AtomNode::UnGroupedDisjunction(disjunction) => disjunction.might_both_participate(x, y),
         }
     }
 
     pub(crate) fn contains(&self, gs: &GroupSpecifier) -> bool {
-        match self {
-            Atom::PatternCharacter(_) | Atom::Dot | Atom::AtomEscape(_) | Atom::CharacterClass(_) => false,
-            Atom::GroupedDisjunction { group_specifier: Some(actual_gs), disjunction } => {
+        match &self.node {
+            AtomNode::PatternCharacter(_) | AtomNode::Dot | AtomNode::AtomEscape(_) | AtomNode::CharacterClass(_) => {
+                false
+            }
+            AtomNode::GroupedDisjunction { group_specifier: Some(actual_gs), disjunction } => {
                 std::ptr::eq(gs, actual_gs) || disjunction.contains(gs)
             }
-            Atom::GroupedDisjunction { group_specifier: None, disjunction }
-            | Atom::UnGroupedDisjunction(disjunction) => disjunction.contains(gs),
+            AtomNode::GroupedDisjunction { group_specifier: None, disjunction }
+            | AtomNode::UnGroupedDisjunction(disjunction) => disjunction.contains(gs),
         }
     }
 
     pub(crate) fn all_group_specifiers(&self) -> Vec<&GroupSpecifier> {
-        match self {
-            Atom::PatternCharacter(_) | Atom::Dot | Atom::AtomEscape(_) | Atom::CharacterClass(_) => vec![],
-            Atom::GroupedDisjunction { group_specifier: Some(gs), disjunction } => {
+        match &self.node {
+            AtomNode::PatternCharacter(_) | AtomNode::Dot | AtomNode::AtomEscape(_) | AtomNode::CharacterClass(_) => {
+                vec![]
+            }
+            AtomNode::GroupedDisjunction { group_specifier: Some(gs), disjunction } => {
                 let mut result = vec![gs];
                 let mut disjunction_gs = disjunction.all_group_specifiers();
                 result.append(&mut disjunction_gs);
                 result
             }
-            Atom::GroupedDisjunction { group_specifier: None, disjunction }
-            | Atom::UnGroupedDisjunction(disjunction) => disjunction.all_group_specifiers(),
+            AtomNode::GroupedDisjunction { group_specifier: None, disjunction }
+            | AtomNode::UnGroupedDisjunction(disjunction) => disjunction.all_group_specifiers(),
         }
     }
 
     pub(crate) fn group_name_associations(&self) -> Vec<Option<&GroupName>> {
-        match self {
-            Atom::PatternCharacter(_) | Atom::Dot | Atom::AtomEscape(_) | Atom::CharacterClass(_) => vec![],
-            Atom::GroupedDisjunction { group_specifier, disjunction } => {
+        match &self.node {
+            AtomNode::PatternCharacter(_) | AtomNode::Dot | AtomNode::AtomEscape(_) | AtomNode::CharacterClass(_) => {
+                vec![]
+            }
+            AtomNode::GroupedDisjunction { group_specifier, disjunction } => {
                 let mut result = vec![group_specifier.as_ref().map(|gs| &gs.0)];
                 let mut disjunction_names = disjunction.group_name_associations();
                 result.append(&mut disjunction_names);
                 result
             }
-            Atom::UnGroupedDisjunction(disjunction) => disjunction.group_name_associations(),
+            AtomNode::UnGroupedDisjunction(disjunction) => disjunction.group_name_associations(),
         }
+    }
+
+    pub(crate) fn count_left_capturing_parens_before(&self) -> usize {
+        self.left_capturing_parens_before
     }
 }
 
@@ -2367,6 +2679,14 @@ impl Atom {
 pub(crate) enum CharacterClass {
     Selection(ClassContents),
     Negation(ClassContents),
+}
+impl fmt::Display for CharacterClass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CharacterClass::Selection(class_contents) => write!(f, "[{class_contents}]"),
+            CharacterClass::Negation(class_contents) => write!(f, "[^{class_contents}]"),
+        }
+    }
 }
 impl CharacterClass {
     fn parse(scanner: &Scanner, unicode: UnicodeMode, sets: UnicodeSetsMode) -> Option<(Self, usize)> {
@@ -2405,6 +2725,15 @@ pub(crate) enum ClassContents {
     None,
     NonemptyClassRanges(Box<NonemptyClassRanges>),
     ClassSetExpression(ClassSetExpression),
+}
+impl fmt::Display for ClassContents {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClassContents::None => Ok(()),
+            ClassContents::NonemptyClassRanges(node) => node.fmt(f),
+            ClassContents::ClassSetExpression(node) => node.fmt(f),
+        }
+    }
 }
 impl ClassContents {
     fn parse(scanner: &Scanner, unicode: UnicodeMode, sets: UnicodeSetsMode) -> (Self, usize) {
@@ -2459,6 +2788,16 @@ impl ClassContents {
 pub(crate) enum NonemptyClassRanges {
     List(Vec<ClassAtom>),
     Range { head: Vec<ClassAtom>, tail: ClassAtom, content: ClassContents },
+}
+impl fmt::Display for NonemptyClassRanges {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NonemptyClassRanges::List(class_atoms) => write!(f, "{}", join_display(class_atoms, "")),
+            NonemptyClassRanges::Range { head, tail, content } => {
+                write!(f, "{}-{}{}", join_display(head, ""), tail, content)
+            }
+        }
+    }
 }
 impl NonemptyClassRanges {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
@@ -2581,6 +2920,14 @@ pub(crate) enum ClassAtom {
     Char(u32),
     Class(CharacterClassEscape),
 }
+impl fmt::Display for ClassAtom {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClassAtom::Char(ch) => write!(f, "{ch}"),
+            ClassAtom::Class(character_class_escape) => character_class_escape.fmt(f),
+        }
+    }
+}
 impl ClassAtom {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
@@ -2687,6 +3034,15 @@ pub(crate) enum ClassSetExpression {
     Intersection(ClassIntersection),
     Subtraction(ClassSubtraction),
 }
+impl fmt::Display for ClassSetExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClassSetExpression::Union(node) => node.fmt(f),
+            ClassSetExpression::Intersection(node) => node.fmt(f),
+            ClassSetExpression::Subtraction(node) => node.fmt(f),
+        }
+    }
+}
 impl ClassSetExpression {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         if let Some((union, amt)) = ClassUnion::parse(scanner) {
@@ -2725,6 +3081,16 @@ impl ClassSetExpression {
 pub(crate) enum ClassUnion {
     Range { range: ClassSetRange, union: Option<Box<ClassUnion>> },
     Operand { operand: ClassSetOperand, union: Option<Box<ClassUnion>> },
+}
+impl fmt::Display for ClassUnion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClassUnion::Range { range, union: None } => range.fmt(f),
+            ClassUnion::Range { range, union: Some(union) } => write!(f, "{range}{union}"),
+            ClassUnion::Operand { operand, union: None } => operand.fmt(f),
+            ClassUnion::Operand { operand, union: Some(union) } => write!(f, "{operand}{union}"),
+        }
+    }
 }
 impl ClassUnion {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -2796,6 +3162,11 @@ impl ClassUnion {
 //      ClassIntersection && [lookahead ≠ &] ClassSetOperand
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ClassIntersection(Vec<ClassSetOperand>);
+impl fmt::Display for ClassIntersection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", join_display(&self.0, "&&"))
+    }
+}
 impl ClassIntersection {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         fn back_part(scanner: &Scanner) -> Option<(ClassSetOperand, usize)> {
@@ -2853,6 +3224,11 @@ impl ClassIntersection {
 //      ClassSubtraction -- ClassSetOperand
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ClassSubtraction(Vec<ClassSetOperand>);
+impl fmt::Display for ClassSubtraction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", join_display(&self.0, "--"))
+    }
+}
 impl ClassSubtraction {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         fn back_part(scanner: &Scanner) -> Option<(ClassSetOperand, usize)> {
@@ -2905,6 +3281,11 @@ pub(crate) struct ClassSetRange {
     first: u32,
     last: u32,
 }
+impl fmt::Display for ClassSetRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}-{}", ClassSetCharacter::display_string(self.first), ClassSetCharacter::display_string(self.last))
+    }
+}
 impl ClassSetRange {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
@@ -2937,6 +3318,15 @@ pub(crate) enum ClassSetOperand {
     NestedClass(NestedClass),
     ClassStringDisjunction(ClassStringDisjunction),
     ClassSetCharacter(u32),
+}
+impl fmt::Display for ClassSetOperand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ClassSetOperand::NestedClass(nested_class) => nested_class.fmt(f),
+            ClassSetOperand::ClassStringDisjunction(class_string_disjunction) => class_string_disjunction.fmt(f),
+            ClassSetOperand::ClassSetCharacter(ch) => write!(f, "{}", ClassSetCharacter::display_string(*ch)),
+        }
+    }
 }
 impl ClassSetOperand {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -2983,6 +3373,15 @@ pub(crate) enum NestedClass {
     Class(Box<ClassContents>),
     NegatedClass(Box<ClassContents>),
     CharacterClassEscape(CharacterClassEscape),
+}
+impl fmt::Display for NestedClass {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NestedClass::Class(class_contents) => write!(f, "[{class_contents}]"),
+            NestedClass::NegatedClass(class_contents) => write!(f, "[^{class_contents}]"),
+            NestedClass::CharacterClassEscape(character_class_escape) => write!(f, "\\{character_class_escape}"),
+        }
+    }
 }
 impl NestedClass {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
@@ -3052,6 +3451,11 @@ impl NestedClass {
 //      \q{ ClassStringDisjunctionContents }
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ClassStringDisjunction(Vec<ClassString>);
+impl fmt::Display for ClassStringDisjunction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "\\q{{{}}}", join_display(&self.0, "|"))
+    }
+}
 impl ClassStringDisjunction {
     fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
         let mut new_scanner = scanner.clone();
@@ -3101,6 +3505,11 @@ impl ClassStringDisjunctionContents {
 //      NonEmptyClassString
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ClassString(Vec<u32>);
+impl fmt::Display for ClassString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", join_display(&self.0, ""))
+    }
+}
 impl ClassString {
     fn parse(scanner: &Scanner) -> (Self, usize) {
         if let Some((string, amt)) = NonEmptyClassString::parse(scanner) {

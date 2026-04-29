@@ -3,6 +3,7 @@ use casefold::*;
 use compile::*;
 use itertools::Itertools;
 use parse::*;
+use std::iter;
 
 pub(crate) fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let object_prototype = realm.borrow().intrinsics.object_prototype.clone();
@@ -618,7 +619,7 @@ impl Object {
         array.create_data_property_or_throw("groups", groups.clone()).expect(GOODOBJ);
         let mut matched_group_names = vec![];
         for i in 1..=num_captures {
-            let capture_i = state.captures[i].as_ref();
+            let capture_i = state.captures[i - 1].as_ref();
             let captured_value = if let Some(capture) = capture_i {
                 let (capture_start, capture_end) = if full_unicode {
                     (s.get_index(capture.start_index), s.get_index(capture.end_index))
@@ -1109,11 +1110,221 @@ fn regexp_prototype_match_all(
 }
 
 fn regexp_prototype_replace(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // RegExp.prototype [ %Symbol.replace% ] ( string, replaceValue )
+    // This method performs the following steps when called:
+    //
+    // 1. Let regexp be the this value.
+    // 2. If regexp is not an Object, throw a TypeError exception.
+    // 3. Let str be ? ToString(string).
+    // 4. Let lengthS be the length of str.
+    // 5. Let functionalReplace be IsCallable(replaceValue).
+    // 6. If functionalReplace is false, then
+    //    a. Set replaceValue to ? ToString(replaceValue).
+    // 7. Let flags be ? ToString(? Get(regexp, "flags")).
+    // 8. If flags contains "g", let global be true; else let global be false.
+    // 9. If global is true, then
+    //    a. Perform ? Set(regexp, "lastIndex", +0𝔽, true).
+    // 10. Let results be a new empty List.
+    // 11. Let done be false.
+    // 12. Repeat, while done is false,
+    //     a. Let result be ? RegExpExec(regexp, str).
+    //     b. If result is null, then
+    //        i. Set done to true.
+    //     c. Else,
+    //        i. Append result to results.
+    //        ii. If global is false, then
+    //            1. Set done to true.
+    //        iii. Else,
+    //             1. Let matchStr be ? ToString(? Get(result, "0")).
+    //             2. If matchStr is the empty String, then
+    //                a. Let thisIndex be ℝ(? ToLength(? Get(regexp, "lastIndex"))).
+    //                b. If flags contains "u" or flags contains "v", let fullUnicode be true; else let fullUnicode be false.
+    //                c. Let nextIndex be AdvanceStringIndex(str, thisIndex, fullUnicode).
+    //                d. Perform ? Set(regexp, "lastIndex", 𝔽(nextIndex), true).
+    // 13. Let accumulatedResult be the empty String.
+    // 14. Let nextSourcePosition be 0.
+    // 15. For each element result of results, do
+    //     a. Let resultLength be ? LengthOfArrayLike(result).
+    //     b. Let nCaptures be max(resultLength - 1, 0).
+    //     c. Let matched be ? ToString(? Get(result, "0")).
+    //     d. Let matchLength be the length of matched.
+    //     e. Let position be ? ToIntegerOrInfinity(? Get(result, "index")).
+    //     f. Set position to the result of clamping position between 0 and lengthS.
+    //     g. Let captures be a new empty List.
+    //     h. Let captureNumber be 1.
+    //     i. Repeat, while captureNumber ≤ nCaptures,
+    //        i. Let capN be ? Get(result, ! ToString(𝔽(captureNumber))).
+    //        ii. If capN is not undefined, then
+    //            1. Set capN to ? ToString(capN).
+    //        iii. Append capN to captures.
+    //        iv. NOTE: When captureNumber = 1, the preceding step puts the first element into captures (at index 0). More generally, the captureNumberth capture (the characters captured by the captureNumberth set of capturing parentheses) is at captures[captureNumber - 1].
+    //        v. Set captureNumber to captureNumber + 1.
+    //     j. Let namedCaptures be ? Get(result, "groups").
+    //     k. If functionalReplace is true, then
+    //        i. Let replacerArgs be the list-concatenation of « matched », captures, and « 𝔽(position), str ».
+    //        ii. If namedCaptures is not undefined, then
+    //            1. Append namedCaptures to replacerArgs.
+    //        iii. Let replacementValue be ? Call(replaceValue, undefined, replacerArgs).
+    //        iv. Let replacementString be ? ToString(replacementValue).
+    //     l. Else,
+    //        i. If namedCaptures is not undefined, then
+    //           1. Set namedCaptures to ? ToObject(namedCaptures).
+    //        ii. Let replacementString be ? GetSubstitution(matched, str, position, captures, namedCaptures, replaceValue).
+    //     m. If position ≥ nextSourcePosition, then
+    //        i. NOTE: position should not normally move backwards. If it does, it is an indication of an ill-behaving RegExp subclass or use of an access triggered side-effect to change the global flag or other characteristics of regexp. In such cases, the corresponding substitution is ignored.
+    //        ii. Set accumulatedResult to the string-concatenation of accumulatedResult, the substring of str from nextSourcePosition to position, and replacementString.
+    //        iii. Set nextSourcePosition to position + matchLength.
+    // 16. If nextSourcePosition ≥ lengthS, return accumulatedResult.
+    // 17. Return the string-concatenation of accumulatedResult and the substring of str from nextSourcePosition.
+    let mut args = FuncArgs::from(arguments);
+    let string = args.next_arg();
+    let replace_value = args.next_arg();
+
+    // Step 1:
+    let regexp = this_value;
+    // Step 2:
+    if !regexp.is_object() {
+        return Err(create_type_error("regex.replace called on non-object"));
+    }
+    // Step 3:
+    let strx = to_string(string)?;
+    // Step 4:
+    let length_s = strx.len();
+    // Steps 5 & 6
+    let (functional_replace, replace_value) = if replace_value.is_callable() {
+        (true, replace_value)
+    } else {
+        (false, ECMAScriptValue::String(to_string(replace_value)?))
+    };
+    // Step 7
+    let flags = to_string(regexp.get(&"flags".into())?)?;
+    // Step 8
+    let global = flags.contains(103);
+    // Step 9
+    if global {
+        regexp.object_ref().expect("regexp should not have changed types").set("lastIndex", 0, true)?;
+    }
+    // Step 10
+    let mut results = vec![];
+    // Step 11
+    let mut done = false;
+    // Step 12
+    while !done {
+        // Step 12.a
+        let result = reg_exp_exec(regexp, strx.clone())?;
+        match result {
+            None => {
+                // Step 12.b
+                done = true;
+            }
+            Some(result) => {
+                // Step 12.c.i
+                results.push(result.clone());
+                // Step 12.c.ii
+                if !global {
+                    done = true;
+                }
+                // Step 12.c.iii.1
+                let match_str = to_string(result.get(&"0".into())?)?;
+                // Step 12.c.iii.2
+                if match_str.is_empty() {
+                    // Step 12.c.iii.2.a
+                    let this_index = to_length(regexp.get(&"lastIndex".into())?)?;
+                    // Step 12.c.iii.2.b
+                    let full_unicode = flags.contains(117) || flags.contains(118);
+                    // Step 12.c.iii.2.c
+                    let next_index = advance_string_index(
+                        &strx,
+                        to_usize(this_index).expect("index should be integer valued"),
+                        full_unicode,
+                    );
+                    // Step 12.c.iii.2.d
+                    regexp.object_ref().expect("regexp should be an object").set("lastIndex", next_index, true)?;
+                }
+            }
+        }
+    }
+    // Step 13
+    let mut accumulated_result = JSString::from("");
+    // Step 14
+    let mut next_source_position = 0;
+    // Step 15
+    for result in results {
+        // Step 15.a
+        let result_length = result.length_of_array_like()?;
+        // Step 15.b
+        let n_captures = (result_length - 1.0).max(0.0);
+        // Step 15.c
+        let matched = to_string(result.get(&"0".into())?)?;
+        // Step 15.d
+        let match_length = matched.len();
+        // Step 15.e
+        let position = result.get(&"index".into())?.to_integer_or_infinity()?;
+        // Step 15.f
+        let position = position.clamp(0.0, to_f64(length_s).expect("string lengths should fit into a f64"));
+        // Step 15.g
+        let mut captures = vec![];
+        // Step 15.h
+        let mut capture_number = 1.0;
+        // Step 15.i
+        while capture_number <= n_captures {
+            // Step 15.i.i
+            let cap_n = result.get(&capture_number.into())?;
+            // Step 15.i.ii
+            let cap_n = if cap_n.is_undefined() { None } else { Some(to_string(cap_n)?) };
+            // Step 15.i.iii
+            captures.push(cap_n);
+            // Step 15.i.v
+            capture_number += 1.0;
+        }
+        // Step 15.j
+        let named_captures = result.get(&"groups".into())?;
+        // Step 15.k
+        let replacement_string = if functional_replace {
+            // Step 15.k.i & ii
+            let replacer_args = iter::once(matched.into())
+                .chain(captures.into_iter().map(Into::into))
+                .chain([position.into(), strx.clone().into()])
+                .chain((!named_captures.is_undefined()).then_some(named_captures))
+                .collect::<Vec<ECMAScriptValue>>();
+            // Step 15.k.iii
+            let replacement_value = call(&replace_value, &ECMAScriptValue::Undefined, &replacer_args)?;
+            // Step 15.k.iv
+            to_string(replacement_value)?
+        } else {
+            // Step 15.l.i
+            let named_captures = if named_captures.is_undefined() { None } else { Some(to_object(named_captures)?) };
+            // Step 15.l.ii
+            matched.get_substitution(
+                &strx,
+                to_usize(position).expect("position should work as a usize"),
+                &captures,
+                named_captures.as_ref(),
+                &JSString::try_from(replace_value.clone())
+                    .expect("the previous 'force to string' should not have been undone"),
+            )?
+        };
+        // Step 15.m
+        let position = to_usize(position).expect("positions should be convertable");
+        if position >= next_source_position {
+            // Step 15.m.ii
+            accumulated_result = accumulated_result
+                .concat(JSString::from(&strx.as_slice()[next_source_position..position]))
+                .concat(replacement_string);
+            // Step 15.m.iii
+            next_source_position = position + match_length;
+        }
+    }
+    // Step 16
+    if next_source_position >= length_s {
+        return Ok(ECMAScriptValue::String(accumulated_result));
+    }
+    // Step 17
+    Ok(ECMAScriptValue::String(accumulated_result.concat(&strx.as_slice()[next_source_position..])))
 }
 
 fn regexp_prototype_search(
@@ -1133,51 +1344,98 @@ fn regexp_prototyep_split(
 }
 
 fn regexp_prototype_dotall(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    this_value.reg_exp_has_flag(0x73)
 }
 
 fn regexp_prototype_flags(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // get RegExp.prototype.flags
+    //
+    // RegExp.prototype.flags is an accessor property whose set accessor function is undefined. Its get accessor
+    // function performs the following steps when called:
+    //
+    // 1. Let regexp be the this value.
+    let regexp = this_value;
+    // 2. If regexp is not an Object, throw a TypeError exception.
+    let regexp = regexp
+        .object_ref()
+        .ok_or_else(|| create_type_error("flags accessor function for Regexp.flags used on non-object"))?;
+    // 3. Let codeUnits be a new empty List.
+    let mut code_units: Vec<u16> = vec![];
+
+    macro_rules! push_if_flag {
+        ($name:literal, $unit:expr) => {
+            if to_boolean(regexp.get(&$name.into())?) {
+                code_units.push($unit);
+            }
+        };
+    }
+    // 4. Let hasIndices be ToBoolean(? Get(regexp, "hasIndices")).
+    // 5. If hasIndices is true, append the code unit 0x0064 (LATIN SMALL LETTER D) to codeUnits.
+    push_if_flag!("hasIndices", 0x64);
+    // 6. Let global be ToBoolean(? Get(regexp, "global")).
+    // 7. If global is true, append the code unit 0x0067 (LATIN SMALL LETTER G) to codeUnits.
+    push_if_flag!("global", 0x67);
+    // 8. Let ignoreCase be ToBoolean(? Get(regexp, "ignoreCase")).
+    // 9. If ignoreCase is true, append the code unit 0x0069 (LATIN SMALL LETTER I) to codeUnits.
+    push_if_flag!("ignoreCase", 0x69);
+    // 10. Let multiline be ToBoolean(? Get(regexp, "multiline")).
+    // 11. If multiline is true, append the code unit 0x006D (LATIN SMALL LETTER M) to codeUnits.
+    push_if_flag!("multiline", 0x6d);
+    // 12. Let dotAll be ToBoolean(? Get(regexp, "dotAll")).
+    // 13. If dotAll is true, append the code unit 0x0073 (LATIN SMALL LETTER S) to codeUnits.
+    push_if_flag!("dotAll", 0x73);
+    // 14. Let unicode be ToBoolean(? Get(regexp, "unicode")).
+    // 15. If unicode is true, append the code unit 0x0075 (LATIN SMALL LETTER U) to codeUnits.
+    push_if_flag!("unicode", 0x75);
+    // 16. Let unicodeSets be ToBoolean(? Get(regexp, "unicodeSets")).
+    // 17. If unicodeSets is true, append the code unit 0x0076 (LATIN SMALL LETTER V) to codeUnits.
+    push_if_flag!("unicodeSets", 0x76);
+    // 18. Let sticky be ToBoolean(? Get(regexp, "sticky")).
+    // 19. If sticky is true, append the code unit 0x0079 (LATIN SMALL LETTER Y) to codeUnits.
+    push_if_flag!("sticky", 0x79);
+    // 20. Return the String value whose code units are the elements of the List codeUnits. If codeUnits has no
+    //     elements, the empty String is returned.
+    Ok(ECMAScriptValue::String(JSString::from(code_units.as_slice())))
 }
 
 fn regexp_prototype_global(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    this_value.reg_exp_has_flag(0x67)
 }
 
 fn regexp_prototype_has_indices(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    this_value.reg_exp_has_flag(0x64)
 }
 
 fn regexp_prototype_ignore_case(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    this_value.reg_exp_has_flag(0x69)
 }
 
 fn regexp_prototype_multiline(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    this_value.reg_exp_has_flag(0x6d)
 }
 
 fn regexp_prototype_source(
@@ -1189,27 +1447,27 @@ fn regexp_prototype_source(
 }
 
 fn regexp_prototype_sticky(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    this_value.reg_exp_has_flag(0x79)
 }
 
 fn regexp_prototype_unicode(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    this_value.reg_exp_has_flag(0x75)
 }
 
 fn regexp_prototype_unicode_sets(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    this_value.reg_exp_has_flag(0x76)
 }
 
 fn reg_exp_exec(r: &ECMAScriptValue, s: JSString) -> Completion<Option<Object>> {
@@ -1241,6 +1499,25 @@ fn reg_exp_exec(r: &ECMAScriptValue, s: JSString) -> Completion<Option<Object>> 
         let _ = r.to_regexp_object().ok_or_else(|| create_type_error("RegExp exec called on incompatible receiver"))?;
         let reg = to_object(r.clone()).expect("things shouldn't have changed since prior line");
         reg.reg_exp_builtin_exec(&s)
+    }
+}
+
+impl ECMAScriptValue {
+    fn reg_exp_has_flag(&self, code_unit: u16) -> Completion<ECMAScriptValue> {
+        let regexp_prototype = ECMAScriptValue::Object(intrinsic(IntrinsicId::RegExpPrototype));
+        let is_prototype = self.same_value(&regexp_prototype);
+
+        let regexp =
+            self.object_ref().ok_or_else(|| create_type_error("RegExpHasFlag called with a non-object receiver"))?;
+        let Some(regexp) = regexp.o.to_regexp_object() else {
+            if is_prototype {
+                return Ok(ECMAScriptValue::Undefined);
+            }
+            return Err(create_type_error("RegExpHasFlag called with a non-regex object"));
+        };
+        let data = regexp.regexp_data.borrow();
+        let flags = &data.original_flags;
+        Ok(flags.contains(code_unit).into())
     }
 }
 

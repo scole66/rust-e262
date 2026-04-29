@@ -267,24 +267,313 @@ fn run_match_term_inner(
 // }
 
 impl Term {
-    #[expect(unused_variables)]
     pub(crate) fn compile_subpattern(&self, rer: &RegExpRecord, direction: Direction) -> Matcher {
         // The syntax-directed operation CompileSubpattern takes arguments rer (a RegExp Record) and direction (forward
         // or backward) and returns a Matcher.
-        match self {
-            Term::Assertion(assertion) => todo!(),
-            Term::Atom(atom, None) => {
+        match &self.node {
+            TermNode::Assertion(_assertion) => todo!(),
+            TermNode::Atom(atom, None) => {
                 // Term :: Atom
                 // 1. Return CompileAtom of Atom with arguments rer and direction.
                 atom.compile_atom(rer, direction)
             }
-            Term::Atom(atom, Some(quantifier)) => todo!(),
+            TermNode::Atom(atom, Some(quantifier)) => {
+                // Term :: Atom Quantifier
+                // 1. Let m be CompileAtom of Atom with arguments rer and direction.
+                // 2. Let q be CompileQuantifier of Quantifier.
+                // 3. Assert: q.[[Min]] ≤ q.[[Max]].
+                // 4. Let parenIndex be CountLeftCapturingParensBefore(Term).
+                // 5. Let parenCount be CountLeftCapturingParensWithin(Atom).
+                // 6. Return a new Matcher with parameters (x, c) that captures m, q, parenIndex, and parenCount and performs the following steps when called:
+                //    a. Assert: x is a MatchState.
+                //    b. Assert: c is a MatcherContinuation.
+                //    c. Return RepeatMatcher(m, q.[[Min]], q.[[Max]], q.[[Greedy]], x, c, parenIndex, parenCount).
+                let m = atom.compile_atom(rer, direction);
+                let q = quantifier.compile_quantifier();
+                let paren_index = self.count_left_capturing_parens_before();
+                let paren_count = atom.count_left_capturing_parens_within();
+                Rc::new(move |state, continuation| {
+                    repeat_matcher(&m, q.min, q.max, q.greedy, state, &continuation, paren_index, paren_count)
+                })
+            }
+        }
+    }
+
+    fn count_left_capturing_parens_before(&self) -> usize {
+        // Static Semantics: CountLeftCapturingParensBefore ( node )
+        //
+        // The abstract operation CountLeftCapturingParensBefore takes argument node (a Parse Node) and returns a
+        // non-negative integer. It returns the number of left-capturing parentheses within the enclosing pattern that
+        // occur to the left of node.
+        //
+        // It performs the following steps when called:
+        //
+        //  1. Assert: node is an instance of a production in the RegExp Pattern grammar.
+        //  2. Let pattern be the Pattern containing node.
+        //  3. Return the number of Atom :: ( GroupSpecifieropt Disjunction ) Parse Nodes contained within pattern that
+        //     either occur before node or contain node.
+        self.left_capturing_parens_before
+    }
+}
+
+#[expect(clippy::too_many_arguments)]
+fn repeater_continuation(
+    y: MatchState,
+    m: &Matcher,
+    min: usize,
+    max: Option<usize>,
+    greedy: bool,
+    state: &MatchState,
+    continuation: &MatcherContinuation,
+    paren_index: usize,
+    paren_count: usize,
+) -> Option<MatchState> {
+    //    a. Assert: y is a MatchState.
+    //    b. If min = 0 and y.[[EndIndex]] = matchState.[[EndIndex]], return failure.
+    //    c. If min = 0, let min2 be 0; else let min2 be min - 1.
+    //    d. If max = +∞, let max2 be +∞; else let max2 be max - 1.
+    //    e. Return RepeatMatcher(m, min2, max2, greedy, y, continue, parenIndex, parenCount).
+    if min == 0 && y.end_index == state.end_index {
+        return None;
+    }
+    let min2 = if min == 0 { 0 } else { min - 1 };
+    let max2 = max.map(|max| max - 1);
+    repeat_matcher(m, min2, max2, greedy, y, continuation, paren_index, paren_count)
+}
+
+#[expect(clippy::too_many_arguments)]
+fn repeat_matcher(
+    m: &Matcher,
+    min: usize,
+    max: Option<usize>,
+    greedy: bool,
+    state: MatchState,
+    continuation: &MatcherContinuation,
+    p_index: usize,
+    p_count: usize,
+) -> Option<MatchState> {
+    // RepeatMatcher ( m, min, max, greedy, matchState, continue, parenIndex, parenCount )
+    //
+    // The abstract operation RepeatMatcher takes arguments m (a Matcher), min (a non-negative integer), max (a
+    // non-negative integer or +∞), greedy (a Boolean), matchState (a MatchState), continue (a MatcherContinuation),
+    // parenIndex (a non-negative integer), and parenCount (a non-negative integer) and returns either a MatchState or
+    // failure. It performs the following steps when called:
+    //
+    // 1. If max = 0, return continue(matchState).
+    // 2. Let d be a new MatcherContinuation with parameters (y) that captures m, min, max, greedy, matchState,
+    //    continue, parenIndex, and parenCount and performs the following steps when called:
+    //    a. Assert: y is a MatchState.
+    //    b. If min = 0 and y.[[EndIndex]] = matchState.[[EndIndex]], return failure.
+    //    c. If min = 0, let min2 be 0; else let min2 be min - 1.
+    //    d. If max = +∞, let max2 be +∞; else let max2 be max - 1.
+    //    e. Return RepeatMatcher(m, min2, max2, greedy, y, continue, parenIndex, parenCount).
+    // 3. Let cap be a copy of matchState.[[Captures]].
+    // 4. For each integer k in the inclusive interval from parenIndex + 1 to parenIndex + parenCount, set cap[k] to
+    //    undefined.
+    // 5. Let input be matchState.[[Input]].
+    // 6. Let e be matchState.[[EndIndex]].
+    // 7. Let xr be the MatchState { [[Input]]: input, [[EndIndex]]: e, [[Captures]]: cap }.
+    // 8. If min ≠ 0, return m(xr, d).
+    // 9. If greedy is false, then
+    //    a. Let z be continue(matchState).
+    //    b. If z is not failure, return z.
+    //    c. Return m(xr, d).
+    // 10. Let z be m(xr, d).
+    // 11. If z is not failure, return z.
+    // 12. Return continue(matchState).
+    if max.is_some_and(|max| max == 0) {
+        return continuation(state);
+    }
+    let mut cap = state.captures.clone();
+    for item in cap.iter_mut().take(p_index + p_count).skip(p_index) {
+        *item = None;
+    }
+    let input = state.input.clone();
+    let e = state.end_index;
+    let xr = MatchState { input, end_index: e, captures: cap };
+    let value = state.clone();
+    let continue_copy = continuation.clone();
+    let matcher_copy = m.clone();
+    let d = Rc::new(move |y| {
+        repeater_continuation(y, &matcher_copy, min, max, greedy, &value, &continue_copy, p_index, p_count)
+    });
+    if min != 0 {
+        return m.as_ref()(xr, d);
+    }
+    if !greedy {
+        let z = continuation(state);
+        if z.is_some() {
+            return z;
+        }
+        return m.as_ref()(xr, d);
+    }
+    let z = m.as_ref()(xr, d);
+    if z.is_some() {
+        return z;
+    }
+    continuation(state)
+}
+
+struct QData {
+    min: usize,
+    max: Option<usize>,
+    greedy: bool,
+}
+
+impl Quantifier {
+    fn compile_quantifier(&self) -> QData {
+        // Runtime Semantics: CompileQuantifier
+        //
+        // The syntax-directed operation CompileQuantifier takes no arguments and returns a Record with fields [[Min]]
+        // (a non-negative integer), [[Max]] (a non-negative integer or +∞), and [[Greedy]] (a Boolean). It is defined
+        // piecewise over the following productions:
+        match self {
+            Quantifier::Greedy(quantifier_prefix) => {
+                // Quantifier :: QuantifierPrefix
+                // 1. Let qp be CompileQuantifierPrefix of QuantifierPrefix.
+                // 2. Return the Record { [[Min]]: qp.[[Min]], [[Max]]: qp.[[Max]], [[Greedy]]: true }.
+                let qp = quantifier_prefix.compile_quantifier_prefix();
+                QData { min: qp.min, max: qp.max, greedy: true }
+            }
+            Quantifier::Restrained(quantifier_prefix) => {
+                // Quantifier :: QuantifierPrefix ?
+                // 1. Let qp be CompileQuantifierPrefix of QuantifierPrefix.
+                // 2. Return the Record { [[Min]]: qp.[[Min]], [[Max]]: qp.[[Max]], [[Greedy]]: false }.
+                let qp = quantifier_prefix.compile_quantifier_prefix();
+                QData { min: qp.min, max: qp.max, greedy: false }
+            }
         }
     }
 }
 
+struct MinMax {
+    min: usize,
+    max: Option<usize>,
+}
+impl QuantifierPrefix {
+    fn compile_quantifier_prefix(&self) -> MinMax {
+        // Runtime Semantics: CompileQuantifierPrefix
+        //
+        // The syntax-directed operation CompileQuantifierPrefix takes no arguments and returns a Record with fields
+        // [[Min]] (a non-negative integer) and [[Max]] (a non-negative integer or +∞). It is defined piecewise over the
+        // following productions:
+        match self {
+            QuantifierPrefix::ZeroOrMore => {
+                // QuantifierPrefix :: *
+                //      1. Return the Record { [[Min]]: 0, [[Max]]: +∞ }.
+                MinMax { min: 0, max: None }
+            }
+            QuantifierPrefix::OneOrMore => {
+                // QuantifierPrefix :: +
+                //      1. Return the Record { [[Min]]: 1, [[Max]]: +∞ }.
+                MinMax { min: 1, max: None }
+            }
+            QuantifierPrefix::ZeroOrOne => {
+                // QuantifierPrefix :: ?
+                //      1. Return the Record { [[Min]]: 0, [[Max]]: 1 }.
+                MinMax { min: 0, max: Some(1) }
+            }
+            QuantifierPrefix::Exactly(digits) => {
+                // QuantifierPrefix :: { DecimalDigits }
+                //      1. Let i be the MV of DecimalDigits (see 12.9.3).
+                //      2. Return the Record { [[Min]]: i, [[Max]]: i }.
+                let i = usize::try_from(*digits).expect("u32 should fit in usize");
+                MinMax { min: i, max: Some(i) }
+            }
+            QuantifierPrefix::XOrMore(val) => {
+                // QuantifierPrefix :: { DecimalDigits ,}
+                //      1. Let i be the MV of DecimalDigits.
+                //      2. Return the Record { [[Min]]: i, [[Max]]: +∞ }.
+                let i = usize::try_from(*val).expect("u32 should fit in usize");
+                MinMax { min: i, max: None }
+            }
+            QuantifierPrefix::Range(low, high) => {
+                // QuantifierPrefix :: { DecimalDigits , DecimalDigits }
+                //      1. Let i be the MV of the first DecimalDigits.
+                //      2. Let j be the MV of the second DecimalDigits.
+                //      3. Return the Record { [[Min]]: i, [[Max]]: j }.
+                let min = usize::try_from(*low).expect("u32 should fit in a usize");
+                let max = usize::try_from(*high).expect("u32 should fit in a usize");
+                MinMax { min, max: Some(max) }
+            }
+        }
+    }
+}
+
+fn group_continuation(
+    state: &MatchState,
+    outer_state: &MatchState,
+    continuation: &MatcherContinuation,
+    direction: Direction,
+    paren_index: usize,
+) -> Option<MatchState> {
+    // A MatcherContinuation with parameters (y) that captures x, c, direction, and parenIndex and performs the
+    // following steps when called:
+    //
+    //       i. Assert: y is a MatchState.
+    //       ii. Let cap be a copy of y.[[Captures]].
+    //       iii. Let input be x.[[Input]].
+    //       iv. Let xe be x.[[EndIndex]].
+    //       v. Let ye be y.[[EndIndex]].
+    //       vi. If direction is forward, then
+    //           1. Assert: xe ≤ ye.
+    //           2. Let r be the CaptureRange { [[StartIndex]]: xe, [[EndIndex]]: ye }.
+    //       vii. Else,
+    //            1. Assert: direction is backward.
+    //            2. Assert: ye ≤ xe.
+    //            3. Let r be the CaptureRange { [[StartIndex]]: ye, [[EndIndex]]: xe }.
+    //       viii. Set cap[parenIndex + 1] to r.
+    //       ix. Let z be the MatchState { [[Input]]: input, [[EndIndex]]: ye, [[Captures]]: cap }.
+    //       x. Return c(z).
+    let mut cap = state.captures.clone();
+    let input = outer_state.input.clone();
+    let xe = outer_state.end_index;
+    let ye = state.end_index;
+    let r = match direction {
+        Direction::Forward => CaptureRange { start_index: xe, end_index: ye },
+        Direction::Backward => CaptureRange { start_index: ye, end_index: xe },
+    };
+    cap[paren_index] = Some(r);
+    let z = MatchState { input, end_index: ye, captures: cap };
+    continuation.as_ref()(z)
+}
+
+fn group_matcher(
+    x: MatchState,
+    c: MatcherContinuation,
+    direction: Direction,
+    m: &Matcher,
+    paren_index: usize,
+) -> Option<MatchState> {
+    // a Matcher with parameters (x, c) that captures direction, m, and parenIndex and
+    //    performs the following steps when called:
+    //
+    //    a. Assert: x is a MatchState.
+    //    b. Assert: c is a MatcherContinuation.
+    //    c. Let d be a new MatcherContinuation with parameters (y) that captures x, c, direction, and
+    //       parenIndex and performs the following steps when called:
+    //       i. Assert: y is a MatchState.
+    //       ii. Let cap be a copy of y.[[Captures]].
+    //       iii. Let input be x.[[Input]].
+    //       iv. Let xe be x.[[EndIndex]].
+    //       v. Let ye be y.[[EndIndex]].
+    //       vi. If direction is forward, then
+    //           1. Assert: xe ≤ ye.
+    //           2. Let r be the CaptureRange { [[StartIndex]]: xe, [[EndIndex]]: ye }.
+    //       vii. Else,
+    //            1. Assert: direction is backward.
+    //            2. Assert: ye ≤ xe.
+    //            3. Let r be the CaptureRange { [[StartIndex]]: ye, [[EndIndex]]: xe }.
+    //       viii. Set cap[parenIndex + 1] to r.
+    //       ix. Let z be the MatchState { [[Input]]: input, [[EndIndex]]: ye, [[Captures]]: cap }.
+    //       x. Return c(z).
+    //    d. Return m(x, d).
+    let xc = x.clone();
+    let d = Rc::new(move |y| group_continuation(&y, &xc, &c, direction, paren_index));
+    m.as_ref()(x, d.clone())
+}
+
 impl Atom {
-    #[expect(unused_variables)]
     pub(crate) fn compile_atom(&self, rer: &RegExpRecord, direction: Direction) -> Matcher {
         // Runtime Semantics: CompileAtom
         //
@@ -292,8 +581,8 @@ impl Atom {
         // backward) and returns a Matcher.
         //
         // It is defined piecewise over the following productions:
-        match self {
-            Atom::PatternCharacter(ch) => {
+        match &self.node {
+            AtomNode::PatternCharacter(ch) => {
                 // Atom :: PatternCharacter
                 // 1. Let ch be the character matched by PatternCharacter.
                 // 2. Let A be a one-element CharSet containing the character ch.
@@ -301,7 +590,7 @@ impl Atom {
                 let a = CharSet::from(*ch);
                 character_set_matcher(rer, a, false, direction)
             }
-            Atom::Dot => {
+            AtomNode::Dot => {
                 // Atom :: .
                 // 1. Let A be AllCharacters(rer).
                 // 2. If rer.[[DotAll]] is not true, then
@@ -316,8 +605,8 @@ impl Atom {
                 }
                 character_set_matcher(rer, a, false, direction)
             }
-            Atom::AtomEscape(atom_escape) => atom_escape.compile_atom(rer, direction),
-            Atom::CharacterClass(character_class) => {
+            AtomNode::AtomEscape(atom_escape) => atom_escape.compile_atom(rer, direction),
+            AtomNode::CharacterClass(character_class) => {
                 // Atom :: CharacterClass
                 // 1. Let cc be CompileCharacterClass of CharacterClass with argument rer.
                 // 2. Let cs be cc.[[CharSet]].
@@ -350,10 +639,38 @@ impl Atom {
 
                 todo!()
             }
-            Atom::GroupedDisjunction { group_specifier, disjunction } => todo!(),
-            Atom::UnGroupedDisjunction(disjunction) => disjunction.compile_subpattern(rer, direction),
+            AtomNode::GroupedDisjunction { group_specifier: _, disjunction } => {
+                // Atom :: ( GroupSpecifieropt Disjunction )
+                // 1. Let m be CompileSubpattern of Disjunction with arguments regexpRecord and direction.
+                // 2. Let parenIndex be CountLeftCapturingParensBefore(Atom).
+                // 3. Return a new Matcher with parameters (x, c) that captures direction, m, and parenIndex and
+                //    performs the following steps when called:
+                //    a. Assert: x is a MatchState.
+                //    b. Assert: c is a MatcherContinuation.
+                //    c. Let d be a new MatcherContinuation with parameters (y) that captures x, c, direction, and
+                //       parenIndex and performs the following steps when called:
+                //       i. Assert: y is a MatchState.
+                //       ii. Let cap be a copy of y.[[Captures]].
+                //       iii. Let input be x.[[Input]].
+                //       iv. Let xe be x.[[EndIndex]].
+                //       v. Let ye be y.[[EndIndex]].
+                //       vi. If direction is forward, then
+                //           1. Assert: xe ≤ ye.
+                //           2. Let r be the CaptureRange { [[StartIndex]]: xe, [[EndIndex]]: ye }.
+                //       vii. Else,
+                //            1. Assert: direction is backward.
+                //            2. Assert: ye ≤ xe.
+                //            3. Let r be the CaptureRange { [[StartIndex]]: ye, [[EndIndex]]: xe }.
+                //       viii. Set cap[parenIndex + 1] to r.
+                //       ix. Let z be the MatchState { [[Input]]: input, [[EndIndex]]: ye, [[Captures]]: cap }.
+                //       x. Return c(z).
+                //    d. Return m(x, d).
+                let m = disjunction.compile_subpattern(rer, direction);
+                let paren_index = self.count_left_capturing_parens_before();
+                Rc::new(move |x, c| group_matcher(x, c, direction, &m, paren_index))
+            }
+            AtomNode::UnGroupedDisjunction(disjunction) => disjunction.compile_subpattern(rer, direction),
         }
-        //
     }
 }
 
