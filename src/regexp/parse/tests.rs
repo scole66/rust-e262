@@ -7,10 +7,10 @@ mod class_set_character {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("gg" => Some((ClassSetCharacter::SourceCharacter(103), 1)); "unadorned source")]
-    #[test_case("\\b" => Some((ClassSetCharacter::LetterB, 2)); "letter b")]
-    #[test_case("\\@abc" => Some((ClassSetCharacter::ClassSetReservedPunctuator(ClassSetReservedPunctuator(64)), 2)); "reserved punct")]
-    fn parse(text: &str) -> Option<(ClassSetCharacter, usize)> {
+    #[test_case("gg" => Some((ClassSetCharacter::SourceCharacter(103), ScannerMutation { new_idx: 1, new_paren: 0 })); "unadorned source")]
+    #[test_case("\\b" => Some((ClassSetCharacter::LetterB, ScannerMutation { new_idx: 2, new_paren: 0 })); "letter b")]
+    #[test_case("\\@abc" => Some((ClassSetCharacter::ClassSetReservedPunctuator(ClassSetReservedPunctuator(64)), ScannerMutation { new_idx: 2, new_paren: 0 })); "reserved punct")]
+    fn parse(text: &str) -> Option<(ClassSetCharacter, ScannerMutation)> {
         let text = text.chars().map(u32::from).collect::<Vec<_>>();
         let scanner = Scanner::new(&text);
 
@@ -32,7 +32,7 @@ mod class_set_character {
 //}
 
 #[expect(clippy::unnecessary_wraps)]
-fn ssu(s: &str, u: usize) -> Option<(String, usize)> {
+fn ssu(s: &str, u: ScannerMutation) -> Option<(String, ScannerMutation)> {
     Some((s.to_string(), u))
 }
 
@@ -40,14 +40,14 @@ mod term {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a*" => ssu("a*", 2); "with star quantifier")]
-    #[test_case("a{4}" => ssu("a{4}", 4); "with exact quantifier")]
-    #[test_case("a{212,}" => ssu("a{212,}", 7); "with or-more quantifier")]
-    #[test_case("a{212,1863}" => ssu("a{212,1863}", 11); "with range quantifier")]
-    #[test_case("^" => ssu("^", 1); "assertion")]
-    #[test_case("abc" => ssu("a", 1); "atom with no quantifier")]
+    #[test_case("a*" => ssu("a*", ScannerMutation { new_idx: 2, new_paren: 0 }); "with star quantifier")]
+    #[test_case("a{4}" => ssu("a{4}", ScannerMutation { new_idx: 4, new_paren: 0 }); "with exact quantifier")]
+    #[test_case("a{212,}" => ssu("a{212,}", ScannerMutation { new_idx: 7, new_paren: 0 }); "with or-more quantifier")]
+    #[test_case("a{212,1863}" => ssu("a{212,1863}", ScannerMutation { new_idx: 11, new_paren: 0 }); "with range quantifier")]
+    #[test_case("^" => ssu("^", ScannerMutation { new_idx: 1, new_paren: 0 }); "assertion")]
+    #[test_case("abc" => ssu("a", ScannerMutation { new_idx: 1, new_paren: 0 }); "atom with no quantifier")]
     #[test_case("???" => None; "Not a valid Term")]
-    fn parse(src: &str) -> Option<(String, usize)> {
+    fn parse(src: &str) -> Option<(String, ScannerMutation)> {
         let src = src.chars().map(u32::from).collect::<Vec<_>>();
         let scanner = Scanner::new(&src);
         Term::parse(&scanner, UnicodeMode::Allowed, UnicodeSetsMode::Allowed, NamedCaptureGroups::Allowed)

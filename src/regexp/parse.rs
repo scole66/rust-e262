@@ -42,6 +42,21 @@ impl<T: fmt::Display> fmt::Display for JoinDisplay<'_, T> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct ScannerMutation {
+    new_idx: usize,
+    new_paren: usize,
+}
+
+impl ScannerMutation {
+    fn new(scanner: &Scanner) -> Self {
+        Self { new_idx: scanner.read_idx, new_paren: scanner.left_capturing_parens }
+    }
+    fn add(scanner: &Scanner, amt: usize) -> Self {
+        Self { new_idx: scanner.read_idx + amt, new_paren: scanner.left_capturing_parens }
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct Scanner<'src> {
     all: &'src [u32],
@@ -52,6 +67,11 @@ struct Scanner<'src> {
 impl<'src> Scanner<'src> {
     pub(crate) fn new(text: &'src [u32]) -> Self {
         Scanner { all: text, read_idx: 0, left_capturing_parens: 0 }
+    }
+
+    pub(crate) fn update(&mut self, mutation: &ScannerMutation) {
+        self.read_idx = mutation.new_idx;
+        self.left_capturing_parens = mutation.new_paren;
     }
 
     pub(crate) fn done(&self) -> bool {
@@ -126,6 +146,10 @@ impl<'src> Scanner<'src> {
 
     pub(crate) fn advance_by_bytes(&mut self, amt: usize) {
         self.read_idx += amt;
+    }
+
+    pub(crate) fn finished(&self) -> bool {
+        self.read_idx >= self.all.len()
     }
 
     pub(crate) fn matches_at(&self, ch: char, position: usize) -> Option<usize> {
@@ -227,7 +251,7 @@ impl<'src> Scanner<'src> {
 struct ClassSetReservedPunctuator(u32);
 
 impl ClassSetReservedPunctuator {
-    pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_filter(|ch| {
             [
@@ -248,7 +272,7 @@ impl ClassSetReservedPunctuator {
             ]
             .contains(&ch)
         })?;
-        Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
+        Some((Self(ch), ScannerMutation::new(&new_scanner)))
     }
 }
 
@@ -258,7 +282,7 @@ impl ClassSetReservedPunctuator {
 struct ClassSetSyntaxCharacter(u32);
 
 impl ClassSetSyntaxCharacter {
-    pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         let ch = scanner.peek();
         if let Some(ch) = ch
             && [
@@ -275,7 +299,9 @@ impl ClassSetSyntaxCharacter {
             ]
             .contains(&ch)
         {
-            return Some((Self(ch), 1));
+            let mut new_scan = scanner.clone();
+            new_scan.advance().expect(PREVIOUSLY_SCANNED);
+            return Some((Self(ch), ScannerMutation::new(&new_scan)));
         }
         None
     }
@@ -335,26 +361,25 @@ enum ClassSetCharacter {
 }
 
 impl ClassSetCharacter {
-    pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    pub(crate) fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         if ClassSetReservedDoublePunctuator::parse(scanner).is_some() {
             None
         } else if let Some((cssc, consumed)) = ClassSetSyntaxCharacter::parse(scanner) {
             let ClassSetSyntaxCharacter(cssc_match) = cssc;
             if cssc_match == u32::from('\\') {
                 let mut newscan = scanner.clone();
-                newscan.advance_by_bytes(consumed);
+                newscan.update(&consumed);
                 if let Some((ce, consumed)) = CharacterEscape::parse(&newscan, UnicodeMode::Allowed) {
-                    return Some((Self::CharacterEscape(ce), newscan.read_idx + consumed - scanner.read_idx));
+                    newscan.update(&consumed);
+                    return Some((Self::CharacterEscape(ce), ScannerMutation::new(&newscan)));
                 }
                 if let Some((csrp, consumed)) = ClassSetReservedPunctuator::parse(&newscan) {
-                    return Some((
-                        Self::ClassSetReservedPunctuator(csrp),
-                        newscan.read_idx + consumed - scanner.read_idx,
-                    ));
+                    newscan.update(&consumed);
+                    return Some((Self::ClassSetReservedPunctuator(csrp), ScannerMutation::new(&newscan)));
                 }
                 if newscan.peek() == Some(u32::from('b')) {
                     newscan.advance().expect(PREVIOUSLY_SCANNED);
-                    return Some((Self::LetterB, consumed + 1));
+                    return Some((Self::LetterB, ScannerMutation::new(&newscan)));
                 }
                 None
             } else {
@@ -364,7 +389,7 @@ impl ClassSetCharacter {
             // SourceCharacter but not ClassSetSyntaxCharacter
             let mut new_scanner = scanner.clone();
             let ch = new_scanner.consume_any()?;
-            Some((Self::SourceCharacter(ch), new_scanner.read_idx - scanner.read_idx))
+            Some((Self::SourceCharacter(ch), ScannerMutation::new(&new_scanner)))
         }
     }
 
@@ -460,34 +485,38 @@ impl fmt::Display for CharacterEscape {
 }
 
 impl CharacterEscape {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
-        if let Some((ce, consumed)) = ControlEscape::parse(scanner) {
-            return Some((Self::ControlEscape(ce), consumed));
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
+        let mut new_scanner = scanner.clone();
+        if let Some((ce, consumed)) = ControlEscape::parse(&new_scanner) {
+            new_scanner.update(&consumed);
+            return Some((Self::ControlEscape(ce), ScannerMutation::new(&new_scanner)));
         }
-        let ch = scanner.peek();
+        let ch = new_scanner.peek();
         if ch == Some(u32::from('c')) {
-            let mut new_scanner = scanner.clone();
             new_scanner.advance().expect(PREVIOUSLY_SCANNED);
             if let Some((al, consumed)) = AsciiLetter::parse(&new_scanner) {
-                return Some((Self::CAsciiLetter(al), 1 + consumed));
+                new_scanner.update(&consumed);
+                return Some((Self::CAsciiLetter(al), ScannerMutation::new(&new_scanner)));
             }
         } else if ch == Some(u32::from('0')) {
-            let lookahead = scanner.lookahead(1);
+            let lookahead = new_scanner.lookahead(1);
             let lookahead_is_digit = if let Some(digit) = lookahead { Scanner::is_decimal_digit(digit) } else { false };
             if !lookahead_is_digit {
-                let mut new_scanner = scanner.clone();
                 new_scanner.advance().expect(PREVIOUSLY_SCANNED);
-                return Some((Self::Zero, 1));
+                return Some((Self::Zero, ScannerMutation::new(&new_scanner)));
             }
         }
-        if let Some((hes, consumed)) = HexEscapeSequence::parse(scanner) {
-            return Some((Self::HexEscapeSequence(hes), consumed));
+        if let Some((hes, consumed)) = HexEscapeSequence::parse(&new_scanner) {
+            new_scanner.update(&consumed);
+            return Some((Self::HexEscapeSequence(hes), ScannerMutation::new(&new_scanner)));
         }
-        if let Some((reues, consumed)) = RegExpUnicodeEscapeSequence::parse(scanner, mode) {
-            return Some((Self::RegExpUnicodeEscapeSequence(reues), consumed));
+        if let Some((reues, consumed)) = RegExpUnicodeEscapeSequence::parse(&new_scanner, mode) {
+            new_scanner.update(&consumed);
+            return Some((Self::RegExpUnicodeEscapeSequence(reues), ScannerMutation::new(&new_scanner)));
         }
-        if let Some((ie, consumed)) = IdentityEscape::parse(scanner, mode) {
-            return Some((Self::IdentityEscape(ie), consumed));
+        if let Some((ie, consumed)) = IdentityEscape::parse(&new_scanner, mode) {
+            new_scanner.update(&consumed);
+            return Some((Self::IdentityEscape(ie), ScannerMutation::new(&new_scanner)));
         }
         None
     }
@@ -565,16 +594,18 @@ impl fmt::Display for ControlEscape {
     }
 }
 impl ControlEscape {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         let ch = scanner.peek();
-        match ch {
-            Some(x) if x == u32::from('f') => Some((Self::Eff, 1)),
-            Some(x) if x == u32::from('n') => Some((Self::En, 1)),
-            Some(x) if x == u32::from('r') => Some((Self::Ar, 1)),
-            Some(x) if x == u32::from('t') => Some((Self::Tee, 1)),
-            Some(x) if x == u32::from('v') => Some((Self::Vee, 1)),
+        let item = match ch {
+            Some(x) if x == u32::from('f') => Some(Self::Eff),
+            Some(x) if x == u32::from('n') => Some(Self::En),
+            Some(x) if x == u32::from('r') => Some(Self::Ar),
+            Some(x) if x == u32::from('t') => Some(Self::Tee),
+            Some(x) if x == u32::from('v') => Some(Self::Vee),
             _ => None,
-        }
+        }?;
+        let mutation = ScannerMutation::add(scanner, 1);
+        Some((item, mutation))
     }
 }
 
@@ -588,10 +619,10 @@ impl fmt::Display for AsciiLetter {
     }
 }
 impl AsciiLetter {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         scanner.peek().and_then(|ch| {
             if char::try_from(ch).ok().is_some_and(|as_char| as_char.is_ascii_alphabetic()) {
-                Some((Self(ch), 1))
+                Some((Self(ch), ScannerMutation::add(scanner, 1)))
             } else {
                 None
             }
@@ -609,12 +640,12 @@ impl fmt::Display for HexEscapeSequence {
     }
 }
 impl HexEscapeSequence {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         new_scanner.consume('x')?;
         let d1 = new_scanner.hex_digit()?;
         let d2 = new_scanner.hex_digit()?;
-        Some((Self((d1 << 4) | d2), new_scanner.read_idx - scanner.read_idx))
+        Some((Self((d1 << 4) | d2), ScannerMutation::new(&new_scanner)))
     }
     fn mv(&self) -> u32 {
         u32::from(self.0)
@@ -636,7 +667,7 @@ impl fmt::Display for RegExpUnicodeEscapeSequence {
     }
 }
 impl RegExpUnicodeEscapeSequence {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         new_scanner.consume('u')?;
         if mode == UnicodeMode::Denied {
@@ -645,7 +676,7 @@ impl RegExpUnicodeEscapeSequence {
             let d2 = u32::from(new_scanner.hex_digit()?);
             let d3 = u32::from(new_scanner.hex_digit()?);
             let d4 = u32::from(new_scanner.hex_digit()?);
-            Some((Self((d1 << 12) | (d2 << 8) | (d3 << 4) | d4), new_scanner.read_idx - scanner.read_idx))
+            Some((Self((d1 << 12) | (d2 << 8) | (d3 << 4) | d4), ScannerMutation::new(&new_scanner)))
         } else {
             match new_scanner.consume('{') {
                 Some(()) => {
@@ -668,7 +699,7 @@ impl RegExpUnicodeEscapeSequence {
                     }
                     if let Some(value) = value {
                         new_scanner.consume('}')?;
-                        Some((Self(value), new_scanner.read_idx - scanner.read_idx))
+                        Some((Self(value), ScannerMutation::new(&new_scanner)))
                     } else {
                         None
                     }
@@ -685,7 +716,7 @@ impl RegExpUnicodeEscapeSequence {
                     let d4 = u16::from(new_scanner.hex_digit()?);
                     let word1 = (d1 << 12) | (d2 << 8) | (d3 << 4) | d4;
                     if (0xD800..=0xDBFF).contains(&word1) {
-                        fn after_scanner(scanner: &Scanner) -> Option<(u16, usize)> {
+                        fn after_scanner(scanner: &Scanner) -> Option<(u16, ScannerMutation)> {
                             let mut new_scanner = scanner.clone();
                             new_scanner.consume('\\')?;
                             new_scanner.consume('u')?;
@@ -695,26 +726,26 @@ impl RegExpUnicodeEscapeSequence {
                             let d4 = u16::from(new_scanner.hex_digit()?);
                             let word = (d1 << 12) | (d2 << 8) | (d3 << 4) | d4;
                             if (0xDC00..=0xDFFF).contains(&word) {
-                                Some((word, new_scanner.read_idx - scanner.read_idx))
+                                Some((word, ScannerMutation::new(&new_scanner)))
                             } else {
                                 None
                             }
                         }
                         let attempt = after_scanner(&new_scanner);
                         match attempt {
-                            None => Some((Self(u32::from(word1)), new_scanner.read_idx - scanner.read_idx)),
-                            Some((word2, size)) => Some((
+                            None => Some((Self(u32::from(word1)), ScannerMutation::new(&new_scanner))),
+                            Some((word2, mutation)) => Some((
                                 // RegExpUnicodeEscapeSequence :: u HexLeadSurrogate \u HexTrailSurrogate
                                 //      1. Let lead be the CharacterValue of HexLeadSurrogate.
                                 //      2. Let trail be the CharacterValue of HexTrailSurrogate.
                                 //      3. Let cp be UTF16SurrogatePairToCodePoint(lead, trail).
                                 //      4. Return the numeric value of cp.
                                 Self(utf16_surrogate_pair_to_code_point(word1, word2)),
-                                size + new_scanner.read_idx - scanner.read_idx,
+                                mutation,
                             )),
                         }
                     } else {
-                        Some((Self(u32::from(word1)), new_scanner.read_idx - scanner.read_idx))
+                        Some((Self(u32::from(word1)), ScannerMutation::new(&new_scanner)))
                     }
                 }
             }
@@ -744,7 +775,7 @@ impl fmt::Display for IdentityEscape {
     }
 }
 impl IdentityEscape {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         match mode {
             UnicodeMode::Allowed => {
                 let peeked = scanner.peek()?;
@@ -767,7 +798,7 @@ impl IdentityEscape {
                 ]
                 .contains(&peeked)
                 {
-                    Some((Self(peeked), 1))
+                    Some((Self(peeked), ScannerMutation::add(scanner, 1)))
                 } else {
                     None
                 }
@@ -780,7 +811,7 @@ impl IdentityEscape {
                 {
                     None
                 } else {
-                    Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
+                    Some((Self(ch), ScannerMutation::new(&new_scanner)))
                 }
             }
         }
@@ -822,9 +853,9 @@ impl fmt::Display for AtomEscape {
     }
 }
 impl AtomEscape {
-    fn parse(scanner: &Scanner, unicode: UnicodeMode, groups: NamedCaptureGroups) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, unicode: UnicodeMode, groups: NamedCaptureGroups) -> Option<(Self, ScannerMutation)> {
         if let Some((de, amt)) = DecimalEscape::parse(scanner) {
-            Some((Self::DecimalEscape(de), amt))
+            Some((Self::DecimalEscape(de), ScannerMutation::add(scanner, amt)))
         } else if let Some((cce, amt)) = CharacterClassEscape::parse(scanner, unicode) {
             Some((Self::CharacterClassEscape(cce), amt))
         } else if let Some((ce, amt)) = CharacterEscape::parse(scanner, unicode) {
@@ -833,8 +864,8 @@ impl AtomEscape {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('k')?;
             let (gn, amt) = GroupName::parse(&new_scanner, unicode)?;
-            new_scanner.read_idx += amt;
-            Some((Self::GroupName(Box::new(gn)), new_scanner.read_idx - scanner.read_idx))
+            new_scanner.update(&amt);
+            Some((Self::GroupName(Box::new(gn)), ScannerMutation::new(&new_scanner)))
         } else {
             None
         }
@@ -965,23 +996,22 @@ impl fmt::Display for CharacterClassEscape {
 }
 
 impl CharacterClassEscape {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         fn property_value(
             scanner: &Scanner,
             f: fn(Box<UnicodePropertyValueExpression>) -> CharacterClassEscape,
-            extra: usize,
-        ) -> Option<(CharacterClassEscape, usize)> {
+        ) -> Option<(CharacterClassEscape, ScannerMutation)> {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('{')?;
             let (exp, amt) = UnicodePropertyValueExpression::parse(&new_scanner)?;
             new_scanner.read_idx += amt;
             new_scanner.consume('}')?;
-            Some((f(Box::new(exp)), new_scanner.read_idx - scanner.read_idx + extra))
+            Some((f(Box::new(exp)), ScannerMutation::new(&new_scanner)))
         }
 
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_any()?;
-        let amt_used = new_scanner.read_idx - scanner.read_idx;
+        let amt_used = ScannerMutation::new(&new_scanner);
         let ch = char::try_from(ch).ok()?;
         match (ch, mode) {
             ('d', _) => Some((Self::Digit, amt_used)),
@@ -990,8 +1020,8 @@ impl CharacterClassEscape {
             ('S', _) => Some((Self::NotWhitespace, amt_used)),
             ('w', _) => Some((Self::Word, amt_used)),
             ('W', _) => Some((Self::NotWord, amt_used)),
-            ('p', UnicodeMode::Allowed) => property_value(&new_scanner, Self::Property, amt_used),
-            ('P', UnicodeMode::Allowed) => property_value(&new_scanner, Self::NotProperty, amt_used),
+            ('p', UnicodeMode::Allowed) => property_value(&new_scanner, Self::Property),
+            ('P', UnicodeMode::Allowed) => property_value(&new_scanner, Self::NotProperty),
             _ => None,
         }
     }
@@ -1602,12 +1632,12 @@ impl fmt::Display for GroupSpecifier {
     }
 }
 impl GroupSpecifier {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         new_scanner.consume('?')?;
         let (name, amt) = GroupName::parse(&new_scanner, mode)?;
-        new_scanner.read_idx += amt;
-        Some((Self(name), new_scanner.read_idx - scanner.read_idx))
+        new_scanner.update(&amt);
+        Some((Self(name), ScannerMutation::new(&new_scanner)))
     }
 
     pub(crate) fn capturing_group_name(&self) -> JSString {
@@ -1631,13 +1661,13 @@ impl fmt::Display for GroupName {
 }
 
 impl GroupName {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         new_scanner.consume('<')?;
         let (name, amt_used) = RegExpIdentifierName::parse(&new_scanner, mode)?;
-        new_scanner.read_idx += amt_used;
+        new_scanner.update(&amt_used);
         new_scanner.consume('>')?;
-        Some((Self(name), new_scanner.read_idx - scanner.read_idx))
+        Some((Self(name), ScannerMutation::new(&new_scanner)))
     }
 
     pub(crate) fn capturing_group_name(&self) -> JSString {
@@ -1671,18 +1701,18 @@ impl fmt::Display for RegExpIdentifierName {
 }
 
 impl RegExpIdentifierName {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         // A "start" followed by zero or more "parts"
         let mut new_scanner = scanner.clone();
         let mut name = String::new();
         let (RegExpIdentifierStart(start), amt_used) = RegExpIdentifierStart::parse(&new_scanner, mode)?;
         name.push(char::from_u32(start).expect("char class should be fine"));
-        new_scanner.read_idx += amt_used;
+        new_scanner.update(&amt_used);
         while let Some((RegExpIdentifierPart(part), amt_used)) = RegExpIdentifierPart::parse(&new_scanner, mode) {
             name.push(char::from_u32(part).expect("char class should be fine"));
-            new_scanner.read_idx += amt_used;
+            new_scanner.update(&amt_used);
         }
-        Some((Self(name), new_scanner.read_idx - scanner.read_idx))
+        Some((Self(name), ScannerMutation::new(&new_scanner)))
     }
 
     pub(crate) fn reg_exp_identifier_code_points(&self) -> String {
@@ -1739,18 +1769,18 @@ impl RegExpIdentifierName {
 //      [~UnicodeMode] UnicodeLeadSurrogate UnicodeTrailSurrogate
 struct RegExpIdentifierStart(u32);
 impl RegExpIdentifierStart {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_any()?;
         if Scanner::is_identifier_start_char(ch) {
-            Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
+            Some((Self(ch), ScannerMutation::new(&new_scanner)))
         } else if ch == u32::from('\\') {
             let (RegExpUnicodeEscapeSequence(ch), amt_read) =
                 RegExpUnicodeEscapeSequence::parse(&new_scanner, UnicodeMode::Allowed)?;
-            new_scanner.read_idx += amt_read;
-            Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
+            new_scanner.update(&amt_read);
+            Some((Self(ch), ScannerMutation::new(&new_scanner)))
         } else if mode == UnicodeMode::Denied && (0x1_0000..=0x10_ffff).contains(&ch) {
-            Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
+            Some((Self(ch), ScannerMutation::new(&new_scanner)))
         } else {
             None
         }
@@ -1763,18 +1793,18 @@ impl RegExpIdentifierStart {
 //      [~UnicodeMode] UnicodeLeadSurrogate UnicodeTrailSurrogate
 struct RegExpIdentifierPart(u32);
 impl RegExpIdentifierPart {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_any()?;
         if Scanner::is_identifier_part_char(ch) {
-            Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
+            Some((Self(ch), ScannerMutation::new(&new_scanner)))
         } else if ch == u32::from('\\') {
             let (RegExpUnicodeEscapeSequence(ch), amt_read) =
                 RegExpUnicodeEscapeSequence::parse(&new_scanner, UnicodeMode::Allowed)?;
-            new_scanner.read_idx += amt_read;
-            Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
+            new_scanner.update(&amt_read);
+            Some((Self(ch), ScannerMutation::new(&new_scanner)))
         } else if mode == UnicodeMode::Denied && (0x1_0000..=0x10_ffff).contains(&ch) {
-            Some((Self(ch), new_scanner.read_idx - scanner.read_idx))
+            Some((Self(ch), ScannerMutation::new(&new_scanner)))
         } else {
             None
         }
@@ -1805,8 +1835,10 @@ impl Pattern {
         sets: UnicodeSetsMode,
         cgroups: NamedCaptureGroups,
     ) -> Option<Self> {
-        let (disj, amt) = Disjunction::parse(scanner, unicode, sets, cgroups)?;
-        if amt == scanner.all.len() { Some(Self(disj)) } else { None }
+        let mut new_scanner = scanner.clone();
+        let (disj, amt) = Disjunction::parse(&new_scanner, unicode, sets, cgroups)?;
+        new_scanner.update(&amt);
+        if new_scanner.finished() { Some(Self(disj)) } else { None }
     }
 
     pub(crate) fn count_left_capturing_parens_within(&self) -> usize {
@@ -1896,29 +1928,29 @@ impl Disjunction {
         unicode: UnicodeMode,
         sets: UnicodeSetsMode,
         cgroups: NamedCaptureGroups,
-    ) -> Option<(Self, usize)> {
+    ) -> Option<(Self, ScannerMutation)> {
         fn followup(
             scanner: &Scanner,
             unicode: UnicodeMode,
             sets: UnicodeSetsMode,
             cgroups: NamedCaptureGroups,
-        ) -> Option<(Alternative, usize)> {
+        ) -> Option<(Alternative, ScannerMutation)> {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('|')?;
             let (alt, amt) = Alternative::parse(&new_scanner, unicode, sets, cgroups);
-            new_scanner.read_idx += amt;
-            Some((alt, new_scanner.read_idx - scanner.read_idx))
+            new_scanner.update(&amt);
+            Some((alt, ScannerMutation::new(&new_scanner)))
         }
         let mut new_scanner = scanner.clone();
         let (first, amt) = Alternative::parse(&new_scanner, unicode, sets, cgroups);
-        new_scanner.read_idx += amt;
+        new_scanner.update(&amt);
         let mut result = vec![first];
         loop {
             if let Some((item, amt)) = followup(&new_scanner, unicode, sets, cgroups) {
-                new_scanner.read_idx += amt;
+                new_scanner.update(&amt);
                 result.push(item);
             } else {
-                break Some((Self(result), new_scanner.read_idx - scanner.read_idx));
+                break Some((Self(result), ScannerMutation::new(&new_scanner)));
             }
         }
     }
@@ -2012,14 +2044,14 @@ impl Alternative {
         unicode: UnicodeMode,
         sets: UnicodeSetsMode,
         cgroups: NamedCaptureGroups,
-    ) -> (Self, usize) {
+    ) -> (Self, ScannerMutation) {
         let mut new_scanner = scanner.clone();
         let mut results = vec![];
         while let Some((term, amt)) = Term::parse(&new_scanner, unicode, sets, cgroups) {
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             results.push(term);
         }
-        (Self(results), new_scanner.read_idx - scanner.read_idx)
+        (Self(results), ScannerMutation::new(&new_scanner))
     }
 
     pub(crate) fn early_errors(
@@ -2081,23 +2113,27 @@ impl Term {
         unicode: UnicodeMode,
         sets: UnicodeSetsMode,
         cgroups: NamedCaptureGroups,
-    ) -> Option<(Self, usize)> {
+    ) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         let left_capturing_parens_before = new_scanner.left_capturing_parens;
         if let Some((assertion, amt)) = Assertion::parse(&new_scanner, unicode, sets, cgroups) {
-            Some((Self { node: TermNode::Assertion(assertion), left_capturing_parens_before }, amt))
+            new_scanner.update(&amt);
+            Some((
+                Self { node: TermNode::Assertion(assertion), left_capturing_parens_before },
+                ScannerMutation::new(&new_scanner),
+            ))
         } else if let Some((atom, amt)) = Atom::parse(&new_scanner, unicode, sets, cgroups) {
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             if let Some((q, amt)) = Quantifier::parse(&new_scanner) {
                 new_scanner.read_idx += amt;
                 Some((
                     Self { node: TermNode::Atom(atom, Some(q)), left_capturing_parens_before },
-                    new_scanner.read_idx - scanner.read_idx,
+                    ScannerMutation::new(&new_scanner),
                 ))
             } else {
                 Some((
                     Self { node: TermNode::Atom(atom, None), left_capturing_parens_before },
-                    new_scanner.read_idx - scanner.read_idx,
+                    ScannerMutation::new(&new_scanner),
                 ))
             }
         } else {
@@ -2197,8 +2233,8 @@ impl Assertion {
         unicode: UnicodeMode,
         sets: UnicodeSetsMode,
         cgroups: NamedCaptureGroups,
-    ) -> Option<(Self, usize)> {
-        fn word_boundary(scanner: &Scanner) -> Option<(Assertion, usize)> {
+    ) -> Option<(Self, ScannerMutation)> {
+        fn word_boundary(scanner: &Scanner) -> Option<(Assertion, ScannerMutation)> {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('\\')?;
             let ch = new_scanner.consume_any()?;
@@ -2209,14 +2245,14 @@ impl Assertion {
             } else {
                 None
             };
-            assertion.map(|assertion| (assertion, new_scanner.read_idx - scanner.read_idx))
+            assertion.map(|assertion| (assertion, ScannerMutation::new(&new_scanner)))
         }
         fn lookaround(
             scanner: &Scanner,
             unicode: UnicodeMode,
             sets: UnicodeSetsMode,
             cgroups: NamedCaptureGroups,
-        ) -> Option<(Assertion, usize)> {
+        ) -> Option<(Assertion, ScannerMutation)> {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('(')?;
             new_scanner.consume('?')?;
@@ -2232,7 +2268,7 @@ impl Assertion {
                 }
             };
             let (disj, amt) = Disjunction::parse(&new_scanner, unicode, sets, cgroups)?;
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             new_scanner.consume(')')?;
             Some((
                 match (is_lookbehind, negate) {
@@ -2241,21 +2277,21 @@ impl Assertion {
                     (false, true) => Assertion::NegLookAhead,
                     (false, false) => Assertion::LookAhead,
                 }(Box::new(disj)),
-                new_scanner.read_idx - scanner.read_idx,
+                ScannerMutation::new(&new_scanner),
             ))
         }
 
         let mut new_scanner = scanner.clone();
         if let Some(()) = new_scanner.consume('^') {
-            Some((Self::Start, new_scanner.read_idx - scanner.read_idx))
+            Some((Self::Start, ScannerMutation::new(&new_scanner)))
         } else if let Some(()) = new_scanner.consume('$') {
-            Some((Self::End, new_scanner.read_idx - scanner.read_idx))
+            Some((Self::End, ScannerMutation::new(&new_scanner)))
         } else if let Some((assertion, amt)) = word_boundary(&new_scanner) {
-            new_scanner.read_idx += amt;
-            Some((assertion, new_scanner.read_idx - scanner.read_idx))
+            new_scanner.update(&amt);
+            Some((assertion, ScannerMutation::new(&new_scanner)))
         } else if let Some((assertion, amt)) = lookaround(&new_scanner, unicode, sets, cgroups) {
-            new_scanner.read_idx += amt;
-            Some((assertion, new_scanner.read_idx - scanner.read_idx))
+            new_scanner.update(&amt);
+            Some((assertion, ScannerMutation::new(&new_scanner)))
         } else {
             None
         }
@@ -2497,51 +2533,51 @@ impl Atom {
         unicode: UnicodeMode,
         sets: UnicodeSetsMode,
         cgroups: NamedCaptureGroups,
-    ) -> Option<(Self, usize)> {
+    ) -> Option<(Self, ScannerMutation)> {
         fn slash_escape(
             scanner: &Scanner,
             unicode: UnicodeMode,
             cgroups: NamedCaptureGroups,
-        ) -> Option<(AtomEscape, usize)> {
+        ) -> Option<(AtomEscape, ScannerMutation)> {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('\\')?;
             let (escape, amt) = AtomEscape::parse(&new_scanner, unicode, cgroups)?;
-            new_scanner.read_idx += amt;
-            Some((escape, new_scanner.read_idx - scanner.read_idx))
+            new_scanner.update(&amt);
+            Some((escape, ScannerMutation::new(&new_scanner)))
         }
         fn grouped_disjunction(
             scanner: &Scanner,
             unicode: UnicodeMode,
             sets: UnicodeSetsMode,
             cgroups: NamedCaptureGroups,
-        ) -> Option<(Option<GroupSpecifier>, Disjunction, usize)> {
+        ) -> Option<(Option<GroupSpecifier>, Disjunction, ScannerMutation)> {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('(')?;
             let group_specifier = if let Some((gs, amt)) = GroupSpecifier::parse(&new_scanner, unicode) {
-                new_scanner.read_idx += amt;
+                new_scanner.update(&amt);
                 Some(gs)
             } else {
                 None
             };
             let (disj, amt) = Disjunction::parse(&new_scanner, unicode, sets, cgroups)?;
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             new_scanner.consume(')')?;
-            Some((group_specifier, disj, new_scanner.read_idx - scanner.read_idx))
+            Some((group_specifier, disj, ScannerMutation::new(&new_scanner)))
         }
         fn unnamed_group(
             scanner: &Scanner,
             unicode: UnicodeMode,
             sets: UnicodeSetsMode,
             cgroups: NamedCaptureGroups,
-        ) -> Option<(Disjunction, usize)> {
+        ) -> Option<(Disjunction, ScannerMutation)> {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('(')?;
             new_scanner.consume('?')?;
             new_scanner.consume(':')?;
             let (disj, amt) = Disjunction::parse(&new_scanner, unicode, sets, cgroups)?;
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             new_scanner.consume(')')?;
-            Some((disj, new_scanner.read_idx - scanner.read_idx))
+            Some((disj, ScannerMutation::new(&new_scanner)))
         }
 
         let mut new_scanner = scanner.clone();
@@ -2549,34 +2585,34 @@ impl Atom {
         if let Some(ch) = new_scanner.consume_filter(Scanner::is_pattern_char) {
             Some((
                 Self { node: AtomNode::PatternCharacter(ch), left_capturing_parens_before },
-                new_scanner.read_idx - scanner.read_idx,
+                ScannerMutation::new(&new_scanner),
             ))
         } else if let Some(()) = new_scanner.consume('.') {
-            Some((Self { node: AtomNode::Dot, left_capturing_parens_before }, new_scanner.read_idx - scanner.read_idx))
+            Some((Self { node: AtomNode::Dot, left_capturing_parens_before }, ScannerMutation::new(&new_scanner)))
         } else if let Some((ae, amt)) = slash_escape(&new_scanner, unicode, cgroups) {
             Some((Self { node: AtomNode::AtomEscape(ae), left_capturing_parens_before }, amt))
         } else if let Some((class, amt)) = CharacterClass::parse(&new_scanner, unicode, sets) {
             new_scanner.read_idx += amt;
             Some((
                 Self { node: AtomNode::CharacterClass(class), left_capturing_parens_before },
-                new_scanner.read_idx - scanner.read_idx,
+                ScannerMutation::new(&new_scanner),
             ))
         } else if let Some((gs, disj, amt)) = grouped_disjunction(&new_scanner, unicode, sets, cgroups) {
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             new_scanner.left_capturing_parens += 1;
             Some((
                 Self {
                     node: AtomNode::GroupedDisjunction { group_specifier: gs, disjunction: Box::new(disj) },
                     left_capturing_parens_before,
                 },
-                new_scanner.read_idx - scanner.read_idx,
+                ScannerMutation::new(&new_scanner),
             ))
         } else {
             let (disj, amt) = unnamed_group(&new_scanner, unicode, sets, cgroups)?;
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             Some((
                 Self { node: AtomNode::UnGroupedDisjunction(Box::new(disj)), left_capturing_parens_before },
-                new_scanner.read_idx - scanner.read_idx,
+                ScannerMutation::new(&new_scanner),
             ))
         }
     }
@@ -2694,7 +2730,7 @@ impl CharacterClass {
         new_scanner.consume('[')?;
         let cstr = if let Some(()) = new_scanner.consume('^') { Self::Negation } else { Self::Selection };
         let (contents, amt) = ClassContents::parse(&new_scanner, unicode, sets);
-        new_scanner.read_idx += amt;
+        new_scanner.update(&amt);
         new_scanner.consume(']')?;
         Some((cstr(contents), new_scanner.read_idx - scanner.read_idx))
     }
@@ -2736,20 +2772,20 @@ impl fmt::Display for ClassContents {
     }
 }
 impl ClassContents {
-    fn parse(scanner: &Scanner, unicode: UnicodeMode, sets: UnicodeSetsMode) -> (Self, usize) {
+    fn parse(scanner: &Scanner, unicode: UnicodeMode, sets: UnicodeSetsMode) -> (Self, ScannerMutation) {
         match sets {
             UnicodeSetsMode::Denied => {
                 if let Some((ranges, amt)) = NonemptyClassRanges::parse(scanner, unicode) {
                     (Self::NonemptyClassRanges(Box::new(ranges)), amt)
                 } else {
-                    (Self::None, 0)
+                    (Self::None, ScannerMutation::new(scanner))
                 }
             }
             UnicodeSetsMode::Allowed => {
                 if let Some((expr, amt)) = ClassSetExpression::parse(scanner) {
                     (Self::ClassSetExpression(expr), amt)
                 } else {
-                    (Self::None, 0)
+                    (Self::None, ScannerMutation::new(scanner))
                 }
             }
         }
@@ -2800,42 +2836,42 @@ impl fmt::Display for NonemptyClassRanges {
     }
 }
 impl NonemptyClassRanges {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
-        fn tail_parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(ClassAtom, ClassContents, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
+        fn tail_parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(ClassAtom, ClassContents, ScannerMutation)> {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('-')?;
             let (atom, amt) = ClassAtom::parse(&new_scanner, mode)?;
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             let (content, amt) = ClassContents::parse(&new_scanner, mode, UnicodeSetsMode::Denied);
-            new_scanner.read_idx += amt;
-            Some((atom, content, new_scanner.read_idx - scanner.read_idx))
+            new_scanner.update(&amt);
+            Some((atom, content, ScannerMutation::new(&new_scanner)))
         }
 
         let mut new_scanner = scanner.clone();
         let (first_atom, amt) = ClassAtom::parse(&new_scanner, mode)?;
-        new_scanner.read_idx += amt;
+        new_scanner.update(&amt);
         if let Some((nodash, amt)) = NonemptyClassRangesNoDash::parse(&new_scanner, mode) {
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             match nodash {
                 NonemptyClassRangesNoDash::List { leaders, tail } => {
                     let mut results = Vec::new();
                     results.push(first_atom);
                     results.extend(leaders.into_iter().map(ClassAtom::from));
                     results.push(tail);
-                    Some((Self::List(results), new_scanner.read_idx - scanner.read_idx))
+                    Some((Self::List(results), ScannerMutation::new(&new_scanner)))
                 }
                 NonemptyClassRangesNoDash::Range { leaders, tail, content } => {
                     let mut results = Vec::new();
                     results.push(first_atom);
                     results.extend(leaders.into_iter().map(ClassAtom::from));
-                    Some((Self::Range { head: results, tail, content }, new_scanner.read_idx - scanner.read_idx))
+                    Some((Self::Range { head: results, tail, content }, ScannerMutation::new(&new_scanner)))
                 }
             }
         } else if let Some((atom, content, amt)) = tail_parse(&new_scanner, mode) {
-            new_scanner.read_idx += amt;
-            Some((Self::Range { head: vec![first_atom], tail: atom, content }, new_scanner.read_idx - scanner.read_idx))
+            new_scanner.update(&amt);
+            Some((Self::Range { head: vec![first_atom], tail: atom, content }, ScannerMutation::new(&new_scanner)))
         } else {
-            Some((Self::List(vec![first_atom]), new_scanner.read_idx - scanner.read_idx))
+            Some((Self::List(vec![first_atom]), ScannerMutation::new(&new_scanner)))
         }
     }
 
@@ -2874,39 +2910,36 @@ enum NonemptyClassRangesNoDash {
     Range { leaders: Vec<ClassAtomNoDash>, tail: ClassAtom, content: ClassContents },
 }
 impl NonemptyClassRangesNoDash {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         // Any number of ClassAtomNoDash, followed either by a ClassAtom or by the - ClassAtom ClassContents production
         // Note that a ClassAtomNoDash is also matched by a ClassAtom, so: be careful
         let mut new_scanner = scanner.clone();
         let mut atoms = Vec::new();
         while let Some((item, amt)) = ClassAtomNoDash::parse(&new_scanner, mode) {
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             atoms.push(item);
         }
         match ClassAtom::parse(&new_scanner, mode) {
             None => {
                 let tail = atoms.pop()?;
-                Some((
-                    Self::List { leaders: atoms, tail: ClassAtom::from(tail) },
-                    new_scanner.read_idx - scanner.read_idx,
-                ))
+                Some((Self::List { leaders: atoms, tail: ClassAtom::from(tail) }, ScannerMutation::new(&new_scanner)))
             }
             Some((item, amt)) => {
-                new_scanner.read_idx += amt;
+                new_scanner.update(&amt);
                 if matches!(item, ClassAtom::Char(0x2d)) {
                     // This might be the end, or there might be more.
                     let mut second_scanner = new_scanner.clone();
                     if let Some((tail, amt)) = ClassAtom::parse(&second_scanner, mode) {
-                        second_scanner.read_idx += amt;
+                        second_scanner.update(&amt);
                         let (content, amt) = ClassContents::parse(&second_scanner, mode, UnicodeSetsMode::Denied);
-                        second_scanner.read_idx += amt;
+                        second_scanner.update(&amt);
                         return Some((
                             Self::Range { leaders: atoms, tail, content },
-                            second_scanner.read_idx - scanner.read_idx,
+                            ScannerMutation::new(&second_scanner),
                         ));
                     }
                 }
-                Some((Self::List { leaders: atoms, tail: item }, new_scanner.read_idx - scanner.read_idx))
+                Some((Self::List { leaders: atoms, tail: item }, ScannerMutation::new(&new_scanner)))
             }
         }
     }
@@ -2929,10 +2962,10 @@ impl fmt::Display for ClassAtom {
     }
 }
 impl ClassAtom {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         if new_scanner.consume('-').is_some() {
-            Some((Self::Char(0x2d), new_scanner.read_idx - scanner.read_idx))
+            Some((Self::Char(0x2d), ScannerMutation::new(&new_scanner)))
         } else {
             let (atom, amt) = ClassAtomNoDash::parse(scanner, mode)?;
             Some((
@@ -2978,22 +3011,23 @@ enum ClassAtomNoDash {
     Class(CharacterClassEscape),
 }
 impl ClassAtomNoDash {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_any()?;
         if ch == u32::from(']') || ch == u32::from('-') {
             None
         } else if ch == u32::from('\\') {
             let (escape, amt) = ClassEscape::parse(&new_scanner, mode)?;
+            new_scanner.update(&amt);
             Some((
                 match escape {
                     ClassEscape::Char(val) => Self::Char(val),
                     ClassEscape::Class(class) => Self::Class(class),
                 },
-                new_scanner.read_idx + amt - scanner.read_idx,
+                ScannerMutation::new(&new_scanner),
             ))
         } else {
-            Some((Self::Char(ch), new_scanner.read_idx - scanner.read_idx))
+            Some((Self::Char(ch), ScannerMutation::new(&new_scanner)))
         }
     }
 }
@@ -3009,12 +3043,12 @@ enum ClassEscape {
     Class(CharacterClassEscape),
 } // nope. the char class escape can be multi
 impl ClassEscape {
-    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         if new_scanner.consume('b').is_some() {
-            Some((Self::Char(8), new_scanner.read_idx - scanner.read_idx))
+            Some((Self::Char(8), ScannerMutation::new(&new_scanner)))
         } else if mode == UnicodeMode::Allowed && new_scanner.consume('-').is_some() {
-            Some((Self::Char(0x2d), new_scanner.read_idx - scanner.read_idx))
+            Some((Self::Char(0x2d), ScannerMutation::new(&new_scanner)))
         } else if let Some((cce, amt)) = CharacterClassEscape::parse(&new_scanner, mode) {
             Some((Self::Class(cce), amt))
         } else {
@@ -3044,7 +3078,7 @@ impl fmt::Display for ClassSetExpression {
     }
 }
 impl ClassSetExpression {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         if let Some((union, amt)) = ClassUnion::parse(scanner) {
             Some((Self::Union(union), amt))
         } else if let Some((intersection, amt)) = ClassIntersection::parse(scanner) {
@@ -3093,29 +3127,29 @@ impl fmt::Display for ClassUnion {
     }
 }
 impl ClassUnion {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         if let Some((range, amt)) = ClassSetRange::parse(&new_scanner) {
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             let union = match ClassUnion::parse(&new_scanner) {
                 None => None,
                 Some((union, amt)) => {
-                    new_scanner.read_idx += amt;
+                    new_scanner.update(&amt);
                     Some(Box::new(union))
                 }
             };
-            Some((ClassUnion::Range { range, union }, new_scanner.read_idx - scanner.read_idx))
+            Some((ClassUnion::Range { range, union }, ScannerMutation::new(&new_scanner)))
         } else {
             let (operand, amt) = ClassSetOperand::parse(&new_scanner)?;
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             let union = match ClassUnion::parse(&new_scanner) {
                 None => None,
                 Some((union, amt)) => {
-                    new_scanner.read_idx += amt;
+                    new_scanner.update(&amt);
                     Some(Box::new(union))
                 }
             };
-            Some((ClassUnion::Operand { operand, union }, new_scanner.read_idx - scanner.read_idx))
+            Some((ClassUnion::Operand { operand, union }, ScannerMutation::new(&new_scanner)))
         }
     }
 
@@ -3168,8 +3202,8 @@ impl fmt::Display for ClassIntersection {
     }
 }
 impl ClassIntersection {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
-        fn back_part(scanner: &Scanner) -> Option<(ClassSetOperand, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
+        fn back_part(scanner: &Scanner) -> Option<(ClassSetOperand, ScannerMutation)> {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('&')?;
             new_scanner.consume('&')?;
@@ -3177,26 +3211,26 @@ impl ClassIntersection {
                 None
             } else {
                 let (operand, amt) = ClassSetOperand::parse(&new_scanner)?;
-                new_scanner.read_idx += amt;
-                Some((operand, new_scanner.read_idx - scanner.read_idx))
+                new_scanner.update(&amt);
+                Some((operand, ScannerMutation::new(&new_scanner)))
             }
         }
 
         let mut new_scanner = scanner.clone();
         let mut result = Vec::new();
         let (operand, amt) = ClassSetOperand::parse(&new_scanner)?;
-        new_scanner.read_idx += amt;
+        new_scanner.update(&amt);
         result.push(operand);
         let (operand, amt) = back_part(&new_scanner)?;
-        new_scanner.read_idx += amt;
+        new_scanner.update(&amt);
         result.push(operand);
 
         while let Some((operand, amt)) = back_part(&new_scanner) {
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             result.push(operand);
         }
 
-        Some((Self(result), new_scanner.read_idx - scanner.read_idx))
+        Some((Self(result), ScannerMutation::new(&new_scanner)))
     }
 
     fn early_errors(&self, usm: UnicodeSetsMode) -> Vec<Object> {
@@ -3230,31 +3264,31 @@ impl fmt::Display for ClassSubtraction {
     }
 }
 impl ClassSubtraction {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
-        fn back_part(scanner: &Scanner) -> Option<(ClassSetOperand, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
+        fn back_part(scanner: &Scanner) -> Option<(ClassSetOperand, ScannerMutation)> {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('-')?;
             new_scanner.consume('-')?;
             let (operand, amt) = ClassSetOperand::parse(&new_scanner)?;
-            new_scanner.read_idx += amt;
-            Some((operand, new_scanner.read_idx - scanner.read_idx))
+            new_scanner.update(&amt);
+            Some((operand, ScannerMutation::new(&new_scanner)))
         }
 
         let mut new_scanner = scanner.clone();
         let mut result = Vec::new();
         let (operand, amt) = ClassSetOperand::parse(&new_scanner)?;
-        new_scanner.read_idx += amt;
+        new_scanner.update(&amt);
         result.push(operand);
         let (operand, amt) = back_part(&new_scanner)?;
-        new_scanner.read_idx += amt;
+        new_scanner.update(&amt);
         result.push(operand);
 
         while let Some((operand, amt)) = back_part(&new_scanner) {
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             result.push(operand);
         }
 
-        Some((Self(result), new_scanner.read_idx - scanner.read_idx))
+        Some((Self(result), ScannerMutation::new(&new_scanner)))
     }
 
     fn early_errors(&self, usm: UnicodeSetsMode) -> Vec<Object> {
@@ -3287,16 +3321,16 @@ impl fmt::Display for ClassSetRange {
     }
 }
 impl ClassSetRange {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         let (first, amt) = ClassSetCharacter::parse(&new_scanner)?;
-        new_scanner.read_idx += amt;
+        new_scanner.update(&amt);
         new_scanner.consume('-')?;
         let (last, amt) = ClassSetCharacter::parse(&new_scanner)?;
-        new_scanner.read_idx += amt;
+        new_scanner.update(&amt);
         Some((
             Self { first: first.character_value(), last: last.character_value() },
-            new_scanner.read_idx - scanner.read_idx,
+            ScannerMutation::new(&new_scanner),
         ))
     }
 
@@ -3329,7 +3363,7 @@ impl fmt::Display for ClassSetOperand {
     }
 }
 impl ClassSetOperand {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         if let Some((nested, amt)) = NestedClass::parse(scanner) {
             Some((Self::NestedClass(nested), amt))
         } else if let Some((disj, amt)) = ClassStringDisjunction::parse(scanner) {
@@ -3384,28 +3418,28 @@ impl fmt::Display for NestedClass {
     }
 }
 impl NestedClass {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         let ch = new_scanner.consume_any()?;
         if ch == u32::from('\\') {
             let (class, amt) = CharacterClassEscape::parse(&new_scanner, UnicodeMode::Allowed)?;
-            new_scanner.read_idx += amt;
-            Some((Self::CharacterClassEscape(class), new_scanner.read_idx - scanner.read_idx))
+            new_scanner.update(&amt);
+            Some((Self::CharacterClassEscape(class), ScannerMutation::new(&new_scanner)))
         } else if ch == u32::from('[') {
             match new_scanner.consume('^') {
                 None => {
                     let (contents, amt) =
                         ClassContents::parse(&new_scanner, UnicodeMode::Allowed, UnicodeSetsMode::Allowed);
-                    new_scanner.read_idx += amt;
+                    new_scanner.update(&amt);
                     new_scanner.consume(']')?;
-                    Some((Self::Class(Box::new(contents)), new_scanner.read_idx - scanner.read_idx))
+                    Some((Self::Class(Box::new(contents)), ScannerMutation::new(&new_scanner)))
                 }
                 Some(()) => {
                     let (contents, amt) =
                         ClassContents::parse(&new_scanner, UnicodeMode::Allowed, UnicodeSetsMode::Allowed);
-                    new_scanner.read_idx += amt;
+                    new_scanner.update(&amt);
                     new_scanner.consume(']')?;
-                    Some((Self::NegatedClass(Box::new(contents)), new_scanner.read_idx - scanner.read_idx))
+                    Some((Self::NegatedClass(Box::new(contents)), ScannerMutation::new(&new_scanner)))
                 }
             }
         } else {
@@ -3457,15 +3491,15 @@ impl fmt::Display for ClassStringDisjunction {
     }
 }
 impl ClassStringDisjunction {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         new_scanner.consume('\\')?;
         new_scanner.consume('q')?;
         new_scanner.consume('{')?;
         let (content, amt) = ClassStringDisjunctionContents::parse(&new_scanner)?;
-        new_scanner.read_idx += amt;
+        new_scanner.update(&amt);
         new_scanner.consume('}')?;
-        Some((Self(content.0), new_scanner.read_idx - scanner.read_idx))
+        Some((Self(content.0), ScannerMutation::new(&new_scanner)))
     }
 
     fn may_contain_strings(&self) -> bool {
@@ -3485,18 +3519,18 @@ impl ClassStringDisjunction {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ClassStringDisjunctionContents(Vec<ClassString>);
 impl ClassStringDisjunctionContents {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();
         let mut result = Vec::new();
         loop {
             let (string, amt) = ClassString::parse(&new_scanner);
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             result.push(string);
             if new_scanner.consume('|').is_none() {
                 break;
             }
         }
-        if result.is_empty() { None } else { Some((Self(result), new_scanner.read_idx - scanner.read_idx)) }
+        if result.is_empty() { None } else { Some((Self(result), ScannerMutation::new(&new_scanner))) }
     }
 }
 
@@ -3511,11 +3545,11 @@ impl fmt::Display for ClassString {
     }
 }
 impl ClassString {
-    fn parse(scanner: &Scanner) -> (Self, usize) {
+    fn parse(scanner: &Scanner) -> (Self, ScannerMutation) {
         if let Some((string, amt)) = NonEmptyClassString::parse(scanner) {
             (Self(string.0), amt)
         } else {
-            (Self(Vec::new()), 0)
+            (Self(Vec::new()), ScannerMutation::new(scanner))
         }
     }
 
@@ -3539,15 +3573,15 @@ impl ClassString {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct NonEmptyClassString(Vec<u32>);
 impl NonEmptyClassString {
-    fn parse(scanner: &Scanner) -> Option<(Self, usize)> {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         // This is one or more ClassSetCharacters
         let mut result = Vec::new();
         let mut new_scanner = scanner.clone();
         while let Some((ch, amt)) = ClassSetCharacter::parse(&new_scanner) {
-            new_scanner.read_idx += amt;
+            new_scanner.update(&amt);
             result.push(ch.character_value());
         }
-        if result.is_empty() { None } else { Some((Self(result), new_scanner.read_idx - scanner.read_idx)) }
+        if result.is_empty() { None } else { Some((Self(result), ScannerMutation::new(&new_scanner))) }
     }
 }
 
