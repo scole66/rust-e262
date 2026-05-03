@@ -348,6 +348,12 @@ pub(crate) struct Location {
     pub(crate) span: Span,
 }
 
+impl fmt::Display for Location {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Line: {}; Column: {}; for {} characters", self.starting_line, self.starting_column, self.span.length)
+    }
+}
+
 impl Default for Location {
     fn default() -> Self {
         Location { starting_line: 1, starting_column: 1, span: Span::default() }

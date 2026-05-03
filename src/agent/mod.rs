@@ -743,6 +743,8 @@ pub(crate) enum InternalRuntimeError {
     BigintIndexOOB,
     #[error("stashed function data index out of bounds")]
     SFDIndexOOB,
+    #[error("template info index out of bounds")]
+    TmplIndexOOB,
     #[error("no current lexical environment")]
     NoLexicalEnvironment,
     #[error("no current variable environment")]
@@ -982,6 +984,11 @@ mod insn_impl {
         let sfd_index = usize_operand(chunk)?;
         let sfd = chunk.function_object_data.get(sfd_index).ok_or(InternalRuntimeError::SFDIndexOOB)?;
         Ok(sfd)
+    }
+    fn template_operand(chunk: &Rc<Chunk>) -> anyhow::Result<TemplateInfo> {
+        let index = usize_operand(chunk)?;
+        let ti = chunk.template_info.get(index).ok_or(InternalRuntimeError::TmplIndexOOB)?.clone();
+        Ok(ti)
     }
     fn bump_pc(jump: i16) -> anyhow::Result<()> {
         AGENT.with(|agent| {
@@ -3763,6 +3770,86 @@ mod insn_impl {
         }
         Ok(())
     }
+
+    pub(crate) fn get_template_object(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let info = template_operand(chunk)?;
+        let site = info.location;
+        // GetTemplateObject ( templateLiteral )
+        //
+        // The abstract operation GetTemplateObject takes argument templateLiteral (a Parse Node) and returns an Array.
+        // It performs the following steps when called:
+        //
+        // 1. Let realm be the current Realm Record.
+        let realm_outer = current_realm_record().expect("running code should have a realm");
+        {
+            let realm = realm_outer.borrow();
+            // 2. Let templateRegistry be realm.[[TemplateMap]].
+            let template_registry = &realm.template_map;
+            // 3. For each element e of templateRegistry, do
+            //    a. If e.[[Site]] is the same Parse Node as templateLiteral, then
+            //       i. Return e.[[Array]].
+            if let Some(record) = template_registry.iter().find(|r| r.site == site) {
+                let obj_copy = record.array.clone();
+                let array_value = ECMAScriptValue::Object(obj_copy);
+                let completion = NormalCompletion::Value(array_value);
+                push_completion(Ok(completion))?;
+                return Ok(());
+            }
+        }
+        // 4. Let rawStrings be the TemplateStrings of templateLiteral with argument true.
+        let raw_strings = info.raw_strings;
+        // 5. Assert: rawStrings is a List of Strings.
+        // 6. Let cookedStrings be the TemplateStrings of templateLiteral with argument false.
+        let cooked_strings = info.cooked_strings;
+        // 7. Let count be the number of elements in the List cookedStrings.
+        let count = cooked_strings.len();
+        // 8. Assert: count ≤ 2**32 - 1.
+        // 9. Let template be ! ArrayCreate(count).
+        let template = array_create(to_f64(count).expect("values should be ok"), None).expect("small arrays work");
+        // 10. Let rawObj be ! ArrayCreate(count).
+        let raw_obj =
+            array_create(to_f64(count).expect("values should be in range"), None).expect("small arrays should work");
+        // 11. Let index be 0.
+        // 12. Repeat, while index < count,
+        for (index, (cooked, raw)) in cooked_strings.into_iter().zip(raw_strings).enumerate() {
+            // a. Let propertyKey be ! ToString(𝔽(index)).
+            let property_key = PropertyKey::from(index);
+            // b. Let cookedValue be cookedStrings[index].
+            let cooked_value = cooked.map_or(ECMAScriptValue::Undefined, ECMAScriptValue::from);
+            // c. Perform ! DefinePropertyOrThrow(template, propertyKey, PropertyDescriptor { [[Value]]: cookedValue,
+            //    [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false }).
+            define_property_or_throw(
+                &template,
+                property_key.clone(),
+                PotentialPropertyDescriptor::new().value(cooked_value).enumerable(true),
+            )
+            .expect(GOODOBJ);
+            // d. Let rawValue be the String value rawStrings[index].
+            let raw_value = ECMAScriptValue::String(raw.expect("raw strings should never be undefined"));
+            // e. Perform ! DefinePropertyOrThrow(rawObj, propertyKey, PropertyDescriptor { [[Value]]: rawValue,
+            //    [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: false }).
+            define_property_or_throw(
+                &raw_obj,
+                property_key,
+                PotentialPropertyDescriptor::new().value(raw_value).enumerable(true),
+            )
+            .expect(GOODOBJ);
+            // f. Set index to index + 1.
+        }
+        // 13. Perform ! SetIntegrityLevel(rawObj, frozen).
+        set_integrity_level(&raw_obj, IntegrityLevel::Frozen).expect(GOODOBJ);
+        // 14. Perform ! DefinePropertyOrThrow(template, "raw", PropertyDescriptor { [[Value]]: rawObj, [[Writable]]:
+        //     false, [[Enumerable]]: false, [[Configurable]]: false }).
+        define_property_or_throw(&template, "raw", PotentialPropertyDescriptor::new().value(raw_obj)).expect(GOODOBJ);
+        // 15. Perform ! SetIntegrityLevel(template, frozen).
+        set_integrity_level(&template, IntegrityLevel::Frozen).expect(GOODOBJ);
+        // 16. Append the Record { [[Site]]: templateLiteral, [[Array]]: template } to realm.[[TemplateMap]].
+        let mut realm = realm_outer.borrow_mut();
+        realm.template_map.push(TemplateRecord { site, array: template.clone() });
+        // 17. Return template.
+        push_completion(Ok(NormalCompletion::Value(ECMAScriptValue::Object(template)))).expect(PUSHABLE);
+        Ok(())
+    }
 }
 
 pub(crate) fn execute_synchronously(source: &SourceTree) -> Completion<ECMAScriptValue> {
@@ -4052,6 +4139,7 @@ pub(crate) async fn execute(
             Insn::BindThisAndInit => insn_impl::bind_this_and_init().expect(GOODCODE),
             Insn::StaticClassItem => insn_impl::static_class_item().expect(GOODCODE),
             Insn::RegExpCreate => insn_impl::reg_exp_create(&chunk).expect(GOODCODE),
+            Insn::GetTemplateObject => insn_impl::get_template_object(&chunk).expect(GOODCODE),
         }
     }
 

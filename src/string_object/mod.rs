@@ -523,16 +523,96 @@ fn string_from_char_code(
 fn string_from_code_point(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.fromCodePoint ( ...codePoints )
+    // This function may be called with any number of arguments which form the rest parameter codePoints.
+    //
+    // It performs the following steps when called:
+    //
+    // 1. Let result be the empty String.
+    // 2. For each element next of codePoints, do
+    //    a. Let nextCP be ? ToNumber(next).
+    //    b. If nextCP is not an integral Number, throw a RangeError exception.
+    //    c. If ℝ(nextCP) < 0 or ℝ(nextCP) > 0x10FFFF, throw a RangeError exception.
+    //    d. Set result to the string-concatenation of result and UTF16EncodeCodePoint(ℝ(nextCP)).
+    // 3. Assert: If codePoints is empty, then result is the empty String.
+    // 4. Return result.
+    let mut out = Vec::with_capacity(arguments.len() * 2);
+
+    for val in arguments {
+        let next_cp = val.to_number()?;
+        if next_cp.fract() != 0.0 || !(0.0..=1_114_111.0).contains(&next_cp) {
+            return Err(create_range_error("code points must be integers in the range 0..0x10ffff"));
+        }
+
+        let cp = to_uint32_f64(next_cp);
+        let mut buf = [0u16; 2];
+        let units = utf16_encode_code_point(cp, &mut buf).expect("points should be in range");
+
+        out.extend_from_slice(units);
+    }
+
+    Ok(JSString::from(out.as_slice()).into())
 }
+
 fn string_raw(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // String.raw ( template, ...substitutions )
+    //
+    // This function may be called with a variable number of arguments. The first argument is template and the remainder
+    // of the arguments form the List substitutions.
+    //
+    let mut args = FuncArgs::from(arguments);
+    let template = args.next_arg();
+    let substitutions = args.remaining().collect::<Vec<_>>();
+
+    // It performs the following steps when called:
+    //
+    // 1. Let substitutionCount be the number of elements in substitutions.
+    let substitution_count = substitutions.len();
+    // 2. Let cooked be ? ToObject(template).
+    let cooked = to_object(template)?;
+    // 3. Let literals be ? ToObject(? Get(cooked, "raw")).
+    let literals = to_object(cooked.get(&"raw".into())?)?;
+    // 4. Let literalCount be ? LengthOfArrayLike(literals).
+    let literal_count = literals.length_of_array_like()?;
+    // 5. If literalCount ≤ 0, return the empty String.
+    if literal_count <= 0.0 {
+        return Ok(JSString::from("").into());
+    }
+    let literal_count = to_usize(literal_count).expect("should be a positive integer");
+    // 6. Let result be the empty String.
+    let mut result = JSString::from("");
+    // 7. Let nextIndex be 0.
+    let mut next_index = 0;
+    // 8. Repeat,
+    loop {
+        // a. Let nextLiteralVal be ? Get(literals, ! ToString(𝔽(nextIndex))).
+        let next_literal_val = literals.get(&next_index.into())?;
+        // b. Let nextLiteral be ? ToString(nextLiteralVal).
+        let next_literal = to_string(next_literal_val)?;
+        // c. Set result to the string-concatenation of result and nextLiteral.
+        result = result.concat(next_literal);
+        // d. If nextIndex + 1 = literalCount, return result.
+        if next_index + 1 == literal_count {
+            return Ok(result.into());
+        }
+        // e. If nextIndex < substitutionCount, then
+        if next_index < substitution_count {
+            // i. Let nextSubVal be substitutions[nextIndex].
+            let next_sub_val = substitutions[next_index].clone();
+            // ii. Let nextSub be ? ToString(nextSubVal).
+            let next_sub = to_string(next_sub_val)?;
+            // iii. Set result to the string-concatenation of result and nextSub.
+            result = result.concat(next_sub);
+        }
+        // f. Set nextIndex to nextIndex + 1.
+        next_index += 1;
+    }
 }
 
 // 22.1.3.1 String.prototype.at ( index )

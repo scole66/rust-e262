@@ -288,6 +288,10 @@ impl MemberExpression {
         }
     }
 
+    pub(crate) fn is_in_tail_position(&self, top: &ParsedText, strict: bool) -> bool {
+        top.is_in_tail_position(&self.location(), strict)
+    }
+
     pub(crate) fn as_string_literal(&self) -> Option<StringToken> {
         match self {
             MemberExpression::PrimaryExpression(n) => n.as_string_literal(),

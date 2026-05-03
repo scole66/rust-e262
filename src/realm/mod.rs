@@ -423,6 +423,12 @@ impl fmt::Debug for Intrinsics {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct TemplateRecord {
+    pub(crate) site: Location,
+    pub(crate) array: Object,
+}
+
 pub(crate) type RealmId = u64;
 
 pub(crate) struct Realm {
@@ -438,7 +444,7 @@ pub(crate) struct Realm {
     pub(crate) intrinsics: Intrinsics,
     pub(crate) global_object: Option<Object>,
     pub(crate) global_env: Option<Rc<GlobalEnvironmentRecord>>,
-    // TemplateMap: later, when needed
+    pub(crate) template_map: Vec<TemplateRecord>,
     id: RealmId,
 }
 
@@ -448,6 +454,7 @@ impl fmt::Debug for Realm {
             .field("intrinsics", &self.intrinsics)
             .field("global_object", &ConciseOptionalObject::from(&self.global_object))
             .field("global_env", &ConciseOptionalGlobalEnvironmentRecord(self.global_env.clone()))
+            .field("template_map", &self.template_map)
             .finish()
     }
 }
@@ -470,7 +477,13 @@ impl Realm {
 //  5. Set realmRec.[[TemplateMap]] to a new empty List.
 //  6. Return realmRec.
 pub(crate) fn create_realm(id: RealmId) -> Rc<RefCell<Realm>> {
-    let r = Rc::new(RefCell::new(Realm { intrinsics: Intrinsics::new(), global_object: None, global_env: None, id }));
+    let r = Rc::new(RefCell::new(Realm {
+        intrinsics: Intrinsics::new(),
+        global_object: None,
+        global_env: None,
+        id,
+        template_map: vec![],
+    }));
     create_intrinsics(&r);
     r
 }
