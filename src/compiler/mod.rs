@@ -2928,7 +2928,8 @@ impl OptionalChain {
                 //  2. Let tailCall be IsInTailPosition(thisChain).
                 //  3. Return ? EvaluateCall(baseValue, baseReference, Arguments, tailCall).
                 let tail_call = self.is_in_tail_position(&source.ast, strict);
-                compile_call(chunk, strict, source, &ArgsFrom::Arguments(args), tail_call).map(CompilerStatusFlags::from)
+                compile_call(chunk, strict, source, &ArgsFrom::Arguments(args), tail_call)
+                    .map(CompilerStatusFlags::from)
             }
             OptionalChain::Exp(ex, _) => {
                 // OptionalChain : ?. [ Expression ]
