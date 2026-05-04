@@ -2704,7 +2704,43 @@ impl CallExpression {
 
                 Ok(AlwaysAbruptRefResult.into())
             }
-            CallExpression::CallThenTemplateLiteral(_, _) => todo!(),
+            CallExpression::CallThenTemplateLiteral(callexp, tl) => {
+                // CallExpression : CallExpression TemplateLiteral
+                // 1. Let tagRef be ? Evaluation of CallExpression.
+                // 2. Let tagFunc be ? GetValue(tagRef).
+                // 3. Let thisCall be this CallExpression.
+                // 4. Let tailCall be IsInTailPosition(thisCall).
+                // 5. Return ? EvaluateCall(tagFunc, tagRef, TemplateLiteral, tailCall).
+
+                //  <ce>.evaluate                tagref/err
+                //  DUP                          tegref/err tagref/err
+                //  GET_VALUE                    tagfunc/err tagref/err
+                //  JUMP_IF_ABRUPT    unwind     tagfunc tagref
+                //  <compile_call>               result/err
+                //  jump exit
+                // unwind:                       err1 err2
+                //   unwind 1                    err1
+                // exit:                         result/err
+                let status = callexp.compile(chunk, strict, source)?;
+                chunk.op(Insn::Dup);
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let mark = if status.maybe_abrupt() || status.maybe_ref() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+                let tail_position = self.is_in_tail_position(&source.ast, strict);
+                compile_call(chunk, strict, source, &ArgsFrom::Template(tl), tail_position)?;
+                if let Some(mark) = mark {
+                    let exit = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(mark)?;
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.fixup(exit).expect("Jump too short to fail");
+                }
+                Ok(CompilerStatusFlags::new().abrupt(true))
+            }
             CallExpression::CallThenPrivateId(_, _, _) => todo!(),
         }
     }
