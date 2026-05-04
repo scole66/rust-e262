@@ -1526,7 +1526,32 @@ mod member_expression {
     )]
     #[test_case("b[a]", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no space for expression (expression)")]
     #[test_case("a[@@@]", true, None => serr("out of range integral type conversion attempted"); "bad jump (expression)")]
-    #[test_case("a`${b}`", true, None => panics "not yet implemented"; "template")]
+    #[test_case("a`${b}`", true, None => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 30",
+        "GET_TMPL_OBJ Location{Line: 1; Column: 2; for 6 characters}",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 4",
+        "ZERO",
+        "FLOAT 0 (1)",
+        "ADD",
+        "JUMP_IF_ABRUPT 5",
+        "FLOAT 0 (1)",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 2",
+        "JUMP 1",
+        "CALL_STRICT",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true, false)); "template")]
     #[test_case(
         "super.a", true, None
         => Ok((svec(&["THIS", "JUMP_IF_ABRUPT 4", "STRING 0 (a)", "SUPER_REF strict"]), true, true));

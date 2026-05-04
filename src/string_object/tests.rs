@@ -751,8 +751,6 @@ fn string_prototype_value_of(make_params: impl FnOnce() -> ECMAScriptValue) -> R
         .map_err(unwind_any_error)
 }
 
-tbd_function!(string_from_code_point);
-tbd_function!(string_raw);
 tbd_function!(string_prototype_at);
 tbd_function!(string_prototype_char_at);
 tbd_function!(string_prototype_char_code_at);

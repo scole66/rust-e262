@@ -32,6 +32,7 @@ pub(crate) struct Chunk {
     pub(crate) bigints: Vec<Rc<BigInt>>,
     pub(crate) string_sets: Vec<AHashSet<JSString>>,
     pub(crate) function_object_data: Vec<StashedFunctionData>,
+    pub(crate) template_info: Vec<TemplateInfo>,
 }
 
 impl Chunk {
@@ -67,6 +68,10 @@ impl Chunk {
     pub(crate) fn add_to_string_set_pool(&mut self, strings: &[JSString]) -> anyhow::Result<u16> {
         let label_set = strings.iter().cloned().collect::<AHashSet<JSString>>();
         Self::add_to_pool(&mut self.string_sets, label_set, "string sets")
+    }
+
+    pub(crate) fn add_to_template_pool(&mut self, info: TemplateInfo) -> anyhow::Result<u16> {
+        Self::add_to_pool(&mut self.template_info, info, "template info")
     }
 
     fn add_to_pool<Item>(collection: &mut Vec<Item>, item: Item, collection_name: &str) -> anyhow::Result<u16>
@@ -369,6 +374,10 @@ impl Chunk {
                 string_set.sort();
                 (2, format!("    {:<24}[{}]", insn, string_set.iter().join(", ")))
             }
+            Insn::GetTemplateObject => {
+                let info_idx = self.opcodes[idx] as usize;
+                (2, format!("    {insn:<24}Location{{{}}}", self.template_info[info_idx].location))
+            }
         }
     }
 
@@ -423,6 +432,25 @@ impl Chunk {
             (false, true) => Strictness::NonStrict,
             (false, false) => Strictness::Indeterminate,
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct TemplateInfo {
+    pub(crate) location: Location,
+    pub(crate) raw_strings: Vec<Option<JSString>>,
+    pub(crate) cooked_strings: Vec<Option<JSString>>,
+}
+
+impl TemplateInfo {
+    pub(crate) fn new(location: Location, raw: Vec<Option<JSString>>, cooked: Vec<Option<JSString>>) -> Self {
+        Self { location, raw_strings: raw, cooked_strings: cooked }
+    }
+}
+
+impl PartialEq for TemplateInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.location == other.location
     }
 }
 

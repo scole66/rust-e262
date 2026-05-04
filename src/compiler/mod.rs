@@ -76,6 +76,7 @@ pub(crate) enum Insn {
     GetParentsFromSuperclass,
     GetSuperConstructor,
     GetSyncIterator,
+    GetTemplateObject,
     GetV,
     GetValue,
     Greater,
@@ -405,6 +406,7 @@ impl fmt::Display for Insn {
             Insn::BindThisAndInit => "BIND_THIS_AND_INIT",
             Insn::StaticClassItem => "STATIC_ITEM",
             Insn::RegExpCreate => "REGEXP",
+            Insn::GetTemplateObject => "GET_TMPL_OBJ",
         })
     }
 }
@@ -1570,6 +1572,67 @@ impl TemplateLiteral {
             TemplateLiteral::SubstitutionTemplate(st) => st.compile(chunk, strict, source).map(AbruptResult::from),
         }
     }
+
+    pub(crate) fn argument_list_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate { .. } => {
+                // TemplateLiteral : NoSubstitutionTemplate
+                // 1. Let templateLiteral be this TemplateLiteral.
+                // 2. Let siteObj be GetTemplateObject(templateLiteral).
+                // 3. Return « siteObj ».
+
+                // start:
+                //   <getTemplateObject(tl)>              site_obj
+                //   FLOAT 1.0                            1 site_obj
+                self.get_template_object(chunk)?;
+                let index = chunk.add_to_float_pool(1.0)?;
+                chunk.op_plus_arg(Insn::Float, index);
+                Ok(AbruptResult::Never)
+            }
+            TemplateLiteral::SubstitutionTemplate(substitution_template) => {
+                // TemplateLiteral : SubstitutionTemplate
+                // 1. Let templateLiteral be this TemplateLiteral.
+                // 2. Let siteObj be GetTemplateObject(templateLiteral).
+                // 3. Let remaining be ? ArgumentListEvaluation of SubstitutionTemplate.
+                // 4. Return the list-concatenation of « siteObj » and remaining.
+
+                // start:
+                //   <getTemplateObject(tl)>              site_obj
+                //   <st.argument_list_eval()>            (N argN-1 .. arg0)/err site_obj
+                //   JUMP_IF_ABRUPT unwind
+                //   FLOAT 1                              1 N argN-1 .. arg0 site_obj
+                //   ADD                                  N+1 argN-1 .. arg0 site_obj
+                //   JUMP exit
+                // unwind:                                err site_obj
+                //   UNWIND 1                             err
+                // exit:                                  (N+1 argN-1 .. arg0 site_obj)/err
+                self.get_template_object(chunk)?;
+                substitution_template.argument_list_evaluation(chunk, strict, source)?;
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                let index = chunk.add_to_float_pool(1.0)?;
+                chunk.op_plus_arg(Insn::Float, index);
+                chunk.op(Insn::Add);
+                let exit = chunk.op_jump(Insn::Jump);
+                chunk.fixup(unwind).expect("Jump too short to fail");
+                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.fixup(exit).expect("Jump too short to fail");
+
+                Ok(AlwaysAbruptResult.into())
+            }
+        }
+    }
+
+    fn get_template_object(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+        let info = TemplateInfo::new(self.location(), self.template_strings(true), self.template_strings(false));
+        let index = chunk.add_to_template_pool(info)?;
+        chunk.op_plus_arg(Insn::GetTemplateObject, index);
+        Ok(NeverAbruptRefResult)
+    }
 }
 
 impl SubstitutionTemplate {
@@ -1633,6 +1696,64 @@ impl SubstitutionTemplate {
 
         Ok(AlwaysAbruptResult)
     }
+
+    fn argument_list_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: ArgumentListEvaluation
+        //
+        // The syntax-directed operation ArgumentListEvaluation takes no arguments and returns either a normal
+        // completion containing a List of ECMAScript language values or an abrupt completion.
+
+        // SubstitutionTemplate : TemplateHead Expression TemplateSpans
+        // 1. Let firstSubRef be ? Evaluation of Expression.
+        // 2. Let firstSub be ? GetValue(firstSubRef).
+        // 3. Let restSub be ? SubstitutionEvaluation of TemplateSpans.
+        // 4. Assert: restSub is a possibly empty List.
+        // 5. Return the list-concatenation of « firstSub » and restSub.
+
+        // start:
+        //   <expression>               firstSubRef/err
+        //   GET_VALUE                  firstSub/err
+        //   JUMP_IF_ABRUPT exit        firstSub
+        //   <spans.sub_eval>           (N argN-1 .. arg0)/err firstSub
+        //   JUMP_IF_ABRUPT unwind
+        //   FLOAT 1                    1 N argN-1 .. arg0 firstSub
+        //   ADD                        N+1 argN-1 .. arg0 firstSub
+        //   JUMP exit
+        // unwind:
+        //   UNWIND 1
+        // exit:
+
+        let exp_status = self.expression.compile(chunk, strict, source)?;
+        if exp_status.maybe_ref() {
+            chunk.op(Insn::GetValue);
+        }
+        let exit1 = if exp_status.maybe_abrupt() || exp_status.maybe_ref() {
+            Some(chunk.op_jump(Insn::JumpIfAbrupt))
+        } else {
+            None
+        };
+        let spans_status = self.template_spans.substitution_evaluation(chunk, strict, source)?;
+        let unwind = if spans_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        let index = chunk.add_to_float_pool(1.0)?;
+        chunk.op_plus_arg(Insn::Float, index);
+        chunk.op(Insn::Add);
+        if let Some(unwind) = unwind {
+            let exit2 = chunk.op_jump(Insn::Jump);
+            chunk.fixup(unwind).expect("Jump too short to fail");
+            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.fixup(exit2).expect("Jump too short to fail");
+        }
+        if let Some(exit) = exit1 {
+            chunk.fixup(exit)?;
+        }
+
+        Ok(AbruptResult::from(exp_status.maybe_abrupt() || exp_status.maybe_ref() || spans_status.maybe_abrupt()))
+    }
 }
 
 impl TemplateSpans {
@@ -1668,6 +1789,34 @@ impl TemplateSpans {
                 chunk.fixup(exit).expect("jump too short to fail");
 
                 Ok(AbruptResult::Maybe)
+            }
+        }
+    }
+
+    fn substitution_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: SubstitutionEvaluation
+        //
+        // The syntax-directed operation SubstitutionEvaluation takes no arguments and returns either a normal
+        // completion containing a List of ECMAScript language values or an abrupt completion.
+        match self {
+            TemplateSpans::Tail { .. } => {
+                // TemplateSpans : TemplateTail
+                // 1. Return a new empty List.
+
+                // start:
+                //   ZERO        0
+                chunk.op(Insn::Zero);
+                Ok(AbruptResult::Never)
+            }
+            TemplateSpans::List { tml, .. } => {
+                // TemplateSpans : TemplateMiddleList TemplateTail
+                // 1. Return ? SubstitutionEvaluation of TemplateMiddleList.
+                tml.substitution_evaluation(chunk, strict, source)
             }
         }
     }
@@ -1779,6 +1928,104 @@ impl TemplateMiddleList {
                 }
 
                 Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+
+    fn substitution_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: SubstitutionEvaluation
+        //
+        // The syntax-directed operation SubstitutionEvaluation takes no arguments and returns either a normal
+        // completion containing a List of ECMAScript language values or an abrupt completion.
+        match self {
+            TemplateMiddleList::ListHead { exp, .. } => {
+                // TemplateMiddleList : TemplateMiddle Expression
+                // 1. Let subRef be ? Evaluation of Expression.
+                // 2. Let sub be ? GetValue(subRef).
+                // 3. Return « sub ».
+
+                // start:
+                //   <exp>                  subref/err
+                //   GET_VALUE              sub/err
+                //   JUMP_IF_ABRUPT unwind
+                //   FLOAT 1                1 sub
+                //   JUMP exit
+                // unwind:
+                //   UNWIND 1
+                // exit:
+
+                let status = exp.compile(chunk, strict, source)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let unwind = if status.maybe_abrupt() || status.maybe_ref() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+                let index = chunk.add_to_float_pool(1.0)?;
+                chunk.op_plus_arg(Insn::Float, index);
+                if let Some(unwind) = unwind {
+                    let exit = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(unwind).expect("Jump too short to fail");
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.fixup(exit).expect("Junp too short to fail");
+                    Ok(AbruptResult::Maybe)
+                } else {
+                    Ok(AbruptResult::Never)
+                }
+            }
+            TemplateMiddleList::ListMid(template_middle_list, _, expression, _) => {
+                // TemplateMiddleList : TemplateMiddleList TemplateMiddle Expression
+                // 1. Let preceding be ? SubstitutionEvaluation of TemplateMiddleList.
+                // 2. Let nextRef be ? Evaluation of Expression.
+                // 3. Let next be ? GetValue(nextRef).
+                // 4. Return the list-concatenation of preceding and « next ».
+
+                // start:
+                //   <tml.substitution_evaluation>       (N argN-1 ... arg0)/err
+                //   JUMP_IF_ABRUPT exit                 N argN-1 ... arg0
+                //   <exp.evaluate>                      nextRef/err N argN-1 ... arg0
+                //   GET_VALUE                           next/err N argN-1 ... arg0
+                //   JUMP_IF_ABRUPT unwind_list          next N argN-1 ... arg0
+                //   SWAP                                N next argN-1 ... arg0
+                //   FLOAT 1                             1 N next argN-1 ... arg0
+                //   ADD                                 N+1 next argN-1 ... arg0
+                //   JUMP exit
+                // unwind_list:
+                //   UNWIND_LIST
+                // exit:
+
+                let tml_status = template_middle_list.substitution_evaluation(chunk, strict, source)?;
+                let exit1 = if tml_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exp_status = expression.compile(chunk, strict, source)?;
+                if exp_status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let unwind_list = if exp_status.maybe_abrupt() || exp_status.maybe_ref() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+                chunk.op(Insn::Swap);
+                let index = chunk.add_to_float_pool(1.0)?;
+                chunk.op_plus_arg(Insn::Float, index);
+                chunk.op(Insn::Add);
+                if let Some(unwind) = unwind_list {
+                    let exit2 = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(unwind).expect("Jump too short to fail");
+                    chunk.op(Insn::UnwindList);
+                    chunk.fixup(exit2).expect("Jump too short to fail");
+                }
+                if let Some(exit) = exit1 {
+                    chunk.fixup(exit)?;
+                }
+                Ok(AbruptResult::from(tml_status.maybe_abrupt() || exp_status.maybe_abrupt() || exp_status.maybe_ref()))
             }
         }
     }
@@ -2145,7 +2392,44 @@ impl MemberExpression {
                 }
                 Ok(CompilerStatusFlags::new().abrupt(true).reference(true))
             }
-            MemberExpression::TemplateLiteral(_, _) => todo!(),
+            MemberExpression::TemplateLiteral(me, tmpl) => {
+                // Runtime Semantics: Evaluation
+                // MemberExpression : MemberExpression TemplateLiteral
+                // 1. Let tagRef be ? Evaluation of MemberExpression.
+                // 2. Let tagFunc be ? GetValue(tagRef).
+                // 3. Let thisCall be this MemberExpression.
+                // 4. Let tailCall be IsInTailPosition(thisCall).
+                // 5. Return ? EvaluateCall(tagFunc, tagRef, TemplateLiteral, tailCall).
+
+                //  <me>.evaluate                tagref/err
+                //  DUP                          tegref/err tagref/err
+                //  GET_VALUE                    tagfunc/err tagref/err
+                //  JUMP_IF_ABRUPT    unwind     tagfunc tagref
+                //  <compile_call>               result/err
+                //  jump exit
+                // unwind:                       err1 err2
+                //   unwind 1                    err1
+                // exit:                         result/err
+                let status = me.compile(chunk, strict, source)?;
+                chunk.op(Insn::Dup);
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue);
+                }
+                let mark = if status.maybe_abrupt() || status.maybe_ref() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                } else {
+                    None
+                };
+                let tail_position = self.is_in_tail_position(&source.ast, strict);
+                compile_call(chunk, strict, source, &ArgsFrom::Template(tmpl), tail_position)?;
+                if let Some(mark) = mark {
+                    let exit = chunk.op_jump(Insn::Jump);
+                    chunk.fixup(mark)?;
+                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.fixup(exit).expect("Jump too short to fail");
+                }
+                Ok(CompilerStatusFlags::new().abrupt(true))
+            }
             MemberExpression::SuperProperty(sp) => sp.compile(chunk, strict, source).map(CompilerStatusFlags::from),
             MemberExpression::MetaProperty(mp) => mp.compile(chunk, strict, source),
             MemberExpression::NewArguments(me, args, ..) => {
@@ -2365,7 +2649,7 @@ impl CallExpression {
                 chunk.op(Insn::GetValue);
                 let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
                 let tail_call = self.is_in_tail_position(&source.ast, strict);
-                compile_call(chunk, strict, source, args, tail_call)?;
+                compile_call(chunk, strict, source, &ArgsFrom::Arguments(args), tail_call)?;
                 let exit = chunk.op_jump(Insn::Jump);
                 chunk.fixup(unwind)?;
                 chunk.op_plus_arg(Insn::Unwind, 1);
@@ -2426,11 +2710,30 @@ impl CallExpression {
     }
 }
 
+pub(crate) enum ArgsFrom<'a> {
+    Arguments(&'a Rc<Arguments>),
+    Template(&'a Rc<TemplateLiteral>),
+}
+
+impl ArgsFrom<'_> {
+    fn argument_list_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &SourceTree,
+    ) -> anyhow::Result<AbruptResult> {
+        match self {
+            ArgsFrom::Arguments(arguments) => arguments.argument_list_evaluation(chunk, strict, source),
+            ArgsFrom::Template(template_literal) => template_literal.argument_list_evaluation(chunk, strict, source),
+        }
+    }
+}
+
 pub(crate) fn compile_call(
     chunk: &mut Chunk,
     strict: bool,
     source: &SourceTree,
-    arguments: &Rc<Arguments>,
+    arguments: &ArgsFrom<'_>,
     tail_position: bool,
 ) -> anyhow::Result<AlwaysAbruptResult> {
     // EvaluateCall ( func, ref, arguments, tailPosition )
@@ -2513,7 +2816,7 @@ impl CallMemberExpression {
         }
         // Stack: func ref ...
         let tail_call = self.is_in_tail_position(&source.ast, strict);
-        compile_call(chunk, strict, source, &self.arguments, tail_call)?;
+        compile_call(chunk, strict, source, &ArgsFrom::Arguments(&self.arguments), tail_call)?;
         if let Some(mark) = exit {
             chunk.fixup(mark)?;
         }
@@ -2625,7 +2928,8 @@ impl OptionalChain {
                 //  2. Let tailCall be IsInTailPosition(thisChain).
                 //  3. Return ? EvaluateCall(baseValue, baseReference, Arguments, tailCall).
                 let tail_call = self.is_in_tail_position(&source.ast, strict);
-                compile_call(chunk, strict, source, args, tail_call).map(CompilerStatusFlags::from)
+                compile_call(chunk, strict, source, &ArgsFrom::Arguments(args), tail_call)
+                    .map(CompilerStatusFlags::from)
             }
             OptionalChain::Exp(ex, _) => {
                 // OptionalChain : ?. [ Expression ]
@@ -2677,7 +2981,7 @@ impl OptionalChain {
                 };
 
                 let tail_call = self.is_in_tail_position(&source.ast, strict);
-                compile_call(chunk, strict, source, args, tail_call)?;
+                compile_call(chunk, strict, source, &ArgsFrom::Arguments(args), tail_call)?;
 
                 if let Some(unwind) = unwind {
                     let exit2 = chunk.op_jump(Insn::Jump);
