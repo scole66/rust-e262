@@ -1785,7 +1785,38 @@ mod call_expression {
         "STRICT_REF"
     ]), true, true)); "ce-prop, ce is ref")]
     #[test_case("a().b", true, &[(Fillable::String, 1)] => serr("Out of room for strings in this compilation unit"); "ce-prop; id doesn't fit")]
-    #[test_case("a()`${b}`", true, &[] => panics "not yet implemented"; "template-on-call")]
+    #[test_case("a()`${b}`", true, &[] => Ok((svec(&[
+        "STRING 0 (a)",
+        "STRICT_RESOLVE",
+        "DUP",
+        "GET_VALUE",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 1",
+        "JUMP 3",
+        "FLOAT 0 (0)",
+        "CALL_STRICT",
+        "DUP",
+        "JUMP_IF_ABRUPT 30",
+        "GET_TMPL_OBJ Location{Line: 1; Column: 4; for 6 characters}",
+        "STRING 1 (b)",
+        "STRICT_RESOLVE",
+        "GET_VALUE",
+        "JUMP_IF_ABRUPT 4",
+        "ZERO",
+        "FLOAT 1 (1)",
+        "ADD",
+        "JUMP_IF_ABRUPT 5",
+        "FLOAT 1 (1)",
+        "ADD",
+        "JUMP 2",
+        "UNWIND 1",
+        "JUMP_IF_NORMAL 4",
+        "UNWIND 2",
+        "JUMP 1",
+        "CALL_STRICT",
+        "JUMP 2",
+        "UNWIND 1"
+    ]), true, false)); "template-on-call")]
     #[test_case("a().#pid", true, &[] => panics "not yet implemented"; "private-on-call")]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let (node, ast) = Maker::new(src).call_expression_ast();
