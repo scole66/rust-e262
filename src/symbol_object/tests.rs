@@ -85,15 +85,6 @@ mod symbol_object {
     }
 
     #[test]
-    fn is_string_object() {
-        setup_test_agent();
-        let sym = wks(WksId::ToPrimitive);
-        let obj = Object::from(sym);
-
-        assert!(!obj.o.is_string_object());
-    }
-
-    #[test]
     fn is_date_object() {
         setup_test_agent();
         let sym = wks(WksId::ToPrimitive);

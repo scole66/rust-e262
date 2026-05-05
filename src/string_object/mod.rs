@@ -53,9 +53,6 @@ impl ObjectInterface for StringObject {
         Some(self)
     }
 
-    fn is_string_object(&self) -> bool {
-        true
-    }
     fn kind(&self) -> ObjectTag {
         ObjectTag::String
     }
@@ -128,45 +125,39 @@ impl ObjectInterface for StringObject {
     }
 
     fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
-        // [[OwnPropertyKeys]] ( )
-        //
-        // The [[OwnPropertyKeys]] internal method of a String exotic object O takes no arguments and returns
-        // a normal completion containing a List of property keys. It performs the following steps when
-        // called:
-        //
-        //  1. Let keys be a new empty List.
-        //  2. Let str be O.[[StringData]].
-        //  3. Assert: Type(str) is String.
-        //  4. Let len be the length of str.
-        //  5. For each integer i starting with 0 such that i < len, in ascending order, do
-        //      a. Add ! ToString(𝔽(i)) as the last element of keys.
-        //  6. For each own property key P of O such that P is an array index and ! ToIntegerOrInfinity(P) ≥
-        //     len, in ascending numeric index order, do
-        //      a. Add P as the last element of keys.
-        //  7. For each own property key P of O such that Type(P) is String and P is not an array index, in
-        //     ascending chronological order of property creation, do
-        //      a. Add P as the last element of keys.
-        //  8. For each own property key P of O such that Type(P) is Symbol, in ascending chronological order
-        //     of property creation, do
-        //      a. Add P as the last element of keys.
-        //  9. Return keys.
         let mut keys = vec![];
+
+        // String exotic objects report their string-index keys first, synthesized
+        // from [[StringData]] rather than stored in the ordinary property table.
+        // The indexes are UTF-16 code unit positions.
         let string = &self.string_data;
         let len = string.len();
         for idx in 0..len {
             keys.push(PropertyKey::from(idx));
         }
+
         let bindings = &self.common.borrow().properties;
+
+        // Ordinary own keys are collected into the spec's required ordering groups:
+        // array indexes after the string length, then other strings, then symbols.
         let mut norm_keys: Vec<(PropertyKey, usize)> = Vec::new();
         let mut symb_keys: Vec<(PropertyKey, usize)> = Vec::new();
         let mut extra_numbers: Vec<(PropertyKey, u32)> = Vec::new();
+
         for (key, desc) in bindings {
             if key.is_array_index() {
                 let keyval = array_index_key(key);
-                assert!(keyval as usize >= len); // All lower array indices are part of the string, and no one should have been able to make them independently.
+
+                // Indexes covered by [[StringData]] are synthesized above and are
+                // non-configurable, so they should not also appear as ordinary
+                // properties.
+                assert!(keyval as usize >= len);
+
                 extra_numbers.push((key.clone(), keyval));
             } else {
                 match key {
+                    // `spot` records creation order for ordinary string and symbol
+                    // properties.
                     PropertyKey::String(_) => {
                         norm_keys.push((key.clone(), desc.spot));
                     }
@@ -176,6 +167,9 @@ impl ObjectInterface for StringObject {
                 }
             }
         }
+
+        // Numeric indexes are ordered numerically; other strings and symbols keep
+        // their original creation order within their own groups.
         extra_numbers.sort_by_key(|x| x.1);
         norm_keys.sort_by_key(|x| x.1);
         symb_keys.sort_by_key(|x| x.1);
@@ -209,24 +203,17 @@ impl StringObject {
     }
 
     pub(crate) fn object(value: JSString, prototype: Option<Object>) -> Object {
-        // StringCreate ( value, prototype )
-        //
-        // The abstract operation StringCreate takes arguments value (a String) and prototype and returns a
-        // String exotic object. It is used to specify the creation of new String exotic objects. It performs
-        // the following steps when called:
-        //
-        // 1. Let S be MakeBasicObject(« [[Prototype]], [[Extensible]], [[StringData]] »).
-        // 2. Set S.[[Prototype]] to prototype.
-        // 3. Set S.[[StringData]] to value.
-        // 4. Set S.[[GetOwnProperty]] as specified in 10.4.3.1.
-        // 5. Set S.[[DefineOwnProperty]] as specified in 10.4.3.2.
-        // 6. Set S.[[OwnPropertyKeys]] as specified in 10.4.3.3.
-        // 7. Let length be the number of code unit elements in value.
-        // 8. Perform ! DefinePropertyOrThrow(S, "length", PropertyDescriptor { [[Value]]: 𝔽(length),
-        //    [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: false }).
-        // 9. Return S.
+        // The String object's length is fixed from its [[StringData]] at creation
+        // time and counts UTF-16 code units, not Unicode scalar values.
         let length = value.len();
+
+        // `Self::new` installs the String exotic behavior and stores both the
+        // prototype and the primitive string data in the object.
         let s = Object { o: Rc::new(Self::new(value, prototype)) };
+
+        // String objects expose a non-writable, non-enumerable, non-configurable
+        // own `length` property. The string index properties are handled by the
+        // exotic internal methods rather than being created here.
         define_property_or_throw(
             &s,
             "length",
@@ -236,36 +223,35 @@ impl StringObject {
 
         s
     }
-
     pub(crate) fn string_get_own_property(&self, key: &PropertyKey) -> Option<PropertyDescriptor> {
-        // StringGetOwnProperty ( S, P )
-        //
-        // The abstract operation StringGetOwnProperty takes arguments S (an Object that has a [[StringData]]
-        // internal slot) and P (a property key) and returns a Property Descriptor or undefined. It performs
-        // the following steps when called:
-        //
-        //   1. If Type(P) is not String, return undefined.
-        //   2. Let index be CanonicalNumericIndexString(P).
-        //   3. If index is undefined, return undefined.
-        //   4. If IsIntegralNumber(index) is false, return undefined.
-        //   5. If index is -0𝔽, return undefined.
-        //   6. Let str be S.[[StringData]].
-        //   7. Assert: Type(str) is String.
-        //   8. Let len be the length of str.
-        //   9. If ℝ(index) < 0 or len ≤ ℝ(index), return undefined.
-        //  10. Let resultStr be the substring of str from ℝ(index) to ℝ(index) + 1.
-        //  11. Return the PropertyDescriptor { [[Value]]: resultStr, [[Writable]]: false, [[Enumerable]]:
-        //      true, [[Configurable]]: false }.
         if let PropertyKey::String(p) = key {
+            // String exotic index properties only exist for canonical numeric string
+            // keys like "0", "1", and "42"; symbols and non-canonical strings fall
+            // through to ordinary property lookup.
             let index = canonical_numeric_index_string(p)?;
+
+            // Only integral numeric indexes are valid string element properties.
+            // Values like "NaN", "Infinity", and "1.5" are not string indexes.
             is_integral_number(&index.into()).then_some(())?;
+
+            // "-0" is canonical numeric, but it is not a valid string element key.
+            // This keeps "-0" distinct from "0" as required by the exotic object rules.
             (index != 0.0 || index.signum() != -1.0).then_some(())?;
+
             let string = &self.string_data;
             let len = string.len();
+
+            // String element indexes are bounded by the UTF-16 code unit length.
             #[expect(clippy::cast_precision_loss)]
             (index >= 0.0 && index < len as f64).then_some(())?;
+
+            // Safe after the integral and bounds checks above. The returned property
+            // is exactly one UTF-16 code unit, even if it is half of a surrogate pair.
             let idx = to_usize(index).expect("index should be a valid integer");
             let value = JSString::from(&string.as_slice()[idx..=idx]);
+
+            // String index properties are synthesized from [[StringData]] and are
+            // read-only, enumerable, and non-configurable.
             Some(PropertyDescriptor {
                 property: PropertyKind::Data(DataProperty { value: value.into(), writable: false }),
                 enumerable: true,
@@ -398,6 +384,7 @@ pub(crate) fn provision_string_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(string_prototype_ends_with, "endsWith", 1.0);
     prototype_function!(string_prototype_includes, "includes", 1.0);
     prototype_function!(string_prototype_index_of, "indexOf", 1.0);
+    prototype_function!(string_prototype_is_well_formed, "isWellFormed", 0.0);
     prototype_function!(string_prototype_last_index_of, "lastIndexOf", 1.0);
     prototype_function!(string_prototype_locale_compare, "localeCompare", 1.0);
     prototype_function!(string_prototype_match, "match", 1.0);
@@ -451,51 +438,52 @@ fn string_constructor_function(
     new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    // String ( value )
-    // This function performs the following steps when called:
-    //
-    //  1. If value is not present, let s be the empty String.
-    //  2. Else,
-    //      a. If NewTarget is undefined and Type(value) is Symbol, return SymbolDescriptiveString(value).
-    //      b. Let s be ? ToString(value).
-    //  3. If NewTarget is undefined, return s.
-    //  4. Return StringCreate(s, ? GetPrototypeFromConstructor(NewTarget, "%String.prototype%")).
     let s = if arguments.is_empty() {
+        // `String()` and `new String()` both default a missing value to the
+        // empty string.
         JSString::from("")
     } else {
         let value = &arguments[0];
+
+        // Called as a function, `String(symbol)` is the one Symbol-to-string
+        // conversion that does not throw. Called as a constructor, Symbol still
+        // goes through ordinary ToString and therefore throws.
         if let (None, ECMAScriptValue::Symbol(sym)) = (new_target, value) {
             return Ok(ECMAScriptValue::from(sym.descriptive_string()));
         }
+
+        // For all non-Symbol values, and for constructor calls, use ordinary
+        // ToString semantics so side effects and errors are preserved.
         to_string(value.clone())?
     };
+
     if let Some(nt) = new_target {
+        // Constructor calls create a boxed String object whose prototype comes
+        // from `new.target`, so subclassing can choose a different prototype.
         let prototype = nt.get_prototype_from_constructor(IntrinsicId::StringPrototype)?;
         let s_obj = string_create(s, Some(prototype));
         Ok(ECMAScriptValue::from(s_obj))
     } else {
+        // Function calls return the primitive string value, not a String object.
         Ok(ECMAScriptValue::from(s))
     }
 }
 
 fn this_string_value(value: ECMAScriptValue, from_where: &str) -> Completion<JSString> {
-    // The abstract operation thisStringValue takes argument value. It performs the following steps when
-    // called:
-    //
-    //  1. If Type(value) is String, return value.
-    //  2. If Type(value) is Object and value has a [[StringData]] internal slot, then
-    //      a. Let s be value.[[StringData]].
-    //      b. Assert: Type(s) is String.
-    //      c. Return s.
-    //  3. Throw a TypeError exception.
-    match value {
-        ECMAScriptValue::String(s) => Ok(s),
-        ECMAScriptValue::Object(obj) if obj.o.is_string_object() => {
-            let sobj = obj.o.to_string_obj().unwrap();
-            Ok(sobj.string_data.clone())
-        }
-        _ => Err(create_type_error(format!("{from_where} requires that 'this' be a String"))),
-    }
+    let string_value = match value {
+        // String prototype methods that use this helper require an actual string
+        // value, so primitive strings can be returned directly.
+        ECMAScriptValue::String(s) => Some(s),
+
+        // Boxed String objects carry their primitive value in [[StringData]].
+        ECMAScriptValue::Object(obj) => obj.o.to_string_obj().map(|sobj| sobj.string_data.clone()),
+
+        // Unlike the generic String methods that call ToString on `this`, these
+        // callers only accept primitive strings or boxed String objects.
+        _ => None,
+    };
+
+    string_value.ok_or_else(|| create_type_error(format!("{from_where} requires that 'this' be a String")))
 }
 
 fn string_from_char_code(
@@ -503,49 +491,40 @@ fn string_from_char_code(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    // String.fromCharCode ( ...codeUnits )
-    //
-    // This function may be called with any number of arguments which form the rest parameter codeUnits.
-    //
-    // It performs the following steps when called:
-    //
-    //  1. Let elements be a new empty List.
-    //  2. For each element next of codeUnits, do
-    //      a. Let nextCU be ℝ(? ToUint16(next)).
-    //      b. Append nextCU to elements.
-    //  3. Return the String value whose code units are the elements in the List elements. If codeUnits is empty, the
-    //     empty String is returned.
-    Ok(JSString::from(
-        arguments.iter().map(ECMAScriptValue::to_uint16).collect::<Result<Vec<u16>, AbruptCompletion>>()?,
-    )
-    .into())
+    // Convert arguments left-to-right using ToUint16. This preserves observable
+    // coercion order and stops immediately if any conversion throws.
+    let code_units =
+        arguments.iter().map(ECMAScriptValue::to_uint16).collect::<Result<Vec<u16>, AbruptCompletion>>()?;
+
+    // `fromCharCode` works directly with UTF-16 code units. Values are wrapped
+    // by ToUint16 rather than validated as Unicode code points, so lone
+    // surrogates are allowed here.
+    Ok(JSString::from(code_units).into())
 }
+
 fn string_from_code_point(
     _this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    // String.fromCodePoint ( ...codePoints )
-    // This function may be called with any number of arguments which form the rest parameter codePoints.
-    //
-    // It performs the following steps when called:
-    //
-    // 1. Let result be the empty String.
-    // 2. For each element next of codePoints, do
-    //    a. Let nextCP be ? ToNumber(next).
-    //    b. If nextCP is not an integral Number, throw a RangeError exception.
-    //    c. If ℝ(nextCP) < 0 or ℝ(nextCP) > 0x10FFFF, throw a RangeError exception.
-    //    d. Set result to the string-concatenation of result and UTF16EncodeCodePoint(ℝ(nextCP)).
-    // 3. Assert: If codePoints is empty, then result is the empty String.
-    // 4. Return result.
+    // Most code points fit in one UTF-16 code unit, but code points above U+FFFF
+    // need a surrogate pair. Reserve the worst case to avoid repeated reallocations.
     let mut out = Vec::with_capacity(arguments.len() * 2);
 
     for val in arguments {
+        // Convert each argument as it is processed. This preserves observable
+        // ToNumber ordering and stops immediately if a conversion throws.
         let next_cp = val.to_number()?;
+
+        // `fromCodePoint` only accepts integer Unicode scalar value numbers.
+        // NaN, infinities, fractions, negatives, and values above U+10FFFF are
+        // RangeErrors rather than being wrapped or truncated.
         if next_cp.fract() != 0.0 || !(0.0..=1_114_111.0).contains(&next_cp) {
             return Err(create_range_error("code points must be integers in the range 0..0x10ffff"));
         }
 
+        // Safe after the validation above. The UTF-16 encoder writes either one
+        // code unit or a surrogate pair into this fixed-size buffer.
         let cp = to_uint32_f64(next_cp);
         let mut buf = [0u16; 2];
         let units = utf16_encode_code_point(cp, &mut buf).expect("points should be in range");
@@ -553,6 +532,7 @@ fn string_from_code_point(
         out.extend_from_slice(units);
     }
 
+    // With no arguments, `out` is still empty, producing the empty string.
     Ok(JSString::from(out.as_slice()).into())
 }
 
@@ -561,160 +541,449 @@ fn string_raw(
     _new_target: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    // String.raw ( template, ...substitutions )
-    //
-    // This function may be called with a variable number of arguments. The first argument is template and the remainder
-    // of the arguments form the List substitutions.
-    //
     let mut args = FuncArgs::from(arguments);
     let template = args.next_arg();
+
+    // Keep references to the remaining arguments so substitution values are
+    // converted lazily, interleaved with raw literal access below.
     let substitutions = args.remaining().collect::<Vec<_>>();
 
-    // It performs the following steps when called:
-    //
-    // 1. Let substitutionCount be the number of elements in substitutions.
     let substitution_count = substitutions.len();
-    // 2. Let cooked be ? ToObject(template).
+
+    // `String.raw` reads from `template.raw`, so the first argument must be
+    // object-coercible before we can fetch the raw strings array-like object.
     let cooked = to_object(template)?;
-    // 3. Let literals be ? ToObject(? Get(cooked, "raw")).
     let literals = to_object(cooked.get(&"raw".into())?)?;
-    // 4. Let literalCount be ? LengthOfArrayLike(literals).
+
+    // The raw template object is array-like; its length controls how many
+    // literal chunks are read, not the number of substitutions.
     let literal_count = literals.length_of_array_like()?;
-    // 5. If literalCount ≤ 0, return the empty String.
+
+    // No raw literal chunks means the final cooked string is empty, regardless
+    // of any substitutions that were provided.
     if literal_count <= 0.0 {
         return Ok(JSString::from("").into());
     }
+
     let literal_count = to_usize(literal_count).expect("should be a positive integer");
-    // 6. Let result be the empty String.
+
     let mut result = JSString::from("");
-    // 7. Let nextIndex be 0.
     let mut next_index = 0;
-    // 8. Repeat,
+
     loop {
-        // a. Let nextLiteralVal be ? Get(literals, ! ToString(𝔽(nextIndex))).
+        // Fetch and stringify each raw literal just before appending it. This
+        // preserves observable property access and ToString ordering.
         let next_literal_val = literals.get(&next_index.into())?;
-        // b. Let nextLiteral be ? ToString(nextLiteralVal).
         let next_literal = to_string(next_literal_val)?;
-        // c. Set result to the string-concatenation of result and nextLiteral.
         result = result.concat(next_literal);
-        // d. If nextIndex + 1 = literalCount, return result.
+
+        // The result always ends with a literal chunk. Stop here instead of
+        // trying to read a substitution after the final literal.
         if next_index + 1 == literal_count {
             return Ok(result.into());
         }
-        // e. If nextIndex < substitutionCount, then
+
         if next_index < substitution_count {
-            // i. Let nextSubVal be substitutions[nextIndex].
+            // Substitutions are inserted only between literal chunks. Extra
+            // substitutions are ignored, and missing substitutions contribute
+            // nothing.
             let next_sub_val = substitutions[next_index].clone();
-            // ii. Let nextSub be ? ToString(nextSubVal).
             let next_sub = to_string(next_sub_val)?;
-            // iii. Set result to the string-concatenation of result and nextSub.
             result = result.concat(next_sub);
         }
-        // f. Set nextIndex to nextIndex + 1.
+
         next_index += 1;
     }
 }
 
 // 22.1.3.1 String.prototype.at ( index )
-fn string_prototype_at(_: &ECMAScriptValue, _: Option<&Object>, _: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
-    todo!()
+fn string_prototype_at(
+    this_value: &ECMAScriptValue,
+    _: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    let mut args = FuncArgs::from(arguments);
+    let index = args.next_arg();
+
+    // `at` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
+    this_value.require_object_coercible()?;
+
+    // Convert the receiver before `index`, preserving the spec's observable
+    // coercion order if either conversion has side effects or throws.
+    let strx = to_string(this_value.clone())?;
+
+    // String positions are UTF-16 code unit indexes, not Unicode scalar indexes.
+    let len = to_f64(strx.len()).expect("lengths should fit in f64s");
+
+    // `at` supports negative indexing. Normalize the argument using JS integer
+    // conversion semantics before translating negative indexes from the end.
+    let relative_index = index.to_integer_or_infinity()?;
+
+    let k = if relative_index >= 0.0 { relative_index } else { relative_index + len };
+
+    // Out-of-range positions do not throw; `at` returns `undefined`.
+    if k < 0.0 || k >= len {
+        return Ok(ECMAScriptValue::Undefined);
+    }
+
+    // Safe after the bounds check above. Return exactly one UTF-16 code unit,
+    // even if that code unit is one half of a surrogate pair.
+    let k = to_usize(k).expect("string lengths should fit in a usize");
+    Ok(ECMAScriptValue::String(JSString::from(&strx.as_slice()[k..=k])))
 }
+
 // 22.1.3.2 String.prototype.charAt ( pos )
 fn string_prototype_char_at(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let pos = args.next_arg();
+
+    // `charAt` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
+    this_value.require_object_coercible()?;
+
+    // Convert the receiver before `pos`, preserving the spec's observable
+    // coercion order if either conversion has side effects or throws.
+    let strx = to_string(this_value.clone())?;
+
+    // JavaScript indexing semantics accept fractions, NaN, and infinities here;
+    // normalize them before checking the string bounds.
+    let position = pos.to_integer_or_infinity()?;
+
+    // String positions are UTF-16 code unit indexes, not Unicode scalar indexes.
+    let size = to_f64(strx.len()).expect("lengths should fit into f64s");
+
+    Ok(ECMAScriptValue::String(if position < 0.0 || position >= size {
+        // Out-of-range positions do not throw; `charAt` returns the empty
+        // string instead.
+        JSString::from("")
+    } else {
+        // Safe after the bounds check above. Return exactly one UTF-16 code
+        // unit, even if that code unit is one half of a surrogate pair.
+        let position = to_usize(position).expect("string lengths should fit in a usize");
+        JSString::from(&strx.as_slice()[position..=position])
+    }))
 }
+
 // 22.1.3.3 String.prototype.charCodeAt ( pos )
 fn string_prototype_char_code_at(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let pos = args.next_arg();
+
+    // `charCodeAt` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
+    this_value.require_object_coercible()?;
+
+    // Convert the receiver before `pos`, preserving the spec's observable
+    // coercion order if either conversion has side effects or throws.
+    let strx = to_string(this_value.clone())?;
+
+    // JavaScript indexing semantics accept fractions, NaN, and infinities here;
+    // normalize them before checking the string bounds.
+    let position = pos.to_integer_or_infinity()?;
+
+    // String positions are UTF-16 code unit indexes, not Unicode scalar indexes.
+    let size = to_f64(strx.len()).expect("lengths should fit in an f64");
+
+    // Unlike `codePointAt`, an out-of-range lookup returns NaN rather than
+    // `undefined`.
+    if position < 0.0 || position >= size {
+        Ok(ECMAScriptValue::Number(f64::NAN))
+    } else {
+        // Safe after the bounds check above, and still a code-unit index.
+        // This returns exactly one UTF-16 code unit, even if it is a surrogate.
+        let position = to_usize(position).expect("lengths should fit in a usize");
+        let val = f64::from(strx.as_slice()[position]);
+
+        Ok(ECMAScriptValue::from(val))
+    }
 }
+
 // 22.1.3.4 String.prototype.codePointAt ( pos )
 fn string_prototype_code_point_at(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let pos = args.next_arg();
+
+    // `codePointAt` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
+    this_value.require_object_coercible()?;
+
+    // Convert the receiver before `pos`, preserving the spec's observable
+    // coercion order if either conversion has side effects or throws.
+    let strx = to_string(this_value.clone())?;
+
+    // JavaScript indexing semantics accept fractions, NaN, and infinities here;
+    // normalize them before checking the string bounds.
+    let position = pos.to_integer_or_infinity()?;
+
+    // String positions are UTF-16 code unit indexes, not Unicode scalar indexes.
+    let size = to_f64(strx.len()).expect("lengths should fit in an f64");
+
+    // Out-of-range positions do not throw; they produce `undefined`.
+    if position < 0.0 || position >= size {
+        Ok(ECMAScriptValue::Undefined)
+    } else {
+        // Safe after the bounds check above, and still a code-unit index.
+        let position = to_usize(position).expect("string lengths should fit in a usize");
+
+        // `CodePointAt` combines a leading surrogate with a following trailing
+        // surrogate when present; otherwise it returns the single code unit.
+        let cp = code_point_at(&strx, position);
+
+        Ok(ECMAScriptValue::from(cp.code_point))
+    }
 }
+
 // 22.1.3.5 String.prototype.concat ( ...args )
 fn string_prototype_concat(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+
+    // `concat` is intentionally generic: the receiver only needs to be
+    // coercible and string-convertible, not an actual String object.
+    this_value.require_object_coercible()?;
+
+    // The receiver is converted first, so any side effects or abrupt completion
+    // from `this.toString` happen before argument conversions.
+    let strx = to_string(this_value.clone())?;
+
+    // The result is always a primitive String value, even when the receiver is a
+    // String object or another object with custom string conversion.
+    let mut result = strx;
+
+    for next in args.remaining().cloned() {
+        // Convert and append one argument at a time. This preserves observable
+        // ToString ordering and stops immediately if any conversion throws.
+        let next_string = to_string(next)?;
+        result = result.concat(next_string);
+    }
+
+    Ok(ECMAScriptValue::String(result))
 }
+
 // 22.1.3.7 String.prototype.endsWith ( searchString [ , endPosition ] )
 fn string_prototype_ends_with(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let search_string = args.next_arg();
+    let end_position = args.next_arg();
+
+    // `endsWith` is intentionally generic, so `this` only needs to be
+    // coercible and string-convertible; it does not need to already be a String.
+    this_value.require_object_coercible()?;
+    let strx = to_string(this_value.clone())?;
+
+    // RegExp search values are explicitly rejected so future spec extensions
+    // can define RegExp-specific behavior without being web-incompatible.
+    let is_reg_exp = search_string.is_regexp()?;
+    if is_reg_exp {
+        return Err(create_type_error("String.prototype.endsWith: searchString must not be a RegExp"));
+    }
+
+    // Convert after the RegExp check: Symbols may throw here, and RegExps
+    // should throw the RegExp-specific TypeError above instead.
+    let search_str = to_string(search_string)?;
+
+    // String lengths in this engine are indexed by code units, matching the
+    // ECMAScript String algorithms rather than Unicode scalar values.
+    let len = to_f64(strx.len()).expect("lengths should fit in an f64");
+
+    // A missing end position means "use the whole string"; otherwise normalize
+    // the caller-provided limit using JS integer conversion semantics.
+    let pos = if end_position.is_undefined() { len } else { end_position.to_integer_or_infinity()? };
+
+    // Clamp the effective end index into the valid string range before turning
+    // it back into a Rust index.
+    let end = to_usize(pos.clamp(0.0, len)).expect("valid lengths should fit in a usize");
+
+    let search_length = search_str.len();
+
+    // Every string ends with the empty string, regardless of end position.
+    if search_length == 0 {
+        return Ok(ECMAScriptValue::Boolean(true));
+    }
+
+    // If the search string would have to start before index 0, it cannot match.
+    // Checking this before subtraction also avoids unsigned underflow.
+    if search_length > end {
+        return Ok(ECMAScriptValue::Boolean(false));
+    }
+
+    let start = end - search_length;
+
+    // Compare only the suffix ending at the caller-selected end index.
+    let substring = &strx.as_slice()[start..end];
+    Ok(ECMAScriptValue::Boolean(substring == search_str.as_slice()))
 }
+
 // 22.1.3.8 String.prototype.includes ( searchString [ , position ] )
 fn string_prototype_includes(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let search_string = args.next_arg();
+    let position = args.next_arg();
+
+    // `includes` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
+    this_value.require_object_coercible()?;
+
+    // Convert the receiver before checking or converting the search value,
+    // preserving the spec's observable coercion order.
+    let strx = to_string(this_value.clone())?;
+
+    // RegExp search values are explicitly rejected so future spec extensions
+    // can define RegExp-specific behavior without being web-incompatible.
+    let is_regexp = search_string.is_regexp()?;
+    if is_regexp {
+        return Err(create_type_error("String.prototype.includes: searchString must not be a RegExp"));
+    }
+
+    // Convert after the RegExp check: RegExps should throw the RegExp-specific
+    // TypeError above rather than being stringified.
+    let search_str = to_string(search_string)?;
+
+    // A missing `position` becomes 0 through ToIntegerOrInfinity. Other JS
+    // number-ish values, including NaN and infinities, are normalized here too.
+    let pos = position.to_integer_or_infinity()?;
+
+    // String positions are UTF-16 code unit indexes, not Unicode scalar indexes.
+    let len = to_f64(strx.len()).expect("string lengths fit into f64s");
+
+    // Clamp the starting index into the valid string range before converting it
+    // back into a Rust index.
+    let start = to_usize(pos.clamp(0.0, len)).expect("string lengths should fit in a usize");
+
+    // Search only at or after the caller-selected start position.
+    let index = strx.index_of(&search_str, start);
+
+    Ok(ECMAScriptValue::Boolean(index >= 0))
 }
+
 // 22.1.3.9 String.prototype.indexOf ( searchString [ , position ] )
 fn string_prototype_index_of(
     this_value: &ECMAScriptValue,
     _: Option<&Object>,
     arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    // String.prototype.indexOf ( searchString [ , position ] )
-    //
-    // NOTE 1: If searchString appears as a substring of the result of converting this object to a String, at
-    // one or more indices that are greater than or equal to position, then the smallest such index is
-    // returned; otherwise, -1𝔽 is returned. If position is undefined, +0𝔽 is assumed, so as to search all
-    // of the String.
-    //
-    // This method performs the following steps when called:
-    //
-    //  1. Let O be ? RequireObjectCoercible(this value).
-    //  2. Let S be ? ToString(O).
-    //  3. Let searchStr be ? ToString(searchString).
-    //  4. Let pos be ? ToIntegerOrInfinity(position).
-    //  5. Assert: If position is undefined, then pos is 0.
-    //  6. Let len be the length of S.
-    //  7. Let start be the result of clamping pos between 0 and len.
-    //  8. Return 𝔽(StringIndexOf(S, searchStr, start)).
-    //
-    // NOTE 2: This method is intentionally generic; it does not require that its this value be a String
-    // object. Therefore, it can be transferred to other kinds of objects for use as a method.
     let mut args = FuncArgs::from(arguments);
     let search_string = args.next_arg();
     let position = args.next_arg();
 
+    // `indexOf` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
     require_object_coercible(this_value)?;
+
+    // Convert the receiver before the search string, preserving the spec's
+    // observable coercion order if either conversion has side effects or throws.
     let s = to_string(this_value.clone())?;
+
+    // Unlike `includes`, `indexOf` does not reject RegExp search values; they
+    // are converted with ordinary ToString semantics.
     let search_str = to_string(search_string)?;
+
+    // A missing `position` becomes 0 through ToIntegerOrInfinity. Other JS
+    // number-ish values, including NaN and infinities, are normalized here too.
     let pos = position.to_integer_or_infinity()?;
+
+    // String positions are UTF-16 code unit indexes, not Unicode scalar indexes.
     let len = s.len();
     let max = to_f64(len).expect("len should fit within a float");
+
+    // Clamp the starting index into the valid string range before converting it
+    // back into a Rust index.
     let start = to_usize(pos.clamp(0.0, max)).expect("start should be within the string's length, which fits a usize");
+
+    // Return the first match at or after `start`, or -1 when no match exists.
     Ok(s.index_of(&search_str, start).into())
+}
+
+fn string_prototype_is_well_formed(
+    this_value: &ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // `isWellFormed` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
+    this_value.require_object_coercible()?;
+
+    // The check is performed on the string-converted receiver, preserving any
+    // observable side effects or errors from ToString.
+    let strx = to_string(this_value.clone())?;
+
+    // Well-formed Unicode strings must not contain unpaired UTF-16 surrogates.
+    Ok(ECMAScriptValue::Boolean(strx.is_well_formed_unicode()))
 }
 
 // 22.1.3.10 String.prototype.lastIndexOf ( searchString [ , position ] )
 fn string_prototype_last_index_of(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let search_string = args.next_arg();
+    let position = args.next_arg();
+
+    // `lastIndexOf` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
+    this_value.require_object_coercible()?;
+
+    // Convert the receiver before the search string, preserving the spec's
+    // observable coercion order if either conversion has side effects or throws.
+    let strx = to_string(this_value.clone())?;
+
+    // `lastIndexOf`, like `indexOf`, does not reject RegExp search values; they
+    // are converted with ordinary ToString semantics.
+    let search_str = to_string(search_string)?;
+
+    // `lastIndexOf` treats an omitted position differently from `indexOf`: an
+    // omitted value becomes NaN first, then NaN is interpreted as +Infinity so
+    // the search starts as far right as possible.
+    let num_pos = position.to_number()?;
+    let pos = if num_pos.is_nan() { f64::INFINITY } else { to_integer_or_infinity(num_pos) };
+
+    // String positions are UTF-16 code unit indexes, not Unicode scalar indexes.
+    let len = to_f64(strx.len()).expect("string lengths should fit in an f64");
+    let search_len = to_f64(search_str.len()).expect("string lengths should fit in an f64");
+
+    // If the search string is longer than the target, there is no valid starting
+    // index where it can fit.
+    if len < search_len {
+        return Ok(ECMAScriptValue::Number(-1.0));
+    }
+
+    // Clamp to the greatest starting index where `searchStr` can still fit
+    // entirely inside `strx`.
+    let start = to_usize(pos.clamp(0.0, len - search_len)).expect("string lengths should fit in a usize");
+
+    // Search backward from `start`; report -1 for the spec's not-found result.
+    match strx.last_index_of(&search_str, start) {
+        None => Ok(ECMAScriptValue::Number(-1.0)),
+        Some(result) => Ok(ECMAScriptValue::from(result)),
+    }
 }
+
 // 22.1.3.11 String.prototype.localeCompare ( that [ , reserved1 [ , reserved2 ] ] )
 fn string_prototype_locale_compare(
     _: &ECMAScriptValue,

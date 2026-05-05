@@ -193,7 +193,6 @@ fn bool_object_checks() {
     setup_test_agent();
     let bool_obj = Object::from(true);
     assert_eq!(bool_obj.o.is_callable_obj(), false);
-    assert_eq!(bool_obj.o.is_string_object(), false);
     assert_eq!(bool_obj.o.is_regexp_object(), false);
     assert!(bool_obj.o.to_function_obj().is_none());
     assert!(bool_obj.o.to_builtin_function_obj().is_none());
