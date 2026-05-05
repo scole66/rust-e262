@@ -190,5 +190,4 @@ fn main() {
 }
 
 #[cfg(test)]
-//#[expect(hidden_glob_reexports)]
 mod tests;

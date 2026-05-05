@@ -55,15 +55,6 @@ mod string_object {
     none_function!(to_builtin_function_with_revocable_proxy_slot);
 
     #[test]
-    fn is_string_object() {
-        setup_test_agent();
-        let prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let so = StringObject::object("orange".into(), Some(prototype));
-
-        assert!(so.o.is_string_object());
-    }
-
-    #[test]
     fn uses_ordinary_get_prototype_of() {
         setup_test_agent();
         let prototype = intrinsic(IntrinsicId::ObjectPrototype);

@@ -1624,7 +1624,6 @@ mod for_in_iterator_object {
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
-    false_function!(is_string_object);
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
     none_function!(to_bigint_object);

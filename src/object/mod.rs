@@ -1200,9 +1200,6 @@ pub(crate) trait ObjectInterface: Debug {
     fn is_callable_obj(&self) -> bool {
         false
     }
-    fn is_string_object(&self) -> bool {
-        false
-    }
     #[cfg(test)]
     fn is_date_object(&self) -> bool {
         false

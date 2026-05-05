@@ -2649,13 +2649,6 @@ fn object_interface_is_callable_obj() {
     assert!(!obj.o.is_callable_obj());
 }
 #[test]
-fn object_interface_is_string_object() {
-    setup_test_agent();
-    let obj = ordinary_object_create(None);
-
-    assert!(!obj.o.is_string_object());
-}
-#[test]
 fn object_interface_is_date_object() {
     setup_test_agent();
     let obj = ordinary_object_create(None);
@@ -4655,7 +4648,6 @@ mod ordinary_object {
     false_function!(is_generator_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
-    false_function!(is_string_object);
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
     none_function!(to_bigint_object);
@@ -4715,7 +4707,6 @@ mod immutable_prototype_exotic_object {
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
-    false_function!(is_string_object);
     false_function!(is_symbol_object);
     false_function!(uses_ordinary_get_prototype_of);
     none_function!(to_arguments_object);
@@ -5101,7 +5092,6 @@ mod dead_object {
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
-    false_function!(is_string_object);
     false_function!(is_symbol_object);
     false_function!(uses_ordinary_get_prototype_of);
     none_function!(to_arguments_object);

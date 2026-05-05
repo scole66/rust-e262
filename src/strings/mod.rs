@@ -59,6 +59,50 @@ impl JSString {
         let search_len = search_value.len();
         if search_len > len { false } else { self.s[0..search_len] == search_value.s[..] }
     }
+
+    pub(crate) fn is_well_formed_unicode(&self) -> bool {
+        let len = self.len();
+        let mut k = 0;
+
+        while k < len {
+            // `code_point_at` interprets the string as UTF-16: it combines valid
+            // surrogate pairs and flags lone surrogates as malformed.
+            let cp = code_point_at(self, k);
+
+            if cp.is_unpaired_surrogate {
+                return false;
+            }
+
+            // Advance by one code unit for ordinary BMP values or lone surrogates,
+            // and by two code units for a valid surrogate pair.
+            k += usize::from(cp.code_unit_count);
+        }
+
+        true
+    }
+
+    pub(crate) fn last_index_of(&self, search_value: &JSString, from_index: usize) -> Option<usize> {
+        let search_len = search_value.len();
+
+        // The caller is responsible for choosing a starting point where the search
+        // string still fits. This lets the loop slice without re-checking the upper
+        // bound each time.
+        debug_assert!(from_index + search_len <= self.len());
+
+        // Try each possible match position at or before `from_index`, starting from
+        // the end so the first match found is the last occurrence.
+        for i in (0..=from_index).rev() {
+            let candidate = &self.as_slice()[i..i + search_len];
+
+            if candidate == search_value.as_slice() {
+                return Some(i);
+            }
+        }
+
+        // For an empty search string, the loop returns `from_index`: the empty
+        // string is considered to match at every position.
+        None
+    }
 }
 
 impl From<Vec<u16>> for JSString {

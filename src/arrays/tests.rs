@@ -222,7 +222,6 @@ mod array_object {
     false_function!(is_plain_object);
     false_function!(is_proxy_object);
     false_function!(is_regexp_object);
-    false_function!(is_string_object);
     false_function!(is_symbol_object);
     none_function!(to_arguments_object);
     none_function!(to_bigint_object);
@@ -783,7 +782,6 @@ fn defaults() {
     assert!(a.o.to_callable_obj().is_none());
     assert!(a.o.to_number_obj().is_none());
     assert_eq!(a.o.is_callable_obj(), false);
-    assert_eq!(a.o.is_string_object(), false);
     assert_eq!(a.o.is_regexp_object(), false);
     assert!(a.o.to_constructable().is_none());
     assert!(a.o.to_boolean_obj().is_none());
