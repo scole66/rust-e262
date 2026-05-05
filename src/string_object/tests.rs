@@ -742,14 +742,6 @@ fn string_prototype_value_of(make_params: impl FnOnce() -> ECMAScriptValue) -> R
         .map_err(unwind_any_error)
 }
 
-tbd_function!(string_prototype_at);
-tbd_function!(string_prototype_char_at);
-tbd_function!(string_prototype_char_code_at);
-tbd_function!(string_prototype_code_point_at);
-tbd_function!(string_prototype_concat);
-tbd_function!(string_prototype_ends_with);
-tbd_function!(string_prototype_includes);
-tbd_function!(string_prototype_last_index_of);
 tbd_function!(string_prototype_locale_compare);
 tbd_function!(string_prototype_match);
 tbd_function!(string_prototype_match_all);
