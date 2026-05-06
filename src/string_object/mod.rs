@@ -1,6 +1,8 @@
 use super::*;
 use genawaiter::rc::Co;
 use std::cell::RefCell;
+use std::slice;
+use unicode_normalization::UnicodeNormalization;
 
 /// String Objects
 ///
@@ -986,36 +988,262 @@ fn string_prototype_last_index_of(
 
 // 22.1.3.11 String.prototype.localeCompare ( that [ , reserved1 [ , reserved2 ] ] )
 fn string_prototype_locale_compare(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let that = args.next_arg();
+
+    // Without ECMA-402, locale-sensitive collation is implementation-defined.
+    // Still preserve the required receiver coercion behavior.
+    this_value.require_object_coercible()?;
+
+    // Convert `this` before `that`, preserving observable ToString ordering.
+    let s = to_string(this_value.clone())?;
+    let that = to_string(that)?;
+
+    // `locales` and `options` are only meaningful for ECMA-402. In a non-402
+    // engine, extra arguments are intentionally ignored rather than validated.
+    //
+    // Use a stable UTF-16 code-unit ordering as the implementation-defined
+    // fallback. Callers may only rely on the sign, not the exact magnitude.
+    let result = match s.as_slice().cmp(that.as_slice()) {
+        std::cmp::Ordering::Less => -1.0,
+        std::cmp::Ordering::Equal => 0.0,
+        std::cmp::Ordering::Greater => 1.0,
+    };
+
+    Ok(ECMAScriptValue::Number(result))
 }
+
 // 22.1.3.12 String.prototype.match ( regexp )
 fn string_prototype_match(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let regexp_or_pattern = args.next_arg();
+
+    let match_key = PropertyKey::from(wks(WksId::Match));
+
+    // Validate the receiver first, then give objects with @@match a chance to
+    // handle the original receiver value before any string conversion happens.
+    this_value.require_object_coercible()?;
+
+    if let ECMAScriptValue::Object(obj) = &regexp_or_pattern {
+        // Objects can override string matching with @@match. When present, that
+        // method completely handles the operation and controls any coercion.
+        let matcher = obj.get_method(&match_key)?;
+        if !matcher.is_undefined() {
+            return call(&matcher, &regexp_or_pattern, slice::from_ref(this_value));
+        }
+    }
+
+    // No custom matcher was provided, so use the built-in RegExp path.
+    let strx = to_string(this_value.clone())?;
+
+    // Non-RegExp values are compiled as patterns; existing RegExp objects are
+    // handled by RegExpCreate according to the constructor rules.
+    let regexp = ECMAScriptValue::from(reg_exp_create(regexp_or_pattern, None)?);
+
+    // Delegate the actual matching semantics to RegExp.prototype[@@match].
+    regexp.invoke(&match_key, &[ECMAScriptValue::String(strx)])
 }
+
 // 22.1.3.13 String.prototype.matchAll ( regexp )
 fn string_prototype_match_all(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let regexp_or_pattern = args.next_arg();
+
+    let key = PropertyKey::from(wks(WksId::MatchAll));
+
+    // Validate the receiver first, then give objects with @@matchAll a chance
+    // to handle the original receiver value before any string conversion happens.
+    this_value.require_object_coercible()?;
+
+    if let ECMAScriptValue::Object(obj) = &regexp_or_pattern {
+        // RegExp inputs must be global. Use IsRegExp here so an object can opt
+        // into or out of RegExp treatment with @@match.
+        let is_reg_exp = obj.is_reg_exp()?;
+        if is_reg_exp {
+            // The global check is based on the observable `flags` property, not
+            // directly on an internal RegExp slot.
+            let flags = obj.get(&"flags".into())?;
+            flags.require_object_coercible()?;
+
+            // Convert flags after the object-coercible check so null/undefined
+            // produce the required TypeError before ToString.
+            let flags = to_string(flags)?;
+            if !flags.contains('g' as u16) {
+                return Err(create_type_error("String.prototype.matchAll: regexp must have the global flag set"));
+            }
+        }
+
+        // Objects can override match-all behavior with @@matchAll. When present,
+        // that method handles the operation and controls any receiver coercion.
+        let matcher = obj.get_method(&key)?;
+        if !matcher.is_undefined() {
+            return call(&matcher, &regexp_or_pattern, slice::from_ref(this_value));
+        }
+    }
+
+    // No custom matcher was provided, so use the built-in RegExp path. Convert
+    // the receiver only after the @@matchAll lookup to preserve observable order.
+    let strx = to_string(this_value.clone())?;
+
+    // Non-RegExp values are compiled as global patterns for matchAll's iterator
+    // semantics.
+    let regexp = ECMAScriptValue::from(reg_exp_create(regexp_or_pattern, Some(JSString::from("g")))?);
+
+    // Delegate the iterator creation and matching semantics to
+    // RegExp.prototype[@@matchAll].
+    regexp.invoke(&key, &[strx.into()])
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NormalizationForm {
+    Nfc,
+    Nfd,
+    Nfkc,
+    Nfkd,
+}
+
+impl TryFrom<ECMAScriptValue> for NormalizationForm {
+    type Error = AbruptCompletion;
+
+    fn try_from(form: ECMAScriptValue) -> Result<Self, Self::Error> {
+        const NFC: &[u16] = &[b'N' as u16, b'F' as u16, b'C' as u16];
+        const NFD: &[u16] = &[b'N' as u16, b'F' as u16, b'D' as u16];
+        const NFKC: &[u16] = &[b'N' as u16, b'F' as u16, b'K' as u16, b'C' as u16];
+        const NFKD: &[u16] = &[b'N' as u16, b'F' as u16, b'K' as u16, b'D' as u16];
+
+        if form.is_undefined() {
+            // The default normalization form is NFC. Return the enum directly
+            // instead of allocating and parsing a temporary "NFC" JS string.
+            Ok(Self::Nfc)
+        } else {
+            // Non-undefined forms use normal JS string conversion, so Symbols,
+            // objects with side effects, and abrupt completions behave correctly.
+            let form = to_string(form)?;
+
+            // Normalization form names are ASCII, but JSString is stored as
+            // UTF-16 code units. Keep that representation detail contained at
+            // this conversion boundary.
+            match form.as_slice() {
+                NFC => Ok(Self::Nfc),
+                NFD => Ok(Self::Nfd),
+                NFKC => Ok(Self::Nfkc),
+                NFKD => Ok(Self::Nfkd),
+                _ => Err(create_range_error("normalization form must be one of NFC, NFD, NFKC, or NFKD")),
+            }
+        }
+    }
+}
+
 // 22.1.3.14 String.prototype.normalize ( [ form ] )
 fn string_prototype_normalize(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let form = args.next_arg();
+
+    // `normalize` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
+    this_value.require_object_coercible()?;
+
+    // Convert the receiver before the form argument, preserving the spec's
+    // observable coercion order if either conversion has side effects or throws.
+    let strx = to_string(this_value.clone())?;
+
+    // Convert the optional JS form argument into a Rust enum once. The rest of
+    // the implementation can switch on the normalization operation directly
+    // instead of repeatedly comparing UTF-16 form-name strings.
+    let form = NormalizationForm::try_from(form)?;
+
+    // ECMAScript strings are UTF-16 and may contain lone surrogates. Normalize
+    // the well-formed Unicode portions, while preserving lone surrogate code
+    // units unchanged.
+    Ok(ECMAScriptValue::String(normalize_js_string_preserving_surrogates(&strx, form)))
 }
+
+fn normalize_js_string_preserving_surrogates(strx: &JSString, form: NormalizationForm) -> JSString {
+    let units = strx.as_slice();
+    let mut out = Vec::with_capacity(units.len());
+    let mut buf = String::new();
+
+    let mut i = 0;
+    while i < units.len() {
+        let u = units[i];
+
+        if (0xD800..=0xDBFF).contains(&u) {
+            if let Some(&v) = units.get(i + 1)
+                && (0xDC00..=0xDFFF).contains(&v)
+            {
+                // A leading surrogate followed by a trailing surrogate is a valid UTF-16 encoding of one Unicode scalar
+                // value. Decode it before passing text to the normalization library.
+                let high = u32::from(u) - 0xD800;
+                let low = u32::from(v) - 0xDC00;
+                let cp = 0x10000 + ((high << 10) | low);
+                let ch = char::from_u32(cp).expect("decoded surrogate pair should be a valid Unicode scalar value");
+                buf.push(ch);
+                i += 2;
+                continue;
+            }
+
+            // Lone leading surrogates are not Unicode scalar values, and Rust `String` cannot represent them. Flush any
+            // pending valid text, then preserve the surrogate code unit unchanged.
+            flush_normalized(&mut out, &mut buf, form);
+            out.push(u);
+            i += 1;
+        } else if (0xDC00..=0xDFFF).contains(&u) {
+            // A trailing surrogate without a matching leading surrogate is also preserved unchanged for ECMAScript
+            // string compatibility.
+            flush_normalized(&mut out, &mut buf, form);
+            out.push(u);
+            i += 1;
+        } else {
+            // Non-surrogate BMP code units are valid Unicode scalar values and can be accumulated for normalization.
+            let ch = char::from_u32(u32::from(u)).expect("non-surrogate UTF-16 code unit should be a char");
+
+            buf.push(ch);
+            i += 1;
+        }
+    }
+
+    // Normalize and append the final run of well-formed Unicode text, if any.
+    flush_normalized(&mut out, &mut buf, form);
+
+    JSString::from(out.as_slice())
+}
+
+fn flush_normalized(out: &mut Vec<u16>, buf: &mut String, form: NormalizationForm) {
+    if buf.is_empty() {
+        return;
+    }
+
+    // The Unicode normalization library works on Rust `str`, so callers only
+    // pass runs that contain valid Unicode scalar values.
+    let normalized = match form {
+        NormalizationForm::Nfc => buf.nfc().collect::<String>(),
+        NormalizationForm::Nfd => buf.nfd().collect::<String>(),
+        NormalizationForm::Nfkc => buf.nfkc().collect::<String>(),
+        NormalizationForm::Nfkd => buf.nfkd().collect::<String>(),
+    };
+
+    // Convert the normalized scalar-value text back into the engine's UTF-16
+    // representation and clear the buffer for the next well-formed run.
+    out.extend(normalized.encode_utf16());
+    buf.clear();
+}
+
 // 22.1.3.15 String.prototype.padEnd ( maxLength [ , fillString ] )
 fn string_prototype_pad_end(
     _: &ECMAScriptValue,
