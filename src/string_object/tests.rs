@@ -742,10 +742,6 @@ fn string_prototype_value_of(make_params: impl FnOnce() -> ECMAScriptValue) -> R
         .map_err(unwind_any_error)
 }
 
-tbd_function!(string_prototype_locale_compare);
-tbd_function!(string_prototype_match);
-tbd_function!(string_prototype_match_all);
-tbd_function!(string_prototype_normalize);
 tbd_function!(string_prototype_pad_end);
 tbd_function!(string_prototype_pad_start);
 tbd_function!(string_prototype_repeat);
