@@ -777,7 +777,7 @@ impl JSString {
     }
 }
 
-pub(crate) fn reg_exp_create(p: ECMAScriptValue, f: Option<JSString>) -> Completion<Object> {
+pub(crate) fn reg_exp_create(pattern: ECMAScriptValue, flags: Option<JSString>) -> Completion<Object> {
     // RegExpCreate ( P, F )
     // The abstract operation RegExpCreate takes arguments P (an ECMAScript language value) and F (a String or
     // undefined) and returns either a normal completion containing an Object or a throw completion. It performs the
@@ -787,7 +787,7 @@ pub(crate) fn reg_exp_create(p: ECMAScriptValue, f: Option<JSString>) -> Complet
     //  2. Return ? RegExpInitialize(obj, P, F).
 
     let obj = reg_exp_alloc(&intrinsic(IntrinsicId::RegExp)).expect(GOODCSTR);
-    reg_exp_initialize(obj, p, ECMAScriptValue::from(f))
+    reg_exp_initialize(obj, pattern, ECMAScriptValue::from(flags))
 }
 
 fn reg_exp_alloc(new_target: &Object) -> Completion<Object> {
@@ -1518,6 +1518,31 @@ impl ECMAScriptValue {
         let data = regexp.regexp_data.borrow();
         let flags = &data.original_flags;
         Ok(flags.contains(code_unit).into())
+    }
+
+    #[expect(dead_code)]
+    pub(crate) fn is_reg_exp(&self) -> Completion<bool> {
+        // Only objects can be RegExp values. Primitive values skip the observable
+        // @@match lookup entirely and are never treated as RegExps.
+        if let ECMAScriptValue::Object(argument) = self { argument.is_reg_exp() } else { Ok(false) }
+    }
+}
+
+impl Object {
+    pub(crate) fn is_reg_exp(&self) -> Completion<bool> {
+        // @@match overrides the built-in RegExp-brand check. Its value is read
+        // first, so getters and abrupt completions are observable here.
+        let matcher = self.get(&wks(WksId::Match).into())?;
+
+        if matcher.is_undefined() {
+            // Without an explicit @@match override, fall back to the object's
+            // internal RegExp brand.
+            Ok(self.o.is_regexp_object())
+        } else {
+            // Any defined @@match value controls the answer by ordinary boolean
+            // coercion, so even a real RegExp can opt out with @@match = false.
+            Ok(to_boolean(matcher))
+        }
     }
 }
 
