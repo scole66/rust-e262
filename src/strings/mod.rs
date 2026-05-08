@@ -32,21 +32,21 @@ impl JSString {
         JSString { s: Rc::from(combined) }
     }
 
-    pub(crate) fn index_of(&self, search_value: &JSString, from_index: usize) -> i64 {
+    pub(crate) fn index_of(&self, search_value: &JSString, from_index: usize) -> Option<usize> {
         let len = self.len();
         if search_value.is_empty() && from_index <= len {
-            i64::try_from(from_index).unwrap()
+            Some(from_index)
         } else {
             let search_len = search_value.len();
             if search_len > len {
-                return -1;
+                return None;
             }
             for i in from_index..=(len - search_len) {
                 if self.s[i..(i + search_len)] == search_value.s[..] {
-                    return i64::try_from(i).unwrap();
+                    return Some(i);
                 }
             }
-            -1
+            None
         }
     }
 
@@ -54,6 +54,7 @@ impl JSString {
         self.s.contains(&ch)
     }
 
+    #[expect(dead_code)]
     pub(crate) fn starts_with(&self, search_value: &JSString) -> bool {
         let len = self.len();
         let search_len = search_value.len();

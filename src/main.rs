@@ -88,6 +88,8 @@ use std::rc::Rc;
 
 const GOODOBJ: &str = "algorithmically created objects should not have strange behaviors";
 const GOODCSTR: &str = "built-in contructors should not have strange behaviors";
+const JS_INTEGER_USIZE_EXPECT: &str = "valid ECMAScript integer should fit in usize";
+const JS_INTEGER_F64_EXPECT: &str = "valid ECMAScript integer should be exactly representable as f64";
 
 #[derive(Debug)]
 #[expect(dead_code)]
