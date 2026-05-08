@@ -917,7 +917,7 @@ fn string_prototype_index_of(
     let start = to_usize(pos.clamp(0.0, max)).expect(JS_INTEGER_USIZE_EXPECT);
 
     // Return the first match at or after `start`, or -1 when no match exists.
-    Ok(s.index_of(&search_str, start).map(|index| to_f64(index).expect(JS_INTEGER_F64_EXPECT)).unwrap_or(-1.0).into())
+    Ok(s.index_of(&search_str, start).map_or(-1.0, |index| to_f64(index).expect(JS_INTEGER_F64_EXPECT)).into())
 }
 
 fn string_prototype_is_well_formed(
