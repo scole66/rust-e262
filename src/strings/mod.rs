@@ -4,27 +4,38 @@ use std::fmt;
 use std::ops::Index;
 use std::rc::Rc;
 
-// So: JS String.
-//
-
+/// An ECMAScript string value stored as UTF-16 code units.
+///
+/// JavaScript strings can contain any UTF-16 code-unit sequence, including lone surrogates. `JSString` therefore stores
+/// raw `u16` units instead of Rust `String`, which can only contain valid Unicode scalar values.
+///
+/// All indexes, lengths, comparisons, and substring operations are based on UTF-16 code units, matching ECMAScript
+/// string semantics.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub(crate) struct JSString {
     s: Rc<[u16]>,
 }
 
 impl JSString {
+    /// Returns the string's underlying UTF-16 code units.
     pub(crate) fn as_slice(&self) -> &[u16] {
         &self.s
     }
 
+    /// Returns the length of the string in UTF-16 code units.
     pub(crate) fn len(&self) -> usize {
         self.s.len()
     }
 
+    /// Returns `true` if the string contains no UTF-16 code units.
     pub(crate) fn is_empty(&self) -> bool {
         self.s.is_empty()
     }
 
+    /// Returns a new string with `s` appended to this string.
+    ///
+    /// Concatenation preserves the exact UTF-16 code-unit sequence of both
+    /// strings, including any lone surrogates.
     #[must_use]
     pub(crate) fn concat(&self, s: impl Into<JSString>) -> JSString {
         let tail = s.into();
@@ -32,28 +43,39 @@ impl JSString {
         JSString { s: Rc::from(combined) }
     }
 
+    /// Finds the first occurrence of `search_value` at or after `from_index`.
+    ///
+    /// The returned index is a UTF-16 code-unit index. An empty search string
+    /// matches at `from_index` when `from_index` is within the string. If
+    /// `from_index` is past the end of the string, no match is found.
+    ///
+    /// Returns `None` when no match is found.
     pub(crate) fn index_of(&self, search_value: &JSString, from_index: usize) -> Option<usize> {
         let len = self.len();
-        if search_value.is_empty() && from_index <= len {
-            Some(from_index)
-        } else {
-            let search_len = search_value.len();
-            if search_len > len {
-                return None;
-            }
-            for i in from_index..=(len - search_len) {
-                if self.s[i..(i + search_len)] == search_value.s[..] {
-                    return Some(i);
-                }
-            }
-            None
+        if search_value.is_empty() {
+            return (from_index <= len).then_some(from_index);
         }
+
+        let search_len = search_value.len();
+        if from_index > len || search_len > len - from_index {
+            return None;
+        }
+        for i in from_index..=(len - search_len) {
+            if self.s[i..(i + search_len)] == search_value.s[..] {
+                return Some(i);
+            }
+        }
+        None
     }
 
+    /// Returns `true` if the string contains the given UTF-16 code unit.
     pub(crate) fn contains(&self, ch: u16) -> bool {
         self.s.contains(&ch)
     }
 
+    /// Returns `true` if this string begins with `search_value`.
+    ///
+    /// Matching is performed over UTF-16 code units.
     #[expect(dead_code)]
     pub(crate) fn starts_with(&self, search_value: &JSString) -> bool {
         let len = self.len();
@@ -61,6 +83,10 @@ impl JSString {
         if search_len > len { false } else { self.s[0..search_len] == search_value.s[..] }
     }
 
+    /// Returns `true` if the string is well-formed UTF-16.
+    ///
+    /// A well-formed string contains no unpaired surrogate code units. Valid
+    /// surrogate pairs are treated as one Unicode scalar value for the scan.
     pub(crate) fn is_well_formed_unicode(&self) -> bool {
         let len = self.len();
         let mut k = 0;
@@ -82,6 +108,16 @@ impl JSString {
         true
     }
 
+    /// Finds the last occurrence of `search_value` at or before `from_index`.
+    ///
+    /// The returned index is a UTF-16 code-unit index. An empty search string
+    /// matches at `from_index`.
+    ///
+    /// # Panics
+    ///
+    /// In debug builds, panics if `from_index + search_value.len()` is greater
+    /// than this string's length. Callers should pass the greatest position
+    /// where `search_value` can still fit.
     pub(crate) fn last_index_of(&self, search_value: &JSString, from_index: usize) -> Option<usize> {
         let search_len = search_value.len();
 
