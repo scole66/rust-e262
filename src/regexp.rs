@@ -1299,7 +1299,8 @@ fn regexp_prototype_replace(
             // Step 15.l.i
             let named_captures = if named_captures.is_undefined() { None } else { Some(to_object(named_captures)?) };
             // Step 15.l.ii
-            matched.get_substitution(
+            get_substitution(
+                &matched,
                 &strx,
                 to_usize(position).expect("position should work as a usize"),
                 &captures,

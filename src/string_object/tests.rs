@@ -742,9 +742,6 @@ fn string_prototype_value_of(make_params: impl FnOnce() -> ECMAScriptValue) -> R
         .map_err(unwind_any_error)
 }
 
-tbd_function!(string_prototype_pad_end);
-tbd_function!(string_prototype_pad_start);
-tbd_function!(string_prototype_repeat);
 tbd_function!(string_prototype_replace_all);
 tbd_function!(string_prototype_search);
 tbd_function!(string_prototype_starts_with);
@@ -755,3 +752,57 @@ tbd_function!(string_prototype_to_upper_case);
 tbd_function!(string_prototype_trim);
 tbd_function!(string_prototype_trim_end);
 tbd_function!(string_prototype_trim_start);
+
+#[test_case(&[], &[], 0 => Vec::<u16>::new(); "empty filler and zero length")]
+#[test_case(&[], &[1], 0 => Vec::<u16>::new(); "non-empty filler and zero length")]
+#[test_case(&[], &[1], 1 => vec![1]; "single exact one")]
+#[test_case(&[], &[1], 4 => vec![1, 1, 1, 1]; "single repeated")]
+#[test_case(&[], &[1, 2], 1 => vec![1]; "truncate before one full repeat")]
+#[test_case(&[], &[1, 2], 2 => vec![1, 2]; "one exact repeat")]
+#[test_case(&[], &[1, 2], 3 => vec![1, 2, 1]; "one repeat plus remainder")]
+#[test_case(&[], &[1, 2], 5 => vec![1, 2, 1, 2, 1]; "multiple repeats plus remainder")]
+#[test_case(&[], &[1, 2, 3], 8 => vec![1, 2, 3, 1, 2, 3, 1, 2]; "longer filler truncated")]
+#[test_case(&[9, 9], &[1, 2], 3 => vec![9, 9, 1, 2, 1]; "appends to existing output")]
+fn append_repeated_prefix(initial: &[u16], filler: &[u16], len: usize) -> Vec<u16> {
+    let mut out = initial.to_vec();
+
+    super::append_repeated_prefix(&mut out, filler, len);
+
+    out
+}
+
+mod string_pad {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case("", 0, "", PadPlacement::Start => ""; "empty string already at max length")]
+    #[test_case("", 3, "", PadPlacement::Start => ""; "empty fill string returns original")]
+    #[test_case("abc", 2, "0", PadPlacement::Start => "abc"; "start padding no-op when max length is smaller")]
+    #[test_case("abc", 3, "0", PadPlacement::Start => "abc"; "start padding no-op when max length is equal")]
+    #[test_case("abc", 5, "0", PadPlacement::Start => "00abc"; "start padding with single code unit fill")]
+    #[test_case("abc", 8, "01", PadPlacement::Start => "01010abc"; "start padding repeats and truncates fill")]
+    #[test_case("abc", 4, "xyz", PadPlacement::Start => "xabc"; "start padding truncates fill before first full repeat")]
+    #[test_case("abc", 7, "xyz", PadPlacement::Start => "xyzxabc"; "start padding truncates after repeated fill")]
+    #[test_case("abc", 2, "0", PadPlacement::End => "abc"; "end padding no-op when max length is smaller")]
+    #[test_case("abc", 3, "0", PadPlacement::End => "abc"; "end padding no-op when max length is equal")]
+    #[test_case("abc", 5, "0", PadPlacement::End => "abc00"; "end padding with single code unit fill")]
+    #[test_case("abc", 8, "01", PadPlacement::End => "abc01010"; "end padding repeats and truncates fill")]
+    #[test_case("abc", 4, "xyz", PadPlacement::End => "abcx"; "end padding truncates fill before first full repeat")]
+    #[test_case("abc", 7, "xyz", PadPlacement::End => "abcxyzx"; "end padding truncates after repeated fill")]
+    fn string_pad(source: &str, max_length: usize, fill: &str, placement: PadPlacement) -> String {
+        let source = JSString::from(source);
+        let fill = JSString::from(fill);
+
+        source.string_pad(max_length, &fill, placement).to_string()
+    }
+
+    #[test_case(&[0xD83D, 0xDE00], 3, &[0x2E], PadPlacement::Start => vec![0x2E, 0xD83D, 0xDE00]; "start padding counts surrogate pair as two code units")]
+    #[test_case(&[0xD83D, 0xDE00], 3, &[0x2E], PadPlacement::End => vec![0xD83D, 0xDE00, 0x2E]; "end padding counts surrogate pair as two code units")]
+    #[test_case(&[0x61], 4, &[0xD83D, 0xDE00], PadPlacement::End => vec![0x61, 0xD83D, 0xDE00, 0xD83D]; "fill truncation can split surrogate pair")]
+    fn string_pad_code_units(source: &[u16], max_length: usize, fill: &[u16], placement: PadPlacement) -> Vec<u16> {
+        let source = JSString::from(source);
+        let fill = JSString::from(fill);
+
+        source.string_pad(max_length, &fill, placement).as_slice().to_vec()
+    }
+}
