@@ -612,6 +612,7 @@ test_defs[ArgumentsObject_delete]="ArgumentsObject@object::ObjectInterface::dele
 test_defs[ArgumentsObject_own_property_keys]="ArgumentsObject@object::ObjectInterface::own_property_keys arguments_object::own_property_keys arguments_object"
 
 test_defs[Intrinsics]="Intrinsics intrinsics realm"
+test_defs[Intrinsics_get]="Intrinsics::get intrinsics::get realm"
 test_defs[Realm]="Realm realm realm"
 test_defs[is_nan]="is_nan is_nan realm"
 test_defs[is_finite]="is_finite is_finite realm"
@@ -928,6 +929,171 @@ if $everything; then
   names=("${!test_defs[@]}")
 fi
 
+
+selector_self_base() {
+  local s="${1%%@*}"
+
+  # For selectors like Type::method or path::Type::method, remove
+  # trailing lowercase method/module-ish pieces until the last component
+  # looks type-like.
+  while [[ "$s" == *::* ]]; do
+    local last="${s##*::}"
+    case "$last" in
+      [A-Z]*|f64|usize|isize|u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|bool|char|str)
+        break
+        ;;
+      *)
+        s="${s%::*}"
+        ;;
+    esac
+  done
+
+  echo "$s"
+}
+
+is_type_selector() {
+  local base
+  base="$(selector_self_base "$1")"
+  local last="${base##*::}"
+
+  case "$last" in
+    [A-Z]*|f64|usize|isize|u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|bool|char|str)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+target_self_type() {
+  local typename="$1"
+  local file="$2"
+  local base
+  base="$(selector_self_base "$typename")"
+
+  case "$base" in
+    core::*|alloc::*|std::*|f64|usize|isize|u8|u16|u32|u64|u128|i8|i16|i32|i64|i128|bool|char|str)
+      echo "$base"
+      ;;
+    *::*)
+      echo "res::$base"
+      ;;
+    *)
+      echo "res::$file::$base"
+      ;;
+  esac
+}
+
+filter_impl_receiver() {
+  local target="$1"
+  local raw_symbols
+  raw_symbols="$(mktemp)"
+  cat > "$raw_symbols"
+
+  TARGET_SELF_TYPE="$target" python3 - "$raw_symbols" <<'PY'
+import os
+import subprocess
+import sys
+
+target = os.environ["TARGET_SELF_TYPE"]
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    raw_lines = [line.rstrip("\n") for line in f]
+symbols = [line.rstrip(":") for line in raw_lines]
+
+if not symbols:
+    sys.exit(0)
+
+demangled = subprocess.run(
+    ["rustfilt"],
+    input="\n".join(symbols) + "\n",
+    text=True,
+    stdout=subprocess.PIPE,
+    check=True,
+).stdout.splitlines()
+
+def matching_angle(s, start):
+    depth = 0
+    for i in range(start, len(s)):
+        if s[i] == "<":
+            depth += 1
+        elif s[i] == ">":
+            depth -= 1
+            if depth == 0:
+                return i
+    return None
+
+def find_top_level_as(s):
+    angle = paren = bracket = 0
+    i = 0
+
+    while i < len(s):
+        ch = s[i]
+
+        if ch == "<":
+            angle += 1
+        elif ch == ">":
+            angle -= 1
+        elif ch == "(":
+            paren += 1
+        elif ch == ")":
+            paren -= 1
+        elif ch == "[":
+            bracket += 1
+        elif ch == "]":
+            bracket -= 1
+        elif (
+            angle == 0
+            and paren == 0
+            and bracket == 0
+            and s.startswith(" as ", i)
+        ):
+            return i
+
+        i += 1
+
+    return None
+
+def impl_self_type(symbol):
+    start = symbol.find("<")
+    if start < 0:
+        return None
+
+    end = matching_angle(symbol, start)
+    if end is None:
+        return None
+
+    if not symbol[end + 1:].startswith("::"):
+        return None
+
+    inside = symbol[start + 1:end]
+    as_pos = find_top_level_as(inside)
+
+    if as_pos is None:
+        return inside.strip()
+
+    return inside[:as_pos].strip()
+
+def strip_top_level_generics(ty):
+    start = ty.find("<")
+    if start < 0:
+        return ty
+
+    end = matching_angle(ty, start)
+    if end == len(ty) - 1:
+        return ty[:start].strip()
+
+    return ty
+
+for raw, demangled_symbol in zip(raw_lines, demangled):
+    self_ty = impl_self_type(demangled_symbol)
+    if self_ty == target or (self_ty is not None and strip_top_level_generics(self_ty) == target):
+        print(raw)
+PY
+  rm -f "$raw_symbols"
+}
+
 for name in ${names[@]}; do
 
   data=(${test_defs[$name]})
@@ -990,7 +1156,20 @@ for name in ${names[@]}; do
   fi
 
   namelist=${location}/namelist
-  report --no-color --name-regex=".+" --profile=${location}/coverage.profdata | grep -E "^_.*:$" | grep -E "$regex" | grep -vE "concise_with|pprint|pp_three" | sed -E 's/(.*):$/allowlist_fun:\1/' > $namelist
+  candidates=${location}/candidates
+
+  report --no-color --name-regex=".+" --profile=${location}/coverage.profdata \
+    | grep -E "^_.*:$" \
+    | grep -E "$regex" \
+    | grep -vE "concise_with|pprint|pp_three" \
+    > $candidates
+
+  if is_type_selector "$typename"; then
+    target="$(target_self_type "$typename" "$file")"
+    filter_impl_receiver "$target" < $candidates | sed -E 's/(.*):$/allowlist_fun:\1/' > $namelist
+  else
+    sed -E 's/(.*):$/allowlist_fun:\1/' $candidates > $namelist
+  fi
 
   echo "$name" > ${location}/name.txt
 done

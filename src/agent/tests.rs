@@ -1487,6 +1487,11 @@ mod ec_pop_list {
     #[test_case(|| { setup_test_agent(); ec_push(Err(create_type_error("sentinel"))); ec_push(Ok(1.into())); } => serr("Unexpected abrupt completion:"); "err in values")]
     #[test_case(|| { setup_test_agent(); ec_push(Ok(NormalCompletion::Empty)); ec_push(Ok(1.into())); } => serr("Not a language value!"); "not-value in list")]
     #[test_case(|| { setup_test_agent(); ec_push(Ok("abcd".into())); ec_push(Ok("efgh".into())); ec_push(Ok("ijkl".into())); ec_push(Ok(3.into())); } => Ok(svec(&["ijkl", "efgh", "abcd"])); "3-item list")]
+    #[test_case(
+        || { setup_test_agent(); ec_push(Ok(8.321e98.into()))}
+        => serr("invalid conversion of 832100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 to usize");
+        "length can't fit a usize"
+    )]
     fn call(setup: fn() -> ()) -> Result<Vec<String>, String> {
         setup();
 
@@ -1605,6 +1610,12 @@ mod for_in_iterator_object {
         o
     }
 
+    #[test]
+    fn kind() {
+        setup_test_agent();
+        assert_eq!(make().o.kind(), ObjectTag::Object);
+    }
+
     default_uses_ordinary_get_prototype_of_test!();
     default_get_prototype_of_test!(ForInIteratorPrototype);
     default_set_prototype_of_test!();
@@ -1628,13 +1639,18 @@ mod for_in_iterator_object {
     none_function!(to_arguments_object);
     none_function!(to_bigint_object);
     none_function!(to_boolean_obj);
+    none_function!(to_bound_function_object);
     none_function!(to_builtin_function_obj);
+    none_function!(to_builtin_function_with_revocable_proxy_slot);
     none_function!(to_callable_obj);
     none_function!(to_constructable);
+    none_function!(to_date_obj);
     none_function!(to_function_obj);
     none_function!(to_generator_object);
+    none_function!(to_map_obj);
     none_function!(to_number_obj);
     none_function!(to_proxy_object);
+    none_function!(to_regexp_object);
     none_function!(to_string_obj);
     none_function!(to_symbol_obj);
 }

@@ -1203,6 +1203,9 @@ mod property_key {
     #[test_case(|| 848_183_usize => "848183"; "_ usize")]
     #[test_case(|| 282_i32 => "282"; "_ i32")]
     #[test_case(|| 828_u64 => "828"; "_ u64")]
+    #[test_case(|| 34_i64 => "34"; "_ i64")]
+    #[test_case(|| &['k' as u16, 'e' as u16, 'y' as u16][..] => "key"; "_ &[u16]")]
+    #[test_case(|| 10.5 => "10.5"; "_ f64")]
     fn from<X>(make_val: impl FnOnce() -> X) -> String
     where
         PropertyKey: From<X>,
