@@ -119,8 +119,11 @@ mod intrinsics {
         assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototype), intrinsics.array_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::ArrayPrototypeValues), intrinsics.array_prototype_values);
         assert_eq!(intrinsics.get(IntrinsicId::ArrayIteratorPrototype), intrinsics.array_iterator_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::BigIntPrototype), intrinsics.big_int_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::Boolean), intrinsics.boolean);
         assert_eq!(intrinsics.get(IntrinsicId::BooleanPrototype), intrinsics.boolean_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::Date), intrinsics.date);
+        assert_eq!(intrinsics.get(IntrinsicId::DatePrototype), intrinsics.date_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::DecodeURI), intrinsics.decode_uri);
         assert_eq!(intrinsics.get(IntrinsicId::DecodeURIComponent), intrinsics.decode_uri_component);
         assert_eq!(intrinsics.get(IntrinsicId::EncodeURI), intrinsics.encode_uri);
@@ -146,6 +149,9 @@ mod intrinsics {
             intrinsics.get(IntrinsicId::GeneratorFunctionPrototypePrototypeNext),
             intrinsics.generator_function_prototype_prototype_next
         );
+        assert_eq!(intrinsics.get(IntrinsicId::Map), intrinsics.map);
+        assert_eq!(intrinsics.get(IntrinsicId::MapIteratorPrototype), intrinsics.map_iterator_prototype);
+        assert_eq!(intrinsics.get(IntrinsicId::MapPrototype), intrinsics.map_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::Number), intrinsics.number);
         assert_eq!(intrinsics.get(IntrinsicId::NumberPrototype), intrinsics.number_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::Object), intrinsics.object);
@@ -158,7 +164,10 @@ mod intrinsics {
         assert_eq!(intrinsics.get(IntrinsicId::ReferenceError), intrinsics.reference_error);
         assert_eq!(intrinsics.get(IntrinsicId::ReferenceErrorPrototype), intrinsics.reference_error_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::Reflect), intrinsics.reflect);
+        assert_eq!(intrinsics.get(IntrinsicId::RegExp), intrinsics.reg_exp);
+        assert_eq!(intrinsics.get(IntrinsicId::RegExpPrototype), intrinsics.reg_exp_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::String), intrinsics.string);
+        assert_eq!(intrinsics.get(IntrinsicId::StringIteratorPrototype), intrinsics.string_iterator_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::StringPrototype), intrinsics.string_prototype);
         assert_eq!(intrinsics.get(IntrinsicId::Symbol), intrinsics.symbol);
         assert_eq!(intrinsics.get(IntrinsicId::SymbolPrototype), intrinsics.symbol_prototype);
@@ -179,6 +188,8 @@ mod intrinsics {
     #[test_case(|| intrinsic(IntrinsicId::BigIntPrototype) => Some(IntrinsicId::BigIntPrototype); "id: BigIntPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::Boolean) => Some(IntrinsicId::Boolean); "id: Boolean")]
     #[test_case(|| intrinsic(IntrinsicId::BooleanPrototype) => Some(IntrinsicId::BooleanPrototype); "id: BooleanPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::Date) => Some(IntrinsicId::Date); "id: Date")]
+    #[test_case(|| intrinsic(IntrinsicId::DatePrototype) => Some(IntrinsicId::DatePrototype); "id: DatePrototype")]
     #[test_case(|| intrinsic(IntrinsicId::DecodeURI) => Some(IntrinsicId::DecodeURI); "id: DecodeURI")]
     #[test_case(|| intrinsic(IntrinsicId::DecodeURIComponent) => Some(IntrinsicId::DecodeURIComponent); "id: DecodeURIComponent")]
     #[test_case(|| intrinsic(IntrinsicId::EncodeURI) => Some(IntrinsicId::EncodeURI); "id: EncodeURI")]
@@ -198,6 +209,9 @@ mod intrinsics {
     #[test_case(|| intrinsic(IntrinsicId::IsFinite) => Some(IntrinsicId::IsFinite); "id: IsFinite")]
     #[test_case(|| intrinsic(IntrinsicId::IsNaN) => Some(IntrinsicId::IsNaN); "id: IsNaN")]
     #[test_case(|| intrinsic(IntrinsicId::IteratorPrototype) => Some(IntrinsicId::IteratorPrototype); "id: IteratorPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::Map) => Some(IntrinsicId::Map); "id: Map")]
+    #[test_case(|| intrinsic(IntrinsicId::MapPrototype) => Some(IntrinsicId::MapPrototype); "id: MapPrototype")]
+    #[test_case(|| intrinsic(IntrinsicId::MapIteratorPrototype) => Some(IntrinsicId::MapIteratorPrototype); "id: MapIteratorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::Math) => Some(IntrinsicId::Math); "id: Math")]
     #[test_case(|| intrinsic(IntrinsicId::Number) => Some(IntrinsicId::Number); "id: Number")]
     #[test_case(|| intrinsic(IntrinsicId::NumberPrototype) => Some(IntrinsicId::NumberPrototype); "id: NumberPrototype")]
@@ -213,6 +227,7 @@ mod intrinsics {
     #[test_case(|| intrinsic(IntrinsicId::ReferenceErrorPrototype) => Some(IntrinsicId::ReferenceErrorPrototype); "id: ReferenceErrorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::Reflect) => Some(IntrinsicId::Reflect); "id: Reflect")]
     #[test_case(|| intrinsic(IntrinsicId::String) => Some(IntrinsicId::String); "id: String")]
+    #[test_case(|| intrinsic(IntrinsicId::StringIteratorPrototype) => Some(IntrinsicId::StringIteratorPrototype); "id: StringIteratorPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::StringPrototype) => Some(IntrinsicId::StringPrototype); "id: StringPrototype")]
     #[test_case(|| intrinsic(IntrinsicId::Symbol) => Some(IntrinsicId::Symbol); "id: Symbol")]
     #[test_case(|| intrinsic(IntrinsicId::SymbolPrototype) => Some(IntrinsicId::SymbolPrototype); "id: SymbolPrototype")]
