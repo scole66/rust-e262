@@ -808,6 +808,7 @@ test_defs[string_prototype_value_of]="string_prototype_value_of string_prototype
 test_defs[string_prototype_iterator]="string_prototype_iterator string_prototype_iterator string_object"
 test_defs[append_repeated_prefix]="append_repeated_prefix append_repeated_prefix string_object"
 test_defs[string_pad]="JSString::string_pad string_pad string_object"
+test_defs[get_substitution]="get_substitution get_substitution string_object"
 
 test_defs[get_own_property_keys]="get_own_property_keys get_own_property_keys object_object"
 test_defs[object_from_entries]="object_from_entries constructor::from_entries object_object"

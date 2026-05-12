@@ -773,6 +773,13 @@ fn builtin_function(
 ) -> Object {
     create_builtin_function(Box::new(func), None, 0.0, "my-func".into(), &[], None, None, None)
 }
+fn ordinary_object_with_data_properties(entries: &[(&str, ECMAScriptValue)]) -> Object {
+    let obj = ordinary_object_create(None);
+    for (key, value) in entries {
+        obj.create_data_property_or_throw(*key, value.clone()).unwrap();
+    }
+    obj
+}
 
 #[test_case(
     || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("X")])
@@ -1090,4 +1097,325 @@ mod string_pad {
 
         source.string_pad(max_length, &fill, placement).as_slice().to_vec()
     }
+}
+
+struct SubstitutionParams {
+    matched: JSString,
+    strx: JSString,
+    position: usize,
+    captures: Vec<Option<JSString>>,
+    named_captures: Option<Object>,
+    replacement_template: JSString,
+}
+
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("X"),
+    }
+    => sok("X");
+    "literal text"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("a$$z"),
+    }
+    => sok("a$z");
+    "dollar dollar emits literal dollar"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("$`"),
+    }
+    => sok("a");
+    "dollar backtick emits prefix"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("$&"),
+    }
+    => sok("b");
+    "dollar ampersand emits whole match"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("$'"),
+    }
+    => sok("c");
+    "dollar apostrophe emits suffix"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("too long"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("$'"),
+    }
+    => sok("");
+    "dollar apostrophe clamps tail position"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![Some(JSString::from("first"))],
+        named_captures: None,
+        replacement_template: JSString::from("$1"),
+    }
+    => sok("first");
+    "single digit capture"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![None],
+        named_captures: None,
+        replacement_template: JSString::from("$1"),
+    }
+    => sok("");
+    "undefined numbered capture becomes empty string"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("$1"),
+    }
+    => sok("$1");
+    "missing single digit capture stays literal"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![
+            Some(JSString::from("1")),
+            Some(JSString::from("2")),
+            Some(JSString::from("3")),
+            Some(JSString::from("4")),
+            Some(JSString::from("5")),
+            Some(JSString::from("6")),
+            Some(JSString::from("7")),
+            Some(JSString::from("8")),
+            Some(JSString::from("9")),
+            Some(JSString::from("10")),
+            Some(JSString::from("11")),
+            Some(JSString::from("twelve")),
+        ],
+        named_captures: None,
+        replacement_template: JSString::from("$12"),
+    }
+    => sok("twelve");
+    "two digit capture when present"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![Some(JSString::from("one"))],
+        named_captures: None,
+        replacement_template: JSString::from("$12"),
+    }
+    => sok("one2");
+    "two digit capture falls back to one digit plus literal digit"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("$0"),
+    }
+    => sok("$0");
+    "dollar zero is literal"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("$99"),
+    }
+    => sok("$99");
+    "missing high two digit capture stays literal"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("$<name>"),
+    }
+    => sok("$<name>");
+    "named capture syntax is literal without named captures"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("$<"),
+    }
+    => sok("$<");
+    "unterminated named capture opener is literal"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: None,
+        replacement_template: JSString::from("$x"),
+    }
+    => sok("$x");
+    "unknown dollar sequence copies dollar literally then following character"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![Some(JSString::from("first"))],
+        named_captures: None,
+        replacement_template: JSString::from("[$`][$&][$'][$1][$$][$x]"),
+    }
+    => sok("[a][b][c][first][$][$x]");
+    "mixed replacement template"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: Some(ordinary_object_with_data_properties(&[
+            ("name", ECMAScriptValue::from("named")),
+        ])),
+        replacement_template: JSString::from("$<name>"),
+    }
+    => sok("named");
+    "named capture value is substituted"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: Some(ordinary_object_with_data_properties(&[
+            ("name", ECMAScriptValue::Undefined),
+        ])),
+        replacement_template: JSString::from("$<name>"),
+    }
+    => sok("");
+    "undefined named capture becomes empty string"
+)]
+#[test_case(
+    || SubstitutionParams {
+        matched: JSString::from("b"),
+        strx: JSString::from("abc"),
+        position: 1,
+        captures: vec![],
+        named_captures: Some(ordinary_object_with_data_properties(&[])),
+        replacement_template: JSString::from("$<missing>"),
+    }
+    => sok("");
+    "missing named capture property becomes empty string"
+)]
+#[test_case(
+    || {
+        let capture_value = ordinary_object_with_to_string(|_, _, _| {
+            Err(create_type_error("poisoned named capture toString"))
+        });
+
+        SubstitutionParams {
+            matched: JSString::from("b"),
+            strx: JSString::from("abc"),
+            position: 1,
+            captures: vec![],
+            named_captures: Some(ordinary_object_with_data_properties(&[
+                ("name", ECMAScriptValue::from(capture_value)),
+            ])),
+            replacement_template: JSString::from("$<name>"),
+        }
+    }
+    => serr("TypeError: poisoned named capture toString");
+    "named capture ToString abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let named_captures = ordinary_object_with_getter("name", |_, _, _| {
+            Err(create_type_error("poisoned named capture getter"))
+        });
+
+        SubstitutionParams {
+            matched: JSString::from("b"),
+            strx: JSString::from("abc"),
+            position: 1,
+            captures: vec![],
+            named_captures: Some(named_captures),
+            replacement_template: JSString::from("$<name>"),
+        }
+    }
+    => serr("TypeError: poisoned named capture getter");
+    "named capture get abrupt completion is propagated"
+)]
+fn get_substitution(make_params: impl FnOnce() -> SubstitutionParams) -> Result<String, String> {
+    setup_test_agent();
+
+    let params = make_params();
+
+    super::get_substitution(
+        &params.matched,
+        &params.strx,
+        params.position,
+        &params.captures,
+        params.named_captures.as_ref(),
+        &params.replacement_template,
+    )
+    .map(String::from)
+    .map_err(unwind_any_error)
 }
