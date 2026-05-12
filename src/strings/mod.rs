@@ -34,13 +34,19 @@ impl JSString {
 
     /// Returns a new string with `s` appended to this string.
     ///
-    /// Concatenation preserves the exact UTF-16 code-unit sequence of both
-    /// strings, including any lone surrogates.
+    /// Concatenation preserves the exact UTF-16 code-unit sequence of both strings,
+    /// including any lone surrogates.
     #[must_use]
     pub(crate) fn concat(&self, s: impl Into<JSString>) -> JSString {
         let tail = s.into();
-        let combined = [self.clone().s, tail.s].concat().into_boxed_slice();
-        JSString { s: Rc::from(combined) }
+
+        // Build the combined code-unit buffer directly instead of concatenating
+        // through temporary JSString/Rc containers.
+        let mut combined = Vec::with_capacity(self.len() + tail.len());
+        combined.extend_from_slice(self.as_slice());
+        combined.extend_from_slice(tail.as_slice());
+
+        JSString::from(combined)
     }
 
     /// Finds the first occurrence of `search_value` at or after `from_index`.

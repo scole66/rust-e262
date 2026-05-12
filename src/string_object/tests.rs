@@ -742,7 +742,292 @@ fn string_prototype_value_of(make_params: impl FnOnce() -> ECMAScriptValue) -> R
         .map_err(unwind_any_error)
 }
 
-tbd_function!(string_prototype_replace_all);
+fn ordinary_object_with_function_property(
+    key: impl Into<PropertyKey>,
+    func: impl Fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue> + 'static,
+) -> Object {
+    let obj = ordinary_object_create(None);
+    let objfunc = create_builtin_function(Box::new(func), None, 3.0, "my-replacer".into(), &[], None, None, None);
+    define_property_or_throw(&obj, key, PotentialPropertyDescriptor::new().value(objfunc)).unwrap();
+    obj
+}
+fn ordinary_object_with_getter(
+    key: impl Into<PropertyKey>,
+    func: impl Fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue> + 'static,
+) -> Object {
+    let obj = ordinary_object_create(None);
+    let getterfunc = create_builtin_function(Box::new(func), None, 0.0, "my-getter".into(), &[], None, None, None);
+    define_property_or_throw(&obj, key, PotentialPropertyDescriptor::new().get(getterfunc)).unwrap();
+    obj
+}
+fn ordinary_object_with_to_string(
+    func: impl Fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue> + 'static,
+) -> Object {
+    let to_string = create_builtin_function(Box::new(func), None, 0.0, "my-tostring".into(), &[], None, None, None);
+    let obj = ordinary_object_create(None);
+    define_property_or_throw(&obj, "toString", PotentialPropertyDescriptor::new().value(to_string)).unwrap();
+    obj
+}
+fn builtin_function(
+    func: impl Fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue> + 'static,
+) -> Object {
+    create_builtin_function(Box::new(func), None, 0.0, "my-func".into(), &[], None, None, None)
+}
+
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("X")])
+    => sok("aXc");
+    "replaces first plain string match"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("ababa"), vec![ECMAScriptValue::from("a"), ECMAScriptValue::from("X")])
+    => sok("Xbaba");
+    "replaces only the first plain string match"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("x"), ECMAScriptValue::from("X")])
+    => sok("abc");
+    "returns original string when search string is absent"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from(""), ECMAScriptValue::from("X")])
+    => sok("Xabc");
+    "empty search string matches at start"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("$$")])
+    => sok("a$c");
+    "replacement template dollar dollar"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("$&")])
+    => sok("abc");
+    "replacement template whole match"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("$`")])
+    => sok("aac");
+    "replacement template prefix"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("$'")])
+    => sok("acc");
+    "replacement template suffix"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("$0")])
+    => sok("a$0c");
+    "replacement template dollar zero is literal"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("$1")])
+    => sok("a$1c");
+    "replacement template capture is literal with no captures"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("$99")])
+    => sok("a$99c");
+    "replacement template high capture is literal with no captures"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("$<name>")])
+    => sok("a$<name>c");
+    "named capture template is literal without named captures"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("$<")])
+    => sok("a$<c");
+    "unterminated named capture prefix is literal"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from("$x")])
+    => sok("a$xc");
+    "unknown dollar template is literal"
+)]
+#[test_case(
+    || (ECMAScriptValue::from(123), vec![ECMAScriptValue::from("2"), ECMAScriptValue::from("X")])
+    => sok("1X3");
+    "generic receiver is stringified"
+)]
+#[test_case(
+    || (ECMAScriptValue::Null, vec![ECMAScriptValue::from("x"), ECMAScriptValue::from("y")])
+    => serr("TypeError: Undefined and null are not allowed in this context");
+    "null receiver throws"
+)]
+#[test_case(
+    || (ECMAScriptValue::Undefined, vec![ECMAScriptValue::from("x"), ECMAScriptValue::from("y")])
+    => serr("TypeError: Undefined and null are not allowed in this context");
+    "undefined receiver throws"
+)]
+#[test_case(
+    || {
+        let search_value = ordinary_object_with_function_property(
+            wks(WksId::Replace),
+            |_, _, arguments| {
+                // Called as: replacer.call(searchValue, thisValue, replaceValue)
+                let receiver = arguments[0].clone();
+                let replace_value = arguments[1].clone();
+
+                let receiver = to_string(receiver)?;
+                let replace_value = to_string(replace_value)?;
+
+                Ok(ECMAScriptValue::String(
+                    JSString::from("custom:")
+                        .concat(receiver)
+                        .concat(":")
+                        .concat(replace_value),
+                ))
+            },
+        );
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from(search_value), ECMAScriptValue::from("R")],
+        )
+    }
+    => sok("custom:abc:R");
+    "custom @@replace method is called"
+)]
+#[test_case(
+    || {
+        let search_value = ordinary_object_with_getter(
+            wks(WksId::Replace),
+            |_,_,_| Err(create_type_error("poisoned @@replace getter")),
+        );
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from(search_value), ECMAScriptValue::from("R")],
+        )
+    }
+    => serr("TypeError: poisoned @@replace getter");
+    "@@replace getter abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let this_value = ordinary_object_with_to_string(|_,_,_| {
+            Err(create_type_error("poisoned receiver toString"))
+        });
+
+        (
+            ECMAScriptValue::from(this_value),
+            vec![ECMAScriptValue::from("a"), ECMAScriptValue::from("R")],
+        )
+    }
+    => serr("TypeError: poisoned receiver toString");
+    "receiver ToString abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let search_value = ordinary_object_with_to_string(|_,_,_| {
+            Err(create_type_error("poisoned searchValue toString"))
+        });
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from(search_value), ECMAScriptValue::from("R")],
+        )
+    }
+    => serr("TypeError: poisoned searchValue toString");
+    "searchValue ToString abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let replace_value = ordinary_object_with_to_string(|_,_,_| {
+            Err(create_type_error("poisoned replaceValue toString"))
+        });
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from("b"), ECMAScriptValue::from(replace_value)],
+        )
+    }
+    => serr("TypeError: poisoned replaceValue toString");
+    "non-callable replaceValue ToString abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let replace_value = builtin_function(|_this_value, _new_target, arguments| {
+            let matched = to_string(arguments[0].clone())?;
+            let position = to_string(arguments[1].clone())?;
+            let full_string = to_string(arguments[2].clone())?;
+
+            Ok(ECMAScriptValue::String(
+                JSString::from("[")
+                    .concat(matched)
+                    .concat("@")
+                    .concat(position)
+                    .concat(" in ")
+                    .concat(full_string)
+                    .concat("]"),
+            ))
+        });
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from("b"), ECMAScriptValue::from(replace_value)],
+        )
+    }
+    => sok("a[b@1 in abc]c");
+    "callable replaceValue is called with match index and full string"
+)]
+#[test_case(
+    || {
+        let replace_value = builtin_function(|_this_value, _new_target, _arguments| {
+            Ok(ECMAScriptValue::from(123))
+        });
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from("b"), ECMAScriptValue::from(replace_value)],
+        )
+    }
+    => sok("a123c");
+    "callable replaceValue result is stringified"
+)]
+#[test_case(
+    || {
+        let replacement_result = ordinary_object_with_to_string(|_,_,_| {
+            Err(create_type_error("poisoned replacement result toString"))
+        });
+
+        let replace_value = builtin_function(move |_this_value, _new_target, _arguments| {
+            Ok(ECMAScriptValue::from(replacement_result.clone()))
+        });
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from("b"), ECMAScriptValue::from(replace_value)],
+        )
+    }
+    => serr("TypeError: poisoned replacement result toString");
+    "callable replaceValue result ToString abrupt completion is propagated"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc undefined abc"), vec![ECMAScriptValue::Undefined, ECMAScriptValue::from("X")])
+    => sok("abc X abc");
+    "undefined searchValue skips custom replace lookup and stringifies"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc null abc"), vec![ECMAScriptValue::Null, ECMAScriptValue::from("X")])
+    => sok("abc X abc");
+    "null searchValue skips custom replace lookup and stringifies"
+)]
+fn string_prototype_replace(
+    make_params: impl FnOnce() -> (ECMAScriptValue, Vec<ECMAScriptValue>),
+) -> Result<String, String> {
+    setup_test_agent();
+
+    let (this_value, arguments) = make_params();
+
+    super::string_prototype_replace(&this_value, None, &arguments)
+        .map(|val| match val {
+            ECMAScriptValue::String(s) => String::from(s),
+            _ => panic!("Expected string value from String.prototype.replace: {val:?}"),
+        })
+        .map_err(unwind_any_error)
+}
+
 tbd_function!(string_prototype_search);
 tbd_function!(string_prototype_starts_with);
 tbd_function!(string_prototype_substring);
