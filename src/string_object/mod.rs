@@ -1480,15 +1480,19 @@ fn string_prototype_replace(
     let string = to_string(this_value.clone())?;
     let search_string = to_string(search_value)?;
 
-    // Functional replacers are called later with the matched text, index, and
-    // full string. Non-callable replacers are stringified before searching.
-    let functional_replace = is_callable(&replace_value);
-    let replace_string = if functional_replace { JSString::from("") } else { to_string(replace_value.clone())? };
+    // Prepare the replacement mode before searching. Non-callable replacement
+    // values are stringified now, as required by the spec; callable replacement
+    // values are kept for later invocation if a match is found.
+    let replace_value = if is_callable(&replace_value) {
+        StringReplaceMode::Function(replace_value)
+    } else {
+        StringReplaceMode::Template(to_string(replace_value)?)
+    };
 
     let search_length = search_string.len();
 
-    // Plain string replacement uses the first occurrence, and returns the original
-    // string unchanged when there is no match.
+    // Plain string replacement uses only the first occurrence, and returns the
+    // original string unchanged when there is no match.
     let Some(position) = string.index_of(&search_string, 0) else {
         return Ok(ECMAScriptValue::String(string));
     };
@@ -1496,35 +1500,143 @@ fn string_prototype_replace(
     let preceding = &string.as_slice()[0..position];
     let following = &string.as_slice()[position + search_length..];
 
-    let replacement = if functional_replace {
-        // The function replacer receives no captures or named groups in the
-        // plain string-search path: just match, position, and full string.
-        to_string(call(
-            &replace_value,
-            &ECMAScriptValue::Undefined,
-            &[
-                ECMAScriptValue::String(search_string),
-                ECMAScriptValue::from(position),
-                ECMAScriptValue::String(string.clone()),
-            ],
-        )?)?
-    } else {
-        // Template replacers still process replacement patterns like "$&",
-        // "$`", "$'", and "$$"; there are no captures for plain string search.
-        get_substitution(&search_string, &string, position, &[], None, &replace_string)?
-    };
+    // `StringReplaceMode` hides the split between function replacement and
+    // replacement-template substitution while preserving their different
+    // coercion timing.
+    let replacement = replace_value.apply(&search_string, position, &string)?;
 
     Ok(ECMAScriptValue::String(JSString::from(preceding).concat(replacement).concat(JSString::from(following))))
 }
 
+enum StringReplaceMode {
+    Template(JSString),
+    Function(ECMAScriptValue),
+}
+
+impl StringReplaceMode {
+    /// Prepared replacement behavior for `String.prototype.replaceAll`.
+    ///
+    /// Non-callable replacement values are stringified before the search, preserving
+    /// the spec's observable coercion order. Callable replacement values are kept
+    /// as-is and invoked only after a match is found.
+    fn apply(&self, search_string: &JSString, match_position: usize, string: &JSString) -> Completion<JSString> {
+        match self {
+            Self::Template(replace_value) => {
+                Ok(get_substitution(search_string, string, match_position, &[], None, replace_value)
+                    .expect("GetSubstitution without captures or named captures should not throw"))
+            }
+            Self::Function(replace_value) => {
+                let search_string = ECMAScriptValue::from(search_string.clone());
+                let match_position = ECMAScriptValue::from(match_position);
+                let string = ECMAScriptValue::from(string.clone());
+
+                to_string(call(replace_value, &ECMAScriptValue::Undefined, &[search_string, match_position, string])?)
+            }
+        }
+    }
+}
+
 // 22.1.3.19 String.prototype.replaceAll ( searchValue, replaceValue )
 fn string_prototype_replace_all(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let search_value = args.next_arg();
+    let replace_value = args.next_arg();
+
+    // `replaceAll` is intentionally generic, so the receiver only needs to be
+    // coercible. A custom @@replace method receives the original receiver value,
+    // before any string conversion happens.
+    this_value.require_object_coercible()?;
+
+    if let ECMAScriptValue::Object(search_value_obj) = &search_value {
+        // RegExp search values are only allowed when they are global. This
+        // prevents an accidental "replace only the first match" operation from
+        // being routed through replaceAll.
+        if search_value_obj.is_reg_exp()? {
+            // The global check is based on the observable `flags` property, not
+            // directly on an internal RegExp slot.
+            let flags = search_value_obj.get(&"flags".into())?;
+            flags.require_object_coercible()?;
+
+            let flags = to_string(flags)?;
+            if !flags.as_slice().contains(&('g' as u16)) {
+                return Err(create_type_error("ReplaceAll with a regexp needs a Global flag"));
+            }
+        }
+
+        // Objects can override replacement behavior with @@replace. When
+        // present, that method completely handles searching, replacement, and
+        // receiver coercion.
+        let replacer = search_value_obj.get_method(&wks(WksId::Replace).into())?;
+        if !replacer.is_undefined() {
+            return call(&replacer, &search_value, &[this_value.clone(), replace_value]);
+        }
+    }
+
+    // No custom replacer was provided, so use the built-in string-search path.
+    // Convert the receiver before the search value, preserving observable
+    // coercion order.
+    let string = to_string(this_value.clone())?;
+    let search_string = to_string(search_value)?;
+
+    // Prepare the replacement mode before searching. Non-callable replacement
+    // values are stringified now, as required by the spec; callable replacement
+    // values are kept for later calls at each match position.
+    let functional_replace = is_callable(&replace_value);
+    let replace_value = if functional_replace {
+        StringReplaceMode::Function(replace_value)
+    } else {
+        StringReplaceMode::Template(to_string(replace_value)?)
+    };
+
+    let search_length = search_string.len();
+
+    // Empty search strings match at every position. Advancing by at least one
+    // code unit prevents an infinite loop in that case.
+    let advance_by = search_length.max(1);
+
+    // Collect match positions before constructing the output. This preserves
+    // the spec's behavior: all search positions are determined before any
+    // replacement function calls can run.
+    let mut match_positions = vec![];
+    let mut position = string.index_of(&search_string, 0);
+    while let Some(pos) = position {
+        match_positions.push(pos);
+        position = string.index_of(&search_string, pos + advance_by);
+    }
+
+    let mut end_of_last_match = 0;
+
+    // Build the final UTF-16 buffer directly instead of repeatedly
+    // concatenating intermediate strings.
+    let mut result = vec![];
+
+    for match_position in match_positions {
+        // Preserve the unmatched slice between the previous match and this one.
+        let preserved = &string.as_slice()[end_of_last_match..match_position];
+
+        // Replacement mode hides the difference between template substitution
+        // and function replacement while preserving their different coercion
+        // timing.
+        let replacement = replace_value.apply(&search_string, match_position, &string)?;
+
+        result.extend_from_slice(preserved);
+        result.extend_from_slice(replacement.as_slice());
+
+        end_of_last_match = match_position + search_length;
+    }
+
+    // Append the unmatched tail after the final replacement.
+    if end_of_last_match < string.len() {
+        result.extend_from_slice(&string.as_slice()[end_of_last_match..]);
+    }
+
+    Ok(ECMAScriptValue::String(JSString::from(result.as_slice())))
 }
+
 // 22.1.3.20 String.prototype.search ( regexp )
 fn string_prototype_search(
     _: &ECMAScriptValue,
