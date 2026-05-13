@@ -997,10 +997,6 @@ pub(crate) fn double_to_radix_string(val: f64, radix: u32) -> String {
             // Calculate remainder.
             fraction -= digit_f;
             // Round to even.
-            assert!(
-                !(fraction + delta > 1.0 && fraction == 0.5 && digit & 1 != 0),
-                "Condition A met with radix {radix} and input val {val}: Please add this to coverage and remove this panic."
-            );
             if (fraction > 0.5 || (fraction == 0.5 && digit & 1 != 0)) && fraction + delta > 1.0 {
                 // We need to back trace already written digits in case of carry-over.
                 #[expect(clippy::never_loop)]

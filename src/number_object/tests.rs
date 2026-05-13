@@ -1,6 +1,7 @@
 use super::*;
 use crate::tests::*;
 use num::BigInt;
+use test_case::test_case;
 
 #[test]
 fn number_object_debug() {
@@ -605,11 +606,13 @@ fn number_proto_to_string_09() {
     assert_eq!(result, ECMAScriptValue::from("anhmc58j7ljq00000000000000000000000000000000000000000000000000000000"));
 }
 
-#[test]
-fn double_to_radix_string_01() {
-    assert_eq!(double_to_radix_string(-2048.0, 16), "-800");
-    assert_eq!(double_to_radix_string(0.999_999_99, 3), "0.2222222222222222120101012010002");
-    assert_eq!(double_to_radix_string(0.999_999_999_999_9, 26), "0.pppppppppbn");
+#[test_case(-2048.0, 16 => "-800"; "negative" )]
+#[test_case(0.999_999_99, 3 => "0.2222222222222222120101012010002"; "low radix" )]
+#[test_case(0.999_999_999_999_9, 26 => "0.pppppppppbn"; "max radix" )]
+#[test_case(2_097_152.5, 3 => "10221112202022.11111111111111111112"; "rounding" )]
+#[test_case(100_000_000_000_000_000.0, 10 => "100000000000000000"; "large decimal integer zero-fill path")]
+fn double_to_radix_string(val: f64, radix: u32) -> String {
+    super::double_to_radix_string(val, radix)
 }
 
 fn number_proto_to_precision_test(value: f64, precision: u32, expected: &str) {

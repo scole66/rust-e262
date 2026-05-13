@@ -683,6 +683,7 @@ test_defs[create_native_error_object_internal]="create_native_error_object_inter
 test_defs[unwind_any_error_object]="unwind_any_error_object unwind_any_error_object errors"
 
 test_defs[NumberObject_own_property_keys]="NumberObject@object::ObjectInterface::own_property_keys number_object_own_property_keys number_object"
+test_defs[double_to_radix_string]="double_to_radix_string double_to_radix_string number_object"
 
 test_defs[IntrinsicId]="IntrinsicId intrinsic_id realm"
 test_defs[Intrinsics]="Intrinsics intrinsics realm"
