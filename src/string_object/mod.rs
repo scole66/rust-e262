@@ -1817,7 +1817,7 @@ fn string_prototype_split(
 
     let mut substrings = vec![];
     let mut i = 0;
-    let mut maybe_j = s.string_index_of(&r, 0);
+    let mut maybe_j = s.index_of(&r, 0);
     while let Some(j) = maybe_j {
         let t = ECMAScriptValue::String(JSString::from(&s.as_slice()[i..j]));
         substrings.push(t);
@@ -1825,7 +1825,7 @@ fn string_prototype_split(
             return Ok(ECMAScriptValue::Object(create_array_from_list(&substrings)));
         }
         i = j + separator_length;
-        maybe_j = s.string_index_of(&r, i);
+        maybe_j = s.index_of(&r, i);
     }
     let t = ECMAScriptValue::String(JSString::from(&s.as_slice()[i..]));
     substrings.push(t);

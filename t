@@ -743,7 +743,9 @@ test_defs[set_function_name]="set_function_name set_function_name function_objec
 test_defs[initialize_instance_elements]="initialize_instance_elements initialize_instance_elements function_object"
 test_defs[create_dynamic_function]="create_dynamic_function create_dynamic_function function_object"
 
+test_defs[JSString]="JSString jsstring strings"
 test_defs[JSString_index_of]="JSString::index_of jsstring::index_of strings"
+test_defs[JSString_last_index_of]="JSString::last_index_of jsstring::last_index_of strings"
 test_defs[is_str_whitespace]="is_str_whitespace is_str_whitespace strings"
 test_defs[string_to_bigint]="JSString::to_bigint string_to_bigint strings"
 test_defs[JSString_from]="JSString@from from strings"
