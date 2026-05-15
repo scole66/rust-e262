@@ -297,14 +297,14 @@ mod jsstring {
         }
     }
 
-    #[test_case("abcdef", "abc" => true; "simple")]
-    #[test_case("", "blue" => false; "needle is longer than haystack")]
-    #[test_case("abcdef", "1" => false; "needle not in haystack")]
-    fn starts_with(s: &str, needle: &str) -> bool {
-        let s = JSString::from(s);
-        let needle = JSString::from(needle);
-        s.starts_with(&needle)
-    }
+    // #[test_case("abcdef", "abc" => true; "simple")]
+    // #[test_case("", "blue" => false; "needle is longer than haystack")]
+    // #[test_case("abcdef", "1" => false; "needle not in haystack")]
+    // fn starts_with(s: &str, needle: &str) -> bool {
+    //     let s = JSString::from(s);
+    //     let needle = JSString::from(needle);
+    //     s.starts_with(&needle)
+    // }
 
     #[test_case("blue", 'l' as u16 => true; "item is contained")]
     #[test_case("green", 'l' as u16 => false; "item is not contained")]

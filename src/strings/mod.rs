@@ -79,15 +79,15 @@ impl JSString {
         self.s.contains(&ch)
     }
 
-    /// Returns `true` if this string begins with `search_value`.
-    ///
-    /// Matching is performed over UTF-16 code units.
-    #[allow(dead_code)]
-    pub(crate) fn starts_with(&self, search_value: &JSString) -> bool {
-        let len = self.len();
-        let search_len = search_value.len();
-        if search_len > len { false } else { self.s[0..search_len] == search_value.s[..] }
-    }
+    // /// Returns `true` if this string begins with `search_value`.
+    // ///
+    // /// Matching is performed over UTF-16 code units.
+    // #[allow(dead_code)]
+    // pub(crate) fn starts_with(&self, search_value: &JSString) -> bool {
+    //     let len = self.len();
+    //     let search_len = search_value.len();
+    //     if search_len > len { false } else { self.s[0..search_len] == search_value.s[..] }
+    // }
 
     /// Returns `true` if the string is well-formed UTF-16.
     ///

@@ -1639,12 +1639,39 @@ fn string_prototype_replace_all(
 
 // 22.1.3.20 String.prototype.search ( regexp )
 fn string_prototype_search(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let regexp_or_pattern = args.next_arg();
+
+    // `search` is intentionally generic, so the receiver only needs to be
+    // coercible. A custom @@search method receives the original receiver value,
+    // before any string conversion happens.
+    this_value.require_object_coercible()?;
+
+    if let ECMAScriptValue::Object(rop) = &regexp_or_pattern {
+        // Objects can override search behavior with @@search. When present,
+        // that method handles the operation and controls any receiver coercion.
+        let searcher = rop.get_method(&wks(WksId::Search).into())?;
+        if !searcher.is_undefined() {
+            return call(&searcher, &regexp_or_pattern, slice::from_ref(this_value));
+        }
+    }
+
+    // No custom searcher was provided, so use the built-in RegExp path. Convert
+    // the receiver only after the @@search lookup to preserve observable order.
+    let string = to_string(this_value.clone())?;
+
+    // Non-RegExp values are compiled as patterns; existing RegExp objects are
+    // handled by RegExpCreate according to the constructor rules.
+    let regexp = reg_exp_create(regexp_or_pattern, None)?;
+
+    // Delegate the actual search semantics to RegExp.prototype[@@search].
+    regexp.invoke(&wks(WksId::Search).into(), &[string.into()])
 }
+
 // 22.1.3.21 String.prototype.slice ( start, end )
 fn string_prototype_slice(
     this_value: &ECMAScriptValue,
@@ -1834,12 +1861,67 @@ fn string_prototype_split(
 
 // 22.1.3.23 String.prototype.startsWith ( searchString [ , position ] )
 fn string_prototype_starts_with(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let search_string = args.next_arg();
+    let position = args.next_arg();
+
+    // `startsWith` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
+    this_value.require_object_coercible()?;
+
+    // Convert the receiver before checking or converting the search value,
+    // preserving the spec's observable coercion order.
+    let strx = to_string(this_value.clone())?;
+
+    // RegExp search values are explicitly rejected so future spec extensions
+    // can define RegExp-specific behavior without being web-incompatible.
+    let is_reg_exp = search_string.is_reg_exp()?;
+    if is_reg_exp {
+        return Err(create_type_error(
+            "First argument to String.prototype.startsWith must not be a regular expression",
+        ));
+    }
+
+    // Convert after the RegExp check: RegExps should throw the RegExp-specific
+    // TypeError above rather than being stringified.
+    let search_str = to_string(search_string)?;
+
+    // String positions are UTF-16 code unit indexes, not Unicode scalar indexes.
+    let len = strx.len();
+    let flen = to_f64(len).expect(JS_INTEGER_F64_EXPECT);
+
+    // A missing position means "start at 0"; otherwise normalize the
+    // caller-provided position using JS integer conversion semantics.
+    let pos = if position.is_undefined() { 0.0 } else { position.to_integer_or_infinity()? };
+
+    // Clamp the starting index into the valid string range before converting it
+    // back into a Rust index.
+    let start = to_usize(pos.clamp(0.0, flen)).expect(JS_INTEGER_USIZE_EXPECT);
+
+    let search_length = search_str.len();
+
+    // Every string starts with the empty string, regardless of position.
+    if search_length == 0 {
+        return Ok(true.into());
+    }
+
+    let end = start + search_length;
+
+    // If the search string would extend past the end, it cannot match. Checking
+    // this before slicing keeps the Rust range valid.
+    if end > len {
+        return Ok(false.into());
+    }
+
+    // Compare only the slice beginning at the caller-selected start index.
+    let substring = &strx.as_slice()[start..end];
+    Ok((substring == search_str.as_slice()).into())
 }
+
 // 22.1.3.24 String.prototype.substring ( start, end )
 fn string_prototype_substring(
     _: &ECMAScriptValue,

@@ -768,6 +768,14 @@ fn ordinary_object_with_to_string(
     define_property_or_throw(&obj, "toString", PotentialPropertyDescriptor::new().value(to_string)).unwrap();
     obj
 }
+fn ordinary_object_with_value_of(
+    func: impl Fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue> + 'static,
+) -> Object {
+    let to_string = create_builtin_function(Box::new(func), None, 0.0, "my-tostring".into(), &[], None, None, None);
+    let obj = ordinary_object_create(None);
+    define_property_or_throw(&obj, "valueOf", PotentialPropertyDescriptor::new().value(to_string)).unwrap();
+    obj
+}
 fn builtin_function(
     func: impl Fn(&ECMAScriptValue, Option<&Object>, &[ECMAScriptValue]) -> Completion<ECMAScriptValue> + 'static,
 ) -> Object {
@@ -1035,8 +1043,6 @@ fn string_prototype_replace(
         .map_err(unwind_any_error)
 }
 
-tbd_function!(string_prototype_search);
-tbd_function!(string_prototype_starts_with);
 tbd_function!(string_prototype_substring);
 tbd_function!(string_prototype_to_locale_lower_case);
 tbd_function!(string_prototype_to_locale_upper_case);
@@ -1418,4 +1424,317 @@ fn get_substitution(make_params: impl FnOnce() -> SubstitutionParams) -> Result<
     )
     .map(String::from)
     .map_err(unwind_any_error)
+}
+
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("a")])
+    => Ok(true);
+    "matches at start with omitted position"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b")])
+    => Ok(false);
+    "does not match at start with omitted position"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b"), ECMAScriptValue::from(1)])
+    => Ok(true);
+    "matches at explicit position"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("a"), ECMAScriptValue::from(1)])
+    => Ok(false);
+    "does not match at explicit position"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("a"), ECMAScriptValue::from(-1)])
+    => Ok(true);
+    "negative position clamps to zero"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from(""), ECMAScriptValue::from(99)])
+    => Ok(true);
+    "empty search string always matches"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("c"), ECMAScriptValue::from(99)])
+    => Ok(false);
+    "position past end clamps to length"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("bc"), ECMAScriptValue::from(2)])
+    => Ok(false);
+    "search string extending past end does not match"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("a"), ECMAScriptValue::from(f64::NAN)])
+    => Ok(true);
+    "nan position normalizes to zero"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from(""), ECMAScriptValue::from(f64::INFINITY)])
+    => Ok(true);
+    "positive infinity position clamps to length"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("a"), ECMAScriptValue::from(f64::NEG_INFINITY)])
+    => Ok(true);
+    "negative infinity position clamps to zero"
+)]
+#[test_case(
+    || (ECMAScriptValue::from(12345), vec![ECMAScriptValue::from("23"), ECMAScriptValue::from(1)])
+    => Ok(true);
+    "generic receiver is stringified"
+)]
+#[test_case(
+    || (ECMAScriptValue::Null, vec![ECMAScriptValue::from("a")])
+    => serr("TypeError: Undefined and null are not allowed in this context");
+    "null receiver throws"
+)]
+#[test_case(
+    || (ECMAScriptValue::Undefined, vec![ECMAScriptValue::from("a")])
+    => serr("TypeError: Undefined and null are not allowed in this context");
+    "undefined receiver throws"
+)]
+#[test_case(
+    || {
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from(
+                reg_exp_create(ECMAScriptValue::from("a"), None)
+                    .expect("RegExpCreate with simple pattern should succeed"),
+            )],
+        )
+    }
+    => serr("TypeError: First argument to String.prototype.startsWith must not be a regular expression");
+    "regexp search string throws"
+)]
+#[test_case(
+    || {
+        let this_value = ordinary_object_with_to_string(|_, _, _| {
+            Err(create_type_error("poisoned receiver toString"))
+        });
+
+        (
+            ECMAScriptValue::from(this_value),
+            vec![ECMAScriptValue::from("a")],
+        )
+    }
+    => serr("TypeError: poisoned receiver toString");
+    "receiver ToString abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let search_string = ordinary_object_with_getter(wks(WksId::Match), |_, _, _| {
+            Err(create_type_error("poisoned @@match getter"))
+        });
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from(search_string)],
+        )
+    }
+    => serr("TypeError: poisoned @@match getter");
+    "IsRegExp abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let search_string = ordinary_object_with_to_string(|_, _, _| {
+            Err(create_type_error("poisoned searchString toString"))
+        });
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from(search_string)],
+        )
+    }
+    => serr("TypeError: poisoned searchString toString");
+    "searchString ToString abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let position = ordinary_object_with_value_of(|_, _, _| {
+            Err(create_type_error("poisoned position valueOf"))
+        });
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from("a"), ECMAScriptValue::from(position)],
+        )
+    }
+    => serr("TypeError: poisoned position valueOf");
+    "position ToIntegerOrInfinity abrupt completion is propagated"
+)]
+fn string_prototype_starts_with(
+    make_params: impl FnOnce() -> (ECMAScriptValue, Vec<ECMAScriptValue>),
+) -> Result<bool, String> {
+    setup_test_agent();
+
+    let (this_value, arguments) = make_params();
+
+    super::string_prototype_starts_with(&this_value, None, &arguments)
+        .map(|val| match val {
+            ECMAScriptValue::Boolean(b) => b,
+            _ => panic!("Expected boolean value from String.prototype.startsWith: {val:?}"),
+        })
+        .map_err(unwind_any_error)
+}
+
+#[test_case(
+    || {
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from(
+                reg_exp_create(ECMAScriptValue::from("b"), None)
+                    .expect("RegExpCreate with simple pattern should succeed"),
+            )],
+        )
+    }
+    => Ok(1.0);
+    "regexp match returns index"
+)]
+#[test_case(
+    || {
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from(
+                reg_exp_create(ECMAScriptValue::from("x"), None)
+                    .expect("RegExpCreate with simple pattern should succeed"),
+            )],
+        )
+    }
+    => Ok(-1.0);
+    "regexp no match returns minus one"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("b")])
+    => Ok(1.0);
+    "string pattern is compiled as regexp"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc"), vec![ECMAScriptValue::from("x")])
+    => Ok(-1.0);
+    "string pattern no match"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("undefined"), vec![])
+    => Ok(0.0);
+    "missing regexp argument searches for undefined"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("undefined"), vec![ECMAScriptValue::Undefined])
+    => Ok(0.0);
+    "undefined regexp argument searches for undefined"
+)]
+#[test_case(
+    || (ECMAScriptValue::from(12345), vec![ECMAScriptValue::from("34")])
+    => Ok(2.0);
+    "generic receiver is stringified"
+)]
+#[test_case(
+    || (ECMAScriptValue::Null, vec![ECMAScriptValue::from("a")])
+    => serr("TypeError: Undefined and null are not allowed in this context");
+    "null receiver throws"
+)]
+#[test_case(
+    || (ECMAScriptValue::Undefined, vec![ECMAScriptValue::from("a")])
+    => serr("TypeError: Undefined and null are not allowed in this context");
+    "undefined receiver throws"
+)]
+#[test_case(
+    || {
+        let search_value = ordinary_object_with_function_property(
+            wks(WksId::Search),
+            |_this_value, _new_target, arguments| {
+                let receiver = to_string(arguments[0].clone())?;
+                Ok(if receiver == "abc" {
+                    ECMAScriptValue::from(42)
+                } else {
+                    ECMAScriptValue::from(-1)
+                })
+            },
+        );
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from(search_value)],
+        )
+    }
+    => Ok(42.0);
+    "custom @@search method is called"
+)]
+#[test_case(
+    || {
+        let search_value = ordinary_object_with_getter(wks(WksId::Search), |_, _, _| {
+            Err(create_type_error("poisoned @@search getter"))
+        });
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from(search_value)],
+        )
+    }
+    => serr("TypeError: poisoned @@search getter");
+    "@@search getter abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let this_value = ordinary_object_with_to_string(|_, _, _| {
+            Err(create_type_error("poisoned receiver toString"))
+        });
+
+        (
+            ECMAScriptValue::from(this_value),
+            vec![ECMAScriptValue::from("a")],
+        )
+    }
+    => serr("TypeError: poisoned receiver toString");
+    "receiver ToString abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let pattern = ordinary_object_with_to_string(|_, _, _| {
+            Err(create_type_error("poisoned pattern toString"))
+        });
+
+        (
+            ECMAScriptValue::from("abc"),
+            vec![ECMAScriptValue::from(pattern)],
+        )
+    }
+    => serr("TypeError: poisoned pattern toString");
+    "RegExpCreate pattern ToString abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let this_value = ordinary_object_with_to_string(|_, _, _| {
+            Err(create_type_error("receiver should not be stringified"))
+        });
+
+        let search_value = ordinary_object_with_function_property(
+            wks(WksId::Search),
+            |_, _, _| Ok(ECMAScriptValue::from(7)),
+        );
+
+        (
+            ECMAScriptValue::from(this_value),
+            vec![ECMAScriptValue::from(search_value)],
+        )
+    }
+    => Ok(7.0);
+    "custom @@search receives original receiver before ToString"
+)]
+fn string_prototype_search(
+    make_params: impl FnOnce() -> (ECMAScriptValue, Vec<ECMAScriptValue>),
+) -> Result<f64, String> {
+    setup_test_agent();
+
+    let (this_value, arguments) = make_params();
+
+    super::string_prototype_search(&this_value, None, &arguments)
+        .map(|val| match val {
+            ECMAScriptValue::Number(n) => n,
+            _ => panic!("Expected number value from String.prototype.search: {val:?}"),
+        })
+        .map_err(unwind_any_error)
 }
