@@ -1043,7 +1043,6 @@ fn string_prototype_replace(
         .map_err(unwind_any_error)
 }
 
-tbd_function!(string_prototype_substring);
 tbd_function!(string_prototype_to_locale_lower_case);
 tbd_function!(string_prototype_to_locale_upper_case);
 tbd_function!(string_prototype_to_upper_case);
@@ -1735,6 +1734,153 @@ fn string_prototype_search(
         .map(|val| match val {
             ECMAScriptValue::Number(n) => n,
             _ => panic!("Expected number value from String.prototype.search: {val:?}"),
+        })
+        .map_err(unwind_any_error)
+}
+
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(1), ECMAScriptValue::from(4)])
+    => sok("bcd");
+    "basic substring with start and end"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(2)])
+    => sok("cdef");
+    "omitted end goes through end of string"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(4), ECMAScriptValue::from(1)])
+    => sok("bcd");
+    "start greater than end swaps endpoints"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(-2), ECMAScriptValue::from(3)])
+    => sok("abc");
+    "negative start clamps to zero"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(2), ECMAScriptValue::from(-1)])
+    => sok("ab");
+    "negative end clamps to zero then endpoints swap"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(f64::NAN), ECMAScriptValue::from(3)])
+    => sok("abc");
+    "nan start clamps to zero"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(2), ECMAScriptValue::from(f64::NAN)])
+    => sok("ab");
+    "nan end clamps to zero then endpoints swap"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(2), ECMAScriptValue::from(99)])
+    => sok("cdef");
+    "end past length clamps to string length"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(99), ECMAScriptValue::from(2)])
+    => sok("cdef");
+    "start past length clamps to string length then endpoints swap"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(f64::NEG_INFINITY), ECMAScriptValue::from(f64::INFINITY)])
+    => sok("abcdef");
+    "infinities clamp to string bounds"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(2.9), ECMAScriptValue::from(5.9)])
+    => sok("cde");
+    "fractional indexes truncate through ToIntegerOrInfinity"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![])
+    => sok("abcdef");
+    "omitted start and end return entire string"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::Undefined, ECMAScriptValue::from(3)])
+    => sok("abc");
+    "undefined start behaves like zero"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abcdef"), vec![ECMAScriptValue::from(3), ECMAScriptValue::Undefined])
+    => sok("def");
+    "undefined end goes through end of string"
+)]
+#[test_case(
+    || (ECMAScriptValue::from(123456), vec![ECMAScriptValue::from(1), ECMAScriptValue::from(4)])
+    => sok("234");
+    "generic receiver is stringified"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("a😀b"), vec![ECMAScriptValue::from(1), ECMAScriptValue::from(3)])
+    => sok("😀");
+    "indexes are utf16 code units"
+)]
+#[test_case(
+    || (ECMAScriptValue::Null, vec![ECMAScriptValue::from(0), ECMAScriptValue::from(1)])
+    => serr("TypeError: Undefined and null are not allowed in this context");
+    "null receiver throws"
+)]
+#[test_case(
+    || (ECMAScriptValue::Undefined, vec![ECMAScriptValue::from(0), ECMAScriptValue::from(1)])
+    => serr("TypeError: Undefined and null are not allowed in this context");
+    "undefined receiver throws"
+)]
+#[test_case(
+    || {
+        let this_value = ordinary_object_with_to_string(|_, _, _| {
+            Err(create_type_error("poisoned receiver toString"))
+        });
+
+        (
+            ECMAScriptValue::from(this_value),
+            vec![ECMAScriptValue::from(0), ECMAScriptValue::from(1)],
+        )
+    }
+    => serr("TypeError: poisoned receiver toString");
+    "receiver ToString abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let start = ordinary_object_with_value_of(|_, _, _| {
+            Err(create_type_error("poisoned start valueOf"))
+        });
+
+        (
+            ECMAScriptValue::from("abcdef"),
+            vec![ECMAScriptValue::from(start), ECMAScriptValue::from(3)],
+        )
+    }
+    => serr("TypeError: poisoned start valueOf");
+    "start ToIntegerOrInfinity abrupt completion is propagated"
+)]
+#[test_case(
+    || {
+        let end = ordinary_object_with_value_of(|_, _, _| {
+            Err(create_type_error("poisoned end valueOf"))
+        });
+
+        (
+            ECMAScriptValue::from("abcdef"),
+            vec![ECMAScriptValue::from(1), ECMAScriptValue::from(end)],
+        )
+    }
+    => serr("TypeError: poisoned end valueOf");
+    "end ToIntegerOrInfinity abrupt completion is propagated"
+)]
+fn string_prototype_substring(
+    make_params: impl FnOnce() -> (ECMAScriptValue, Vec<ECMAScriptValue>),
+) -> Result<String, String> {
+    setup_test_agent();
+
+    let (this_value, arguments) = make_params();
+
+    super::string_prototype_substring(&this_value, None, &arguments)
+        .map(|val| match val {
+            ECMAScriptValue::String(s) => String::from(s),
+            _ => panic!("Expected string value from String.prototype.substring: {val:?}"),
         })
         .map_err(unwind_any_error)
 }
