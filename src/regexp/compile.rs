@@ -791,14 +791,28 @@ impl CharacterClassEscape {
                 set.insert_range(u32::from('0'), u32::from('9'));
                 set.character_complement(rer)
             }
-            CharacterClassEscape::Whitespace => todo!(),
-            CharacterClassEscape::NotWhitespace => todo!(),
+            CharacterClassEscape::Whitespace => {
+                // CharacterClassEscape :: s
+                // 1. Return the CharSet containing all characters corresponding to a code point on the right-hand side
+                //    of the WhiteSpace or LineTerminator productions.
+                CharSet::whitespace()
+            }
+            CharacterClassEscape::NotWhitespace => {
+                // 1. Let charSet be the CharSet returned by CharacterClassEscape :: s .
+                // 2. Return CharacterComplement(regexpRecord, charSet).
+                CharSet::whitespace().character_complement(rer)
+            }
             CharacterClassEscape::Word => {
                 // CharacterClassEscape :: w
                 // 1. Return MaybeSimpleCaseFolding(rer, WordCharacters(rer)).
                 maybe_simple_case_folding(rer, word_characters(rer))
             }
-            CharacterClassEscape::NotWord => todo!(),
+            CharacterClassEscape::NotWord => {
+                // CharacterClassEscape :: W
+                // 1. Let charSet be the CharSet returned by CharacterClassEscape :: w .
+                // 2. Return CharacterComplement(regexpRecord, charSet).
+                maybe_simple_case_folding(rer, word_characters(rer)).character_complement(rer)
+            }
             CharacterClassEscape::Property(unicode_property_value_expression) => todo!(),
             CharacterClassEscape::NotProperty(unicode_property_value_expression) => todo!(),
         }
@@ -1097,6 +1111,23 @@ impl CharSet {
 
     fn has_no_ranges(&self) -> bool {
         self.ranges().filter(|(a, b)| *a != *b).count() == 0
+    }
+
+    fn whitespace() -> Self {
+        // 1. Return the CharSet containing all characters corresponding to a code point on the right-hand side
+        //    of the WhiteSpace or LineTerminator productions.
+        let mut set = Self::default();
+        set.insert(9); // <TAB>
+        set.insert_range(11, 12); // <VT> & <FF>
+        set.insert(0xfeff); // <ZWNBSP>
+        set.insert(32); // <space>
+        set.insert(0xa0);
+        set.insert(0x1680);
+        set.insert_range(0x2000, 0x200a);
+        set.insert(0x202f);
+        set.insert(0x205f);
+        set.insert(0x3000);
+        set
     }
 }
 

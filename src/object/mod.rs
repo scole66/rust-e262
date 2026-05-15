@@ -2303,6 +2303,13 @@ impl ECMAScriptValue {
         call(&func, self, arguments_list)
     }
 }
+impl Object {
+    pub(crate) fn invoke(&self, p: &PropertyKey, arguments_list: &[ECMAScriptValue]) -> Completion<ECMAScriptValue> {
+        let func = self.get(p)?;
+        let this = ECMAScriptValue::from(self.clone());
+        call(&func, &this, arguments_list)
+    }
+}
 
 pub(crate) fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) -> Completion<bool> {
     // OrdinaryHasInstance ( C, O )

@@ -1329,11 +1329,48 @@ fn regexp_prototype_replace(
 }
 
 fn regexp_prototype_search(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let string = args.next_arg();
+
+    if let ECMAScriptValue::Object(regexp) = this_value {
+        // Search always runs against the string-converted argument, not against
+        // the original value passed to @@search.
+        let strx = to_string(string)?;
+
+        // @@search ignores the caller-visible starting position. Save lastIndex
+        // so the search can force execution from zero and restore it afterward.
+        let previous_last_index = regexp.get(&"lastIndex".into())?;
+
+        if !previous_last_index.same_value(&ECMAScriptValue::Number(0.0)) {
+            regexp.set("lastIndex", 0.0, true)?;
+        }
+
+        // Delegate the actual matching behavior to RegExpExec. Custom `exec`
+        // methods are still observable through this path.
+        let result = reg_exp_exec(this_value, strx)?;
+
+        // RegExpExec may mutate lastIndex, especially for global/sticky regexps
+        // or custom exec methods. @@search must leave lastIndex unchanged.
+        let current_last_index = regexp.get(&"lastIndex".into())?;
+        if !current_last_index.same_value(&previous_last_index) {
+            regexp.set("lastIndex", previous_last_index, true)?;
+        }
+
+        match result {
+            // No match is reported as -1, matching String.prototype.search.
+            None => Ok(ECMAScriptValue::Number(-1.0)),
+
+            // Successful exec results carry their match position in the
+            // result object's `index` property.
+            Some(obj) => obj.get(&"index".into()),
+        }
+    } else {
+        Err(create_type_error("RegExp.prototype[@@search] requires an object receiver"))
+    }
 }
 
 fn regexp_prototyep_split(
@@ -1521,7 +1558,6 @@ impl ECMAScriptValue {
         Ok(flags.contains(code_unit).into())
     }
 
-    #[expect(dead_code)]
     pub(crate) fn is_reg_exp(&self) -> Completion<bool> {
         // Only objects can be RegExp values. Primitive values skip the observable
         // @@match lookup entirely and are never treated as RegExps.
