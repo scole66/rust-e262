@@ -190,6 +190,8 @@ mod jsstring {
 
     #[test_case(&JSString::from("Head: "), JSString::from("tail") => "Head: tail"; "jsstring")]
     #[test_case(&JSString::from("Head: "), "other tail" => "Head: other tail"; "&str value")]
+    #[test_case(&JSString::from("Head:"), &['b' as u16, 'o' as u16, 'b' as u16][..] => "Head:bob"; "&[u16] style")]
+    #[test_case(&JSString::from("Head:"), String::from("alice") => "Head:alice"; "String style")]
     fn concat(s1: &JSString, s2: impl Into<JSString>) -> String {
         s1.concat(s2).to_string()
     }
@@ -293,6 +295,45 @@ mod jsstring {
         fn code_units(base: &[u16], search: &[u16], from_index: usize) -> Option<usize> {
             JSString::from(base).last_index_of(&JSString::from(search), from_index)
         }
+    }
+
+    #[test_case("abcdef", "abc" => true; "simple")]
+    #[test_case("", "blue" => false; "needle is longer than haystack")]
+    #[test_case("abcdef", "1" => false; "needle not in haystack")]
+    fn starts_with(s: &str, needle: &str) -> bool {
+        let s = JSString::from(s);
+        let needle = JSString::from(needle);
+        s.starts_with(&needle)
+    }
+
+    #[test_case("blue", 'l' as u16 => true; "item is contained")]
+    #[test_case("green", 'l' as u16 => false; "item is not contained")]
+    #[test_case("", 0 => false; "empty string contains nothing")]
+    fn contains(s: &str, needle: u16) -> bool {
+        let s = JSString::from(s);
+        s.contains(needle)
+    }
+
+    #[test_case("blue" => true; "ascii")]
+    #[test_case("🌈✨🚀🦄🍕🎉🔥🌊🌙⭐️🐉🍄" => true; "emojiland")]
+    #[test_case(&[0xDC00, 'a' as u16, 0xD832, 'b' as u16][..] => false; "unpaired unicode")]
+    fn is_well_formed_unicode(s: impl Into<JSString>) -> bool {
+        let s = s.into();
+        s.is_well_formed_unicode()
+    }
+
+    #[test_case("blue" => (vec![98, 108, 117, 101], vec![0, 1, 2, 3]); "just ascii")]
+    #[test_case(
+        "🌈✨🚀🦄🍕🎉🔥🌊🌙⭐️🐉🍄"
+        => (
+            vec![127752, 10024, 128640, 129412, 127829, 127881, 128293, 127754, 127769, 11088, 65039, 128009, 127812],
+            vec![0, 0, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 10, 11, 11, 12, 12]
+        );
+        "emojiland"
+    )]
+    fn to_code_points_with_map(s: impl Into<JSString>) -> (Vec<u32>, Vec<usize>) {
+        let s = s.into();
+        s.to_code_points_with_map()
     }
 }
 

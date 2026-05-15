@@ -82,7 +82,7 @@ impl JSString {
     /// Returns `true` if this string begins with `search_value`.
     ///
     /// Matching is performed over UTF-16 code units.
-    #[expect(dead_code)]
+    #[allow(dead_code)]
     pub(crate) fn starts_with(&self, search_value: &JSString) -> bool {
         let len = self.len();
         let search_len = search_value.len();
