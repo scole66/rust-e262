@@ -1809,7 +1809,7 @@ fn string_prototype_search(
     "undefined end goes through end of string"
 )]
 #[test_case(
-    || (ECMAScriptValue::from(123456), vec![ECMAScriptValue::from(1), ECMAScriptValue::from(4)])
+    || (ECMAScriptValue::from(123_456), vec![ECMAScriptValue::from(1), ECMAScriptValue::from(4)])
     => sok("234");
     "generic receiver is stringified"
 )]
