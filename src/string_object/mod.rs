@@ -1924,12 +1924,45 @@ fn string_prototype_starts_with(
 
 // 22.1.3.24 String.prototype.substring ( start, end )
 fn string_prototype_substring(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
-    _: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let start = args.next_arg();
+    let end = args.next_arg();
+
+    // `substring` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
+    this_value.require_object_coercible()?;
+
+    // Convert the receiver before the index arguments, preserving the spec's
+    // observable coercion order if any conversion has side effects or throws.
+    let strx = to_string(this_value.clone())?;
+
+    // Substring indexes are UTF-16 code unit indexes, not Unicode scalar indexes.
+    let len = to_f64(strx.len()).expect(JS_INTEGER_F64_EXPECT);
+
+    // Normalize the start index using JS integer conversion semantics. NaN and
+    // negative values will clamp to zero below.
+    let int_start = start.to_integer_or_infinity()?;
+
+    // A missing end index means "through the end of the string"; otherwise it is
+    // normalized the same way as the start index.
+    let int_end = if end.is_undefined() { len } else { end.to_integer_or_infinity()? };
+
+    // Clamp both endpoints into the valid string range before converting them
+    // back into Rust indexes.
+    let final_start = to_usize(int_start.clamp(0.0, len)).expect(JS_INTEGER_USIZE_EXPECT);
+    let final_end = to_usize(int_end.clamp(0.0, len)).expect(JS_INTEGER_USIZE_EXPECT);
+
+    // Unlike `slice`, `substring` swaps its endpoints when start is after end.
+    let from = final_start.min(final_end);
+    let to = final_start.max(final_end);
+
+    Ok(ECMAScriptValue::String(JSString::from(&strx.as_slice()[from..to])))
 }
+
 // 22.1.3.25 String.prototype.toLocaleLowerCase ( [ reserved1 [ , reserved2 ] ] )
 fn string_prototype_to_locale_lower_case(
     _: &ECMAScriptValue,
