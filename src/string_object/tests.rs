@@ -1884,3 +1884,95 @@ fn string_prototype_substring(
         })
         .map_err(unwind_any_error)
 }
+
+mod string_prototype_to_lower_case {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        || ECMAScriptValue::from("ABC")
+        => sok("abc");
+        "ascii uppercase lowers"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("abc")
+        => sok("abc");
+        "ascii lowercase unchanged"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("AbC123!?")
+        => sok("abc123!?");
+        "non-letters are unchanged"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("İ")
+        => sok("i\u{0307}");
+        "lowercase mapping can expand to multiple code points"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("Σ")
+        => sok("σ");
+        "greek sigma lowercases using default case mapping"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("😀A")
+        => sok("😀a");
+        "non-bmp code point is preserved"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from(12345)
+        => sok("12345");
+        "generic receiver is stringified"
+    )]
+    #[test_case(
+        || ECMAScriptValue::Null
+        => serr("TypeError: Undefined and null are not allowed in this context");
+        "null receiver throws"
+    )]
+    #[test_case(
+        || ECMAScriptValue::Undefined
+        => serr("TypeError: Undefined and null are not allowed in this context");
+        "undefined receiver throws"
+    )]
+    #[test_case(
+        || {
+            let this_value = ordinary_object_with_to_string(|_, _, _| {
+                Err(create_type_error("poisoned receiver toString"))
+            });
+
+            ECMAScriptValue::from(this_value)
+        }
+        => serr("TypeError: poisoned receiver toString");
+        "receiver ToString abrupt completion is propagated"
+    )]
+    fn f(make_this_value: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+        setup_test_agent();
+
+        let this_value = make_this_value();
+
+        string_prototype_to_lower_case(&this_value, None, &[])
+            .map(|val| match val {
+                ECMAScriptValue::String(s) => String::from(s),
+                _ => panic!("Expected string value from String.prototype.toLowerCase: {val:?}"),
+            })
+            .map_err(unwind_any_error)
+    }
+
+    #[test_case(
+        &[0xD800, 0x0041, 0xDC00]
+        => vec![0xD800, 0x0061, 0xDC00];
+        "lone surrogates are preserved while valid chars lowercase"
+    )]
+    fn code_units(source: &[u16]) -> Vec<u16> {
+        setup_test_agent();
+
+        let this_value = ECMAScriptValue::String(JSString::from(source));
+
+        super::string_prototype_to_lower_case(&this_value, None, &[])
+            .map(|val| match val {
+                ECMAScriptValue::String(s) => s.as_slice().to_vec(),
+                _ => panic!("Expected string value from String.prototype.toLowerCase: {val:?}"),
+            })
+            .unwrap()
+    }
+}
