@@ -674,7 +674,7 @@ impl Atom {
                 let remove = remove.as_ref().unwrap_or(&empty_remove);
                 let new_rer = rer.update_modifiers(add, remove);
                 disjunction.compile_subpattern(&new_rer, direction)
-            },
+            }
         }
     }
 }

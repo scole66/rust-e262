@@ -1,8 +1,8 @@
 #![expect(dead_code)]
 use super::*;
+use ahash::AHashSet;
 use combinations::Combination;
 use std::fmt;
-use ahash::AHashSet;
 use std::ops::Deref;
 
 const PREVIOUSLY_SCANNED: &str = "previously scanned char should still exist";
@@ -2509,10 +2509,7 @@ impl RegularExpressionModifiers {
         let mut seen = AHashSet::new();
         for modifier in &self.0 {
             if seen.contains(modifier) {
-                return Some(create_syntax_error_object(
-                    format!("Duplicate regexp modifier: {modifier}"),
-                    None,
-                ));
+                return Some(create_syntax_error_object(format!("Duplicate regexp modifier: {modifier}"), None));
             }
             seen.insert(*modifier);
         }
@@ -2607,8 +2604,16 @@ impl TryFrom<(RegularExpressionModifiers, Option<RegularExpressionModifiers>)> f
                 } else {
                     REModifier::DoNothing
                 },
-                multiline: if add_mods.0.contains(&RegularExpressionModifier::Multiline) { REModifier::Add } else { REModifier::DoNothing },
-                dot_all: if add_mods.0.contains(&RegularExpressionModifier::DotAll) { REModifier::Add } else { REModifier::DoNothing },
+                multiline: if add_mods.0.contains(&RegularExpressionModifier::Multiline) {
+                    REModifier::Add
+                } else {
+                    REModifier::DoNothing
+                },
+                dot_all: if add_mods.0.contains(&RegularExpressionModifier::DotAll) {
+                    REModifier::Add
+                } else {
+                    REModifier::DoNothing
+                },
             })
         }
     }
@@ -2697,7 +2702,9 @@ impl fmt::Display for Atom {
                 write!(f, "({group_specifier}{disjunction})")
             }
             AtomNode::GroupedDisjunction { group_specifier: None, disjunction } => write!(f, "({disjunction})"),
-            AtomNode::UnGroupedDisjunction((add, Some(remove)), disjunction) => write!(f, "(?{add}-{remove}:{disjunction})"),
+            AtomNode::UnGroupedDisjunction((add, Some(remove)), disjunction) => {
+                write!(f, "(?{add}-{remove}:{disjunction})")
+            }
             AtomNode::UnGroupedDisjunction((add, None), disjunction) => write!(f, "(?{add}:{disjunction})"),
         }
     }
@@ -2744,7 +2751,8 @@ impl Atom {
             unicode: UnicodeMode,
             sets: UnicodeSetsMode,
             cgroups: NamedCaptureGroups,
-        ) -> Option<((RegularExpressionModifiers, Option<RegularExpressionModifiers>), Disjunction, ScannerMutation)> {
+        ) -> Option<((RegularExpressionModifiers, Option<RegularExpressionModifiers>), Disjunction, ScannerMutation)>
+        {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('(')?;
             new_scanner.consume('?')?;
@@ -2796,7 +2804,7 @@ impl Atom {
             let (modifiers, disj, amt) = unnamed_group(&new_scanner, unicode, sets, cgroups)?;
             new_scanner.update(&amt);
             Some((
-                Self { node: AtomNode::UnGroupedDisjunction(modifiers,Box::new(disj)), left_capturing_parens_before },
+                Self { node: AtomNode::UnGroupedDisjunction(modifiers, Box::new(disj)), left_capturing_parens_before },
                 ScannerMutation::new(&new_scanner),
             ))
         }
@@ -2817,8 +2825,7 @@ impl Atom {
                 errs.append(&mut disjunction.early_errors(left_paren_count, group_specifiers, usm));
                 errs
             }
-            AtomNode::GroupedDisjunction { group_specifier: None, disjunction }
-             => {
+            AtomNode::GroupedDisjunction { group_specifier: None, disjunction } => {
                 disjunction.early_errors(left_paren_count, group_specifiers, usm)
             }
             AtomNode::UnGroupedDisjunction((add, None), disjunction) => {
@@ -2854,7 +2861,6 @@ impl Atom {
                 errs.append(&mut disjunction.early_errors(left_paren_count, group_specifiers, usm));
                 errs
             }
-
         }
     }
 

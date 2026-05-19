@@ -227,10 +227,14 @@ impl RegExpRecord {
         self.unicode == UnicodeMode::Allowed || self.unicode_sets == UnicodeSetsMode::Allowed
     }
 
-    pub(crate) fn update_modifiers(&self, add: &RegularExpressionModifiers, remove: &RegularExpressionModifiers) -> Self {
+    pub(crate) fn update_modifiers(
+        &self,
+        add: &RegularExpressionModifiers,
+        remove: &RegularExpressionModifiers,
+    ) -> Self {
         // UpdateModifiers ( regexpRecord, add, remove )
         // The abstract operation UpdateModifiers takes arguments regexpRecord (a RegExp Record), add (a String), and remove (a String) and returns a RegExp Record. It performs the following steps when called:
-            //
+        //
         // 1. Assert: add and remove have no elements in common.
         // 2. Let ignoreCase be regexpRecord.[[IgnoreCase]].
         let mut ignore_case = self.case;
