@@ -669,7 +669,12 @@ impl Atom {
                 let paren_index = self.count_left_capturing_parens_before();
                 Rc::new(move |x, c| group_matcher(x, c, direction, &m, paren_index))
             }
-            AtomNode::UnGroupedDisjunction(disjunction) => disjunction.compile_subpattern(rer, direction),
+            AtomNode::UnGroupedDisjunction((add, remove), disjunction) => {
+                let empty_remove = RegularExpressionModifiers::default();
+                let remove = remove.as_ref().unwrap_or(&empty_remove);
+                let new_rer = rer.update_modifiers(add, remove);
+                disjunction.compile_subpattern(&new_rer, direction)
+            },
         }
     }
 }

@@ -204,7 +204,6 @@ pub(crate) enum Lines {
 }
 
 #[derive(Debug, Clone)]
-#[expect(unused)]
 pub(crate) struct RegExpRecord {
     case: Case,
     multiline: Lines,
@@ -226,6 +225,57 @@ impl RegExpRecord {
         // 1. If rer.[[Unicode]] is true or rer.[[UnicodeSets]] is true, return true.
         // 2. Return false.
         self.unicode == UnicodeMode::Allowed || self.unicode_sets == UnicodeSetsMode::Allowed
+    }
+
+    pub(crate) fn update_modifiers(&self, add: &RegularExpressionModifiers, remove: &RegularExpressionModifiers) -> Self {
+        // UpdateModifiers ( regexpRecord, add, remove )
+        // The abstract operation UpdateModifiers takes arguments regexpRecord (a RegExp Record), add (a String), and remove (a String) and returns a RegExp Record. It performs the following steps when called:
+            //
+        // 1. Assert: add and remove have no elements in common.
+        // 2. Let ignoreCase be regexpRecord.[[IgnoreCase]].
+        let mut ignore_case = self.case;
+        // 3. Let multiline be regexpRecord.[[Multiline]].
+        let mut multiline = self.multiline;
+        // 4. Let dotAll be regexpRecord.[[DotAll]].
+        let mut dot_all = self.dot_all;
+        // 5. Let unicode be regexpRecord.[[Unicode]].
+        let unicode = self.unicode;
+        // 6. Let unicodeSets be regexpRecord.[[UnicodeSets]].
+        let unicode_sets = self.unicode_sets;
+        // 7. Let capturingGroupsCount be regexpRecord.[[CapturingGroupsCount]].
+        let capturing_groups_count = self.capturing_groups_count;
+        // 8. If remove contains "i", set ignoreCase to false.
+        // 9. Else if add contains "i", set ignoreCase to true.
+        if remove.contains(&RegularExpressionModifier::CaseInsensitive) {
+            ignore_case = Case::Significant;
+        } else if add.contains(&RegularExpressionModifier::CaseInsensitive) {
+            ignore_case = Case::Unimportant;
+        }
+        // 10. If remove contains "m", set multiline to false.
+        // 11. Else if add contains "m", set multiline to true.
+        if remove.contains(&RegularExpressionModifier::Multiline) {
+            multiline = Lines::Single;
+        } else if add.contains(&RegularExpressionModifier::Multiline) {
+            multiline = Lines::Multi;
+        }
+        // 12. If remove contains "s", set dotAll to false.
+        // 13. Else if add contains "s", set dotAll to true.
+        if remove.contains(&RegularExpressionModifier::DotAll) {
+            dot_all = false;
+        } else if add.contains(&RegularExpressionModifier::DotAll) {
+            dot_all = true;
+        }
+        // 14. Return the RegExp Record { [[IgnoreCase]]: ignoreCase, [[Multiline]]: multiline, [[DotAll]]: dotAll, [[Unicode]]: unicode, [[UnicodeSets]]: unicodeSets, [[CapturingGroupsCount]]: capturingGroupsCount }.
+        Self {
+            case: ignore_case,
+            multiline,
+            dot_all,
+            unicode,
+            unicode_sets,
+            capturing_groups_count,
+            has_group_names: self.has_group_names,
+            group_names: self.group_names.clone(),
+        }
     }
 
     pub(crate) fn canonicalize(&self, ch: u32) -> u32 {

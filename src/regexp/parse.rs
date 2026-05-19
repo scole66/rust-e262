@@ -2,6 +2,8 @@
 use super::*;
 use combinations::Combination;
 use std::fmt;
+use ahash::AHashSet;
+use std::ops::Deref;
 
 const PREVIOUSLY_SCANNED: &str = "previously scanned char should still exist";
 
@@ -2483,13 +2485,185 @@ impl QuantifierPrefix {
     }
 }
 
+// RegularExpressionModifiers ::
+//      [empty]
+//      RegularExpressionModifiers RegularExpressionModifier
+// RegularExpressionModifier :: one of
+//      i m s
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum RegularExpressionModifier {
+    CaseInsensitive,
+    Multiline,
+    DotAll,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub(crate) struct RegularExpressionModifiers(Vec<RegularExpressionModifier>);
+impl Deref for RegularExpressionModifiers {
+    type Target = Vec<RegularExpressionModifier>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl RegularExpressionModifiers {
+    fn check_duplicate_modifiers(&self) -> Option<Object> {
+        let mut seen = AHashSet::new();
+        for modifier in &self.0 {
+            if seen.contains(modifier) {
+                return Some(create_syntax_error_object(
+                    format!("Duplicate regexp modifier: {modifier}"),
+                    None,
+                ));
+            }
+            seen.insert(*modifier);
+        }
+        None
+    }
+}
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) enum REModifier {
+    DoNothing,
+    Add,
+    Remove,
+}
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(crate) struct REModifiers {
+    case_insensitive: REModifier,
+    multiline: REModifier,
+    dot_all: REModifier,
+}
+impl fmt::Display for REModifiers {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut additions = vec![];
+        let mut removals = vec![];
+        match self.case_insensitive {
+            REModifier::DoNothing => {}
+            REModifier::Add => additions.push("i"),
+            REModifier::Remove => removals.push("i"),
+        }
+        match self.multiline {
+            REModifier::DoNothing => {}
+            REModifier::Add => additions.push("m"),
+            REModifier::Remove => removals.push("m"),
+        }
+        match self.dot_all {
+            REModifier::DoNothing => {}
+            REModifier::Add => additions.push("s"),
+            REModifier::Remove => removals.push("s"),
+        }
+        if additions.is_empty() && removals.is_empty() {
+            Ok(())
+        } else if removals.is_empty() {
+            write!(f, "{}", join_display(&additions, ""))
+        } else if additions.is_empty() {
+            write!(f, "-{}", join_display(&removals, ""))
+        } else {
+            write!(f, "{}-{}", join_display(&additions, ""), join_display(&removals, ""))
+        }
+    }
+}
+impl TryFrom<(RegularExpressionModifiers, Option<RegularExpressionModifiers>)> for REModifiers {
+    type Error = Object;
+    fn try_from(value: (RegularExpressionModifiers, Option<RegularExpressionModifiers>)) -> Result<Self, Self::Error> {
+        let (add_mods, remove_mods) = value;
+        if let Some(remove_mods) = remove_mods {
+            if add_mods.0.iter().any(|m| remove_mods.0.contains(m)) {
+                Err(create_syntax_error_object(
+                    format!(
+                        "Conflicting regexp modifiers: cannot both add and remove the same modifier: +{} -{}",
+                        join_display(&add_mods.0, ""),
+                        join_display(&remove_mods.0, "")
+                    ),
+                    None,
+                ))
+            } else {
+                Ok(Self {
+                    case_insensitive: if add_mods.0.contains(&RegularExpressionModifier::CaseInsensitive) {
+                        REModifier::Add
+                    } else if remove_mods.0.contains(&RegularExpressionModifier::CaseInsensitive) {
+                        REModifier::Remove
+                    } else {
+                        REModifier::DoNothing
+                    },
+                    multiline: if add_mods.0.contains(&RegularExpressionModifier::Multiline) {
+                        REModifier::Add
+                    } else if remove_mods.0.contains(&RegularExpressionModifier::Multiline) {
+                        REModifier::Remove
+                    } else {
+                        REModifier::DoNothing
+                    },
+                    dot_all: if add_mods.0.contains(&RegularExpressionModifier::DotAll) {
+                        REModifier::Add
+                    } else if remove_mods.0.contains(&RegularExpressionModifier::DotAll) {
+                        REModifier::Remove
+                    } else {
+                        REModifier::DoNothing
+                    },
+                })
+            }
+        } else {
+            Ok(Self {
+                case_insensitive: if add_mods.0.contains(&RegularExpressionModifier::CaseInsensitive) {
+                    REModifier::Add
+                } else {
+                    REModifier::DoNothing
+                },
+                multiline: if add_mods.0.contains(&RegularExpressionModifier::Multiline) { REModifier::Add } else { REModifier::DoNothing },
+                dot_all: if add_mods.0.contains(&RegularExpressionModifier::DotAll) { REModifier::Add } else { REModifier::DoNothing },
+            })
+        }
+    }
+}
+impl RegularExpressionModifier {
+    fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
+        let mut new_scanner = scanner.clone();
+        if new_scanner.consume('i').is_some() {
+            Some((Self::CaseInsensitive, ScannerMutation::new(&new_scanner)))
+        } else if new_scanner.consume('m').is_some() {
+            Some((Self::Multiline, ScannerMutation::new(&new_scanner)))
+        } else if new_scanner.consume('s').is_some() {
+            Some((Self::DotAll, ScannerMutation::new(&new_scanner)))
+        } else {
+            None
+        }
+    }
+}
+
+impl fmt::Display for RegularExpressionModifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RegularExpressionModifier::CaseInsensitive => write!(f, "i"),
+            RegularExpressionModifier::Multiline => write!(f, "m"),
+            RegularExpressionModifier::DotAll => write!(f, "s"),
+        }
+    }
+}
+
+impl RegularExpressionModifiers {
+    fn parse(scanner: &Scanner) -> (Self, ScannerMutation) {
+        let mut new_scanner = scanner.clone();
+        let mut modifiers = vec![];
+        while let Some((modifier, amt)) = RegularExpressionModifier::parse(&new_scanner) {
+            new_scanner.update(&amt);
+            modifiers.push(modifier);
+        }
+        (Self(modifiers), ScannerMutation::new(&new_scanner))
+    }
+}
+
+impl fmt::Display for RegularExpressionModifiers {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", join_display(&self.0, ""))
+    }
+}
+
 // Atom[UnicodeMode, UnicodeSetsMode, NamedCaptureGroups] ::
 //      PatternCharacter
 //      .
 //      \ AtomEscape[?UnicodeMode, ?NamedCaptureGroups]
 //      CharacterClass[?UnicodeMode, ?UnicodeSetsMode]
 //      ( GroupSpecifier[?UnicodeMode]opt Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
-//      (?: Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
+//      (? RegularExpressionModifiers : Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
+//      (? RegularExpressionModifiers - RegularExpressionModifiers : Disjunction[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] )
 #[derive(Debug, Clone)]
 pub(crate) struct Atom {
     pub(crate) node: AtomNode,
@@ -2502,7 +2676,7 @@ pub(crate) enum AtomNode {
     AtomEscape(AtomEscape),
     CharacterClass(CharacterClass),
     GroupedDisjunction { group_specifier: Option<GroupSpecifier>, disjunction: Box<Disjunction> },
-    UnGroupedDisjunction(Box<Disjunction>),
+    UnGroupedDisjunction((RegularExpressionModifiers, Option<RegularExpressionModifiers>), Box<Disjunction>),
 }
 impl fmt::Display for Atom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -2523,7 +2697,8 @@ impl fmt::Display for Atom {
                 write!(f, "({group_specifier}{disjunction})")
             }
             AtomNode::GroupedDisjunction { group_specifier: None, disjunction } => write!(f, "({disjunction})"),
-            AtomNode::UnGroupedDisjunction(disjunction) => write!(f, "(?:{disjunction})"),
+            AtomNode::UnGroupedDisjunction((add, Some(remove)), disjunction) => write!(f, "(?{add}-{remove}:{disjunction})"),
+            AtomNode::UnGroupedDisjunction((add, None), disjunction) => write!(f, "(?{add}:{disjunction})"),
         }
     }
 }
@@ -2569,15 +2744,25 @@ impl Atom {
             unicode: UnicodeMode,
             sets: UnicodeSetsMode,
             cgroups: NamedCaptureGroups,
-        ) -> Option<(Disjunction, ScannerMutation)> {
+        ) -> Option<((RegularExpressionModifiers, Option<RegularExpressionModifiers>), Disjunction, ScannerMutation)> {
             let mut new_scanner = scanner.clone();
             new_scanner.consume('(')?;
             new_scanner.consume('?')?;
+            let (modifiers, update) = RegularExpressionModifiers::parse(&new_scanner);
+            new_scanner.update(&update);
+            let remove_modifiers = if new_scanner.consume('-').is_some() {
+                let (remove_modifiers, update) = RegularExpressionModifiers::parse(&new_scanner);
+                new_scanner.update(&update);
+                Some(remove_modifiers)
+            } else {
+                None
+            };
+
             new_scanner.consume(':')?;
             let (disj, amt) = Disjunction::parse(&new_scanner, unicode, sets, cgroups)?;
             new_scanner.update(&amt);
             new_scanner.consume(')')?;
-            Some((disj, ScannerMutation::new(&new_scanner)))
+            Some(((modifiers, remove_modifiers), disj, ScannerMutation::new(&new_scanner)))
         }
 
         let mut new_scanner = scanner.clone();
@@ -2608,10 +2793,10 @@ impl Atom {
                 ScannerMutation::new(&new_scanner),
             ))
         } else {
-            let (disj, amt) = unnamed_group(&new_scanner, unicode, sets, cgroups)?;
+            let (modifiers, disj, amt) = unnamed_group(&new_scanner, unicode, sets, cgroups)?;
             new_scanner.update(&amt);
             Some((
-                Self { node: AtomNode::UnGroupedDisjunction(Box::new(disj)), left_capturing_parens_before },
+                Self { node: AtomNode::UnGroupedDisjunction(modifiers,Box::new(disj)), left_capturing_parens_before },
                 ScannerMutation::new(&new_scanner),
             ))
         }
@@ -2633,9 +2818,43 @@ impl Atom {
                 errs
             }
             AtomNode::GroupedDisjunction { group_specifier: None, disjunction }
-            | AtomNode::UnGroupedDisjunction(disjunction) => {
+             => {
                 disjunction.early_errors(left_paren_count, group_specifiers, usm)
             }
+            AtomNode::UnGroupedDisjunction((add, None), disjunction) => {
+                let mut errs = vec![];
+                if let Some(err) = add.check_duplicate_modifiers() {
+                    errs.push(err);
+                }
+                errs.append(&mut disjunction.early_errors(left_paren_count, group_specifiers, usm));
+                errs
+            }
+            AtomNode::UnGroupedDisjunction((add, Some(remove)), disjunction) => {
+                let mut errs = vec![];
+                if add.is_empty() && remove.is_empty() {
+                    errs.push(create_syntax_error_object(
+                        "At least one modifier must be added or removed in an unnamed non-capturing group with modifiers",
+                        None,
+                    ));
+                }
+                if let Some(err) = add.check_duplicate_modifiers() {
+                    errs.push(err);
+                }
+                if let Some(err) = remove.check_duplicate_modifiers() {
+                    errs.push(err);
+                }
+                for modifier in &add.0 {
+                    if remove.contains(modifier) {
+                        errs.push(create_syntax_error_object(
+                            format!("Conflicting modifiers in unnamed non-capturing group: cannot both add and remove the same modifier: +{add} -{remove}"),
+                            None,
+                        ));
+                    }
+                }
+                errs.append(&mut disjunction.early_errors(left_paren_count, group_specifiers, usm));
+                errs
+            }
+
         }
     }
 
@@ -2645,7 +2864,7 @@ impl Atom {
             AtomNode::GroupedDisjunction { group_specifier: _, disjunction } => {
                 1 + disjunction.count_left_capturing_parens_within()
             }
-            AtomNode::UnGroupedDisjunction(d) => d.count_left_capturing_parens_within(),
+            AtomNode::UnGroupedDisjunction(_, d) => d.count_left_capturing_parens_within(),
         }
     }
 
@@ -2655,7 +2874,7 @@ impl Atom {
                 false
             }
             AtomNode::GroupedDisjunction { group_specifier: _, disjunction }
-            | AtomNode::UnGroupedDisjunction(disjunction) => disjunction.might_both_participate(x, y),
+            | AtomNode::UnGroupedDisjunction(_, disjunction) => disjunction.might_both_participate(x, y),
         }
     }
 
@@ -2668,7 +2887,7 @@ impl Atom {
                 std::ptr::eq(gs, actual_gs) || disjunction.contains(gs)
             }
             AtomNode::GroupedDisjunction { group_specifier: None, disjunction }
-            | AtomNode::UnGroupedDisjunction(disjunction) => disjunction.contains(gs),
+            | AtomNode::UnGroupedDisjunction(_, disjunction) => disjunction.contains(gs),
         }
     }
 
@@ -2684,7 +2903,7 @@ impl Atom {
                 result
             }
             AtomNode::GroupedDisjunction { group_specifier: None, disjunction }
-            | AtomNode::UnGroupedDisjunction(disjunction) => disjunction.all_group_specifiers(),
+            | AtomNode::UnGroupedDisjunction(_, disjunction) => disjunction.all_group_specifiers(),
         }
     }
 
@@ -2699,7 +2918,7 @@ impl Atom {
                 result.append(&mut disjunction_names);
                 result
             }
-            AtomNode::UnGroupedDisjunction(disjunction) => disjunction.group_name_associations(),
+            AtomNode::UnGroupedDisjunction(_, disjunction) => disjunction.group_name_associations(),
         }
     }
 
