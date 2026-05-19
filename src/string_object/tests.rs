@@ -1043,13 +1043,6 @@ fn string_prototype_replace(
         .map_err(unwind_any_error)
 }
 
-tbd_function!(string_prototype_to_locale_lower_case);
-tbd_function!(string_prototype_to_locale_upper_case);
-tbd_function!(string_prototype_to_upper_case);
-tbd_function!(string_prototype_trim);
-tbd_function!(string_prototype_trim_end);
-tbd_function!(string_prototype_trim_start);
-
 #[test_case(&[], &[], 0 => Vec::<u16>::new(); "empty filler and zero length")]
 #[test_case(&[], &[1], 0 => Vec::<u16>::new(); "non-empty filler and zero length")]
 #[test_case(&[], &[1], 1 => vec![1]; "single exact one")]
@@ -1881,6 +1874,328 @@ fn string_prototype_substring(
         .map(|val| match val {
             ECMAScriptValue::String(s) => String::from(s),
             _ => panic!("Expected string value from String.prototype.substring: {val:?}"),
+        })
+        .map_err(unwind_any_error)
+}
+
+mod string_prototype_to_lower_case {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        || ECMAScriptValue::from("ABC")
+        => sok("abc");
+        "ascii uppercase lowers"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("abc")
+        => sok("abc");
+        "ascii lowercase unchanged"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("AbC123!?")
+        => sok("abc123!?");
+        "non-letters are unchanged"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("İ")
+        => sok("i\u{0307}");
+        "lowercase mapping can expand to multiple code points"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("Σ")
+        => sok("σ");
+        "greek sigma lowercases using default case mapping"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("😀A")
+        => sok("😀a");
+        "non-bmp code point is preserved"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from(12345)
+        => sok("12345");
+        "generic receiver is stringified"
+    )]
+    #[test_case(
+        || ECMAScriptValue::Null
+        => serr("TypeError: Undefined and null are not allowed in this context");
+        "null receiver throws"
+    )]
+    #[test_case(
+        || ECMAScriptValue::Undefined
+        => serr("TypeError: Undefined and null are not allowed in this context");
+        "undefined receiver throws"
+    )]
+    #[test_case(
+        || {
+            let this_value = ordinary_object_with_to_string(|_, _, _| {
+                Err(create_type_error("poisoned receiver toString"))
+            });
+
+            ECMAScriptValue::from(this_value)
+        }
+        => serr("TypeError: poisoned receiver toString");
+        "receiver ToString abrupt completion is propagated"
+    )]
+    fn f(make_this_value: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+        setup_test_agent();
+
+        let this_value = make_this_value();
+
+        string_prototype_to_lower_case(&this_value, None, &[])
+            .map(|val| match val {
+                ECMAScriptValue::String(s) => String::from(s),
+                _ => panic!("Expected string value from String.prototype.toLowerCase: {val:?}"),
+            })
+            .map_err(unwind_any_error)
+    }
+
+    #[test_case(
+        &[0xD800, 0x0041, 0xDC00]
+        => vec![0xD800, 0x0061, 0xDC00];
+        "lone surrogates are preserved while valid chars lowercase"
+    )]
+    fn code_units(source: &[u16]) -> Vec<u16> {
+        setup_test_agent();
+
+        let this_value = ECMAScriptValue::String(JSString::from(source));
+
+        super::string_prototype_to_lower_case(&this_value, None, &[])
+            .map(|val| match val {
+                ECMAScriptValue::String(s) => s.as_slice().to_vec(),
+                _ => panic!("Expected string value from String.prototype.toLowerCase: {val:?}"),
+            })
+            .unwrap()
+    }
+}
+
+mod string_prototype_to_upper_case {
+    use super::*;
+    use test_case::test_case;
+
+    #[test_case(
+        || ECMAScriptValue::from("abc")
+        => sok("ABC");
+        "ascii lowercase uppers"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("ABC")
+        => sok("ABC");
+        "ascii uppercase unchanged"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("aBc123!?")
+        => sok("ABC123!?");
+        "non-letters are unchanged"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("ß")
+        => sok("SS");
+        "uppercase mapping can expand to multiple code points"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("σ")
+        => sok("Σ");
+        "greek sigma uppercases"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("ς")
+        => sok("Σ");
+        "greek final sigma uppercases"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from("😀a")
+        => sok("😀A");
+        "non-bmp code point is preserved"
+    )]
+    #[test_case(
+        || ECMAScriptValue::from(12345)
+        => sok("12345");
+        "generic receiver is stringified"
+    )]
+    #[test_case(
+        || ECMAScriptValue::Null
+        => serr("TypeError: Undefined and null are not allowed in this context");
+        "null receiver throws"
+    )]
+    #[test_case(
+        || ECMAScriptValue::Undefined
+        => serr("TypeError: Undefined and null are not allowed in this context");
+        "undefined receiver throws"
+    )]
+    #[test_case(
+        || {
+            let this_value = ordinary_object_with_to_string(|_, _, _| {
+                Err(create_type_error("poisoned receiver toString"))
+            });
+
+            ECMAScriptValue::from(this_value)
+        }
+        => serr("TypeError: poisoned receiver toString");
+        "receiver ToString abrupt completion is propagated"
+    )]
+    fn f(make_this_value: impl FnOnce() -> ECMAScriptValue) -> Result<String, String> {
+        setup_test_agent();
+
+        let this_value = make_this_value();
+
+        string_prototype_to_upper_case(&this_value, None, &[])
+            .map(|val| match val {
+                ECMAScriptValue::String(s) => String::from(s),
+                _ => panic!("Expected string value from String.prototype.toUpperCase: {val:?}"),
+            })
+            .map_err(unwind_any_error)
+    }
+
+    #[test_case(
+        &[0xD800, 0x0061, 0xDC00]
+        => vec![0xD800, 0x0041, 0xDC00];
+        "lone surrogates are preserved while valid chars uppercase"
+    )]
+    fn code_units(source: &[u16]) -> Vec<u16> {
+        setup_test_agent();
+
+        let this_value = ECMAScriptValue::String(JSString::from(source));
+
+        super::string_prototype_to_upper_case(&this_value, None, &[])
+            .map(|val| match val {
+                ECMAScriptValue::String(s) => s.as_slice().to_vec(),
+                _ => panic!("Expected string value from String.prototype.toUpperCase: {val:?}"),
+            })
+            .unwrap()
+    }
+}
+
+#[test_case(
+    || (ECMAScriptValue::from("abc"), TrimHint::Both)
+    => sok("abc");
+    "both no whitespace"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("  abc"), TrimHint::Both)
+    => sok("abc");
+    "both trims leading spaces"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("abc  "), TrimHint::Both)
+    => sok("abc");
+    "both trims trailing spaces"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("  abc  "), TrimHint::Both)
+    => sok("abc");
+    "both trims leading and trailing spaces"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("  a b c  "), TrimHint::Both)
+    => sok("a b c");
+    "both preserves interior spaces"
+)]
+#[test_case(
+    || (ECMAScriptValue::from(" \t\n\rabc\u{00A0}"), TrimHint::Both)
+    => sok("abc");
+    "both trims mixed whitespace and line terminators"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("  abc  "), TrimHint::Start)
+    => sok("abc  ");
+    "start trims only leading whitespace"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("  abc  "), TrimHint::End)
+    => sok("  abc");
+    "end trims only trailing whitespace"
+)]
+#[test_case(
+    || (ECMAScriptValue::from(""), TrimHint::Both)
+    => sok("");
+    "empty string"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("   "), TrimHint::Start)
+    => sok("");
+    "start trims all-whitespace string"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("   "), TrimHint::End)
+    => sok("");
+    "end trims all-whitespace string"
+)]
+#[test_case(
+    || (ECMAScriptValue::from("   "), TrimHint::Both)
+    => sok("");
+    "both trims all-whitespace string"
+)]
+#[test_case(
+    || (ECMAScriptValue::from(123), TrimHint::Both)
+    => sok("123");
+    "generic non-string value is stringified"
+)]
+#[test_case(
+    || (ECMAScriptValue::Null, TrimHint::Both)
+    => serr("TypeError: Undefined and null are not allowed in this context");
+    "null value throws"
+)]
+#[test_case(
+    || (ECMAScriptValue::Undefined, TrimHint::Both)
+    => serr("TypeError: Undefined and null are not allowed in this context");
+    "undefined value throws"
+)]
+#[test_case(
+    || {
+        let value = ordinary_object_with_to_string(|_, _, _| {
+            Err(create_type_error("poisoned trim receiver toString"))
+        });
+
+        (ECMAScriptValue::from(value), TrimHint::Both)
+    }
+    => serr("TypeError: poisoned trim receiver toString");
+    "ToString abrupt completion is propagated"
+)]
+fn trim_string(make_params: impl FnOnce() -> (ECMAScriptValue, TrimHint)) -> Result<String, String> {
+    setup_test_agent();
+
+    let (string, hint) = make_params();
+
+    super::trim_string(string, hint).map(String::from).map_err(unwind_any_error)
+}
+
+#[test_case(" a b c " => sok("a b c"); "both sides")]
+fn string_prototype_trim(s: &str) -> Result<String, String> {
+    setup_test_agent();
+
+    let string = ECMAScriptValue::from(JSString::from(s));
+    super::string_prototype_trim(&string, None, &[])
+        .map(|val| match val {
+            ECMAScriptValue::String(s) => s.to_string(),
+            _ => panic!("Expected string value from String.prototype.toUpperCase: {val:?}"),
+        })
+        .map_err(unwind_any_error)
+}
+
+#[test_case(" a b c " => sok(" a b c"); "both sides")]
+fn string_prototype_trim_end(s: &str) -> Result<String, String> {
+    setup_test_agent();
+
+    let string = ECMAScriptValue::from(JSString::from(s));
+    super::string_prototype_trim_end(&string, None, &[])
+        .map(|val| match val {
+            ECMAScriptValue::String(s) => s.to_string(),
+            _ => panic!("Expected string value from String.prototype.toUpperCase: {val:?}"),
+        })
+        .map_err(unwind_any_error)
+}
+
+#[test_case(" a b c " => sok("a b c "); "both sides")]
+fn string_prototype_trim_start(s: &str) -> Result<String, String> {
+    setup_test_agent();
+
+    let string = ECMAScriptValue::from(JSString::from(s));
+    super::string_prototype_trim_start(&string, None, &[])
+        .map(|val| match val {
+            ECMAScriptValue::String(s) => s.to_string(),
+            _ => panic!("Expected string value from String.prototype.toUpperCase: {val:?}"),
         })
         .map_err(unwind_any_error)
 }

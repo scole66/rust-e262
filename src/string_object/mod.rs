@@ -1965,67 +1965,62 @@ fn string_prototype_substring(
 
 // 22.1.3.25 String.prototype.toLocaleLowerCase ( [ reserved1 [ , reserved2 ] ] )
 fn string_prototype_to_locale_lower_case(
-    _: &ECMAScriptValue,
+    this: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    string_prototype_to_lower_case(this, None, &[])
 }
+
 // 22.1.3.26 String.prototype.toLocaleUpperCase ( [ reserved1 [ , reserved2 ] ] )
 fn string_prototype_to_locale_upper_case(
-    _: &ECMAScriptValue,
+    this: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    string_prototype_to_upper_case(this, None, &[])
 }
+
 // 22.1.3.27 String.prototype.toLowerCase ( )
 fn string_prototype_to_lower_case(
     this: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    // String.prototype.toLowerCase ( )
-    // This method interprets a String value as a sequence of UTF-16 encoded code points, as described in 6.1.4.
-    //
-    // It performs the following steps when called:
-    //
-    //  1. Let O be ? RequireObjectCoercible(this value).
-    //  2. Let S be ? ToString(O).
-    //  3. Let sText be StringToCodePoints(S).
-    //  4. Let lowerText be toLowercase(sText), according to the Unicode Default Case Conversion algorithm.
-    //  5. Let L be CodePointsToString(lowerText).
-    //  6. Return L.
-    //
-    // The result must be derived according to the locale-insensitive case mappings in the Unicode Character Database
-    // (this explicitly includes not only the file UnicodeData.txt, but also all locale-insensitive mappings in the file
-    // SpecialCasing.txt that accompanies it).
-    //
-    // Note 1 The case mapping of some code points may produce multiple code points. In this case the result String may
-    // not be the same length as the source String. Because both toUpperCase and toLowerCase have context-sensitive
-    // behaviour, the methods are not symmetrical. In other words, s.toUpperCase().toLowerCase() is not necessarily
-    // equal to s.toLowerCase().
-    //
-    // Note 2 This method is intentionally generic; it does not require that its this value be a String object.
-    // Therefore, it can be transferred to other kinds of objects for use as a method.
+    // `toLowerCase` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
     require_object_coercible(this)?;
+
+    // Convert the receiver before doing any Unicode work, preserving observable
+    // ToString side effects and abrupt completions.
     let s = to_string(this.clone())?;
+
+    // Case conversion operates on Unicode code points, not raw UTF-16 code
+    // units. Lone surrogates are preserved by the fallback path below.
     let stext = s.to_code_points();
 
     let mut result = vec![];
+
     for c in stext {
         match char::try_from(c) {
             Ok(ch) => {
+                // Rust's default lowercase mapping can expand one code point
+                // into multiple code points, matching the ECMAScript behavior
+                // that output length may differ from input length.
                 let chars = ch.to_lowercase().collect::<Vec<_>>();
                 let mut buf = [0; 2];
+
                 for c in chars {
-                    let encoded = c.encode_utf16(&mut buf);
-                    result.extend_from_slice(encoded);
+                    result.extend_from_slice(c.encode_utf16(&mut buf));
                 }
             }
             Err(_) => {
+                // ECMAScript strings can contain lone surrogate code units,
+                // which are not Rust `char`s. Preserve those code points by
+                // encoding them back to UTF-16 unchanged.
                 let mut buf = [0; 2];
-                let encoded = utf16_encode_code_point(c, &mut buf).expect("char points should be in range");
+                let encoded =
+                    utf16_encode_code_point(c, &mut buf).expect("code point from JSString should encode as UTF-16");
                 result.extend_from_slice(encoded);
             }
         }
@@ -2047,23 +2042,67 @@ fn string_prototype_to_string(
     let s = this_string_value(this_value.clone(), "String.prototype.toString")?;
     Ok(s.into())
 }
+
 // 22.1.3.29 String.prototype.toUpperCase ( )
 fn string_prototype_to_upper_case(
-    _: &ECMAScriptValue,
+    this: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
-}
-// 22.1.3.30 String.prototype.trim ( )
-fn string_prototype_trim(
-    _: &ECMAScriptValue,
-    _: Option<&Object>,
-    _: &[ECMAScriptValue],
-) -> Completion<ECMAScriptValue> {
-    todo!()
+    // `toUpperCase` is intentionally generic, so the receiver only needs to be
+    // coercible and string-convertible; it does not need to be a String object.
+    require_object_coercible(this)?;
+
+    // Convert the receiver before doing any Unicode work, preserving observable
+    // ToString side effects and abrupt completions.
+    let s = to_string(this.clone())?;
+
+    // Case conversion operates on Unicode code points, not raw UTF-16 code
+    // units. Lone surrogates are preserved by the fallback path below.
+    let stext = s.to_code_points();
+
+    let mut result = vec![];
+
+    for c in stext {
+        match char::try_from(c) {
+            Ok(ch) => {
+                // Rust's default uppercase mapping can expand one code point
+                // into multiple code points, matching the ECMAScript behavior
+                // that output length may differ from input length.
+                let chars = ch.to_uppercase().collect::<Vec<_>>();
+                let mut buf = [0; 2];
+
+                for c in chars {
+                    result.extend_from_slice(c.encode_utf16(&mut buf));
+                }
+            }
+            Err(_) => {
+                // ECMAScript strings can contain lone surrogate code units,
+                // which are not Rust `char`s. Preserve those code points by
+                // encoding them back to UTF-16 unchanged.
+                let mut buf = [0; 2];
+                let encoded =
+                    utf16_encode_code_point(c, &mut buf).expect("code point from JSString should encode as UTF-16");
+                result.extend_from_slice(encoded);
+            }
+        }
+    }
+
+    Ok(ECMAScriptValue::String(JSString::from(result)))
 }
 
+// 22.1.3.30 String.prototype.trim ( )
+fn string_prototype_trim(
+    this_value: &ECMAScriptValue,
+    _: Option<&Object>,
+    _: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // `trim` is intentionally generic; the shared trim helper handles receiver
+    // coercion and string conversion.
+    //
+    // Trim both leading and trailing ECMAScript whitespace and line terminators.
+    trim_string(this_value.clone(), TrimHint::Both).map(ECMAScriptValue::from)
+}
 #[derive(Copy, Clone, PartialEq)]
 pub(crate) enum TrimHint {
     Start,
@@ -2072,60 +2111,60 @@ pub(crate) enum TrimHint {
 }
 
 pub(crate) fn trim_string(string: ECMAScriptValue, hint: TrimHint) -> Completion<JSString> {
-    // TrimString ( string, where )
-    // The abstract operation TrimString takes arguments string (an ECMAScript language value) and where
-    // (start, end, or start+end) and returns either a normal completion containing a String or a throw
-    // completion. It interprets string as a sequence of UTF-16 encoded code points, as described in 6.1.4. It
-    // performs the following steps when called:
-    //
-    // 1. Let str be ? RequireObjectCoercible(string).
-    // 2. Let S be ? ToString(str).
-    // 3. If where is start, then
-    //    a. Let T be the String value that is a copy of S with leading white space removed.
-    // 4. Else if where is end, then
-    //    a. Let T be the String value that is a copy of S with trailing white space removed.
-    // 5. Else,
-    //    a. Assert: where is start+end.
-    //    b. Let T be the String value that is a copy of S with both leading and trailing white space removed.
-    // 6. Return T.
-    //
-    // The definition of white space is the union of WhiteSpace and LineTerminator. When determining whether a
-    // Unicode code point is in Unicode general category “Space_Separator” (“Zs”), code unit sequences are
-    // interpreted as UTF-16 encoded code point sequences as specified in 6.1.4.
-
+    // TrimString is shared by `trim`, `trimStart`, and `trimEnd`. It handles the
+    // generic receiver coercion and string conversion for all three builtins.
     require_object_coercible(&string)?;
     let s = to_string(string)?;
+
     let mut start = 0;
     let mut final_idx = s.len();
+
     if hint == TrimHint::Start || hint == TrimHint::Both {
+        // Trim leading ECMAScript whitespace and line terminators.
         while start < s.len() && is_str_whitespace(s[start]) {
             start += 1;
         }
     }
+
     if hint == TrimHint::End || hint == TrimHint::Both {
+        // Trim trailing ECMAScript whitespace and line terminators.
         while final_idx > 0 && is_str_whitespace(s[final_idx - 1]) {
             final_idx -= 1;
         }
     }
-    Ok(JSString::from(&s.as_slice()[start..final_idx]))
+
+    // The indexes are UTF-16 code-unit offsets. Whitespace recognized by
+    // `is_str_whitespace` is represented by single code units, so these slice
+    // boundaries stay valid for JSString.
+    if start >= final_idx { Ok(JSString::from("")) } else { Ok(JSString::from(&s.as_slice()[start..final_idx])) }
 }
 
 // 22.1.3.31 String.prototype.trimEnd ( )
 fn string_prototype_trim_end(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // `trimEnd` is intentionally generic; the shared trim helper handles receiver
+    // coercion and string conversion.
+    //
+    // Trim trailing ECMAScript whitespace and line terminators.
+    trim_string(this_value.clone(), TrimHint::End).map(ECMAScriptValue::from)
 }
+
 // 22.1.3.32 String.prototype.trimStart ( )
 fn string_prototype_trim_start(
-    _: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _: Option<&Object>,
     _: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // `trimStart` is intentionally generic; the shared trim helper handles receiver
+    // coercion and string conversion.
+    //
+    // Trim leading ECMAScript whitespace and line terminators.
+    trim_string(this_value.clone(), TrimHint::Start).map(ECMAScriptValue::from)
 }
+
 // 22.1.3.33 String.prototype.valueOf ( )
 fn string_prototype_value_of(
     this_value: &ECMAScriptValue,
