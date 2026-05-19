@@ -1051,7 +1051,7 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) -> anyhow::Result<NeverA
     Ok(NeverAbruptRefResult)
 }
 #[cfg(not(test))]
-#[allow(clippy::unnecessary_wraps)]
+#[expect(clippy::unnecessary_wraps)]
 fn compile_debug_lit(_: &mut Chunk, _: &DebugKind) -> anyhow::Result<NeverAbruptRefResult> {
     Ok(NeverAbruptRefResult)
 }

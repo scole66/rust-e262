@@ -351,7 +351,7 @@ impl JSString {
     }
 }
 
-#[allow(clippy::cast_possible_truncation)]
+#[expect(clippy::cast_possible_truncation)]
 pub(crate) fn utf16_encode_code_point(cp: u32, dst: &mut [u16; 2]) -> anyhow::Result<&mut [u16]> {
     // Static Semantics: UTF16EncodeCodePoint ( cp )
     // The abstract operation UTF16EncodeCodePoint takes argument cp (a Unicode code point) and returns a String. It performs the following steps when called:

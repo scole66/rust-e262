@@ -232,44 +232,38 @@ impl RegExpRecord {
         add: &RegularExpressionModifiers,
         remove: &RegularExpressionModifiers,
     ) -> Self {
-        // UpdateModifiers ( regexpRecord, add, remove )
-        // The abstract operation UpdateModifiers takes arguments regexpRecord (a RegExp Record), add (a String), and remove (a String) and returns a RegExp Record. It performs the following steps when called:
-        //
-        // 1. Assert: add and remove have no elements in common.
-        // 2. Let ignoreCase be regexpRecord.[[IgnoreCase]].
+        // Inline modifier groups can temporarily add or remove only the modifiers
+        // they are allowed to affect. Everything else is carried forward unchanged.
         let mut ignore_case = self.case;
-        // 3. Let multiline be regexpRecord.[[Multiline]].
         let mut multiline = self.multiline;
-        // 4. Let dotAll be regexpRecord.[[DotAll]].
         let mut dot_all = self.dot_all;
-        // 5. Let unicode be regexpRecord.[[Unicode]].
+
+        // These fields are not controlled by inline modifier groups, but they still
+        // belong to the returned RegExp record.
         let unicode = self.unicode;
-        // 6. Let unicodeSets be regexpRecord.[[UnicodeSets]].
         let unicode_sets = self.unicode_sets;
-        // 7. Let capturingGroupsCount be regexpRecord.[[CapturingGroupsCount]].
         let capturing_groups_count = self.capturing_groups_count;
-        // 8. If remove contains "i", set ignoreCase to false.
-        // 9. Else if add contains "i", set ignoreCase to true.
+
+        // Removal wins over addition. The parser should already ensure that the
+        // same modifier is not present in both sets.
         if remove.contains(&RegularExpressionModifier::CaseInsensitive) {
             ignore_case = Case::Significant;
         } else if add.contains(&RegularExpressionModifier::CaseInsensitive) {
             ignore_case = Case::Unimportant;
         }
-        // 10. If remove contains "m", set multiline to false.
-        // 11. Else if add contains "m", set multiline to true.
+
         if remove.contains(&RegularExpressionModifier::Multiline) {
             multiline = Lines::Single;
         } else if add.contains(&RegularExpressionModifier::Multiline) {
             multiline = Lines::Multi;
         }
-        // 12. If remove contains "s", set dotAll to false.
-        // 13. Else if add contains "s", set dotAll to true.
+
         if remove.contains(&RegularExpressionModifier::DotAll) {
             dot_all = false;
         } else if add.contains(&RegularExpressionModifier::DotAll) {
             dot_all = true;
         }
-        // 14. Return the RegExp Record { [[IgnoreCase]]: ignoreCase, [[Multiline]]: multiline, [[DotAll]]: dotAll, [[Unicode]]: unicode, [[UnicodeSets]]: unicodeSets, [[CapturingGroupsCount]]: capturingGroupsCount }.
+
         Self {
             case: ignore_case,
             multiline,
