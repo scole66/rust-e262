@@ -204,7 +204,6 @@ pub(crate) enum Lines {
 }
 
 #[derive(Debug, Clone)]
-#[expect(unused)]
 pub(crate) struct RegExpRecord {
     case: Case,
     multiline: Lines,
@@ -226,6 +225,55 @@ impl RegExpRecord {
         // 1. If rer.[[Unicode]] is true or rer.[[UnicodeSets]] is true, return true.
         // 2. Return false.
         self.unicode == UnicodeMode::Allowed || self.unicode_sets == UnicodeSetsMode::Allowed
+    }
+
+    pub(crate) fn update_modifiers(
+        &self,
+        add: &RegularExpressionModifiers,
+        remove: &RegularExpressionModifiers,
+    ) -> Self {
+        // Inline modifier groups can temporarily add or remove only the modifiers
+        // they are allowed to affect. Everything else is carried forward unchanged.
+        let mut ignore_case = self.case;
+        let mut multiline = self.multiline;
+        let mut dot_all = self.dot_all;
+
+        // These fields are not controlled by inline modifier groups, but they still
+        // belong to the returned RegExp record.
+        let unicode = self.unicode;
+        let unicode_sets = self.unicode_sets;
+        let capturing_groups_count = self.capturing_groups_count;
+
+        // Removal wins over addition. The parser should already ensure that the
+        // same modifier is not present in both sets.
+        if remove.contains(&RegularExpressionModifier::CaseInsensitive) {
+            ignore_case = Case::Significant;
+        } else if add.contains(&RegularExpressionModifier::CaseInsensitive) {
+            ignore_case = Case::Unimportant;
+        }
+
+        if remove.contains(&RegularExpressionModifier::Multiline) {
+            multiline = Lines::Single;
+        } else if add.contains(&RegularExpressionModifier::Multiline) {
+            multiline = Lines::Multi;
+        }
+
+        if remove.contains(&RegularExpressionModifier::DotAll) {
+            dot_all = false;
+        } else if add.contains(&RegularExpressionModifier::DotAll) {
+            dot_all = true;
+        }
+
+        Self {
+            case: ignore_case,
+            multiline,
+            dot_all,
+            unicode,
+            unicode_sets,
+            capturing_groups_count,
+            has_group_names: self.has_group_names,
+            group_names: self.group_names.clone(),
+        }
     }
 
     pub(crate) fn canonicalize(&self, ch: u32) -> u32 {
