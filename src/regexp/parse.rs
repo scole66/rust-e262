@@ -951,7 +951,7 @@ impl DecimalEscape {
         Some((Self(value), new_scanner.read_idx - scanner.read_idx))
     }
 
-    fn capturing_group_number(self) -> usize {
+    pub(crate) fn capturing_group_number(self) -> usize {
         self.0
     }
 }
