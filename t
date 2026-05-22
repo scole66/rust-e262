@@ -930,6 +930,8 @@ test_defs[proxy_create]="proxy_create proxy_create proxy_object"
 
 test_defs[BoundFunctionObject]="BoundFunctionObject bound_function_object bound_function"
 
+test_defs[canonicalize]="canonicalize canonicalize regexp"
+
 if $everything; then
   names=("${!test_defs[@]}")
 fi

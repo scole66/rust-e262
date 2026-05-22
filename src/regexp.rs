@@ -277,51 +277,50 @@ impl RegExpRecord {
     }
 
     pub(crate) fn canonicalize(&self, ch: u32) -> u32 {
-        // Canonicalize ( rer, ch )
-        //
-        // The abstract operation Canonicalize takes arguments rer (a RegExp Record) and ch (a character) and returns a
-        // character. It performs the following steps when called:
-        //
-        // 1. If HasEitherUnicodeFlag(rer) is true and rer.[[IgnoreCase]] is true, then
-        //    a. If the file CaseFolding.txt of the Unicode Character Database provides a simple or common case folding
-        //       mapping for ch, return the result of applying that mapping to ch.
-        //    b. Return ch.
-        // 2. If rer.[[IgnoreCase]] is false, return ch.
-        // 3. Assert: ch is a UTF-16 code unit.
-        // 4. Let cp be the code point whose numeric value is the numeric value of ch.
-        // 5. Let u be toUppercase(« cp »), according to the Unicode Default Case Conversion algorithm.
-        // 6. Let uStr be CodePointsToString(u).
-        // 7. If the length of uStr ≠ 1, return ch.
-        // 8. Let cu be uStr's single code unit element.
-        // 9. If the numeric value of ch ≥ 128 and the numeric value of cu < 128, return ch.
-        // 10. Return cu.
-        //
-        // Note:
-        //
-        // In case-insignificant matches when HasEitherUnicodeFlag(rer) is true, all characters are implicitly
-        // case-folded using the simple mapping provided by the Unicode Standard immediately before they are compared.
-        // The simple mapping always maps to a single code point, so it does not map, for example, ß (U+00DF LATIN SMALL
-        // LETTER SHARP S) to ss or SS. It may however map code points outside the Basic Latin block to code points
-        // within it—for example, ſ (U+017F LATIN SMALL LETTER LONG S) case-folds to s (U+0073 LATIN SMALL LETTER S) and
-        // K (U+212A KELVIN SIGN) case-folds to k (U+006B LATIN SMALL LETTER K). Strings containing those code points
-        // are matched by regular expressions such as /[a-z]/ui.
-        //
-        // In case-insignificant matches when HasEitherUnicodeFlag(rer) is false, the mapping is based on Unicode
-        // Default Case Conversion algorithm toUppercase rather than toCasefold, which results in some subtle
-        // differences. For example, Ω (U+2126 OHM SIGN) is mapped by toUppercase to itself but by toCasefold to ω
-        // (U+03C9 GREEK SMALL LETTER OMEGA) along with Ω (U+03A9 GREEK CAPITAL LETTER OMEGA), so "\u2126" is matched by
-        // /[ω]/ui and /[\u03A9]/ui but not by /[ω]/i or /[\u03A9]/i. Also, no code point outside the Basic Latin block
-        // is mapped to a code point within it, so strings such as "\u017F ſ" and "\u212A K" are not matched by
-        // /[a-z]/i.
+        canonicalize(self.has_either_unicode_flag(), self.case, ch)
+    }
+}
 
-        if self.has_either_unicode_flag() && self.case == Case::Unimportant {
-            return casefold_simple(ch);
-        }
-        if self.case == Case::Significant {
-            return ch;
-        }
+fn canonicalize(unicode_ish: bool, case: Case, ch: u32) -> u32 {
+    if unicode_ish && case == Case::Unimportant {
+        // Unicode-aware ignore-case matching uses Unicode simple/common case
+        // folding. This always returns a single code point, which is important
+        // for RegExp character-by-character matching.
+        return casefold_simple(ch);
+    }
 
-        todo!()
+    if case == Case::Significant {
+        // Case-sensitive matching compares the original code point unchanged.
+        return ch;
+    }
+
+    // Legacy non-Unicode ignore-case matching uses Unicode default uppercase
+    // conversion rather than case folding. This intentionally differs from the
+    // `/u` and `/v` paths for characters such as Ω, ſ, and K.
+    let u = char::from_u32(ch).map(|ch| ch.to_uppercase().collect::<String>());
+    let u_str = u.map(JSString::from);
+
+    match u_str {
+        // Non-scalar values, such as lone surrogate code units, are left
+        // unchanged. They cannot be represented as Rust `char`s.
+        None => ch,
+
+        // Legacy canonicalization only accepts one-code-unit uppercase results.
+        // Mappings that expand, such as ß -> SS, do not apply here.
+        Some(s) if s.len() != 1 => ch,
+
+        Some(s) => {
+            let cu = s.as_slice()[0];
+
+            if ch >= 128 && cu < 128 {
+                // In the legacy non-Unicode path, non-ASCII characters must not
+                // canonicalize into ASCII. This keeps ranges like /[a-z]/i from
+                // matching ſ or K unless Unicode mode is enabled.
+                ch
+            } else {
+                u32::from(cu)
+            }
+        }
     }
 }
 
@@ -1634,3 +1633,6 @@ impl Object {
 mod casefold;
 mod compile;
 pub(crate) mod parse;
+
+#[cfg(test)]
+mod tests;

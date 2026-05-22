@@ -1,12 +1,15 @@
+#![expect(dead_code)]
 use crate::regexp::*;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::LazyLock;
 
-#[derive(Debug, Copy, Clone)]
-#[expect(dead_code)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Direction {
     Forward,
     Backward,
 }
+
+const LINE_TERMINATORS: [u32; 4] = [0xa, 0xd, 0x2028, 0x2029];
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct CaptureRange {
@@ -147,39 +150,50 @@ fn empty_matcher() -> Matcher {
 }
 
 fn match_all_terms(terms: &mut impl Iterator<Item = Matcher>, direction: Direction) -> Matcher {
-    // Takes a list of matchers, and a direction, and smushes them all together
-    // 1. Return a new Matcher with parameters (x, c) that captures all the matchers in terms, and direction (forward or
-    //    backward) and returns a Matcher. It performs the following steps when called:
-    //    a. let len = the length of terms.
-    //.   b. assert( len > 0 )
-    //.   c. let k = 1;
-    //.   d. let m = terms[k-1];
-    //.   e. while k < len
-    //.      i. let mm be a Matcher with parameters (x, c) that captures m and terms[k] and performs:
-    //.         1. let d be a MatcherCOntinuation with paramter y that captures c and terms[k] and performs:
-    //.            a. return terms[k](y, c)
-    //          2. return m(x, d)
-    //       ii. let m = mm.
-    //       iii. let k = k + 1
-    //.   f. return m ??? wrong type
+    // Compose a non-empty list of term matchers into one matcher.
+    //
+    // Forward matching runs the terms from left to right. Backward matching runs
+    // the same terms from right to left. Each step wraps the matcher built so
+    // far with a continuation that runs the next term before the caller's
+    // continuation.
     let trms = terms.collect::<Vec<_>>();
+
     match direction {
         Direction::Forward => match trms.as_slice() {
             [first, rest @ ..] => {
                 let mut m = first.clone();
+
                 for term in rest {
                     let inner_m = m.clone();
                     let inner_term = term.clone();
-                    let mm: Matcher = Rc::new(move |state, continuation| {
+
+                    m = Rc::new(move |state, continuation| {
                         run_match_term_inner(&inner_m, inner_term.clone(), state, continuation)
                     });
-                    m = mm;
                 }
+
                 m
             }
-            [] => panic!("empty array in match_all_terms"),
+            [] => panic!("match_all_terms should be called with at least one matcher"),
         },
-        Direction::Backward => todo!(),
+
+        Direction::Backward => match trms.as_slice() {
+            [rest @ .., last] => {
+                let mut m = last.clone();
+
+                for term in rest.iter().rev() {
+                    let inner_m = m.clone();
+                    let inner_term = term.clone();
+
+                    m = Rc::new(move |state, continuation| {
+                        run_match_term_inner(&inner_m, inner_term.clone(), state, continuation)
+                    });
+                }
+
+                m
+            }
+            [] => panic!("match_all_terms should be called with at least one matcher"),
+        },
     }
 }
 
@@ -271,7 +285,13 @@ impl Term {
         // The syntax-directed operation CompileSubpattern takes arguments rer (a RegExp Record) and direction (forward
         // or backward) and returns a Matcher.
         match &self.node {
-            TermNode::Assertion(_assertion) => todo!(),
+            TermNode::Assertion(assertion) => {
+                // Term :: Assertion
+                // 1. Return CompileAssertion of Assertion with argument regexpRecord.
+                assertion.compile_assertion(rer)
+                // Note 4
+                // The resulting Matcher is independent of direction.
+            }
             TermNode::Atom(atom, None) => {
                 // Term :: Atom
                 // 1. Return CompileAtom of Atom with arguments rer and direction.
@@ -412,6 +432,149 @@ fn repeat_matcher(
         return z;
     }
     continuation(state)
+}
+
+impl Assertion {
+    fn compile_assertion(&self, rer: &RegExpRecord) -> Matcher {
+        match self {
+            Assertion::Start => {
+                let rer = rer.clone();
+
+                Rc::new(move |state, continuation| {
+                    let input = state.input.as_slice();
+                    let e = state.end_index;
+
+                    // `^` matches the start of input, or the position after a
+                    // line terminator when multiline mode is enabled. The sticky
+                    // flag does not change this behavior.
+                    if e == 0 || rer.multiline == Lines::Multi && LINE_TERMINATORS.contains(&input[e - 1]) {
+                        continuation(state)
+                    } else {
+                        None
+                    }
+                })
+            }
+
+            Assertion::End => {
+                let rer = rer.clone();
+
+                Rc::new(move |state, continuation| {
+                    let input = state.input.as_slice();
+                    let e = state.end_index;
+                    let input_length = input.len();
+
+                    // `$` matches the end of input, or the position before a
+                    // line terminator when multiline mode is enabled.
+                    if e == input_length || rer.multiline == Lines::Multi && LINE_TERMINATORS.contains(&input[e]) {
+                        continuation(state)
+                    } else {
+                        None
+                    }
+                })
+            }
+
+            Assertion::WordBoundary => {
+                let rer = rer.clone();
+
+                Rc::new(move |state, continuation| {
+                    let input = state.input.as_slice();
+                    let e = state.end_index;
+
+                    // A word boundary exists when exactly one side of the
+                    // current position is a word character.
+                    let before = e > 0 && is_word_char(&rer, input, e - 1);
+                    let after = is_word_char(&rer, input, e);
+
+                    if before == after { None } else { continuation(state) }
+                })
+            }
+
+            Assertion::NotWordBoundary => {
+                let rer = rer.clone();
+
+                Rc::new(move |state, continuation| {
+                    let input = state.input.as_slice();
+                    let e = state.end_index;
+
+                    // A non-boundary exists when both sides of the current
+                    // position have the same word-character status.
+                    let before = e > 0 && is_word_char(&rer, input, e - 1);
+                    let after = is_word_char(&rer, input, e);
+
+                    if before == after { continuation(state) } else { None }
+                })
+            }
+
+            Assertion::LookAhead(disjunction) => {
+                // Lookahead checks the subpattern from the current position
+                // without consuming input.
+                let m = disjunction.compile_subpattern(rer, Direction::Forward);
+
+                Rc::new(move |state, continuation| {
+                    // Run the assertion body with an identity continuation so we
+                    // can observe whether it matches and collect its captures.
+                    let d: MatcherContinuation = Rc::new(Some);
+
+                    let r = m.as_ref()(state.clone(), d)?;
+
+                    // Positive lookahead keeps captures produced inside the
+                    // assertion, but restores the original input position.
+                    let z = MatchState { input: state.input, end_index: state.end_index, captures: r.captures };
+
+                    continuation(z)
+                })
+            }
+
+            Assertion::NegLookAhead(disjunction) => {
+                // Negative lookahead succeeds only when the forward subpattern
+                // fails at the current position.
+                let m = disjunction.compile_subpattern(rer, Direction::Forward);
+
+                Rc::new(move |state, continuation| {
+                    let d: MatcherContinuation = Rc::new(Some);
+
+                    match m.as_ref()(state.clone(), d) {
+                        Some(_) => None,
+                        None => continuation(state),
+                    }
+                })
+            }
+
+            Assertion::LookBehind(disjunction) => {
+                // Lookbehind checks the subpattern ending at the current
+                // position. The subpattern is compiled in backward direction,
+                // but a successful assertion still consumes no input.
+                let m = disjunction.compile_subpattern(rer, Direction::Backward);
+
+                Rc::new(move |state, continuation| {
+                    let d: MatcherContinuation = Rc::new(Some);
+
+                    let r = m.as_ref()(state.clone(), d)?;
+
+                    // Positive lookbehind keeps captures produced inside the
+                    // assertion, but restores the original input position.
+                    let z = MatchState { input: state.input, end_index: state.end_index, captures: r.captures };
+
+                    continuation(z)
+                })
+            }
+
+            Assertion::NegLookBehind(disjunction) => {
+                // Negative lookbehind succeeds only when the backward subpattern
+                // fails ending at the current position.
+                let m = disjunction.compile_subpattern(rer, Direction::Backward);
+
+                Rc::new(move |state, continuation| {
+                    let d: MatcherContinuation = Rc::new(Some);
+
+                    match m.as_ref()(state.clone(), d) {
+                        Some(_) => None,
+                        None => continuation(state),
+                    }
+                })
+            }
+        }
+    }
 }
 
 struct QData {
@@ -599,7 +762,7 @@ impl Atom {
                 // 3. Return CharacterSetMatcher(rer, A, false, direction).
                 let mut a = all_characters(rer);
                 if !rer.dot_all {
-                    for ch in [0xa, 0xd, 0x2028, 0x2029] {
+                    for ch in LINE_TERMINATORS {
                         a.remove(ch);
                     }
                 }
@@ -609,9 +772,14 @@ impl Atom {
             AtomNode::CharacterClass(character_class) => {
                 // Atom :: CharacterClass
                 // 1. Let cc be CompileCharacterClass of CharacterClass with argument rer.
+                let cc = character_class.compile_character_class(rer);
                 // 2. Let cs be cc.[[CharSet]].
+                let cs = cc.char_set;
                 // 3. If rer.[[UnicodeSets]] is false, or if every CharSetElement of cs consists of a single character
                 //    (including if cs is empty), return CharacterSetMatcher(rer, cs, cc.[[Invert]], direction).
+                if rer.unicode_sets == UnicodeSetsMode::Denied || cs.all_single_or_empty() {
+                    return character_set_matcher(rer, cs, cc.invert, direction);
+                }
                 // 4. Assert: cc.[[Invert]] is false.
                 // 5. Let lm be an empty List of Matchers.
                 // 6. For each CharSetElement s in cs containing more than 1 character, iterating in descending order of
@@ -631,11 +799,6 @@ impl Atom {
                 // 11. For each Matcher m1 of lm, iterating backwards from its second-to-last element, do
                 //     a. Set m2 to MatchTwoAlternatives(m1, m2).
                 // 12. Return m2.
-                let cc = character_class.compile_character_class(rer);
-                let cs = cc.char_set;
-                if rer.unicode_sets == UnicodeSetsMode::Denied || cs.has_no_ranges() {
-                    return character_set_matcher(rer, cs, cc.invert, direction);
-                }
 
                 todo!()
             }
@@ -864,7 +1027,17 @@ fn run_character_set_matcher(
 
 fn all_characters(rer: &RegExpRecord) -> CharSet {
     if rer.unicode_sets == UnicodeSetsMode::Allowed && rer.case == Case::Unimportant {
-        todo!()
+        // Return the CharSet containing all Unicode code points c that do not have a Simple Case Folding mapping (that
+        // is, scf(c)=c).
+        static DOES_NOT_FOLD: LazyLock<CharSet> = LazyLock::new(|| {
+            let mut set = CharSet::default();
+            for pair in DOES_NOT_FOLD_RANGES {
+                let &(start, end) = pair;
+                set.insert_range(start, end);
+            }
+            set
+        });
+        DOES_NOT_FOLD.clone()
     } else if rer.has_either_unicode_flag() {
         let mut set = CharSet::default();
         set.insert_range(0, 0x10_FFFF);
@@ -888,38 +1061,78 @@ fn word_characters(rer: &RegExpRecord) -> CharSet {
     //    Canonicalize(rer, c) is in basicWordChars.
     // 3. Assert: extraWordChars is empty unless HasEitherUnicodeFlag(rer) is true and rer.[[IgnoreCase]] is true.
     // 4. Return the union of basicWordChars and extraWordChars.
-    let mut basic_word_chars = CharSet::default();
-    basic_word_chars.insert_range(u32::from('A'), u32::from('Z'));
-    basic_word_chars.insert_range(u32::from('a'), u32::from('z'));
-    basic_word_chars.insert_range(u32::from('0'), u32::from('9'));
-    basic_word_chars.insert(u32::from('_'));
+    static BASIC_WORD_CHARS: LazyLock<CharSet> = LazyLock::new(|| {
+        let mut basic_word_chars = CharSet::default();
+        basic_word_chars.insert_range(u32::from('A'), u32::from('Z'));
+        basic_word_chars.insert_range(u32::from('a'), u32::from('z'));
+        basic_word_chars.insert_range(u32::from('0'), u32::from('9'));
+        basic_word_chars.insert(u32::from('_'));
+        basic_word_chars
+    });
 
-    if !(rer.has_either_unicode_flag() && rer.case == Case::Unimportant) {
-        return basic_word_chars;
+    static UNICODE_IGNORE_CASE_WORD_CHARS: LazyLock<CharSet> = LazyLock::new(|| {
+        let mut set = BASIC_WORD_CHARS.clone();
+
+        // In Unicode-aware ignore-case matching, word-character tests use
+        // Canonicalize before checking the ASCII word-character set. These
+        // non-ASCII code points case-fold to ASCII letters.
+        set.insert(0x017F); // LATIN SMALL LETTER LONG S -> "s"
+        set.insert(0x212A); // KELVIN SIGN -> "k"
+
+        set
+    });
+
+    if rer.has_either_unicode_flag() && rer.case == Case::Unimportant {
+        // This is the Unicode-ish + Case::Unimportant case
+        UNICODE_IGNORE_CASE_WORD_CHARS.clone()
+    } else {
+        BASIC_WORD_CHARS.clone()
     }
+}
 
-    todo!()
+fn is_word_char(rer: &RegExpRecord, input: &[u32], e: usize) -> bool {
+    // IsWordChar ( regexpRecord, input, e )
+    // The abstract operation IsWordChar takes arguments regexpRecord (a RegExp Record), input (a List of characters),
+    // and e (an integer) and returns a Boolean. It performs the following steps when called:
+    //
+    // 1. Let inputLength be the number of elements in input.
+    let input_length = input.len();
+    // 2. If e = -1 or e = inputLength, return false.
+    if e == input_length {
+        false
+    } else {
+        // 3. Let c be the character input[e].
+        let c = input[e];
+        // 4. If WordCharacters(regexpRecord) contains c, return true.
+        word_characters(rer).contains_char(c)
+        // 5. Return false.
+    }
 }
 
 fn maybe_simple_case_folding(rer: &RegExpRecord, a: CharSet) -> CharSet {
-    // MaybeSimpleCaseFolding ( rer, A )
-    //
-    // The abstract operation MaybeSimpleCaseFolding takes arguments rer (a RegExp Record) and A (a CharSet) and returns
-    // a CharSet. If rer.[[UnicodeSets]] is false or rer.[[IgnoreCase]] is false, it returns A. Otherwise, it uses the
-    // Simple Case Folding (scf(cp)) definitions in the file CaseFolding.txt of the Unicode Character Database (each of
-    // which maps a single code point to another single code point) to map each CharSetElement of A
-    // character-by-character into a canonical form and returns the resulting CharSet. It performs the following steps
-    // when called:
-    //
-    // 1. If rer.[[UnicodeSets]] is false or rer.[[IgnoreCase]] is false, return A.
-    // 2. Let B be a new empty CharSet.
-    // 3. For each CharSetElement s of A, do
-    //    a. Let t be an empty sequence of characters.
-    //    b. For each single code point cp in s, do
-    //       i. Append scf(cp) to t.
-    //    c. Add t to B.
-    // 4. Return B.
-    if rer.unicode_sets == UnicodeSetsMode::Denied || rer.case == Case::Significant { a } else { todo!() }
+    // Implements: 22.2.2.9.5 MaybeSimpleCaseFolding
+
+    // Simple case folding only applies to UnicodeSets regexps in ignore-case
+    // mode. In all other modes, the parsed set is used unchanged.
+    if rer.unicode_sets != UnicodeSetsMode::Allowed || rer.case == Case::Significant {
+        return a;
+    }
+
+    let mut folded = CharSet::default();
+
+    // In UnicodeSets mode, a CharSet element can be a sequence, not just a
+    // single code point. Fold each code point in the sequence independently,
+    // preserving the element's sequence length.
+    for element in a {
+        let folded_element = element.iter().map(casefold_simple).collect::<Vec<_>>();
+
+        // `insert_string` should normalize one-code-point sequences into the
+        // ordinary character ranges, while preserving empty and multi-code-point
+        // string elements for UnicodeSets matching.
+        folded.insert_string(folded_element);
+    }
+
+    folded
 }
 
 fn character_range(set_a: &CharSet, set_b: &CharSet) -> CharSet {
@@ -940,6 +1153,7 @@ fn character_range(set_a: &CharSet, set_b: &CharSet) -> CharSet {
         let (a, spare) = iter.next().expect("there should be at least one range");
         assert_eq!(a, spare, "the first item in the set should be one char");
         assert!(iter.next().is_none(), "there should be only one char in this set");
+        assert!(set.strings.is_empty(), "there should be no UnicodeSets collections in this set");
         a
     }
 
@@ -954,10 +1168,53 @@ fn character_range(set_a: &CharSet, set_b: &CharSet) -> CharSet {
     result
 }
 
+pub(crate) enum CharSetElement {
+    Single(u32),
+    Multiple(Vec<u32>),
+}
+impl CharSetElement {
+    pub(crate) fn iter(&self) -> CharSetElementIter<'_> {
+        match self {
+            Self::Single(ch) => CharSetElementIter::Single(Some(*ch)),
+            Self::Multiple(chars) => CharSetElementIter::Multiple(chars.iter().copied()),
+        }
+    }
+}
+
+pub(crate) enum CharSetElementIter<'a> {
+    Single(Option<u32>),
+    Multiple(std::iter::Copied<std::slice::Iter<'a, u32>>),
+}
+
+impl Iterator for CharSetElementIter<'_> {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Single(ch) => ch.take(),
+            Self::Multiple(iter) => iter.next(),
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a CharSetElement {
+    type Item = u32;
+    type IntoIter = CharSetElementIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub(crate) struct CharSet {
-    // start -> end, inclusive
+    // Inclusive ranges of single RegExp characters.
     ranges: BTreeMap<u32, u32>,
+
+    // Multi-character set elements used by UnicodeSets (/v). A single
+    // character may be represented either here as a one-element sequence or in
+    // `ranges`; prefer `ranges` for single characters.
+    strings: BTreeSet<Vec<u32>>,
 }
 
 impl From<char> for CharSet {
@@ -980,6 +1237,17 @@ impl From<u32> for CharSet {
 impl CharSet {
     fn contains(&self, x: u32) -> bool {
         self.ranges.range(..=x).next_back().is_some_and(|(&start, &end)| start <= x && x <= end)
+    }
+
+    pub(crate) fn contains_char(&self, ch: u32) -> bool {
+        self.contains(ch)
+    }
+
+    pub(crate) fn contains_string(&self, s: &[u32]) -> bool {
+        match s {
+            [ch] => self.contains(*ch),
+            _ => self.strings.contains(s),
+        }
     }
 
     fn insert(&mut self, x: u32) {
@@ -1013,6 +1281,16 @@ impl CharSet {
         }
 
         self.ranges.insert(start, end);
+    }
+
+    pub(crate) fn insert_string(&mut self, s: impl Into<Vec<u32>>) {
+        let s = s.into();
+
+        if let [ch] = s.as_slice() {
+            self.insert(*ch);
+        } else {
+            self.strings.insert(s);
+        }
     }
 
     fn remove(&mut self, x: u32) -> bool {
@@ -1114,8 +1392,8 @@ impl CharSet {
         Self::difference(&all, self)
     }
 
-    fn has_no_ranges(&self) -> bool {
-        self.ranges().filter(|(a, b)| *a != *b).count() == 0
+    fn all_single_or_empty(&self) -> bool {
+        self.strings.iter().all(|v| v.len() <= 1)
     }
 
     fn whitespace() -> Self {
@@ -1134,6 +1412,192 @@ impl CharSet {
         set.insert(0x3000);
         set
     }
+
+    pub(crate) fn iter(&self) -> CharSetIter<'_> {
+        CharSetIter { ranges: self.ranges.iter(), current: None, strings: self.strings.iter() }
+    }
+}
+
+pub(crate) struct CharSetIter<'a> {
+    ranges: std::collections::btree_map::Iter<'a, u32, u32>,
+    current: Option<(u32, u32)>,
+    strings: std::collections::btree_set::Iter<'a, Vec<u32>>,
+}
+
+impl Iterator for CharSetIter<'_> {
+    type Item = CharSetElement;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some((next, end)) = self.current {
+                if next <= end {
+                    self.current = next.checked_add(1).map(|next| (next, end));
+                    return Some(CharSetElement::Single(next));
+                }
+
+                self.current = None;
+            }
+
+            if let Some((&start, &end)) = self.ranges.next() {
+                self.current = Some((start, end));
+            } else {
+                return self.strings.next().map(|v| CharSetElement::Multiple(v.clone()));
+            }
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a CharSet {
+    type Item = CharSetElement;
+    type IntoIter = CharSetIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+pub(crate) struct CharSetIntoIter {
+    ranges: std::collections::btree_map::IntoIter<u32, u32>,
+    current: Option<(u32, u32)>,
+    strings: std::collections::btree_set::IntoIter<Vec<u32>>,
+}
+
+impl IntoIterator for CharSet {
+    type Item = CharSetElement;
+    type IntoIter = CharSetIntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        CharSetIntoIter { ranges: self.ranges.into_iter(), current: None, strings: self.strings.into_iter() }
+    }
+}
+
+impl Iterator for CharSetIntoIter {
+    type Item = CharSetElement;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some((next, end)) = self.current {
+                if next <= end {
+                    self.current = next.checked_add(1).map(|next| (next, end));
+                    return Some(CharSetElement::Single(next));
+                }
+
+                self.current = None;
+            }
+
+            if let Some((start, end)) = self.ranges.next() {
+                self.current = Some((start, end));
+            } else {
+                return self.strings.next().map(|v| CharSetElement::Multiple(v.clone()));
+            }
+        }
+    }
+}
+
+fn run_backreference_match(
+    state: MatchState,
+    continuation: &MatcherContinuation,
+    rer: &RegExpRecord,
+    backreferences: &[usize],
+    direction: Direction,
+) -> Option<MatchState> {
+    // a Matcher with parameters (x, c) that captures regexpRecord, ns, and direction and performs the following steps when called:
+    //    a. Assert: x is a MatchState.
+    //    b. Assert: c is a MatcherContinuation.
+    //    c. Let input be x.[[Input]].
+    let input = state.input;
+    //    d. Let cap be x.[[Captures]].
+    let captures = state.captures;
+    //    e. Let r be undefined.
+    let mut r = None;
+    //    f. For each integer n of ns, do
+    for &n in backreferences {
+        //       i. If cap[n] is not undefined, then
+        if let Some(cap) = &captures[n - 1] {
+            //          1. Assert: r is undefined.
+            //          2. Set r to cap[n].
+            r = Some(cap);
+            break;
+        }
+    }
+    //    h. Let endIndex be x.[[EndIndex]].
+    let end_index = state.end_index;
+    match r {
+        None => {
+            //    g. If r is undefined, return c(x).
+            continuation(MatchState { input, end_index, captures })
+        }
+        Some(r) => {
+            //    i. Let rs be r.[[StartIndex]].
+            let rs = r.start_index;
+            //    j. Let re be r.[[EndIndex]].
+            let re = r.end_index;
+            //    k. Let len be re - rs.
+            let len = re - rs;
+            //    l. If direction is forward, let f be endIndex + len.
+            //    m. Else, let f be endIndex - len.
+            let f = if direction == Direction::Forward {
+                end_index + len
+            } else {
+                if end_index < len {
+                    return None;
+                }
+                end_index - len
+            };
+            //    n. Let inputLength be the number of elements in input.
+            let input_length = input.len();
+            //    o. If f < 0 or f > inputLength, return failure.
+            if f > input_length {
+                return None;
+            }
+            //    p. Let g be min(endIndex, f).
+            let g = end_index.min(f);
+            //    q. If there exists an integer i in the interval from 0 (inclusive) to len (exclusive) such that
+            //    Canonicalize(regexpRecord, input[rs + i]) is not Canonicalize(regexpRecord, input[g + i]), return
+            //    failure.
+            if (0..len).any(|idx| rer.canonicalize(input[rs + idx]) != rer.canonicalize(input[g + idx])) {
+                return None;
+            }
+            //    r. Let y be the MatchState { [[Input]]: input, [[EndIndex]]: f, [[Captures]]: cap }.
+            let y = MatchState { input, end_index: f, captures };
+            //    s. Return c(y).
+            continuation(y)
+        }
+    }
+}
+
+fn backreference_matcher(rer: &RegExpRecord, backreferences: &[usize], direction: Direction) -> Matcher {
+    // BackreferenceMatcher ( regexpRecord, ns, direction )
+    // The abstract operation BackreferenceMatcher takes arguments regexpRecord (a RegExp Record), ns (a List of positive integers), and direction (forward or backward) and returns a Matcher. It performs the following steps when called:
+    //
+    // 1. Return a new Matcher with parameters (x, c) that captures regexpRecord, ns, and direction and performs the following steps when called:
+    //    a. Assert: x is a MatchState.
+    //    b. Assert: c is a MatcherContinuation.
+    //    c. Let input be x.[[Input]].
+    //    d. Let cap be x.[[Captures]].
+    //    e. Let r be undefined.
+    //    f. For each integer n of ns, do
+    //       i. If cap[n] is not undefined, then
+    //          1. Assert: r is undefined.
+    //          2. Set r to cap[n].
+    //    g. If r is undefined, return c(x).
+    //    h. Let endIndex be x.[[EndIndex]].
+    //    i. Let rs be r.[[StartIndex]].
+    //    j. Let re be r.[[EndIndex]].
+    //    k. Let len be re - rs.
+    //    l. If direction is forward, let f be endIndex + len.
+    //    m. Else, let f be endIndex - len.
+    //    n. Let inputLength be the number of elements in input.
+    //    o. If f < 0 or f > inputLength, return failure.
+    //    p. Let g be min(endIndex, f).
+    //    q. If there exists an integer i in the interval from 0 (inclusive) to len (exclusive) such that Canonicalize(regexpRecord, input[rs + i]) is not Canonicalize(regexpRecord, input[g + i]), return failure.
+    //    r. Let y be the MatchState { [[Input]]: input, [[EndIndex]]: f, [[Captures]]: cap }.
+    //    s. Return c(y).
+    let rer = rer.clone();
+    let backrefs = Vec::from(backreferences);
+    Rc::new(move |state, continuation| {
+        run_backreference_match(state, &continuation, &rer, backrefs.as_slice(), direction)
+    })
 }
 
 impl AtomEscape {
@@ -1144,7 +1608,16 @@ impl AtomEscape {
         // The syntax-directed operation CompileAtom takes arguments rer (a RegExp Record) and direction (forward or
         // backward) and returns a Matcher.
         match self {
-            AtomEscape::DecimalEscape(decimal_escape) => todo!(),
+            AtomEscape::DecimalEscape(decimal_escape) => {
+                // AtomEscape :: DecimalEscape
+                // 1. Let n be the CapturingGroupNumber of DecimalEscape.
+                let n = decimal_escape.capturing_group_number();
+                // 2. Assert: n ≤ regexpRecord.[[CapturingGroupsCount]].
+                // 3. Return BackreferenceMatcher(regexpRecord, « n », direction).
+                backreference_matcher(rer, &[n], direction)
+                // Note 3
+                // An escape sequence of the form \ followed by a non-zero decimal number n matches the result of the nth set of capturing parentheses (22.2.2.1). It is an error if the regular expression has fewer than n capturing parentheses. If the regular expression has n or more capturing parentheses but the nth one is undefined because it has not captured anything, then the backreference always succeeds.
+            }
             AtomEscape::CharacterClassEscape(character_class_escape) => {
                 // AtomEscape :: CharacterClassEscape
                 // 1. Let cs be CompileToCharSet of CharacterClassEscape with argument rer.
@@ -1169,7 +1642,7 @@ impl AtomEscape {
                 //    a. Set m2 to MatchTwoAlternatives(m1, m2).
                 // 10. Return m2.
                 let cs = character_class_escape.compile_to_char_set(rer);
-                if rer.unicode_sets == UnicodeSetsMode::Denied || cs.has_no_ranges() {
+                if rer.unicode_sets == UnicodeSetsMode::Denied || cs.all_single_or_empty() {
                     return character_set_matcher(rer, cs, false, direction);
                 }
                 todo!()
