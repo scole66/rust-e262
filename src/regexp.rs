@@ -83,6 +83,23 @@ pub(crate) fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let species_ppd = PotentialPropertyDescriptor::new().get(species_fcn).enumerable(false).configurable(true);
     define_property_or_throw(&regexp_constructor, species_sym, species_ppd).expect(GOODOBJ);
 
+    let regex_escape_fcn = create_builtin_function(
+        Box::new(regexp_escape),
+        None,
+        1.0,
+        "escape".into(),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(realm.clone()),
+        Some(function_prototype.clone()),
+        None,
+    );
+    define_property_or_throw(
+        &regexp_constructor,
+        "escape",
+        PotentialPropertyDescriptor::new().value(regex_escape_fcn).writable(true).configurable(true),
+    )
+    .expect(GOODOBJ);
+
     // RegExp.prototype.constructor
     // The initial value of RegExp.prototype.constructor is %RegExp%.
     let prototype_ppd = PotentialPropertyDescriptor::new()
@@ -625,8 +642,10 @@ impl Object {
             // b. Let inputIndex be the index into input of the character that was obtained from element lastIndex of S.
             let input_index = if last_index < map_len {
                 input_map[last_index]
-            } else {
+            } else if map_len > 0 {
                 input_map[map_len - 1] + last_index - map_len + 1
+            } else {
+                0
             };
             let result = matcher.as_ref()(&input, input_index);
             match result {
@@ -1081,6 +1100,191 @@ fn regexp_species(
     Ok(this_value.clone())
 }
 
+fn regexp_escape(
+    _this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    // Implements 22.2.5.1 RegExp.escape ( str )
+
+    let mut args = FuncArgs::from(arguments);
+    let strx = args.next_arg();
+
+    match strx {
+        ECMAScriptValue::String(strx) => {
+            let mut escaped = Vec::new();
+
+            // Escape by Unicode code point, while preserving any lone surrogate
+            // values that `JSString::to_code_points` reports.
+            let cp_list = strx.to_code_points();
+
+            for cp in cp_list {
+                if escaped.is_empty() && char::try_from(cp).is_ok_and(|cpch| cpch.is_ascii_alphanumeric()) {
+                    // A leading ASCII letter or digit is hex-escaped so the
+                    // result can be safely placed after escapes like `\0`,
+                    // `\1`, or `\c` without being parsed as part of them.
+                    let hex = format!("{cp:02x}");
+
+                    assert_eq!(hex.len(), 2);
+
+                    escaped.push(0x005C);
+                    escaped.push(u16::from(b'x'));
+
+                    for ch in hex.chars() {
+                        let val = u16::try_from(ch).expect("ASCII hex digit should fit in u16");
+                        escaped.push(val);
+                    }
+                } else {
+                    // All non-leading characters use the shared escaping rules
+                    // for regexp syntax characters, whitespace, line terminators,
+                    // surrogates, and ordinary literal code points.
+                    let appendage = encode_for_reg_exp_escape(cp);
+                    escaped.extend_from_slice(appendage.as_slice());
+                }
+            }
+
+            Ok(ECMAScriptValue::String(JSString::from(escaped)))
+        }
+
+        // Unlike most String/RegExp APIs, `RegExp.escape` does not stringify its
+        // argument. It only accepts an actual String value.
+        _ => Err(create_type_error("RegExp.escape must have a string valued argument")),
+    }
+}
+
+fn encode_for_reg_exp_escape(cp: u32) -> Vec<u16> {
+    // 22.2.5.1.1 EncodeForRegExpEscape ( cp )
+
+    const COMPLEX_ESCAPE: [u32; 36] = [
+        b',' as u32,
+        b'-' as u32,
+        b'=' as u32,
+        b'<' as u32,
+        b'>' as u32,
+        b'#' as u32,
+        b'&' as u32,
+        b'!' as u32,
+        b'%' as u32,
+        b':' as u32,
+        b';' as u32,
+        b'@' as u32,
+        b'~' as u32,
+        b'\'' as u32,
+        b'`' as u32,
+        b'"' as u32,
+        0x2028,
+        0x2029,
+        0xFEFF,
+        b' ' as u32,
+        0x00A0,
+        0x1680,
+        0x2000,
+        0x2001,
+        0x2002,
+        0x2003,
+        0x2004,
+        0x2005,
+        0x2006,
+        0x2007,
+        0x2008,
+        0x2009,
+        0x200a,
+        0x202f,
+        0x205f,
+        0x3000,
+    ];
+    const SIMPLE_ESCAPE: [u32; 15] = [
+        b'^' as u32,
+        b'$' as u32,
+        b'\\' as u32,
+        b'.' as u32,
+        b'*' as u32,
+        b'+' as u32,
+        b'?' as u32,
+        b'(' as u32,
+        b')' as u32,
+        b'[' as u32,
+        b']' as u32,
+        b'{' as u32,
+        b'}' as u32,
+        b'|' as u32,
+        b'/' as u32,
+    ];
+
+    if SIMPLE_ESCAPE.contains(&cp) {
+        // Syntax characters and `/` can be escaped with a simple leading
+        // backslash while still matching the same code point in a pattern.
+        let mut result = Vec::new();
+        result.push(u16::from(b'\\'));
+
+        let mut buf: [u16; 2] = [0, 0];
+        let encoded = utf16_encode_code_point(cp, &mut buf).expect("regexp syntax character should encode as UTF-16");
+
+        result.extend_from_slice(encoded);
+        return result;
+    }
+
+    // Prefer the short control escapes where ECMAScript defines them.
+    if cp == 0x09 {
+        return Vec::from([u16::from(b'\\'), u16::from(b't')]);
+    }
+    if cp == 0x0a {
+        return Vec::from([u16::from(b'\\'), u16::from(b'n')]);
+    }
+    if cp == 0x0b {
+        return Vec::from([u16::from(b'\\'), u16::from(b'v')]);
+    }
+    if cp == 0x0c {
+        return Vec::from([u16::from(b'\\'), u16::from(b'f')]);
+    }
+    if cp == 0x0d {
+        return Vec::from([u16::from(b'\\'), u16::from(b'r')]);
+    }
+
+    if COMPLEX_ESCAPE.contains(&cp) || (0xD800..=0xDFFF).contains(&cp) {
+        if cp <= 0xff {
+            // Other ASCII punctuators and small whitespace code points are
+            // escaped as two-digit hex escapes. This avoids forms that are
+            // invalid or context-sensitive under `/u` or `/v`.
+            let s = format!("\\x{cp:02x}");
+            return s.chars().map(|ch| u16::try_from(ch).expect("ASCII escape character should fit in u16")).collect();
+        }
+
+        // Larger whitespace, line separators, BOM, and surrogate code units are
+        // emitted as one or more `\uXXXX` escapes. Surrogates are escaped as
+        // code units because they are not Unicode scalar values.
+        let mut escaped = Vec::new();
+        let mut buf: [u16; 2] = [0; 2];
+        let code_units =
+            utf16_encode_code_point(cp, &mut buf).expect("regexp escape code point should encode as UTF-16");
+
+        for cu in code_units {
+            escaped.extend_from_slice(unicode_escape(*cu).as_slice());
+        }
+
+        return escaped;
+    }
+
+    // Ordinary code points can appear literally in the escaped pattern.
+    let mut buf: [u16; 2] = [0; 2];
+    let code_units = utf16_encode_code_point(cp, &mut buf).expect("regexp escape code point should encode as UTF-16");
+
+    Vec::from(code_units)
+}
+
+fn unicode_escape(ch: u16) -> Vec<u16> {
+    // Implements UnicodeEscape ( codeUnit )
+
+    // Format a single UTF-16 code unit as a lowercase `\uXXXX` escape.
+    //
+    // The input is already a `u16`, so the ECMAScript "code unit must be
+    // <= 0xFFFF" invariant is guaranteed by the type.
+    format!("\\u{ch:04x}")
+        .chars()
+        .map(|c| u16::try_from(c).expect("ASCII escape character should fit in u16"))
+        .collect::<Vec<_>>()
+}
+
 fn regexp_prototype_exec(
     this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
@@ -1141,11 +1345,81 @@ fn regexp_prototype_to_string(
 }
 
 fn regexp_prototype_match(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Implements 22.2.6.8 RegExp.prototype [ %Symbol.match% ] ( string )
+
+    match this_value {
+        ECMAScriptValue::Object(regexp) => {
+            let mut args = FuncArgs::from(arguments);
+            let string = args.next_arg();
+
+            // RegExp matching always operates on the string-converted argument.
+            let strx = to_string(string)?;
+
+            // Use the observable `flags` property so custom accessors can affect
+            // whether this runs the single-match or global-match path.
+            let flags = to_string(regexp.get(&"flags".into())?)?;
+
+            if flags.contains(u16::from(b'g')) {
+                // Global @@match returns only matched strings. Unicode-aware
+                // matching affects how empty matches advance lastIndex.
+                let full_unicode = flags.contains(u16::from(b'u')) || flags.contains(u16::from(b'v'));
+
+                // Global matching always starts from the beginning, regardless
+                // of the regexp's incoming lastIndex.
+                regexp.set("lastIndex", 0, true)?;
+
+                let array = array_create(0.0, None).expect("zero length arrays should not fail");
+                let mut match_count = 0;
+
+                loop {
+                    let result = reg_exp_exec(this_value, strx.clone())?;
+
+                    match result {
+                        None => {
+                            // No global matches produces null; otherwise return
+                            // the array of matched substrings collected so far.
+                            if match_count == 0 {
+                                break Ok(ECMAScriptValue::Null);
+                            }
+                            break Ok(ECMAScriptValue::Object(array));
+                        }
+
+                        Some(result) => {
+                            // Global @@match stores only result[0], not captures
+                            // or match metadata.
+                            let match_str = to_string(result.get(&"0".into())?)?;
+                            let was_empty = match_str.is_empty();
+
+                            array.create_data_property_or_throw(match_count, match_str).expect(GOODOBJ);
+
+                            if was_empty {
+                                // Empty matches do not advance lastIndex by
+                                // themselves. Force progress so global matching
+                                // cannot loop forever.
+                                let this_index = to_usize(to_length(regexp.get(&"lastIndex".into())?)?)
+                                    .expect(JS_INTEGER_USIZE_EXPECT);
+                                let next_index = advance_string_index(&strx, this_index, full_unicode);
+
+                                regexp.set("lastIndex", next_index, true)?;
+                            }
+
+                            match_count += 1;
+                        }
+                    }
+                }
+            } else {
+                // Non-global @@match is just one RegExpExec result, including
+                // captures, index, input, and named groups if present.
+                Ok(reg_exp_exec(this_value, strx)?.into())
+            }
+        }
+
+        _ => Err(create_type_error("RegExp.prototype[@@match] requires an object receiver")),
+    }
 }
 
 fn regexp_prototype_match_all(
@@ -1524,11 +1798,43 @@ fn regexp_prototype_multiline(
 }
 
 fn regexp_prototype_source(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    // Implements 22.2.6.13 get RegExp.prototype.source
+
+    match this_value {
+        ECMAScriptValue::Object(regexp) => {
+            match regexp.o.to_regexp_object() {
+                None => {
+                    // `%RegExp.prototype%` itself is allowed to report a source,
+                    // even though it is not a concrete RegExp instance.
+                    if this_value.same_value(&intrinsic(IntrinsicId::RegExpPrototype).into()) {
+                        Ok(JSString::from("(?:)").into())
+                    } else {
+                        // Other objects do not have the RegExp internal slots
+                        // needed to expose an original source.
+                        Err(create_type_error("RegExp.prototype.source receiver must be a RegExp object"))
+                    }
+                }
+                Some(regexp) => {
+                    // Concrete RegExp objects keep the constructor's original
+                    // source and flags. Escape the source only enough for it to
+                    // be safely embedded in `/source/flags`.
+                    let data = regexp.regexp_data.borrow();
+                    let src = &data.original_source;
+                    let flags = &data.original_flags;
+
+                    Ok(escape_regexp_pattern(src, flags).into())
+                }
+            }
+        }
+
+        // The accessor is intentionally not generic: primitives cannot be
+        // treated as RegExp objects.
+        _ => Err(create_type_error("RegExp.prototype.source receiver must be an object")),
+    }
 }
 
 fn regexp_prototype_sticky(
@@ -1628,6 +1934,53 @@ impl Object {
             Ok(to_boolean(matcher))
         }
     }
+}
+
+/// Escapes a compiled RegExp pattern for `RegExp.prototype.source`.
+///
+/// This is not `RegExp.escape`: it does not make arbitrary text safe to insert
+/// into a pattern. It preserves the compiled pattern's existing semantics while
+/// escaping only the pieces that would prevent `/{source}/{flags}` from being
+/// parsed as an equivalent regular expression literal.
+fn escape_regexp_pattern(pattern: &JSString, _flags: &JSString) -> JSString {
+    // Implements 22.2.6.13.1 EscapeRegExpPattern
+
+    if pattern.is_empty() {
+        return JSString::from("(?:)");
+    }
+
+    let mut out = Vec::with_capacity(pattern.len());
+
+    for &unit in pattern.as_slice() {
+        match unit {
+            0x002f => out.extend_from_slice(&[u16::from(b'\\'), u16::from(b'/')]),
+            0x000A => out.extend_from_slice(&[u16::from(b'\\'), u16::from(b'n')]),
+            0x000D => out.extend_from_slice(&[u16::from(b'\\'), u16::from(b'r')]),
+            0x2028 => {
+                out.extend_from_slice(&[
+                    u16::from(b'\\'),
+                    u16::from(b'u'),
+                    u16::from(b'2'),
+                    u16::from(b'0'),
+                    u16::from(b'2'),
+                    u16::from(b'8'),
+                ]);
+            }
+            0x2029 => {
+                out.extend_from_slice(&[
+                    u16::from(b'\\'),
+                    u16::from(b'u'),
+                    u16::from(b'2'),
+                    u16::from(b'0'),
+                    u16::from(b'2'),
+                    u16::from(b'9'),
+                ]);
+            }
+            _ => out.push(unit),
+        }
+    }
+
+    JSString::from(out)
 }
 
 mod casefold;

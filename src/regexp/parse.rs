@@ -1962,27 +1962,25 @@ impl Disjunction {
     }
 
     pub(crate) fn might_both_participate(&self, x: &GroupSpecifier, y: &GroupSpecifier) -> bool {
-        // Static Semantics: MightBothParticipate ( x, y )
-        //
-        // The abstract operation MightBothParticipate takes arguments x (a Parse Node) and y (a Parse Node) and returns
-        // a Boolean. It performs the following steps when called:
-        //
-        // 1. Assert: x and y have the same enclosing Pattern.
-        // 2. If the enclosing Pattern contains a Disjunction :: Alternative | Disjunction Parse Node such that either x
-        //    is contained within the Alternative and y is contained within the derived Disjunction, or x is contained
-        //    within the derived Disjunction and y is contained within the Alternative, return false.
-        // 3. Return true.
+        // Implements a portion of 22.2.1.4 Static Semantics: MightBothParticipate ( x, y )
 
-        // Note: due to the design of the AST, a given input node will reside in either one or none of the alternatives.
-        let alt_ids = self
-            .0
-            .iter()
-            .enumerate()
-            .filter_map(|(id, alt)| if alt.contains(x) || alt.contains(y) { Some(id) } else { None })
-            .collect::<Vec<_>>();
+        let x_alt = self.0.iter().position(|alt| alt.contains(x));
+        let y_alt = self.0.iter().position(|alt| alt.contains(y));
 
-        assert_eq!(alt_ids.len(), 2);
-        if alt_ids[0] == alt_ids[1] { self.0[alt_ids[0]].might_both_participate(x, y) } else { false }
+        match (x_alt, y_alt) {
+            // This disjunction separates the two groups into different alternatives,
+            // so they cannot both participate in the same match.
+            (Some(x_alt), Some(y_alt)) if x_alt != y_alt => false,
+
+            // Both groups are inside the same alternative. This disjunction does not
+            // separate them, so delegate to that alternative to inspect nested
+            // structure.
+            (Some(alt), Some(_)) => self.0[alt].might_both_participate(x, y),
+
+            // This disjunction does not contain both groups, so it cannot prove that
+            // they are mutually exclusive.
+            _ => true,
+        }
     }
 
     pub(crate) fn early_errors(
@@ -2414,9 +2412,9 @@ pub(crate) enum QuantifierPrefix {
     ZeroOrMore,
     OneOrMore,
     ZeroOrOne,
-    Exactly(u32),
-    XOrMore(u32),
-    Range(u32, u32),
+    Exactly(u64),
+    XOrMore(u64),
+    Range(u64, u64),
 }
 impl fmt::Display for QuantifierPrefix {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -2441,9 +2439,9 @@ impl QuantifierPrefix {
         } else if ch == u32::from('?') {
             Some((Self::ZeroOrOne, new_scanner.read_idx - scanner.read_idx))
         } else if ch == u32::from('{') {
-            let mut val = u32::from(new_scanner.digit(10)?);
+            let mut val = u64::from(new_scanner.digit(10)?);
             while let Some(v) = new_scanner.digit(10) {
-                val = val.checked_mul(10)?.checked_add(u32::from(v))?;
+                val = val.checked_mul(10)?.checked_add(u64::from(v))?;
             }
             let ch = new_scanner.consume_any()?;
             if ch == u32::from('}') {
@@ -2452,9 +2450,9 @@ impl QuantifierPrefix {
                 if let Some(()) = new_scanner.consume('}') {
                     Some((Self::XOrMore(val), new_scanner.read_idx - scanner.read_idx))
                 } else {
-                    let mut lim = u32::from(new_scanner.digit(10)?);
+                    let mut lim = u64::from(new_scanner.digit(10)?);
                     while let Some(v) = new_scanner.digit(10) {
-                        lim = lim.checked_mul(10)?.checked_add(u32::from(v))?;
+                        lim = lim.checked_mul(10)?.checked_add(u64::from(v))?;
                     }
                     new_scanner.consume('}')?;
                     Some((Self::Range(val, lim), new_scanner.read_idx - scanner.read_idx))
