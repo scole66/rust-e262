@@ -1274,7 +1274,7 @@ fn encode_for_reg_exp_escape(cp: u32) -> Vec<u16> {
 
 fn unicode_escape(ch: u16) -> Vec<u16> {
     // Implements UnicodeEscape ( codeUnit )
-    
+
     // Format a single UTF-16 code unit as a lowercase `\uXXXX` escape.
     //
     // The input is already a `u16`, so the ECMAScript "code unit must be
