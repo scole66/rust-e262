@@ -2739,6 +2739,12 @@ impl Atom {
             } else {
                 None
             };
+
+            // This is a capturing group, named or unnamed. Claim its capture slot before
+            // parsing the body so nested terms count the enclosing group as being to
+            // their left.
+            new_scanner.left_capturing_parens += 1;
+
             let (disj, amt) = Disjunction::parse(&new_scanner, unicode, sets, cgroups)?;
             new_scanner.update(&amt);
             new_scanner.consume(')')?;
@@ -2790,7 +2796,6 @@ impl Atom {
             ))
         } else if let Some((gs, disj, amt)) = grouped_disjunction(&new_scanner, unicode, sets, cgroups) {
             new_scanner.update(&amt);
-            new_scanner.left_capturing_parens += 1;
             Some((
                 Self {
                     node: AtomNode::GroupedDisjunction { group_specifier: gs, disjunction: Box::new(disj) },
