@@ -1,4 +1,3 @@
-#![expect(dead_code)]
 use crate::regexp::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::LazyLock;
@@ -751,7 +750,7 @@ impl Atom {
                 // 2. Let A be a one-element CharSet containing the character ch.
                 // 3. Return CharacterSetMatcher(rer, A, false, direction).
                 let a = CharSet::from(*ch);
-                character_set_matcher(rer, a, false, direction)
+                character_set_matcher(rer, &a, false, direction)
             }
             AtomNode::Dot => {
                 // Atom :: .
@@ -766,7 +765,7 @@ impl Atom {
                         a.remove(ch);
                     }
                 }
-                character_set_matcher(rer, a, false, direction)
+                character_set_matcher(rer, &a, false, direction)
             }
             AtomNode::AtomEscape(atom_escape) => atom_escape.compile_atom(rer, direction),
             AtomNode::CharacterClass(character_class) => {
@@ -778,7 +777,7 @@ impl Atom {
                 // 3. If rer.[[UnicodeSets]] is false, or if every CharSetElement of cs consists of a single character
                 //    (including if cs is empty), return CharacterSetMatcher(rer, cs, cc.[[Invert]], direction).
                 if rer.unicode_sets == UnicodeSetsMode::Denied || cs.all_single_or_empty() {
-                    return character_set_matcher(rer, cs, cc.invert, direction);
+                    return character_set_matcher(rer, &cs, cc.invert, direction);
                 }
                 // 4. Assert: cc.[[Invert]] is false.
                 // 5. Let lm be an empty List of Matchers.
@@ -987,8 +986,10 @@ impl CharacterClassEscape {
     }
 }
 
-fn character_set_matcher(rer: &RegExpRecord, set: CharSet, invert: bool, direction: Direction) -> Matcher {
+fn character_set_matcher(rer: &RegExpRecord, set: &CharSet, invert: bool, direction: Direction) -> Matcher {
+    let set = set.canonicalized_for_matching(rer);
     let rer = rer.clone();
+
     Rc::new(move |state, continuation| run_character_set_matcher(state, &continuation, &rer, &set, invert, direction))
 }
 
@@ -1243,6 +1244,7 @@ impl CharSet {
         self.contains(ch)
     }
 
+    #[expect(dead_code)]
     pub(crate) fn contains_string(&self, s: &[u32]) -> bool {
         match s {
             [ch] => self.contains(*ch),
@@ -1415,6 +1417,69 @@ impl CharSet {
 
     pub(crate) fn iter(&self) -> CharSetIter<'_> {
         CharSetIter { ranges: self.ranges.iter(), current: None, strings: self.strings.iter() }
+    }
+
+    pub(crate) fn canonicalized_for_matching(&self, rer: &RegExpRecord) -> Self {
+        if rer.case == Case::Significant {
+            return self.clone();
+        }
+
+        let mappings = if rer.has_either_unicode_flag() { SIMPLE_CASE_FOLD_RANGES } else { LEGACY_CANONICALIZE_RANGES };
+
+        let mut result = CharSet::default();
+
+        for (&first, &last) in &self.ranges {
+            result.add_canonicalized_range(first, last, mappings);
+        }
+
+        // If your CharSet has UnicodeSets string elements, fold those
+        // character-by-character too. Single-character strings may normalize
+        // into ordinary character ranges through `insert_string`.
+        for string in &self.strings {
+            result.insert_string(string.iter().map(|&ch| rer.canonicalize(ch)).collect::<Vec<_>>());
+        }
+
+        result
+    }
+
+    fn add_canonicalized_range(&mut self, first: u32, last: u32, mappings: &'static [CanonicalizeRange]) {
+        let mut cursor = first;
+
+        for mapping in mappings {
+            if mapping.last < cursor {
+                continue;
+            }
+
+            if mapping.first > last {
+                break;
+            }
+
+            let overlap_first = cursor.max(mapping.first);
+            let overlap_last = last.min(mapping.last);
+
+            if cursor < overlap_first {
+                // No canonicalization mapping applies in this gap, so these code
+                // points canonicalize to themselves.
+                self.insert_range(cursor, overlap_first - 1);
+            }
+
+            // This source subrange maps linearly to another subrange.
+            let mapped_first = mapping.map(overlap_first);
+            let mapped_last = mapping.map(overlap_last);
+
+            self.insert_range(mapped_first.min(mapped_last), mapped_first.max(mapped_last));
+
+            cursor = overlap_last.saturating_add(1);
+
+            if cursor > last {
+                return;
+            }
+        }
+
+        // Any remaining tail has no mapping and canonicalizes to itself.
+        if cursor <= last {
+            self.insert_range(cursor, last);
+        }
     }
 }
 
@@ -1643,7 +1708,7 @@ impl AtomEscape {
                 // 10. Return m2.
                 let cs = character_class_escape.compile_to_char_set(rer);
                 if rer.unicode_sets == UnicodeSetsMode::Denied || cs.all_single_or_empty() {
-                    return character_set_matcher(rer, cs, false, direction);
+                    return character_set_matcher(rer, &cs, false, direction);
                 }
                 todo!()
             }
@@ -1655,9 +1720,81 @@ impl AtomEscape {
                 // 4. Return CharacterSetMatcher(rer, A, false, direction).
                 let cv = character_escape.character_value();
                 let a = CharSet::from(cv);
-                character_set_matcher(rer, a, false, direction)
+                character_set_matcher(rer, &a, false, direction)
             }
             AtomEscape::GroupName(group_name) => todo!(),
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct CanonicalizeRange {
+    pub(crate) first: u32,
+    pub(crate) last: u32,
+    pub(crate) delta: i32,
+}
+
+impl CanonicalizeRange {
+    #[expect(dead_code)]
+    pub(crate) fn contains(self, ch: u32) -> bool {
+        self.first <= ch && ch <= self.last
+    }
+
+    pub(crate) fn map(self, ch: u32) -> u32 {
+        let abs = self.delta.unsigned_abs();
+        if self.delta >= 0 { ch + abs } else { ch - abs }
+    }
+}
+
+#[expect(dead_code)]
+pub(crate) fn compress_mappings(mut mappings: Vec<(u32, u32)>) -> Vec<CanonicalizeRange> {
+    mappings.sort_unstable();
+
+    let mut ranges: Vec<CanonicalizeRange> = Vec::new();
+
+    for (from, to) in mappings {
+        if from == to {
+            continue;
+        }
+
+        let delta = i64::from(to) - i64::from(from);
+        let delta = i32::try_from(delta).expect("case mapping delta should fit in i32");
+
+        match ranges.last_mut() {
+            Some(last)
+                if last.last + 1 == from
+                    && last.delta == delta
+                    && i64::from(last.last) + i64::from(last.delta) + 1 == i64::from(to) =>
+            {
+                last.last = from;
+            }
+            _ => ranges.push(CanonicalizeRange { first: from, last: from, delta }),
+        }
+    }
+
+    ranges
+}
+
+#[expect(dead_code)]
+pub(crate) fn legacy_canonicalize_for_table(ch: u32) -> u32 {
+    let Some(ch_as_char) = char::from_u32(ch) else {
+        return ch;
+    };
+
+    let upper = ch_as_char.to_uppercase().collect::<String>();
+    let upper = JSString::from(upper);
+
+    // Legacy RegExp canonicalization ignores mappings that expand to multiple
+    // UTF-16 code units.
+    let [cu] = upper.as_slice() else {
+        return ch;
+    };
+
+    // Legacy non-Unicode ignore-case must not map non-ASCII characters into
+    // ASCII. This is what keeps /[a-z]/i from matching ſ and K.
+    if ch >= 128 && *cu < 128 {
+        return ch;
+    }
+
+    u32::from(*cu)
 }
