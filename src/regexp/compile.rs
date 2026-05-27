@@ -1406,12 +1406,15 @@ impl CharSet {
         set.insert_range(11, 12); // <VT> & <FF>
         set.insert(0xfeff); // <ZWNBSP>
         set.insert(32); // <space>
-        set.insert(0xa0);
-        set.insert(0x1680);
+        set.insert(0xa0); // <NO-BREAK SPACE>
+        set.insert(0x1680); // <OGHAM SPACE MARK>
         set.insert_range(0x2000, 0x200a);
-        set.insert(0x202f);
-        set.insert(0x205f);
-        set.insert(0x3000);
+        set.insert(0x202f); // <NARROW NO-BREAK SPACE>
+        set.insert(0x205f); // <MEDIUM MATHEMATICAL SPACE>
+        set.insert(0x3000); // <IDEOGRAPHIC SPACE>
+        for ch in LINE_TERMINATORS {
+            set.insert(ch);
+        }
         set
     }
 
