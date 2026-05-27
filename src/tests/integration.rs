@@ -1416,6 +1416,7 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("const C = new Proxy(Array, {});const a = [1, 2, 3];a.constructor = C;a.map(x => 2 * x).join(', ')" => vok("2, 4, 6"); "proxy as callable")]
 // 2026/05/23 regex group counting
 #[test_case("/(z)((a+)?(b+)?(c))*/.exec('zaacbbbcac').join(', ')" => vok("zaacbbbcac, z, ac, a, , c"); "regexp: capturing group counting")]
+#[test_case("/o/i.test('O')" => vok(true); "regexp: case-insignificant; lower to upper")]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

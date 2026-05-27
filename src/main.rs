@@ -118,6 +118,16 @@ impl VM {
 }
 
 fn interpret(source: &str) -> Result<i32, String> {
+    // print_table(
+    //     "LEGACY_CANONICALIZE_RANGES",
+    //     &generate_legacy_canonicalize_ranges(),
+    // );
+
+    // print_table(
+    //     "SIMPLE_CASE_FOLD_RANGES",
+    //     &generate_simple_casefold_ranges(),
+    // );
+
     let parsed = parse_text(source, ParseGoal::Script, false, false);
     match parsed {
         ParsedText::Errors(errs) => {

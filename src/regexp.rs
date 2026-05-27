@@ -1987,5 +1987,36 @@ mod casefold;
 mod compile;
 pub(crate) mod parse;
 
+// pub(crate) fn generate_legacy_canonicalize_ranges() -> Vec<CanonicalizeRange> {
+//     let mappings = (0..=0x10_FFFF)
+//         .filter(|&ch| !(0xD800..=0xDFFF).contains(&ch))
+//         .map(|ch| (ch, legacy_canonicalize_for_table(ch)))
+//         .filter(|(from, to)| from != to)
+//         .collect::<Vec<_>>();
+
+//     compress_mappings(mappings)
+// }
+
+// pub(crate) fn generate_simple_casefold_ranges() -> Vec<CanonicalizeRange> {
+//     let mappings = (0..=0x10_FFFF)
+//         .filter(|&ch| !(0xD800..=0xDFFF).contains(&ch))
+//         .map(|ch| (ch, casefold_simple(ch)))
+//         .filter(|(from, to)| from != to)
+//         .collect::<Vec<_>>();
+
+//     compress_mappings(mappings)
+// }
+
+// pub(crate) fn print_table(name: &str, ranges: &[CanonicalizeRange]) {
+//     println!("static {name}: &[CanonicalizeRange] = &[");
+//     for range in ranges {
+//         println!(
+//             "    CanonicalizeRange {{ first: 0x{:04X}, last: 0x{:04X}, delta: {} }},",
+//             range.first, range.last, range.delta
+//         );
+//     }
+//     println!("];");
+// }
+
 #[cfg(test)]
 mod tests;
