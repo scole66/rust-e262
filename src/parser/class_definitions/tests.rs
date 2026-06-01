@@ -1613,7 +1613,7 @@ mod class_static_block {
     #[test_case("", "‘static’ expected", 1; "Empty Source")]
     #[test_case("static", "‘{’ expected", 7; "Missing Leading Brace")]
     #[test_case("static {", "‘}’ expected", 9; "Missing Trailing Brace")]
-    fn err(src: &str, expected_error: &str, err_column: u32) {
+    fn err(src: &str, expected_error: &str, err_column: usize) {
         check_err(ClassStaticBlock::parse(&mut newparser(src), Scanner::new()), expected_error, 1, err_column);
     }
     #[test]

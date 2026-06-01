@@ -1748,12 +1748,12 @@ impl ArrayBindingPattern {
 //      ... BindingIdentifier[?Yield, ?Await]
 #[derive(Debug)]
 pub(crate) enum BindingRestProperty {
-    Id(Rc<BindingIdentifier>),
+    Id(Rc<BindingIdentifier>, Location),
 }
 
 impl fmt::Display for BindingRestProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let BindingRestProperty::Id(node) = self;
+        let BindingRestProperty::Id(node, _) = self;
         write!(f, "... {node}")
     }
 }
@@ -1765,7 +1765,7 @@ impl PrettyPrint for BindingRestProperty {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}BindingRestProperty: {self}")?;
-        let BindingRestProperty::Id(node) = self;
+        let BindingRestProperty::Id(node, _) = self;
         node.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
 
@@ -1776,7 +1776,7 @@ impl PrettyPrint for BindingRestProperty {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}BindingRestProperty: {self}")?;
         pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        let BindingRestProperty::Id(node) = self;
+        let BindingRestProperty::Id(node, _) = self;
         node.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
@@ -1784,8 +1784,14 @@ impl PrettyPrint for BindingRestProperty {
 impl BindingRestProperty {
     fn parse_core(parser: &mut Parser, scanner: Scanner, yield_flag: bool, await_flag: bool) -> ParseResult<Self> {
         scan_for_punct(scanner, parser.source, InputElementGoal::RegExp, Punctuator::Ellipsis)
-            .and_then(|(_, after_dots)| BindingIdentifier::parse(parser, after_dots, yield_flag, await_flag))
-            .map(|(id, after_id)| (Rc::new(BindingRestProperty::Id(id)), after_id))
+            .and_then(|(dots_loc, after_dots)| {
+                BindingIdentifier::parse(parser, after_dots, yield_flag, await_flag)
+                    .map(|(id, scan)| (dots_loc, id, scan))
+            })
+            .map(|(dots_loc, id, after_id)| {
+                let loc = dots_loc.merge(&id.location());
+                (Rc::new(BindingRestProperty::Id(id, loc)), after_id)
+            })
     }
 
     pub(crate) fn parse(
@@ -1806,13 +1812,18 @@ impl BindingRestProperty {
     }
 
     pub(crate) fn bound_names(&self) -> Vec<JSString> {
-        let BindingRestProperty::Id(node) = self;
+        let BindingRestProperty::Id(node, _) = self;
         node.bound_names()
     }
 
     pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
-        let BindingRestProperty::Id(node) = self;
+        let BindingRestProperty::Id(node, _) = self;
         node.early_errors(errs, strict);
+    }
+
+    pub(crate) fn location(&self) -> Location {
+        let BindingRestProperty::Id(_, loc) = self;
+        *loc
     }
 }
 
@@ -1965,6 +1976,13 @@ impl BindingPropertyList {
             BindingPropertyList::List(binding_property_list, binding_property) => binding_property_list
                 .body_containing_location(location)
                 .or_else(|| binding_property.body_containing_location(location)),
+        }
+    }
+
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            BindingPropertyList::Item(node) => node.location(),
+            BindingPropertyList::List(left, right) => left.location().merge(&right.location()),
         }
     }
 }
@@ -2126,6 +2144,13 @@ impl BindingElementList {
             }
         }
     }
+
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            BindingElementList::Item(node) => node.location(),
+            BindingElementList::List(left, right) => left.location().merge(&right.location()),
+        }
+    }
 }
 
 // BindingElisionElement[Yield, Await] :
@@ -2247,6 +2272,13 @@ impl BindingElisionElement {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         let BindingElisionElement::Element(_, be) = self;
         be.body_containing_location(location)
+    }
+
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            BindingElisionElement::Element(Some(left), right) => left.location().merge(&right.location()),
+            BindingElisionElement::Element(None, node) => node.location(),
+        }
     }
 }
 
@@ -2396,6 +2428,13 @@ impl BindingProperty {
             BindingProperty::Property(property_name, binding_element) => property_name
                 .body_containing_location(location)
                 .or_else(|| binding_element.body_containing_location(location)),
+        }
+    }
+
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            BindingProperty::Single(node) => node.location(),
+            BindingProperty::Property(left, right) => left.location().merge(&right.location()),
         }
     }
 }

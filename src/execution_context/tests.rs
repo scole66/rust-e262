@@ -6,7 +6,7 @@ use test_case::test_case;
 impl ScriptRecord {
     pub(crate) fn new_empty(realm: Rc<RefCell<Realm>>) -> Self {
         let script = Maker::new("").script();
-        ScriptRecord { realm, ecmascript_code: script, compiled: Rc::new(Chunk::new("empty")), text: String::new() }
+        ScriptRecord { realm, ecmascript_code: script, compiled: Rc::new(Chunk::new("empty", 1)), text: String::new() }
     }
 }
 

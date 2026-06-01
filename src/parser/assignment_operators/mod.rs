@@ -1210,11 +1210,14 @@ impl ArrayAssignmentPattern {
 // AssignmentRestProperty[Yield, Await] :
 //      ... DestructuringAssignmentTarget[?Yield, ?Await]
 #[derive(Debug)]
-pub(crate) struct AssignmentRestProperty(pub(crate) Rc<DestructuringAssignmentTarget>);
+pub(crate) struct AssignmentRestProperty {
+    pub(crate) dat: Rc<DestructuringAssignmentTarget>,
+    location: Location,
+}
 
 impl fmt::Display for AssignmentRestProperty {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "... {}", self.0)
+        write!(f, "... {}", self.dat)
     }
 }
 
@@ -1225,7 +1228,7 @@ impl PrettyPrint for AssignmentRestProperty {
     {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}AssignmentRestProperty: {self}")?;
-        self.0.pprint_with_leftpad(writer, &successive, Spot::Final)
+        self.dat.pprint_with_leftpad(writer, &successive, Spot::Final)
     }
     fn concise_with_leftpad<T>(&self, writer: &mut T, pad: &str, state: Spot) -> IoResult<()>
     where
@@ -1234,7 +1237,7 @@ impl PrettyPrint for AssignmentRestProperty {
         let (first, successive) = prettypad(pad, state);
         writeln!(writer, "{first}AssignmentRestProperty: {self}")?;
         pprint_token(writer, "...", TokenType::Punctuator, &successive, Spot::NotFinal)?;
-        self.0.concise_with_leftpad(writer, &successive, Spot::Final)
+        self.dat.concise_with_leftpad(writer, &successive, Spot::Final)
     }
 }
 
@@ -1245,13 +1248,15 @@ impl AssignmentRestProperty {
         yield_flag: bool,
         await_flag: bool,
     ) -> ParseResult<Self> {
-        let (_, after_dots) = scan_for_punct(scanner, parser.source, InputElementGoal::Div, Punctuator::Ellipsis)?;
+        let (dots_loc, after_dots) =
+            scan_for_punct(scanner, parser.source, InputElementGoal::Div, Punctuator::Ellipsis)?;
         let (dat, after_dat) = DestructuringAssignmentTarget::parse(parser, after_dots, yield_flag, await_flag)?;
-        Ok((Rc::new(AssignmentRestProperty(dat)), after_dat))
+        let location = dots_loc.merge(&dat.location());
+        Ok((Rc::new(AssignmentRestProperty { dat, location }), after_dat))
     }
 
     pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
-        self.0.contains(kind)
+        self.dat.contains(kind)
     }
 
     pub(crate) fn all_private_identifiers_valid(&self, names: &[JSString]) -> bool {
@@ -1261,7 +1266,7 @@ impl AssignmentRestProperty {
         //      a. If child is an instance of a nonterminal, then
         //          i. If AllPrivateIdentifiersValid of child with argument names is false, return false.
         //  2. Return true.
-        self.0.all_private_identifiers_valid(names)
+        self.dat.all_private_identifiers_valid(names)
     }
 
     /// Returns `true` if any subexpression starting from here (but not crossing function boundaries) contains an
@@ -1275,26 +1280,30 @@ impl AssignmentRestProperty {
         //      a. If child is an instance of a nonterminal, then
         //          i. If ContainsArguments of child is true, return true.
         //  2. Return false.
-        self.0.contains_arguments()
+        self.dat.contains_arguments()
     }
 
     pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool) {
         // Static Semantics: Early Errors
         // AssignmentRestProperty : ... DestructuringAssignmentTarget
         //  * It is a Syntax Error if DestructuringAssignmentTarget is an ArrayLiteral or an ObjectLiteral.
-        if let DestructuringAssignmentTarget::AssignmentPattern(pat) = &*self.0 {
+        if let DestructuringAssignmentTarget::AssignmentPattern(pat) = &*self.dat {
             // e.g.: ({...{a}}=b)
             errs.push(create_syntax_error_object(
                 "`...` must be followed by an assignable reference in assignment contexts",
                 Some(pat.location()),
             ));
         }
-        self.0.early_errors(errs, strict);
+        self.dat.early_errors(errs, strict);
     }
 
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
-        if self.0.location().contains(location) { self.0.body_containing_location(location) } else { None }
+        if self.dat.location().contains(location) { self.dat.body_containing_location(location) } else { None }
+    }
+
+    pub(crate) fn location(&self) -> Location {
+        self.location
     }
 }
 
@@ -1426,6 +1435,13 @@ impl AssignmentPropertyList {
             AssignmentPropertyList::List(list, item) => {
                 list.body_containing_location(location).or_else(|| item.body_containing_location(location))
             }
+        }
+    }
+
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            AssignmentPropertyList::Item(node) => node.location(),
+            AssignmentPropertyList::List(left, right) => left.location().merge(&right.location()),
         }
     }
 }
@@ -1846,6 +1862,14 @@ impl AssignmentProperty {
             AssignmentProperty::Property(pn, elem) => {
                 pn.body_containing_location(location).or_else(|| elem.body_containing_location(location))
             }
+        }
+    }
+
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            AssignmentProperty::Ident(left, Some(right)) => left.location().merge(&right.location()),
+            AssignmentProperty::Ident(left, None) => left.location(),
+            AssignmentProperty::Property(left, right) => left.location().merge(&right.location()),
         }
     }
 }

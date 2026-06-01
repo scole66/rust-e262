@@ -644,6 +644,17 @@ impl DeclPart {
             DeclPart::Lexical(ld) => ld.bound_names(),
         }
     }
+
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            DeclPart::Function(node) => node.location(),
+            DeclPart::Generator(node) => node.location(),
+            DeclPart::AsyncFunction(node) => node.location(),
+            DeclPart::AsyncGenerator(node) => node.location(),
+            DeclPart::Class(node) => node.location(),
+            DeclPart::Lexical(node) => node.location(),
+        }
+    }
 }
 
 impl Declaration {

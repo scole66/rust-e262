@@ -713,6 +713,26 @@ impl TryFrom<FunctionSource> for Rc<MethodDefinition> {
     }
 }
 
+impl FunctionSource {
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            FunctionSource::FunctionExpression(node) => node.location(),
+            FunctionSource::GeneratorExpression(node) => node.location(),
+            #[cfg(test)]
+            FunctionSource::AsyncGeneratorExpression(node) => node.location(),
+            #[cfg(test)]
+            FunctionSource::AsyncFunctionExpression(node) => node.location(),
+            FunctionSource::ArrowFunction(node) => node.location(),
+            FunctionSource::MethodDefinition(node) => node.location(),
+            FunctionSource::FieldDefinition(node) => node.location(),
+            FunctionSource::ClassStaticBlock(node) => node.location(),
+            FunctionSource::FunctionDeclaration(node) => node.location(),
+            FunctionSource::GeneratorDeclaration(node) => node.location(),
+            FunctionSource::GeneratorMethod(node) => node.location(),
+        }
+    }
+}
+
 pub(crate) struct FunctionObjectData {
     pub(crate) environment: Rc<dyn EnvironmentRecord>,
     private_environment: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
@@ -1854,7 +1874,7 @@ impl FunctionDeclaration {
         let params = ParamSource::from(Rc::clone(&self.params));
         let body = BodySource::from(Rc::clone(&self.body));
         let chunk_name = nameify(&source_text, 50);
-        let mut compiled = Chunk::new(chunk_name);
+        let mut compiled = Chunk::new(chunk_name, self.location().starting_line);
         let function_data = StashedFunctionData {
             source_text,
             params,
@@ -1868,7 +1888,7 @@ impl FunctionDeclaration {
             let typeerror = create_type_error(err.to_string());
             return Err(typeerror);
         }
-        for line in compiled.disassemble() {
+        for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
@@ -1940,7 +1960,7 @@ impl GeneratorDeclaration {
         let params = ParamSource::from(Rc::clone(&self.params));
         let body = BodySource::from(Rc::clone(&self.body));
         let chunk_name = nameify(&source_text, 50);
-        let mut compiled = Chunk::new(chunk_name);
+        let mut compiled = Chunk::new(chunk_name, self.location().starting_line);
         let function_data = StashedFunctionData {
             source_text,
             params,
@@ -1954,7 +1974,7 @@ impl GeneratorDeclaration {
             let typeerror = create_type_error(err.to_string());
             return Err(typeerror);
         }
-        for line in compiled.disassemble() {
+        for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
@@ -2446,7 +2466,7 @@ pub(crate) fn create_dynamic_function(
     let env = current_realm.borrow().global_env.clone().expect("There should be a global environment");
 
     let chunk_name = nameify(&source_text, 50);
-    let mut compiled = Chunk::new(chunk_name);
+    let mut compiled = Chunk::new(chunk_name, function_source.location().starting_line);
     let function_data = StashedFunctionData {
         source_text: source_text.clone(),
         params: ParamSource::from(parameters.clone()),
@@ -2461,7 +2481,7 @@ pub(crate) fn create_dynamic_function(
         ParsedBody::Function(fb) => fb.compile_body(&mut compiled, &source_tree, &function_data),
         ParsedBody::Generator(gb) => gb.evaluate_generator_body(&mut compiled, &source_tree, &function_data),
         ParsedBody::AsyncFunction(_) | ParsedBody::AsyncGenerator(_) => {
-            compiled.op(Insn::ToDo);
+            compiled.op(Insn::ToDo, 1);
             Ok(AbruptResult::Never)
         }
     };
@@ -2469,7 +2489,7 @@ pub(crate) fn create_dynamic_function(
         let typeerror = create_type_error(err.to_string());
         return Err(typeerror);
     }
-    for line in compiled.disassemble() {
+    for line in compiled.disassemble(&source_tree.text) {
         println!("{line}");
     }
 

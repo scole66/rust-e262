@@ -248,7 +248,7 @@ fn function_prototype_call(
             vec![],
             None,
             false,
-            Rc::new(Chunk::new("tester")),
+            Rc::new(Chunk::new("tester", 1)),
         )
     }
     => sok("function(a, b, c) { return a+b+c; }");
@@ -295,7 +295,7 @@ fn function_prototype_call(
             vec![],
             None,
             false,
-            Rc::new(Chunk::new("tester")),
+            Rc::new(Chunk::new("tester", 1)),
         );
         BoundFunctionObject::create(func, ECMAScriptValue::Undefined, &[]).unwrap()
     }
@@ -1006,7 +1006,7 @@ fn make_working_function_object() -> Object {
     let realm = current_realm_record().unwrap();
     let proto = intrinsic(IntrinsicId::FunctionPrototype);
     let chunk_name = nameify(&source_text, 50);
-    let mut compiled = Chunk::new(chunk_name);
+    let mut compiled = Chunk::new(chunk_name, 1);
     let function_data = StashedFunctionData {
         source_text: source_text.clone(),
         params: params.clone(),
@@ -1016,7 +1016,7 @@ fn make_working_function_object() -> Object {
         this_mode: ThisLexicality::NonLexicalThis,
     };
     function_declaration.body.compile_body(&mut compiled, &ast, &function_data).unwrap();
-    for line in compiled.disassemble() {
+    for line in compiled.disassemble(&ast.text) {
         println!("{line}");
     }
 
@@ -1060,7 +1060,7 @@ fn make_strict_function_object() -> Object {
     let realm = current_realm_record().unwrap();
     let proto = intrinsic(IntrinsicId::FunctionPrototype);
     let chunk_name = nameify(&source_text, 50);
-    let mut compiled = Chunk::new(chunk_name);
+    let mut compiled = Chunk::new(chunk_name, 1);
     let function_data = StashedFunctionData {
         source_text: source_text.clone(),
         params: params.clone(),
@@ -1070,7 +1070,7 @@ fn make_strict_function_object() -> Object {
         this_mode: ThisLexicality::NonLexicalThis,
     };
     function_declaration.body.compile_body(&mut compiled, &ast, &function_data).unwrap();
-    for line in compiled.disassemble() {
+    for line in compiled.disassemble(&ast.text) {
         println!("{line}");
     }
 
@@ -1109,7 +1109,7 @@ fn make_arrow_function_object() -> Object {
     let realm = current_realm_record().unwrap();
     let proto = intrinsic(IntrinsicId::FunctionPrototype);
     let chunk_name = nameify(&source_text, 50);
-    let mut compiled = Chunk::new(chunk_name);
+    let mut compiled = Chunk::new(chunk_name, 1);
     let function_data = StashedFunctionData {
         source_text: source_text.clone(),
         params: params.clone(),
@@ -1119,7 +1119,7 @@ fn make_arrow_function_object() -> Object {
         this_mode: ThisLexicality::LexicalThis,
     };
     function_declaration.body.compile_body(&mut compiled, &ast, &function_data).unwrap();
-    for line in compiled.disassemble() {
+    for line in compiled.disassemble(&ast.text) {
         println!("{line}");
     }
 
@@ -1175,7 +1175,7 @@ mod function_object {
             vec![],
             None,
             false,
-            Rc::new(Chunk::new("tester")),
+            Rc::new(Chunk::new("tester", 1)),
         )
     }
 

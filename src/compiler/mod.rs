@@ -934,8 +934,9 @@ impl IdentifierReference {
             IdentifierReference::Yield { .. } => "yield".into(),
             IdentifierReference::Await { .. } => "await".into(),
         })?;
-        chunk.op_plus_arg(Insn::String, string_id);
-        chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+        let line = self.location().starting_line;
+        chunk.op_plus_arg(Insn::String, string_id, line);
+        chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
         Ok(AlwaysAbruptRefResult)
     }
 }
@@ -952,6 +953,7 @@ impl PrimaryExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         match self {
             PrimaryExpression::IdentifierReference { node: id } => {
                 id.compile(chunk, strict).map(CompilerStatusFlags::from)
@@ -960,7 +962,7 @@ impl PrimaryExpression {
                 // Runtime Semantics: Evaluation
                 //  PrimaryExpression : this
                 //      1. Return ? ResolveThisBinding().
-                chunk.op(Insn::This);
+                chunk.op(Insn::This, line);
                 Ok(CompilerStatusFlags::new().abrupt(true))
             }
             PrimaryExpression::Literal { node: lit } => lit.compile(chunk).map(CompilerStatusFlags::from),
@@ -982,7 +984,7 @@ impl PrimaryExpression {
             PrimaryExpression::RegularExpression { regex, location } => {
                 let pattern_idx = chunk.add_to_string_pool(regex.body.clone().into())?;
                 let flags_idx = chunk.add_to_string_pool(regex.flags.clone().into())?;
-                chunk.op_plus_two_args(Insn::RegExpCreate, pattern_idx, flags_idx);
+                chunk.op_plus_two_args(Insn::RegExpCreate, pattern_idx, flags_idx, line);
                 Ok(CompilerStatusFlags::from(AbruptResult::Never))
             }
         }
@@ -990,57 +992,57 @@ impl PrimaryExpression {
 }
 
 #[cfg(test)]
-fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) -> anyhow::Result<NeverAbruptRefResult> {
+fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind, line: usize) -> anyhow::Result<NeverAbruptRefResult> {
     match *ch {
         DebugKind::Char('@') => {
             // Break future jumps (by adding enough instructions that the offsets don't fit in an i16)
             for _ in 0..32768 {
-                chunk.op(Insn::Nop);
+                chunk.op(Insn::Nop, line);
             }
-            chunk.op(Insn::False);
+            chunk.op(Insn::False, line);
         }
         DebugKind::Char('3') => {
             // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
             for _ in 0..32768 - 3 {
-                chunk.op(Insn::Nop);
+                chunk.op(Insn::Nop, line);
             }
-            chunk.op(Insn::False);
+            chunk.op(Insn::False, line);
         }
         DebugKind::Char('4') => {
             // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
             for _ in 0..32768 - 4 {
-                chunk.op(Insn::Nop);
+                chunk.op(Insn::Nop, line);
             }
-            chunk.op(Insn::False);
+            chunk.op(Insn::False, line);
         }
         DebugKind::Char('9') => {
             // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
             for _ in 0..32768 - 50 {
-                chunk.op(Insn::Nop);
+                chunk.op(Insn::Nop, line);
             }
-            chunk.op(Insn::False);
+            chunk.op(Insn::False, line);
         }
         DebugKind::Number(num) => {
             // Break some future jumps (by adding enough instructions that the larger offsets don't fit in an i16)
             for _ in 0..32768 - num {
-                chunk.op(Insn::Nop);
+                chunk.op(Insn::Nop, line);
             }
-            chunk.op(Insn::False);
+            chunk.op(Insn::False, line);
         }
         DebugKind::Char('!') => {
             // Fill the string table.
             chunk.strings.resize(65536, JSString::from("not to be used from integration tests"));
-            chunk.op(Insn::False);
+            chunk.op(Insn::False, line);
         }
         DebugKind::Char('#') => {
             // Fill the float table.
             chunk.floats.resize(65536, 10.1);
-            chunk.op(Insn::False);
+            chunk.op(Insn::False, line);
         }
         DebugKind::Char('$') => {
             // Fill the bigint table.
             chunk.bigints.resize(65536, Rc::new(BigInt::from(97_687_897_890_734_187_890_106_587_314_876_543_219_u128)));
-            chunk.op(Insn::False);
+            chunk.op(Insn::False, line);
         }
         DebugKind::Char('~') => {
             // Be a compiler error
@@ -1052,7 +1054,7 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind) -> anyhow::Result<NeverA
 }
 #[cfg(not(test))]
 #[expect(clippy::unnecessary_wraps)]
-fn compile_debug_lit(_: &mut Chunk, _: &DebugKind) -> anyhow::Result<NeverAbruptRefResult> {
+fn compile_debug_lit(_: &mut Chunk, _: &DebugKind, _line: usize) -> anyhow::Result<NeverAbruptRefResult> {
     Ok(NeverAbruptRefResult)
 }
 
@@ -1061,23 +1063,24 @@ impl Literal {
     ///
     /// See [Evaluation for Literal](https://tc39.es/ecma262/#sec-literals-runtime-semantics-evaluation) from ECMA-262.
     pub(crate) fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+        let line = self.location().starting_line;
         match self {
             Literal::Null { .. } => {
                 // Literal : NullLiteral
                 //  1. Return null.
-                chunk.op(Insn::Null);
+                chunk.op(Insn::Null, line);
             }
             Literal::Boolean { val: is_true, .. } => {
                 // Literal : BooleanLiteral
                 //  1. If BooleanLiteral is the token false, return false.
                 //  2. If BooleanLiteral is the token true, return true.
-                chunk.op(if *is_true { Insn::True } else { Insn::False });
+                chunk.op(if *is_true { Insn::True } else { Insn::False }, line);
             }
             Literal::String { val: s, .. } => {
                 // Literal : StringLiteral
                 //  1. Return the SV of StringLiteral as defined in [12.8.4.2](https://tc39.es/ecma262/#sec-static-semantics-sv).
                 let idx = chunk.add_to_string_pool(s.value.clone())?;
-                chunk.op_plus_arg(Insn::String, idx);
+                chunk.op_plus_arg(Insn::String, idx, line);
             }
             Literal::Numeric { val: numeric, .. } => {
                 // Literal : NumericLiteral
@@ -1085,16 +1088,16 @@ impl Literal {
                 match numeric {
                     Numeric::Number(n) => {
                         let idx = chunk.add_to_float_pool(*n)?;
-                        chunk.op_plus_arg(Insn::Float, idx);
+                        chunk.op_plus_arg(Insn::Float, idx, line);
                     }
                     Numeric::BigInt(bi) => {
                         let idx = chunk.add_to_bigint_pool(bi.clone())?;
-                        chunk.op_plus_arg(Insn::Bigint, idx);
+                        chunk.op_plus_arg(Insn::Bigint, idx, line);
                     }
                 }
             }
             Literal::Debug { val: ch, .. } => {
-                compile_debug_lit(chunk, ch)?;
+                compile_debug_lit(chunk, ch, line)?;
             }
         }
         Ok(NeverAbruptRefResult)
@@ -1146,34 +1149,35 @@ impl Elisions {
         let count = self.count as f64; // loss of accuracy for large values.
         let count_index = chunk.add_to_float_pool(count)?;
         let length_index = chunk.add_to_string_pool(JSString::from("length"))?;
+        let line = self.location().starting_line;
 
         // stack: next_index array
-        chunk.op_plus_arg(Insn::Float, count_index);
+        chunk.op_plus_arg(Insn::Float, count_index, line);
         // stack: count next_index array
-        chunk.op(Insn::Add);
+        chunk.op(Insn::Add, line);
         // stack: next_index array
-        chunk.op(Insn::Swap);
+        chunk.op(Insn::Swap, line);
         // stack: array next_index
-        chunk.op(Insn::Dup);
+        chunk.op(Insn::Dup, line);
         // stack: array array next_index
-        chunk.op_plus_arg(Insn::String, length_index);
+        chunk.op_plus_arg(Insn::String, length_index, line);
         // stack: "length" array array next_index
-        chunk.op(Insn::StrictRef);
+        chunk.op(Insn::StrictRef, line);
         // stack: ref array next_index
-        chunk.op_plus_arg(Insn::RotateUp, 3);
+        chunk.op_plus_arg(Insn::RotateUp, 3, line);
         // stack: next_index ref array
-        chunk.op(Insn::Pop2Push3);
+        chunk.op(Insn::Pop2Push3, line);
         // stack: next_index ref next_index array
-        chunk.op(Insn::PutValue);
+        chunk.op(Insn::PutValue, line);
         // stack: [empty]/err next_index array
-        let fwd = chunk.op_jump(Insn::JumpIfNormal);
+        let fwd = chunk.op_jump(Insn::JumpIfNormal, line);
         // stack: err next_index array
-        chunk.op_plus_arg(Insn::Unwind, 2);
+        chunk.op_plus_arg(Insn::Unwind, 2, line);
         // stack: err
-        let exit = chunk.op_jump(Insn::Jump);
+        let exit = chunk.op_jump(Insn::Jump, line);
         chunk.fixup(fwd).expect("Jump too short to fail");
         // stack: [empty] next_index array
-        chunk.op(Insn::Pop);
+        chunk.op(Insn::Pop, line);
         // stack: next_index array
         chunk.fixup(exit).expect("Jump too short to fail");
 
@@ -1215,8 +1219,9 @@ impl Elisions {
         let count_val = self.count as f64; // loss of accuracy for large values.
         let count = chunk.add_to_float_pool(count_val)?;
         // have to store count on the stack, as it can easily overflow the u16 that is an instruction parameter
-        chunk.op_plus_arg(Insn::Float, count);
-        chunk.op(Insn::IteratorDAEElision);
+        let line = self.location().starting_line;
+        chunk.op_plus_arg(Insn::Float, count, line);
+        chunk.op(Insn::IteratorDAEElision, line);
 
         Ok(AlwaysAbruptResult)
     }
@@ -1229,6 +1234,7 @@ impl ElementList {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         match self {
             ElementList::AssignmentExpression { elision, ae } => {
                 // elision_start:     next_index array
@@ -1254,40 +1260,40 @@ impl ElementList {
                     exit_status = AbruptResult::Maybe;
                     elision.array_accumulation(chunk)?;
                     // Stack: (next_index array) or (err) ...
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                     // Stack: next_index array
                 } else {
                     None
                 };
                 // Stack: next_index array ...
-                chunk.op(Insn::Pop2Push3);
+                chunk.op(Insn::Pop2Push3, line);
                 // Stack: next_index array next_index ...
-                chunk.op(Insn::ToPropertyKey);
+                chunk.op(Insn::ToPropertyKey, line);
                 // Stack: key array next_index ...
                 let status = ae.compile(chunk, strict, source)?;
                 // Stack: val/ref/err key array next_index ...
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let ae_exit = if status.maybe_abrupt() || status.maybe_ref() {
                     exit_status = AbruptResult::Maybe;
                     // Stack: val/err key array next_index ...
-                    let mark = chunk.op_jump(Insn::JumpIfNormal);
+                    let mark = chunk.op_jump(Insn::JumpIfNormal, line);
                     // Stack: err key array next_index ...
-                    chunk.op_plus_arg(Insn::Unwind, 3);
+                    chunk.op_plus_arg(Insn::Unwind, 3, line);
                     // Stack: err ...
-                    let exit = chunk.op_jump(Insn::Jump);
+                    let exit = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(mark).expect("Jump is too short to overflow.");
                     Some(exit)
                 } else {
                     None
                 };
                 // Stack: val key array next_index ...
-                chunk.op(Insn::CreateDataProperty);
+                chunk.op(Insn::CreateDataProperty, line);
                 // Stack: array next_index ...
-                chunk.op(Insn::Swap);
+                chunk.op(Insn::Swap, line);
                 // Stack: next_index array ...
-                chunk.op(Insn::Increment);
+                chunk.op(Insn::Increment, line);
                 // Stack: next_index array ...
                 if let Some(exit) = elision_exit {
                     chunk.fixup(exit)?;
@@ -1309,7 +1315,7 @@ impl ElementList {
                 let elision_exit = if let Some(elision) = elision {
                     elision.array_accumulation(chunk)?;
                     // Stack: (next_index array) or (err) ...
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                     // Stack: next_index array
                 } else {
                     None
@@ -1351,40 +1357,40 @@ impl ElementList {
                 // Stack: err / (next_index array) ...
                 if status.maybe_abrupt() {
                     exit_status = AbruptResult::Maybe;
-                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 // Stack: next_index array ...
                 if let Some(elision) = elision {
                     elision.array_accumulation(chunk)?;
-                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                     exit_status = AbruptResult::Maybe;
                 }
                 // Stack: next_index array ...
-                chunk.op(Insn::Pop2Push3);
+                chunk.op(Insn::Pop2Push3, line);
                 // Stack: next_index array next_index ...
-                chunk.op(Insn::ToPropertyKey);
+                chunk.op(Insn::ToPropertyKey, line);
                 // Stack: key array next_index ...
                 let status = ae.compile(chunk, strict, source)?;
                 // Stack: val/ref/err key array next_index ...
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 if status.maybe_abrupt() || status.maybe_ref() {
                     // Stack: val/err key array next_index ...
-                    let mark = chunk.op_jump(Insn::JumpIfNormal);
+                    let mark = chunk.op_jump(Insn::JumpIfNormal, line);
                     // Stack: err key array next_index ...
-                    chunk.op_plus_arg(Insn::Unwind, 3);
+                    chunk.op_plus_arg(Insn::Unwind, 3, line);
                     // Stack: err ...
-                    exits.push(chunk.op_jump(Insn::Jump));
+                    exits.push(chunk.op_jump(Insn::Jump, line));
                     chunk.fixup(mark).expect("Jump is too short to overflow.");
                     exit_status = AbruptResult::Maybe;
                 }
                 // Stack: val key array next_index ...
-                chunk.op(Insn::CreateDataProperty);
+                chunk.op(Insn::CreateDataProperty, line);
                 // Stack: array next_index ...
-                chunk.op(Insn::Swap);
+                chunk.op(Insn::Swap, line);
                 // Stack: next_index array ...
-                chunk.op(Insn::Increment);
+                chunk.op(Insn::Increment, line);
                 // Stack: next_index array ...
                 for exit in exits {
                     chunk.fixup(exit)?;
@@ -1406,11 +1412,11 @@ impl ElementList {
                 let mut exits = vec![];
                 let status = el.array_accumulation(chunk, strict, source)?;
                 if status.maybe_abrupt() {
-                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 if let Some(elision) = elision {
                     elision.array_accumulation(chunk)?;
-                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 se.array_accumulation(chunk, strict, source)?;
                 for exit in exits {
@@ -1429,6 +1435,7 @@ impl SpreadElement {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // start:               next_index array
         // <ae>                 ref/val/err next_index array
         // GET_VALUE            val/err next_index array
@@ -1444,19 +1451,19 @@ impl SpreadElement {
         let status = self.ae.compile(chunk, strict, source)?;
         // Stack: val/ref/err next_index array ...
         if status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
         // Stack: val/err next_index array ...
         if status.maybe_abrupt() || status.maybe_ref() {
-            let mark = chunk.op_jump(Insn::JumpIfNormal);
+            let mark = chunk.op_jump(Insn::JumpIfNormal, line);
             // Stack: err next_index array ...
-            chunk.op_plus_arg(Insn::Unwind, 2);
+            chunk.op_plus_arg(Insn::Unwind, 2, line);
             // Stack: err ...
-            exit = Some(chunk.op_jump(Insn::Jump));
+            exit = Some(chunk.op_jump(Insn::Jump, line));
             chunk.fixup(mark).expect("Jump is too short to overflow.");
         }
         // Stack: val next_index array ...
-        chunk.op(Insn::IteratorAccumulate);
+        chunk.op(Insn::IteratorAccumulate, line);
         // Stack: (next_index array) or (err) ...
 
         if let Some(exit) = exit {
@@ -1468,6 +1475,7 @@ impl SpreadElement {
 
 impl ArrayLiteral {
     pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         match self {
             ArrayLiteral::Empty { elision, .. } => {
                 // start:
@@ -1480,13 +1488,13 @@ impl ArrayLiteral {
                 // --------------------
                 // exit:             err/array
                 let mut exit_status = AbruptResult::Never;
-                chunk.op(Insn::Array);
+                chunk.op(Insn::Array, line);
                 if let Some(elisions) = elision {
-                    chunk.op(Insn::Zero);
+                    chunk.op(Insn::Zero, line);
                     elisions.array_accumulation(chunk)?;
                     exit_status = AbruptResult::Maybe;
-                    let mark = chunk.op_jump(Insn::JumpIfAbrupt);
-                    chunk.op(Insn::Pop);
+                    let mark = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                    chunk.op(Insn::Pop, line);
                     chunk.fixup(mark).expect("Too short to fail");
                 }
                 Ok(exit_status)
@@ -1500,16 +1508,16 @@ impl ArrayLiteral {
                 // POP               array
                 // exit:
                 let mut exit_status = AbruptResult::Never;
-                chunk.op(Insn::Array);
-                chunk.op(Insn::Zero);
+                chunk.op(Insn::Array, line);
+                chunk.op(Insn::Zero, line);
                 let status = el.array_accumulation(chunk, strict, source)?;
                 let mark = if status.maybe_abrupt() {
                     exit_status = AbruptResult::Maybe;
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
-                chunk.op(Insn::Pop);
+                chunk.op(Insn::Pop, line);
                 if let Some(mark) = mark {
                     chunk.fixup(mark).expect("Too short to fail");
                 }
@@ -1532,22 +1540,22 @@ impl ArrayLiteral {
                 let mut exits = vec![];
                 let mut exit_status = AbruptResult::Never;
 
-                chunk.op(Insn::Array);
-                chunk.op(Insn::Zero);
+                chunk.op(Insn::Array, line);
+                chunk.op(Insn::Zero, line);
                 // Stack: next_index array ...
                 let status = el.array_accumulation(chunk, strict, source)?;
                 // Stack: err/(next_index array) ...
                 if status.maybe_abrupt() {
                     exit_status = AbruptResult::Maybe;
-                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 if let Some(elisions) = elision {
                     exit_status = AbruptResult::Maybe;
                     // Stack: next_index array ...
                     elisions.array_accumulation(chunk)?;
-                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
-                chunk.op(Insn::Pop);
+                chunk.op(Insn::Pop, line);
                 for exit in exits {
                     chunk.fixup(exit).expect("Jump is too short to fail");
                 }
@@ -1559,6 +1567,7 @@ impl ArrayLiteral {
 
 impl TemplateLiteral {
     pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         match self {
             TemplateLiteral::NoSubstitutionTemplate { data, .. } => {
                 // Runtime Semantics: Evaluation
@@ -1566,7 +1575,7 @@ impl TemplateLiteral {
                 //  1. Return the TV of NoSubstitutionTemplate.
                 let tv = data.tv.as_ref().expect("Template literals as expressions should not be raw-only");
                 let idx = chunk.add_to_string_pool(tv.clone())?;
-                chunk.op_plus_arg(Insn::String, idx);
+                chunk.op_plus_arg(Insn::String, idx, line);
                 Ok(AbruptResult::Never)
             }
             TemplateLiteral::SubstitutionTemplate(st) => st.compile(chunk, strict, source).map(AbruptResult::from),
@@ -1579,6 +1588,7 @@ impl TemplateLiteral {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         match self {
             TemplateLiteral::NoSubstitutionTemplate { .. } => {
                 // TemplateLiteral : NoSubstitutionTemplate
@@ -1591,7 +1601,7 @@ impl TemplateLiteral {
                 //   FLOAT 1.0                            1 site_obj
                 self.get_template_object(chunk)?;
                 let index = chunk.add_to_float_pool(1.0)?;
-                chunk.op_plus_arg(Insn::Float, index);
+                chunk.op_plus_arg(Insn::Float, index, line);
                 Ok(AbruptResult::Never)
             }
             TemplateLiteral::SubstitutionTemplate(substitution_template) => {
@@ -1613,13 +1623,13 @@ impl TemplateLiteral {
                 // exit:                                  (N+1 argN-1 .. arg0 site_obj)/err
                 self.get_template_object(chunk)?;
                 substitution_template.argument_list_evaluation(chunk, strict, source)?;
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 let index = chunk.add_to_float_pool(1.0)?;
-                chunk.op_plus_arg(Insn::Float, index);
-                chunk.op(Insn::Add);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op_plus_arg(Insn::Float, index, line);
+                chunk.op(Insn::Add, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind).expect("Jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("Jump too short to fail");
 
                 Ok(AlwaysAbruptResult.into())
@@ -1628,9 +1638,10 @@ impl TemplateLiteral {
     }
 
     fn get_template_object(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+        let line = self.location().starting_line;
         let info = TemplateInfo::new(self.location(), self.template_strings(true), self.template_strings(false));
         let index = chunk.add_to_template_pool(info)?;
-        chunk.op_plus_arg(Insn::GetTemplateObject, index);
+        chunk.op_plus_arg(Insn::GetTemplateObject, index, line);
         Ok(NeverAbruptRefResult)
     }
 }
@@ -1642,6 +1653,7 @@ impl SubstitutionTemplate {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // SubstitutionTemplate : TemplateHead Expression TemplateSpans
         //  1. Let head be the TV of TemplateHead as defined in 12.9.6.
         //  2. Let subRef be ? Evaluation of Expression.
@@ -1671,27 +1683,27 @@ impl SubstitutionTemplate {
 
         let tv = self.template_head.tv.as_ref().expect("Templates in expressions should not be raw-only");
         let head = chunk.add_to_string_pool(tv.clone())?;
-        chunk.op_plus_arg(Insn::String, head);
+        chunk.op_plus_arg(Insn::String, head, line);
         let status = self.expression.compile(chunk, strict, source)?;
         if status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
         if status.maybe_ref() || status.maybe_abrupt() {
-            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
         }
-        chunk.op(Insn::ToString);
-        unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-        chunk.op(Insn::Add);
+        chunk.op(Insn::ToString, line);
+        unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+        chunk.op(Insn::Add, line);
         let status = self.template_spans.compile(chunk, strict, source)?;
         if status.maybe_abrupt() {
-            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
         }
-        chunk.op(Insn::Add);
-        let exit = chunk.op_jump(Insn::Jump);
+        chunk.op(Insn::Add, line);
+        let exit = chunk.op_jump(Insn::Jump, line);
         for mark in unwinds {
             chunk.fixup(mark)?;
         }
-        chunk.op_plus_arg(Insn::Unwind, 1);
+        chunk.op_plus_arg(Insn::Unwind, 1, line);
         chunk.fixup(exit).expect("jump too short to fail");
 
         Ok(AlwaysAbruptResult)
@@ -1703,6 +1715,7 @@ impl SubstitutionTemplate {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: ArgumentListEvaluation
         //
         // The syntax-directed operation ArgumentListEvaluation takes no arguments and returns either a normal
@@ -1730,22 +1743,22 @@ impl SubstitutionTemplate {
 
         let exp_status = self.expression.compile(chunk, strict, source)?;
         if exp_status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
         let exit1 = if exp_status.maybe_abrupt() || exp_status.maybe_ref() {
-            Some(chunk.op_jump(Insn::JumpIfAbrupt))
+            Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
         } else {
             None
         };
         let spans_status = self.template_spans.substitution_evaluation(chunk, strict, source)?;
-        let unwind = if spans_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        let unwind = if spans_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
         let index = chunk.add_to_float_pool(1.0)?;
-        chunk.op_plus_arg(Insn::Float, index);
-        chunk.op(Insn::Add);
+        chunk.op_plus_arg(Insn::Float, index, line);
+        chunk.op(Insn::Add, line);
         if let Some(unwind) = unwind {
-            let exit2 = chunk.op_jump(Insn::Jump);
+            let exit2 = chunk.op_jump(Insn::Jump, line);
             chunk.fixup(unwind).expect("Jump too short to fail");
-            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.op_plus_arg(Insn::Unwind, 1, line);
             chunk.fixup(exit2).expect("Jump too short to fail");
         }
         if let Some(exit) = exit1 {
@@ -1758,6 +1771,7 @@ impl SubstitutionTemplate {
 
 impl TemplateSpans {
     pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         match self {
             TemplateSpans::Tail { data, .. } => {
                 // TemplateSpans : TemplateTail
@@ -1765,7 +1779,7 @@ impl TemplateSpans {
                 let idx = chunk.add_to_string_pool(
                     data.tv.as_ref().expect("templates as expressions should not be raw").clone(),
                 )?;
-                chunk.op_plus_arg(Insn::String, idx);
+                chunk.op_plus_arg(Insn::String, idx, line);
                 Ok(AbruptResult::Never)
             }
             TemplateSpans::List { tml, data, .. } => {
@@ -1780,12 +1794,12 @@ impl TemplateSpans {
                 //    ADD                    result
                 // exit:                     result/err
                 tml.compile(chunk, strict, source)?;
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 let tail = chunk.add_to_string_pool(
                     data.tv.as_ref().expect("templates as expressions should not be raw").clone(),
                 )?;
-                chunk.op_plus_arg(Insn::String, tail);
-                chunk.op(Insn::Add);
+                chunk.op_plus_arg(Insn::String, tail, line);
+                chunk.op(Insn::Add, line);
                 chunk.fixup(exit).expect("jump too short to fail");
 
                 Ok(AbruptResult::Maybe)
@@ -1799,6 +1813,7 @@ impl TemplateSpans {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: SubstitutionEvaluation
         //
         // The syntax-directed operation SubstitutionEvaluation takes no arguments and returns either a normal
@@ -1810,7 +1825,7 @@ impl TemplateSpans {
 
                 // start:
                 //   ZERO        0
-                chunk.op(Insn::Zero);
+                chunk.op(Insn::Zero, line);
                 Ok(AbruptResult::Never)
             }
             TemplateSpans::List { tml, .. } => {
@@ -1829,6 +1844,7 @@ impl TemplateMiddleList {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         match self {
             TemplateMiddleList::ListHead { data, exp, .. } => {
                 // TemplateMiddleList : TemplateMiddle Expression
@@ -1854,22 +1870,22 @@ impl TemplateMiddleList {
                 let head = chunk.add_to_string_pool(
                     data.tv.as_ref().expect("templates used in expressions should not be raw").clone(),
                 )?;
-                chunk.op_plus_arg(Insn::String, head);
+                chunk.op_plus_arg(Insn::String, head, line);
                 let status = exp.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 if status.maybe_abrupt() || status.maybe_ref() {
-                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
-                chunk.op(Insn::ToString);
-                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                chunk.op(Insn::Add);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op(Insn::ToString, line);
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+                chunk.op(Insn::Add, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 for mark in unwinds {
                     chunk.fixup(mark).expect("jumps are too short to fail");
                 }
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("Jump should be too short to fail");
 
                 Ok(AlwaysAbruptResult)
@@ -1902,27 +1918,27 @@ impl TemplateMiddleList {
                 let mut unwinds = vec![];
 
                 tml.compile(chunk, strict, source)?;
-                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 let middle = chunk.add_to_string_pool(
                     mid.tv.as_ref().expect("template expressions should not be raw-only").clone(),
                 )?;
-                chunk.op_plus_arg(Insn::String, middle);
-                chunk.op(Insn::Add);
+                chunk.op_plus_arg(Insn::String, middle, line);
+                chunk.op(Insn::Add, line);
                 let status = exp.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 if status.maybe_abrupt() || status.maybe_ref() {
-                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
-                chunk.op(Insn::ToString);
-                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                chunk.op(Insn::Add);
-                exits.push(chunk.op_jump(Insn::Jump));
+                chunk.op(Insn::ToString, line);
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+                chunk.op(Insn::Add, line);
+                exits.push(chunk.op_jump(Insn::Jump, line));
                 for mark in unwinds {
                     chunk.fixup(mark).expect("Jumps too short to fail");
                 }
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 for mark in exits {
                     chunk.fixup(mark)?;
                 }
@@ -1938,6 +1954,7 @@ impl TemplateMiddleList {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: SubstitutionEvaluation
         //
         // The syntax-directed operation SubstitutionEvaluation takes no arguments and returns either a normal
@@ -1961,19 +1978,19 @@ impl TemplateMiddleList {
 
                 let status = exp.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let unwind = if status.maybe_abrupt() || status.maybe_ref() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
                 let index = chunk.add_to_float_pool(1.0)?;
-                chunk.op_plus_arg(Insn::Float, index);
+                chunk.op_plus_arg(Insn::Float, index, line);
                 if let Some(unwind) = unwind {
-                    let exit = chunk.op_jump(Insn::Jump);
+                    let exit = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(unwind).expect("Jump too short to fail");
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                     chunk.fixup(exit).expect("Junp too short to fail");
                     Ok(AbruptResult::Maybe)
                 } else {
@@ -2002,24 +2019,25 @@ impl TemplateMiddleList {
                 // exit:
 
                 let tml_status = template_middle_list.substitution_evaluation(chunk, strict, source)?;
-                let exit1 = if tml_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exit1 =
+                    if tml_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                 let exp_status = expression.compile(chunk, strict, source)?;
                 if exp_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let unwind_list = if exp_status.maybe_abrupt() || exp_status.maybe_ref() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
-                chunk.op(Insn::Swap);
+                chunk.op(Insn::Swap, line);
                 let index = chunk.add_to_float_pool(1.0)?;
-                chunk.op_plus_arg(Insn::Float, index);
-                chunk.op(Insn::Add);
+                chunk.op_plus_arg(Insn::Float, index, line);
+                chunk.op(Insn::Add, line);
                 if let Some(unwind) = unwind_list {
-                    let exit2 = chunk.op_jump(Insn::Jump);
+                    let exit2 = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(unwind).expect("Jump too short to fail");
-                    chunk.op(Insn::UnwindList);
+                    chunk.op(Insn::UnwindList, line);
                     chunk.fixup(exit2).expect("Jump too short to fail");
                 }
                 if let Some(exit) = exit1 {
@@ -2033,14 +2051,15 @@ impl TemplateMiddleList {
 
 impl ObjectLiteral {
     pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         match self {
             ObjectLiteral::Empty { .. } => {
-                chunk.op(Insn::Object);
+                chunk.op(Insn::Object, line);
                 Ok(AbruptResult::Never)
             }
             ObjectLiteral::Normal { pdl, .. } | ObjectLiteral::TrailingComma { pdl, .. } => {
                 // Stack: ...
-                chunk.op(Insn::Object);
+                chunk.op(Insn::Object, line);
                 // Stack: obj ...
                 pdl.property_definition_evaluation(chunk, strict, source)
             }
@@ -2058,10 +2077,11 @@ impl PropertyDefinitionList {
         match self {
             PropertyDefinitionList::OneDef(pd) => pd.property_definition_evaluation(chunk, strict, source),
             PropertyDefinitionList::ManyDefs(pdl, pd) => {
+                let line = self.location().starting_line;
                 let mut exit = None;
                 let first = pdl.property_definition_evaluation(chunk, strict, source)?;
                 if first == AbruptResult::Maybe {
-                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 let second = pd.property_definition_evaluation(chunk, strict, source)?;
                 if let Some(mark) = exit {
@@ -2080,12 +2100,13 @@ impl PropertyDefinition {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         match self {
             PropertyDefinition::IdentifierReference(idr) => {
                 // Stack: obj ...
                 let name = idr.string_value();
                 let name_idx = chunk.add_to_string_pool(name)?;
-                chunk.op_plus_arg(Insn::String, name_idx);
+                chunk.op_plus_arg(Insn::String, name_idx, line);
                 // Stack: name obj ...
 
                 // Following is unwrapped: idr compilation only fails if the string table is full and we can't insert,
@@ -2095,16 +2116,16 @@ impl PropertyDefinition {
                 // otherwise be false.
 
                 // Stack: ref name obj ...
-                chunk.op(Insn::GetValue);
+                chunk.op(Insn::GetValue, line);
                 // Stack: value name obj ...
-                let isok = chunk.op_jump(Insn::JumpIfNormal);
+                let isok = chunk.op_jump(Insn::JumpIfNormal, line);
                 // Stack: err name obj ...
-                chunk.op_plus_arg(Insn::Unwind, 2);
+                chunk.op_plus_arg(Insn::Unwind, 2, line);
                 // Stack: err ...
-                let escape = chunk.op_jump(Insn::Jump);
+                let escape = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(isok).expect("Jump is too short to overflow.");
                 // Stack: value name obj ...
-                chunk.op(Insn::CreateDataProperty);
+                chunk.op(Insn::CreateDataProperty, line);
                 // Stack: obj ...
                 chunk.fixup(escape).expect("Jump is too short to overflow.");
                 Ok(AbruptResult::Maybe)
@@ -2119,43 +2140,43 @@ impl PropertyDefinition {
                     let status = pn.compile(chunk, strict, source)?;
                     // Stack: propKey obj ...
                     if status == AbruptResult::Maybe {
-                        let mark = chunk.op_jump(Insn::JumpIfNormal);
+                        let mark = chunk.op_jump(Insn::JumpIfNormal, line);
                         // Stack: err obj ...
-                        chunk.op_plus_arg(Insn::Unwind, 1);
+                        chunk.op_plus_arg(Insn::Unwind, 1, line);
                         // Stack: err ...
-                        exits.push(chunk.op_jump(Insn::Jump));
+                        exits.push(chunk.op_jump(Insn::Jump, line));
                         chunk.fixup(mark).expect("Jump is too short to overflow.");
                         exit_status = AbruptResult::Maybe;
                     }
                 }
                 // Stack: propKey obj ...
                 let status = if let (false, Some(np)) = (is_proto_setter, ae.anonymous_function_definition()) {
-                    chunk.op(Insn::Dup);
+                    chunk.op(Insn::Dup, line);
                     np.compile_named_evaluation(chunk, strict, source, Some(NameLoc::OnStack))?
                 } else {
                     ae.compile(chunk, strict, source)?
                 };
                 if status.maybe_ref() {
                     // Stack: exprValueRef propKey obj ...
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 if status.maybe_abrupt() || status.maybe_ref() {
                     // Stack: propValue propKey obj ...
-                    let mark = chunk.op_jump(Insn::JumpIfNormal);
+                    let mark = chunk.op_jump(Insn::JumpIfNormal, line);
                     // Stack: err propKey obj ...
-                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    chunk.op_plus_arg(Insn::Unwind, 2, line);
                     // Stack: err ...
-                    exits.push(chunk.op_jump(Insn::Jump));
+                    exits.push(chunk.op_jump(Insn::Jump, line));
                     chunk.fixup(mark).expect("Jump is too short to overflow.");
                     exit_status = AbruptResult::Maybe;
                 }
 
                 if is_proto_setter {
                     // Stack: propValue obj ...
-                    chunk.op(Insn::SetPrototype);
+                    chunk.op(Insn::SetPrototype, line);
                 } else {
                     // Stack: propValue propKey obj ...
-                    chunk.op(Insn::CreateDataProperty);
+                    chunk.op(Insn::CreateDataProperty, line);
                 }
                 // Stack: obj ...
                 for mark in exits {
@@ -2171,12 +2192,12 @@ impl PropertyDefinition {
                 //   POP                      obj
                 // unwind:
                 //   UNWIND_IF_ABRUPT 1       err/obj
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
                 md.method_definition_evaluation(true, chunk, strict, source)?;
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
                 chunk.fixup(unwind).expect("short jumps should work");
-                chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1);
+                chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1, line);
 
                 Ok(AbruptResult::Maybe)
             }
@@ -2185,21 +2206,21 @@ impl PropertyDefinition {
                 let status = ae.compile(chunk, strict, source)?;
                 // Stack: exprValue obj ...
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let exit = if status.maybe_abrupt() || status.maybe_ref() {
-                    let close = chunk.op_jump(Insn::JumpIfNormal);
+                    let close = chunk.op_jump(Insn::JumpIfNormal, line);
                     // Stack: err obj ...
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                     // Stack: err ...
-                    let exit = Some(chunk.op_jump(Insn::Jump));
+                    let exit = Some(chunk.op_jump(Insn::Jump, line));
                     chunk.fixup(close).expect("Jump is too short to overflow.");
                     exit
                 } else {
                     None
                 };
                 // Stack: fromValue obj ...
-                chunk.op(Insn::CopyDataProps);
+                chunk.op(Insn::CopyDataProps, line);
                 // Stack: obj ...
                 if let Some(mark) = exit {
                     chunk.fixup(mark).expect("Jump is too short to overflow.");
@@ -2228,21 +2249,22 @@ impl PropertyName {
 
 impl LiteralPropertyName {
     pub(crate) fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+        let line = self.location().starting_line;
         match self {
             LiteralPropertyName::IdentifierName { data: id, .. } => {
                 let idx = chunk.add_to_string_pool(id.string_value.clone())?;
-                chunk.op_plus_arg(Insn::String, idx);
+                chunk.op_plus_arg(Insn::String, idx, line);
                 Ok(NeverAbruptRefResult)
             }
             LiteralPropertyName::StringLiteral { data: st, .. } => {
                 let idx = chunk.add_to_string_pool(st.value.clone())?;
-                chunk.op_plus_arg(Insn::String, idx);
+                chunk.op_plus_arg(Insn::String, idx, line);
                 Ok(NeverAbruptRefResult)
             }
             LiteralPropertyName::NumericLiteral { data: n, .. } => {
                 let name = JSString::try_from(ECMAScriptValue::from(n)).expect("Numbers always have string forms.");
                 let idx = chunk.add_to_string_pool(name)?;
-                chunk.op_plus_arg(Insn::String, idx);
+                chunk.op_plus_arg(Insn::String, idx, line);
                 Ok(NeverAbruptRefResult)
             }
         }
@@ -2264,19 +2286,20 @@ impl ComputedPropertyName {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         let mut exits = vec![];
         // Stack: ...
         let status = self.ae.compile(chunk, strict, source)?;
         // Stack: exprValue ...
         if status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
         if status.maybe_abrupt() || status.maybe_ref() {
-            let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+            let mark = chunk.op_jump(Insn::JumpIfAbrupt, line);
             exits.push(mark);
         }
         // Stack:: name ...
-        chunk.op(Insn::ToPropertyKey);
+        chunk.op(Insn::ToPropertyKey, line);
         // Stack:: key ...
 
         for mark in exits {
@@ -2293,6 +2316,7 @@ fn evaluate_property_access_with_expression_key(
     strict: bool,
     source: &SourceTree,
 ) -> anyhow::Result<CompilerStatusFlags> {
+    let line = expression.location().starting_line;
     // EvaluatePropertyAccessWithExpressionKey ( baseValue, expression, strict )
     // The abstract operation EvaluatePropertyAccessWithExpressionKey takes arguments baseValue (an ECMAScript language
     // value), expression (an Expression Parse Node), and strict (a Boolean) and returns either a normal completion
@@ -2314,15 +2338,15 @@ fn evaluate_property_access_with_expression_key(
     //  UNWIND_IF_ABRUPT 1            err/ref
     let state = expression.compile(chunk, strict, source)?;
     if state.maybe_ref() {
-        chunk.op(Insn::GetValue);
+        chunk.op(Insn::GetValue, line);
     }
     let unwind_a =
-        if state.maybe_ref() || state.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-    chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
+        if state.maybe_ref() || state.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+    chunk.op(if strict { Insn::StrictRef } else { Insn::Ref }, line);
 
     if let Some(unwind_a) = unwind_a {
         chunk.fixup(unwind_a).expect("jump too short to fail");
-        chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1);
+        chunk.op_plus_arg(Insn::UnwindIfAbrupt, 1, line);
         Ok(CompilerStatusFlags::new().reference(true).abrupt(true))
     } else {
         Ok(CompilerStatusFlags::new().reference(true))
@@ -2334,12 +2358,13 @@ fn evaluate_property_access_with_identifier_key(
     chunk: &mut Chunk,
     identifier_name: &IdentifierData,
     strict: bool,
+    line: usize,
 ) -> anyhow::Result<AlwaysRefResult> {
     // Stack: base ...
     let idx = chunk.add_to_string_pool(identifier_name.string_value.clone())?;
-    chunk.op_plus_arg(Insn::String, idx);
+    chunk.op_plus_arg(Insn::String, idx, line);
     // Stack: name base ...
-    chunk.op(if strict { Insn::StrictRef } else { Insn::Ref });
+    chunk.op(if strict { Insn::StrictRef } else { Insn::Ref }, line);
     // Stack: ref
     Ok(AlwaysRefResult)
 }
@@ -2351,6 +2376,7 @@ impl MemberExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         match self {
             MemberExpression::PrimaryExpression(pe) => pe.compile(chunk, strict, source),
             MemberExpression::IdentifierName(me, id, ..) => {
@@ -2358,13 +2384,13 @@ impl MemberExpression {
                 let mut might_be_abrupt = false;
                 let status = me.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 if status.maybe_abrupt() || status.maybe_ref() {
-                    mark = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    mark = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                     might_be_abrupt = true;
                 }
-                evaluate_property_access_with_identifier_key(chunk, id, strict)?;
+                evaluate_property_access_with_identifier_key(chunk, id, strict, line)?;
                 if let Some(mark) = mark {
                     chunk.fixup(mark).expect("Jump is too short to overflow.");
                 }
@@ -2375,10 +2401,10 @@ impl MemberExpression {
                 let status = me.compile(chunk, strict, source)?;
                 // Stack: base/err ...
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let exit = if status.maybe_abrupt() || status.maybe_ref() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
@@ -2411,21 +2437,21 @@ impl MemberExpression {
                 //   unwind 1                    err1
                 // exit:                         result/err
                 let status = me.compile(chunk, strict, source)?;
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let mark = if status.maybe_abrupt() || status.maybe_ref() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
                 let tail_position = self.is_in_tail_position(&source.ast, strict);
                 compile_call(chunk, strict, source, &ArgsFrom::Template(tmpl), tail_position)?;
                 if let Some(mark) = mark {
-                    let exit = chunk.op_jump(Insn::Jump);
+                    let exit = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(mark)?;
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                     chunk.fixup(exit).expect("Jump too short to fail");
                 }
                 Ok(CompilerStatusFlags::new().abrupt(true))
@@ -2451,15 +2477,15 @@ impl MemberExpression {
 
                 let status = me.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let exit = if status.maybe_abrupt() || status.maybe_ref() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
                 let idx = chunk.add_to_string_pool(id.string_value.clone())?;
-                chunk.op_plus_arg(Insn::MakePrivateReference, idx);
+                chunk.op_plus_arg(Insn::MakePrivateReference, idx, line);
                 let maybe_abrupt = if let Some(exit) = exit {
                     chunk.fixup(exit).expect("Jump too short to fail");
                     true
@@ -2480,12 +2506,13 @@ impl MetaProperty {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         match self {
             MetaProperty::NewTarget { .. } => {
                 // Runtime Semantics: Evaluation
                 // NewTarget : new . target
                 //  1. Return GetNewTarget().
-                chunk.op(Insn::GetNewTarget);
+                chunk.op(Insn::GetNewTarget, line);
                 Ok(CompilerStatusFlags::new())
             }
             MetaProperty::ImportMeta { .. } => todo!(),
@@ -2522,6 +2549,12 @@ impl ConstructExpr {
             ConstructExpr::New(newexp) => newexp.compile(chunk, strict, source),
         }
     }
+    fn location(&self) -> Location {
+        match self {
+            ConstructExpr::Member(node) => node.location(),
+            ConstructExpr::New(node) => node.location(),
+        }
+    }
 }
 
 fn compile_new_evaluator(
@@ -2531,6 +2564,7 @@ fn compile_new_evaluator(
     expr: &ConstructExpr,
     args: Option<Rc<Arguments>>,
 ) -> anyhow::Result<CompilerStatusFlags> {
+    let line = expr.location().starting_line;
     // EvaluateNew ( constructExpr, arguments )
     //
     // The abstract operation EvaluateNew takes arguments constructExpr (a NewExpression Parse Node or a
@@ -2548,23 +2582,23 @@ fn compile_new_evaluator(
     let expr_status = expr.compile(chunk, strict, source)?;
     // Stack: ref/val/err ...
     if expr_status.maybe_ref() {
-        chunk.op(Insn::GetValue);
+        chunk.op(Insn::GetValue, line);
     }
     // Stack: val/err ...
     let exit = if expr_status.maybe_abrupt() || expr_status.maybe_ref() {
-        Some(chunk.op_jump(Insn::JumpIfAbrupt))
+        Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
     } else {
         None
     };
     // Stack: val ...
-    chunk.op(Insn::Dup);
+    chunk.op(Insn::Dup, line);
     // Stack: val val ...
-    chunk.op(Insn::Dup);
+    chunk.op(Insn::Dup, line);
     // Stack: val val val ...
     let exit2 = match args {
         None => {
             let zero_idx = chunk.add_to_float_pool(0.0)?;
-            chunk.op_plus_arg(Insn::Float, zero_idx);
+            chunk.op_plus_arg(Insn::Float, zero_idx, line);
             None
         }
         Some(arglist) => {
@@ -2572,11 +2606,11 @@ fn compile_new_evaluator(
             //     Stack: N arg(n-1) arg(n-2) ... arg1 arg0 val val val ...
             // or: Stack: err val val val ...
             if arg_status.maybe_abrupt() {
-                let short = chunk.op_jump(Insn::JumpIfNormal);
+                let short = chunk.op_jump(Insn::JumpIfNormal, line);
                 // Stack: err val val val ...
-                chunk.op_plus_arg(Insn::Unwind, 3);
+                chunk.op_plus_arg(Insn::Unwind, 3, line);
                 // Stack: err ...
-                let exit = chunk.op_jump(Insn::Jump);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(short).expect("Jump too short to overflow");
                 Some(exit)
             } else {
@@ -2585,22 +2619,22 @@ fn compile_new_evaluator(
         }
     };
     // Stack: N arg(n-1) arg(n-2) ... arg1 arg0 val val val ...
-    chunk.op(Insn::SwapList);
+    chunk.op(Insn::SwapList, line);
     // Stack: val N arg(n-1) arg(n-2) ... arg1 arg0 val val ...
-    chunk.op(Insn::RequireConstructor);
+    chunk.op(Insn::RequireConstructor, line);
     // Stack: err/empty N arg(n-1) arg(n-2) ... arg1 arg0 val val ...
-    let good_spot = chunk.op_jump(Insn::JumpIfNormal);
+    let good_spot = chunk.op_jump(Insn::JumpIfNormal, line);
     // Stack: err N arg(n-1) arg(n-2) ... arg 1 arg 0 val val ...
-    chunk.op(Insn::UnwindList);
+    chunk.op(Insn::UnwindList, line);
     // Stack: err val val ...
-    chunk.op_plus_arg(Insn::Unwind, 2);
+    chunk.op_plus_arg(Insn::Unwind, 2, line);
     // Stack: err ...
-    let exit3 = chunk.op_jump(Insn::Jump);
+    let exit3 = chunk.op_jump(Insn::Jump, line);
     chunk.fixup(good_spot).expect("Jump too short to overflow");
     // Stack: empty N arg(n-1) arg(n-2) ... arg1 arg0 val val ...
-    chunk.op(Insn::Pop);
+    chunk.op(Insn::Pop, line);
     // Stack: N arg(n-1) arg(n-2) ... arg1 arg0 val val ...
-    chunk.op(Insn::Construct);
+    chunk.op(Insn::Construct, line);
     // Stack: val/err ...
 
     if let Some(mark) = exit {
@@ -2620,6 +2654,7 @@ impl CallExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         match self {
             CallExpression::CallMemberExpression(cme) => {
                 cme.compile(chunk, strict, source).map(CompilerStatusFlags::from)
@@ -2645,14 +2680,14 @@ impl CallExpression {
                 // exit:
 
                 ce.compile(chunk, strict, source)?;
-                chunk.op(Insn::Dup);
-                chunk.op(Insn::GetValue);
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::Dup, line);
+                chunk.op(Insn::GetValue, line);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 let tail_call = self.is_in_tail_position(&source.ast, strict);
                 compile_call(chunk, strict, source, &ArgsFrom::Arguments(args), tail_call)?;
-                let exit = chunk.op_jump(Insn::Jump);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind)?;
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AlwaysAbruptResult.into())
             }
@@ -2672,9 +2707,9 @@ impl CallExpression {
 
                 let status = ce.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 evaluate_property_access_with_expression_key(chunk, exp, strict, source)?;
                 chunk.fixup(exit).expect("Jump too short to fail");
 
@@ -2696,10 +2731,10 @@ impl CallExpression {
 
                 let status = ce.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                evaluate_property_access_with_identifier_key(chunk, id, strict)?;
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                evaluate_property_access_with_identifier_key(chunk, id, strict, line)?;
                 chunk.fixup(exit).expect("Jump too short to fail");
 
                 Ok(AlwaysAbruptRefResult.into())
@@ -2722,21 +2757,21 @@ impl CallExpression {
                 //   unwind 1                    err1
                 // exit:                         result/err
                 let status = callexp.compile(chunk, strict, source)?;
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let mark = if status.maybe_abrupt() || status.maybe_ref() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
                 let tail_position = self.is_in_tail_position(&source.ast, strict);
                 compile_call(chunk, strict, source, &ArgsFrom::Template(tl), tail_position)?;
                 if let Some(mark) = mark {
-                    let exit = chunk.op_jump(Insn::Jump);
+                    let exit = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(mark)?;
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                     chunk.fixup(exit).expect("Jump too short to fail");
                 }
                 Ok(CompilerStatusFlags::new().abrupt(true))
@@ -2752,6 +2787,13 @@ pub(crate) enum ArgsFrom<'a> {
 }
 
 impl ArgsFrom<'_> {
+    fn location(&self) -> Location {
+        match self {
+            ArgsFrom::Arguments(node) => node.location(),
+            ArgsFrom::Template(node) => node.location(),
+        }
+    }
+
     fn argument_list_evaluation(
         &self,
         chunk: &mut Chunk,
@@ -2772,6 +2814,7 @@ pub(crate) fn compile_call(
     arguments: &ArgsFrom<'_>,
     tail_position: bool,
 ) -> anyhow::Result<AlwaysAbruptResult> {
+    let line = arguments.location().starting_line;
     // EvaluateCall ( func, ref, arguments, tailPosition )
     // The abstract operation EvaluateCall takes arguments func (an ECMAScript language value), ref (an
     // ECMAScript language value or a Reference Record), arguments (a Parse Node), and tailPosition (a
@@ -2808,18 +2851,21 @@ pub(crate) fn compile_call(
     let status = arguments.argument_list_evaluation(chunk, strict, source)?;
     let mut exit = None;
     if status.maybe_abrupt() {
-        let call = chunk.op_jump(Insn::JumpIfNormal);
-        chunk.op_plus_arg(Insn::Unwind, 2);
-        exit = Some(chunk.op_jump(Insn::Jump));
+        let call = chunk.op_jump(Insn::JumpIfNormal, line);
+        chunk.op_plus_arg(Insn::Unwind, 2, line);
+        exit = Some(chunk.op_jump(Insn::Jump, line));
         chunk.fixup(call).expect("jump too short to fail");
     }
-    chunk.op(match (strict, tail_position) {
-        // Note: Tail Position calls are only defined in strict mode code because of a common non-standard language
-        // extension (see 10.2.4) that enables observation of the chain of caller contexts.
-        (false, _) => Insn::Call,
-        (true, false) => Insn::StrictCall,
-        (true, true) => Insn::TailCall,
-    });
+    chunk.op(
+        match (strict, tail_position) {
+            // Note: Tail Position calls are only defined in strict mode code because of a common non-standard language
+            // extension (see 10.2.4) that enables observation of the chain of caller contexts.
+            (false, _) => Insn::Call,
+            (true, false) => Insn::StrictCall,
+            (true, true) => Insn::TailCall,
+        },
+        line,
+    );
     if let Some(mark) = exit {
         chunk.fixup(mark).expect("jump too short to fail");
     }
@@ -2833,21 +2879,22 @@ impl CallMemberExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // On return: top of stack might be an abrupt completion, but will never be a reference.
         let mut exit = None;
         // Stack: ...
         let status = self.member_expression.compile(chunk, strict, source)?;
         // Stack: ref/err ...
-        chunk.op(Insn::Dup);
+        chunk.op(Insn::Dup, line);
         // Stack: ref/err ref/err ...
         if status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
         if status.maybe_abrupt() || status.maybe_ref() {
-            let happy = chunk.op_jump(Insn::JumpIfNormal);
+            let happy = chunk.op_jump(Insn::JumpIfNormal, line);
             // Stack: err err ...
-            chunk.op_plus_arg(Insn::Unwind, 1);
-            exit = Some(chunk.op_jump(Insn::Jump));
+            chunk.op_plus_arg(Insn::Unwind, 1, line);
+            exit = Some(chunk.op_jump(Insn::Jump, line));
             chunk.fixup(happy).expect("Jump is too short to overflow.");
         }
         // Stack: func ref ...
@@ -2868,25 +2915,26 @@ impl OptionalExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
-        let exit_a = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-        chunk.op(Insn::Dup);
+        let line = oc.location().starting_line;
+        let exit_a = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+        chunk.op(Insn::Dup, line);
         let unwind_1 = if status.maybe_ref() {
-            chunk.op(Insn::GetValue);
-            Some(chunk.op_jump(Insn::JumpIfAbrupt))
+            chunk.op(Insn::GetValue, line);
+            Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
         } else {
             None
         };
-        let cont = chunk.op_jump(Insn::JumpIfNotNullish);
-        chunk.op(Insn::Pop);
-        chunk.op(Insn::Pop);
-        chunk.op(Insn::Undefined);
-        let exit_b = chunk.op_jump(Insn::Jump);
+        let cont = chunk.op_jump(Insn::JumpIfNotNullish, line);
+        chunk.op(Insn::Pop, line);
+        chunk.op(Insn::Pop, line);
+        chunk.op(Insn::Undefined, line);
+        let exit_b = chunk.op_jump(Insn::Jump, line);
         chunk.fixup(cont).expect("Jump should be too short to fail");
         let chain_status = oc.chain_evaluation(chunk, strict, source)?;
         if let Some(mark) = unwind_1 {
-            let exit_c = chunk.op_jump(Insn::Jump);
+            let exit_c = chunk.op_jump(Insn::Jump, line);
             chunk.fixup(mark).context("OE CP 01")?;
-            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.op_plus_arg(Insn::Unwind, 1, line);
             chunk.fixup(exit_c).expect("Jump should be too short to fail");
         }
         chunk.fixup(exit_b).context("OE CP 02")?;
@@ -2953,6 +3001,7 @@ impl OptionalChain {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         // The syntax-directed operation ChainEvaluation takes arguments baseValue (an ECMAScript language
         // value) and baseReference (an ECMAScript language value or a Reference Record) and returns either a
         // normal completion containing either an ECMAScript language value or a Reference Record, or an
@@ -2972,7 +3021,7 @@ impl OptionalChain {
                 //  1. If the source text matched by this OptionalChain is strict mode code, let strict be
                 //     true; else let strict be false.
                 //  2. Return ? EvaluatePropertyAccessWithExpressionKey(baseValue, Expression, strict).
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 evaluate_property_access_with_expression_key(chunk, ex, strict, source)
             }
             OptionalChain::Ident(id, _) => {
@@ -2980,8 +3029,8 @@ impl OptionalChain {
                 //  1. If the source text matched by this OptionalChain is strict mode code, let strict be
                 //     true; else let strict be false.
                 //  2. Return EvaluatePropertyAccessWithIdentifierKey(baseValue, IdentifierName, strict).
-                chunk.op_plus_arg(Insn::Unwind, 1);
-                evaluate_property_access_with_identifier_key(chunk, id, strict).map(CompilerStatusFlags::from)
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
+                evaluate_property_access_with_identifier_key(chunk, id, strict, line).map(CompilerStatusFlags::from)
             }
             OptionalChain::Template(_, _) => todo!(),
             OptionalChain::PrivateId(_, _) => todo!(),
@@ -3007,11 +3056,11 @@ impl OptionalChain {
                 //   UNWIND 1
                 // exit:
                 let status = oc.chain_evaluation(chunk, strict, source)?;
-                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-                chunk.op(Insn::Dup);
+                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+                chunk.op(Insn::Dup, line);
                 let unwind = if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    chunk.op(Insn::GetValue, line);
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
@@ -3020,9 +3069,9 @@ impl OptionalChain {
                 compile_call(chunk, strict, source, &ArgsFrom::Arguments(args), tail_call)?;
 
                 if let Some(unwind) = unwind {
-                    let exit2 = chunk.op_jump(Insn::Jump);
+                    let exit2 = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(unwind)?;
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                     chunk.fixup(exit2).expect("Jump too short to fail");
                 }
                 if let Some(exit) = exit {
@@ -3048,10 +3097,10 @@ impl OptionalChain {
                 // exit:
                 let status = oc.chain_evaluation(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 assert!(status.maybe_ref() || status.maybe_abrupt());
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 evaluate_property_access_with_expression_key(chunk, exp, strict, source)?;
                 chunk.fixup(exit)?;
 
@@ -3075,11 +3124,11 @@ impl OptionalChain {
                 // exit:
                 let status = oc.chain_evaluation(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 assert!(status.maybe_ref() || status.maybe_abrupt());
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                evaluate_property_access_with_identifier_key(chunk, id, strict)?;
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                evaluate_property_access_with_identifier_key(chunk, id, strict, line)?;
                 chunk.fixup(exit).expect("Jump should be too short to fail");
                 Ok(CompilerStatusFlags::from(AlwaysAbruptRefResult))
             }
@@ -3117,6 +3166,7 @@ impl Arguments {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         match self {
             Arguments::Empty { .. } => {
                 // Arguments : ( )
@@ -3125,7 +3175,7 @@ impl Arguments {
                 //   FLOAT 0
 
                 let index = chunk.add_to_float_pool(0.0)?;
-                chunk.op_plus_arg(Insn::Float, index);
+                chunk.op_plus_arg(Insn::Float, index, line);
                 Ok(AbruptResult::Never)
             }
             Arguments::ArgumentList(al, _) | Arguments::ArgumentListComma(al, _) => {
@@ -3161,11 +3211,11 @@ impl Arguments {
                     if fixed_len > 0 {
                         // A variable sized list always winds up being abrupt at this point.
                         assert!(status.maybe_abrupt());
-                        let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                        chunk.op_plus_arg(Insn::RotateUp, fixed_len + 1);
+                        let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                        chunk.op_plus_arg(Insn::RotateUp, fixed_len + 1, line);
                         let idx = chunk.add_to_float_pool(f64::from(fixed_len))?;
-                        chunk.op_plus_arg(Insn::Float, idx);
-                        chunk.op(Insn::Add);
+                        chunk.op_plus_arg(Insn::Float, idx, line);
+                        chunk.op(Insn::Add, line);
                         chunk.fixup(exit).expect("Jump too short to fail");
                     }
                 } else {
@@ -3174,9 +3224,9 @@ impl Arguments {
                     //   JUMP_IF_ABRUPT exit   arg(n-1) arg(n-2) ... arg0
                     //   FLOAT n               n arg(n-1) arg(n-2) ... arg0
                     // exit:
-                    let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                    let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                     let index = chunk.add_to_float_pool(f64::from(fixed_len))?;
-                    chunk.op_plus_arg(Insn::Float, index);
+                    chunk.op_plus_arg(Insn::Float, index, line);
                     if let Some(mark) = exit {
                         chunk.fixup(mark).expect("Jump is too short to overflow.");
                     }
@@ -3194,6 +3244,7 @@ impl ArgumentList {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<(ArgListSizeHint, AbruptResult)> {
+        let line = self.location().starting_line;
         match self {
             ArgumentList::FallThru(ae) => {
                 // ArgumentList : AssignmentExpression
@@ -3208,7 +3259,7 @@ impl ArgumentList {
 
                 let status = ae.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 // Stack val/err ...
                 Ok((ArgListSizeHint { fixed_len: 1, has_variable: false }, status.into()))
@@ -3234,14 +3285,14 @@ impl ArgumentList {
 
                 let status = ae.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let exit = if status.maybe_abrupt() || status.maybe_ref() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
-                chunk.op(Insn::IterateArguments);
+                chunk.op(Insn::IterateArguments, line);
                 if let Some(mark) = exit {
                     chunk.fixup(mark).expect("jump too short to fail");
                 }
@@ -3270,20 +3321,20 @@ impl ArgumentList {
                 let (prev_count, status) = lst.argument_list_evaluation(chunk, strict, source)?;
                 // Stack: val(N) val(N-1) ... val(0) ...
                 // or err ...
-                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                 let status2 = item.compile(chunk, strict, source)?;
                 // Stack: val/err val(n) val(n-1) ... val(0) ...
                 if status2.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 if status2.maybe_ref() || status2.maybe_abrupt() {
-                    let happy = chunk.op_jump(Insn::JumpIfNormal);
+                    let happy = chunk.op_jump(Insn::JumpIfNormal, line);
                     let amt = prev_count.fixed_len;
                     if amt > 0 {
-                        chunk.op_plus_arg(Insn::Unwind, amt);
+                        chunk.op_plus_arg(Insn::Unwind, amt, line);
                     }
                     if prev_count.has_variable {
-                        chunk.op(Insn::UnwindList);
+                        chunk.op(Insn::UnwindList, line);
                     }
                     chunk.fixup(happy).expect("Jump is too short to overflow.");
                 }
@@ -3332,35 +3383,35 @@ impl ArgumentList {
 
                 let (ArgListSizeHint { fixed_len, has_variable }, status) =
                     list.argument_list_evaluation(chunk, strict, source)?;
-                let exit1 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exit1 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                 if has_variable {
                     if fixed_len > 0 {
-                        chunk.op_plus_arg(Insn::RotateUp, fixed_len + 1);
+                        chunk.op_plus_arg(Insn::RotateUp, fixed_len + 1, line);
                         let idx = chunk.add_to_float_pool(f64::from(fixed_len))?;
-                        chunk.op_plus_arg(Insn::Float, idx);
-                        chunk.op(Insn::Add);
+                        chunk.op_plus_arg(Insn::Float, idx, line);
+                        chunk.op(Insn::Add, line);
                     }
                 } else {
                     let idx = chunk.add_to_float_pool(f64::from(fixed_len))?;
-                    chunk.op_plus_arg(Insn::Float, idx);
+                    chunk.op_plus_arg(Insn::Float, idx, line);
                 }
 
                 let status = ae.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 if status.maybe_abrupt() || status.maybe_ref() {
-                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
-                chunk.op(Insn::IterateArguments);
-                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                chunk.op(Insn::AppendList);
-                let exit2 = chunk.op_jump(Insn::Jump);
+                chunk.op(Insn::IterateArguments, line);
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+                chunk.op(Insn::AppendList, line);
+                let exit2 = chunk.op_jump(Insn::Jump, line);
 
                 for mark in unwinds {
                     chunk.fixup(mark).expect("jumps too short to fail");
                 }
-                chunk.op(Insn::UnwindList);
+                chunk.op(Insn::UnwindList, line);
                 if let Some(mark) = exit1 {
                     chunk.fixup(mark)?;
                 }
@@ -3380,41 +3431,42 @@ impl UpdateExpression {
         exp: &Rc<LeftHandSideExpression>,
         insn: Insn,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = exp.location().starting_line;
         // Stack: ...
         let status = exp.compile(chunk, strict, source)?;
         assert!(status.maybe_ref()); // Early errors eliminate non-refs
 
         // Stack: lref/err1 ...
-        chunk.op(Insn::Dup);
+        chunk.op(Insn::Dup, line);
         // Stack: lref/err1 lref/err1 ...
-        chunk.op(Insn::GetValue);
+        chunk.op(Insn::GetValue, line);
         // Stack: lval/err1/2 lref/err1
-        let mark = chunk.op_jump(Insn::JumpIfNormal);
+        let mark = chunk.op_jump(Insn::JumpIfNormal, line);
         // Stack: err1/2 lref/err1 ...
-        chunk.op(Insn::Swap);
+        chunk.op(Insn::Swap, line);
         // Stack: lref/err1 err1/2
-        chunk.op(Insn::Pop);
+        chunk.op(Insn::Pop, line);
         // Stack: err1/2 ...
-        let exit1 = chunk.op_jump(Insn::Jump);
+        let exit1 = chunk.op_jump(Insn::Jump, line);
         chunk.fixup(mark).expect("Jump is too short to overflow.");
         // Stack: lval lref ...
-        chunk.op(Insn::ToNumeric);
-        let mark = chunk.op_jump(Insn::JumpIfNormal);
+        chunk.op(Insn::ToNumeric, line);
+        let mark = chunk.op_jump(Insn::JumpIfNormal, line);
         // Stack: err lref ...
-        chunk.op(Insn::Swap);
+        chunk.op(Insn::Swap, line);
         // Stack: lref err ...
-        chunk.op(Insn::Pop);
+        chunk.op(Insn::Pop, line);
         // Stack: err ...
-        let exit2 = chunk.op_jump(Insn::Jump);
+        let exit2 = chunk.op_jump(Insn::Jump, line);
         chunk.fixup(mark).expect("Jump is too short to overflow.");
         // Stack: oldValue lref ...
-        chunk.op(Insn::Pop2Push3);
+        chunk.op(Insn::Pop2Push3, line);
         // Stack: oldValue lref oldValue ...
-        chunk.op(insn);
+        chunk.op(insn, line);
         // Stack: newValue lref oldValue ...
-        chunk.op(Insn::PutValue);
+        chunk.op(Insn::PutValue, line);
         // Stack: [empty]/err oldValue ...
-        chunk.op(Insn::UpdateEmpty);
+        chunk.op(Insn::UpdateEmpty, line);
         // Stack: oldValue/err ...
 
         chunk.fixup(exit1).expect("Jump is too short to overflow.");
@@ -3429,11 +3481,12 @@ impl UpdateExpression {
         source: &SourceTree,
         exp: &Rc<UnaryExpression>,
         insn: Insn,
+        line: usize,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Stack: ...
         exp.compile(chunk, strict, source)?;
         // Stack: exp/err
-        chunk.op(insn);
+        chunk.op(insn, line);
         Ok(AlwaysAbruptResult)
     }
 
@@ -3443,6 +3496,7 @@ impl UpdateExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         match self {
             UpdateExpression::LeftHandSideExpression(lhse) => lhse.compile(chunk, strict, source),
             UpdateExpression::PostIncrement { lhs: exp, .. } => {
@@ -3452,10 +3506,10 @@ impl UpdateExpression {
                 Self::post_op(chunk, strict, source, exp, Insn::Decrement).map(CompilerStatusFlags::from)
             }
             UpdateExpression::PreIncrement { ue: exp, .. } => {
-                Self::pre_op(chunk, strict, source, exp, Insn::PreIncrement).map(CompilerStatusFlags::from)
+                Self::pre_op(chunk, strict, source, exp, Insn::PreIncrement, line).map(CompilerStatusFlags::from)
             }
             UpdateExpression::PreDecrement { ue: exp, .. } => {
-                Self::pre_op(chunk, strict, source, exp, Insn::PreDecrement).map(CompilerStatusFlags::from)
+                Self::pre_op(chunk, strict, source, exp, Insn::PreDecrement, line).map(CompilerStatusFlags::from)
             }
         }
     }
@@ -3475,8 +3529,9 @@ impl UnaryExpression {
             source: &SourceTree,
             insn: Insn,
         ) -> anyhow::Result<AlwaysAbruptResult> {
+            let line = exp.location().starting_line;
             exp.compile(chunk, strict, source)?;
-            chunk.op(insn);
+            chunk.op(insn, line);
             Ok(AlwaysAbruptResult)
         }
         match self {
@@ -3512,14 +3567,15 @@ impl UnaryExpression {
 macro_rules! compile_binary_expression {
     ( $chunk:expr_2021, $strict:expr_2021, $source:expr_2021, $left:expr_2021, $right:expr_2021, $op:expr_2021) => {{
         // Stack: ...
+        let line = $left.location().starting_line;
         let left_status = $left.compile($chunk, $strict, $source)?;
         // Stack: err/ref/val ...
         if left_status.maybe_ref() {
-            $chunk.op(Insn::GetValue);
+            $chunk.op(Insn::GetValue, line);
         }
         // Stack: err/val
         let first_exit = if left_status.maybe_ref() || left_status.maybe_abrupt() {
-            Some($chunk.op_jump(Insn::JumpIfAbrupt))
+            Some($chunk.op_jump(Insn::JumpIfAbrupt, line))
         } else {
             None
         };
@@ -3527,22 +3583,22 @@ macro_rules! compile_binary_expression {
         let right_status = $right.compile($chunk, $strict, $source)?;
         // Stack: err/ref/val val ...
         if right_status.maybe_ref() {
-            $chunk.op(Insn::GetValue);
+            $chunk.op(Insn::GetValue, line);
         }
         // Stack: err/val val ...
         let second_exit = if right_status.maybe_ref() || right_status.maybe_abrupt() {
-            let nearby = $chunk.op_jump(Insn::JumpIfNormal);
+            let nearby = $chunk.op_jump(Insn::JumpIfNormal, line);
             // Stack: err val ...
-            $chunk.op_plus_arg(Insn::Unwind, 1);
+            $chunk.op_plus_arg(Insn::Unwind, 1, line);
             // Stack: err ...
-            let exit = $chunk.op_jump(Insn::Jump);
+            let exit = $chunk.op_jump(Insn::Jump, line);
             $chunk.fixup(nearby).expect("Jump is too short to overflow.");
             Some(exit)
         } else {
             None
         };
         // Stack: val val ...
-        $chunk.op($op);
+        $chunk.op($op, line);
         // Stack: result/err ...
         if let Some(mark) = first_exit {
             $chunk.fixup(mark)?;
@@ -3758,6 +3814,7 @@ impl LogicalANDExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         match self {
             LogicalANDExpression::BitwiseORExpression(boe) => boe.compile(chunk, strict, source),
             LogicalANDExpression::LogicalAND(left, right) => {
@@ -3766,20 +3823,20 @@ impl LogicalANDExpression {
                 let left_status = left.compile(chunk, strict, source)?;
                 // Stack: lval/lref/err ...
                 if left_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 // Stack: lval/err ...
                 if left_status.maybe_ref() || left_status.maybe_abrupt() {
-                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 // Stack: lval ...
-                let second_exit = chunk.op_jump(Insn::JumpIfFalse);
-                chunk.op(Insn::Pop);
+                let second_exit = chunk.op_jump(Insn::JumpIfFalse, line);
+                chunk.op(Insn::Pop, line);
                 // Stack: ...
                 let right_status = right.compile(chunk, strict, source)?;
                 // Stack: rval/rref/err ...
                 if right_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 // Stack: rval/err ...
                 if let Some(offset) = first_exit {
@@ -3806,6 +3863,7 @@ impl LogicalORExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         match self {
             LogicalORExpression::LogicalANDExpression(lae) => lae.compile(chunk, strict, source),
             LogicalORExpression::LogicalOR(left, right) => {
@@ -3814,20 +3872,20 @@ impl LogicalORExpression {
                 let left_status = left.compile(chunk, strict, source)?;
                 // Stack: lval/lref/err ...
                 if left_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 // Stack: lval/err ...
                 if left_status.maybe_ref() || left_status.maybe_abrupt() {
-                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 // Stack: lval ...
-                let second_exit = chunk.op_jump(Insn::JumpIfTrue);
-                chunk.op(Insn::Pop);
+                let second_exit = chunk.op_jump(Insn::JumpIfTrue, line);
+                chunk.op(Insn::Pop, line);
                 // Stack: ...
                 let right_status = right.compile(chunk, strict, source)?;
                 // Stack: rval/rref/err ...
                 if right_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 // Stack: rval/err ...
                 if let Some(offset) = first_exit {
@@ -3868,24 +3926,25 @@ impl CoalesceExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         let mut first_exit = None;
         // Stack ...
         let head_status = self.head.compile(chunk, strict, source)?;
         // Stack: lref/lval/err ...
         if head_status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
         // Stack: lval/err ...
         if head_status.maybe_ref() || head_status.maybe_abrupt() {
-            first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+            first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
         }
         // Stack: lval ...
-        let second_exit = chunk.op_jump(Insn::JumpIfNotNullish);
-        chunk.op(Insn::Pop);
+        let second_exit = chunk.op_jump(Insn::JumpIfNotNullish, line);
+        chunk.op(Insn::Pop, line);
         let tail_status = self.tail.compile(chunk, strict, source)?;
         // Stack: rval/rref/err ...
         if tail_status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
         // Stack: rval/err ...
         if let Some(fixup) = first_exit {
@@ -3923,6 +3982,7 @@ impl ConditionalExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         match self {
             ConditionalExpression::FallThru(sce) => sce.compile(chunk, strict, source),
             ConditionalExpression::Conditional(expr, truthy, falsey) => {
@@ -3930,31 +3990,31 @@ impl ConditionalExpression {
                 let expr_status = expr.compile(chunk, strict, source)?;
                 // Stack: lval/lref/err ...
                 if expr_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 // Stack: lval/err ...
                 if expr_status.maybe_ref() || expr_status.maybe_abrupt() {
-                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 // Stack: lval ...
-                let falsey_spot = chunk.op_jump(Insn::JumpIfFalse);
-                chunk.op(Insn::Pop);
+                let falsey_spot = chunk.op_jump(Insn::JumpIfFalse, line);
+                chunk.op(Insn::Pop, line);
                 // Stack: ...
                 let truthy_status = truthy.compile(chunk, strict, source)?;
                 // Stack: trueRef/trueVal/err
                 if truthy_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 // Stack: trueVal/err
-                let second_exit = chunk.op_jump(Insn::Jump);
+                let second_exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(falsey_spot)?;
                 // Stack: lval ...
-                chunk.op(Insn::Pop);
+                chunk.op(Insn::Pop, line);
                 // Stack: ...
                 let falsey_status = falsey.compile(chunk, strict, source)?;
                 // Stack: falseRef/falseVal/err
                 if falsey_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 // Stack: falseVal/err
                 if let Some(spot) = first_exit {
@@ -3983,6 +4043,7 @@ impl YieldExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         match self {
             Self::Simple { .. } => {
                 // YieldExpression : yield
@@ -3991,8 +4052,8 @@ impl YieldExpression {
                 // start:
                 //   UNDEFINED         undefined
                 //   YIELD             val/err
-                chunk.op(Insn::Undefined);
-                chunk.op(Insn::Yield);
+                chunk.op(Insn::Undefined, line);
+                chunk.op(Insn::Yield, line);
                 Ok(CompilerStatusFlags::new().abrupt(true))
             }
             Self::Expression { exp, .. } => {
@@ -4010,14 +4071,14 @@ impl YieldExpression {
 
                 let status = exp.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let exit_1 = if status.maybe_abrupt() || status.maybe_ref() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
-                chunk.op(Insn::Yield);
+                chunk.op(Insn::Yield, line);
                 if let Some(exit) = exit_1 {
                     chunk.fixup(exit).expect("Jump too short to fail");
                 }
@@ -4086,17 +4147,18 @@ impl AssignmentExpression {
         //   UNWIND 1                  err/lval
         // exit:                       err/lval/rval
 
+        let line = lhse.location().starting_line;
         let status = lhse.compile(chunk, strict, source)?;
-        let exit_1 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-        chunk.op(Insn::Dup);
+        let exit_1 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+        chunk.op(Insn::Dup, line);
         let unwind_1 = if status.maybe_ref() {
-            chunk.op(Insn::GetValue);
-            Some(chunk.op_jump(Insn::JumpIfAbrupt))
+            chunk.op(Insn::GetValue, line);
+            Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
         } else {
             None
         };
-        let unwind_2 = chunk.op_jump(jump_insn);
-        chunk.op(Insn::Pop);
+        let unwind_2 = chunk.op_jump(jump_insn, line);
+        chunk.op(Insn::Pop, line);
         let ae_status =
             if let (Some(anonymous), Some(reference)) = (ae.anonymous_function_definition(), lhse.identifier_ref()) {
                 let idx = chunk.add_to_string_pool(reference.string_value()).expect("would already have been added");
@@ -4105,19 +4167,19 @@ impl AssignmentExpression {
                 ae.compile(chunk, strict, source)?
             };
         if ae_status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
         let unwind_3 = if ae_status.maybe_abrupt() || ae_status.maybe_ref() {
-            Some(chunk.op_jump(Insn::JumpIfAbrupt))
+            Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
         } else {
             None
         };
-        chunk.op(Insn::Dup);
-        chunk.op_plus_arg(Insn::RotateDown, 3);
-        chunk.op(Insn::PutValue);
-        let unwind_4 = chunk.op_jump(Insn::JumpIfAbrupt);
-        chunk.op(Insn::Pop);
-        let exit_2 = chunk.op_jump(Insn::Jump);
+        chunk.op(Insn::Dup, line);
+        chunk.op_plus_arg(Insn::RotateDown, 3, line);
+        chunk.op(Insn::PutValue, line);
+        let unwind_4 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+        chunk.op(Insn::Pop, line);
+        let exit_2 = chunk.op_jump(Insn::Jump, line);
         chunk.fixup(unwind_4).expect("Jump too short to fail");
         if let Some(unwind_3) = unwind_3 {
             chunk.fixup(unwind_3).expect("Jump too short to fail");
@@ -4126,7 +4188,7 @@ impl AssignmentExpression {
         if let Some(unwind_1) = unwind_1 {
             chunk.fixup(unwind_1)?;
         }
-        chunk.op_plus_arg(Insn::Unwind, 1);
+        chunk.op_plus_arg(Insn::Unwind, 1, line);
         chunk.fixup(exit_2).expect("Jump too short to fail");
         if let Some(exit_1) = exit_1 {
             chunk.fixup(exit_1)?;
@@ -4140,6 +4202,7 @@ impl AssignmentExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         match self {
             AssignmentExpression::FallThru(ce) => ce.compile(chunk, strict, source),
             AssignmentExpression::Assignment(lhse, ae) => {
@@ -4157,7 +4220,7 @@ impl AssignmentExpression {
                 let mut exits = vec![];
                 let status = lhse.compile(chunk, strict, source)?;
                 if status.maybe_abrupt() {
-                    let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+                    let mark = chunk.op_jump(Insn::JumpIfAbrupt, line);
                     exits.push(mark);
                 }
                 // Stack: lref ...
@@ -4173,26 +4236,26 @@ impl AssignmentExpression {
                     };
                 // Stack: rref lref ...
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 if status.maybe_abrupt() || status.maybe_ref() {
-                    let close = chunk.op_jump(Insn::JumpIfNormal);
+                    let close = chunk.op_jump(Insn::JumpIfNormal, line);
                     // (haven't jumped) Stack: err lref
-                    chunk.op(Insn::Swap);
+                    chunk.op(Insn::Swap, line);
                     // Stack: lref err
-                    chunk.op(Insn::Pop);
+                    chunk.op(Insn::Pop, line);
                     // Stack: err
-                    let mark2 = chunk.op_jump(Insn::Jump);
+                    let mark2 = chunk.op_jump(Insn::Jump, line);
                     exits.push(mark2);
                     chunk.fixup(close).expect("Jump is too short to overflow.");
                 }
 
                 // Stack: rval lref ...
-                chunk.op(Insn::Pop2Push3);
+                chunk.op(Insn::Pop2Push3, line);
                 // Stack: rval lref rval ...
-                chunk.op(Insn::PutValue);
+                chunk.op(Insn::PutValue, line);
                 // Stack: empty rval ...
-                chunk.op(Insn::UpdateEmpty);
+                chunk.op(Insn::UpdateEmpty, line);
                 // Stack: rval ...
 
                 for mark in exits {
@@ -4209,73 +4272,76 @@ impl AssignmentExpression {
                 // Stack: ...
                 let lhs_status = lhse.compile(chunk, strict, source)?;
                 let lhs_exit = if lhs_status.maybe_abrupt() {
-                    let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+                    let mark = chunk.op_jump(Insn::JumpIfAbrupt, line);
                     Some(mark)
                 } else {
                     None
                 };
                 // Stack: lref ...
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
                 // Stack: lref lref ...
-                chunk.op(Insn::GetValue);
+                chunk.op(Insn::GetValue, line);
                 // Stack: lval/err lref ...
-                let short = chunk.op_jump(Insn::JumpIfNormal);
+                let short = chunk.op_jump(Insn::JumpIfNormal, line);
                 // Stack: err lref ...
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 // Stack: err ...
-                let lval_exit = chunk.op_jump(Insn::Jump);
+                let lval_exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(short).expect("Short jump won't fail");
                 // Stack: lval lref ...
                 let rhs_status = rhs.compile(chunk, strict, source)?;
                 // Stack: rval/rref/err lval lref ...
                 if rhs_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 // Stack: rval/err lval lref ...
                 let rhs_exit = if rhs_status.maybe_abrupt() || rhs_status.maybe_ref() {
-                    let short = chunk.op_jump(Insn::JumpIfNormal);
+                    let short = chunk.op_jump(Insn::JumpIfNormal, line);
                     // Stack: err lval lref ...
-                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    chunk.op_plus_arg(Insn::Unwind, 2, line);
                     // Stack: err ...
-                    let exit = chunk.op_jump(Insn::Jump);
+                    let exit = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(short).expect("Short jump won't overflow");
                     Some(exit)
                 } else {
                     None
                 };
                 // Stack: rval lval lref ...
-                chunk.op(match op {
-                    AssignmentOperator::Multiply => Insn::Multiply,
-                    AssignmentOperator::Divide => Insn::Divide,
-                    AssignmentOperator::Modulo => Insn::Modulo,
-                    AssignmentOperator::Add => Insn::Add,
-                    AssignmentOperator::Subtract => Insn::Subtract,
-                    AssignmentOperator::LeftShift => Insn::LeftShift,
-                    AssignmentOperator::SignedRightShift => Insn::SignedRightShift,
-                    AssignmentOperator::UnsignedRightShift => Insn::UnsignedRightShift,
-                    AssignmentOperator::BitwiseAnd => Insn::BitwiseAnd,
-                    AssignmentOperator::BitwiseXor => Insn::BitwiseXor,
-                    AssignmentOperator::BitwiseOr => Insn::BitwiseOr,
-                    AssignmentOperator::Exponentiate => Insn::Exponentiate,
-                });
+                chunk.op(
+                    match op {
+                        AssignmentOperator::Multiply => Insn::Multiply,
+                        AssignmentOperator::Divide => Insn::Divide,
+                        AssignmentOperator::Modulo => Insn::Modulo,
+                        AssignmentOperator::Add => Insn::Add,
+                        AssignmentOperator::Subtract => Insn::Subtract,
+                        AssignmentOperator::LeftShift => Insn::LeftShift,
+                        AssignmentOperator::SignedRightShift => Insn::SignedRightShift,
+                        AssignmentOperator::UnsignedRightShift => Insn::UnsignedRightShift,
+                        AssignmentOperator::BitwiseAnd => Insn::BitwiseAnd,
+                        AssignmentOperator::BitwiseXor => Insn::BitwiseXor,
+                        AssignmentOperator::BitwiseOr => Insn::BitwiseOr,
+                        AssignmentOperator::Exponentiate => Insn::Exponentiate,
+                    },
+                    line,
+                );
                 // Stack: r/err lref ...
-                let short = chunk.op_jump(Insn::JumpIfNormal);
+                let short = chunk.op_jump(Insn::JumpIfNormal, line);
                 // Stack: err lref ...
-                chunk.op_plus_arg(Insn::Unwind, 1);
-                let op_exit = chunk.op_jump(Insn::Jump);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
+                let op_exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(short).expect("Short jumps won't fail");
                 // Stack: r lref ...
-                chunk.op(Insn::Pop2Push3);
+                chunk.op(Insn::Pop2Push3, line);
                 // Stack: r lref r ...
-                chunk.op(Insn::PutValue);
+                chunk.op(Insn::PutValue, line);
                 // Stack: empty/err r ...
-                let short = chunk.op_jump(Insn::JumpIfNormal);
+                let short = chunk.op_jump(Insn::JumpIfNormal, line);
                 // Stack: err r ...
-                chunk.op_plus_arg(Insn::Unwind, 1);
-                let set_exit = chunk.op_jump(Insn::Jump);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
+                let set_exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(short).expect("Short jumps won't fail");
                 // Stack: empty r ...
-                chunk.op(Insn::Pop);
+                chunk.op(Insn::Pop, line);
                 // Stack: r ...
                 chunk.fixup(set_exit).expect("Short jumps won't fail");
                 // Stack: err/r ...
@@ -4329,10 +4395,10 @@ impl AssignmentExpression {
                 let expr_status = ae.compile(chunk, strict, source)?;
                 let mut exit = None;
                 if expr_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 if expr_status.maybe_abrupt() || expr_status.maybe_ref() {
-                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 let pattern_status = ap.destructuring_assignment_evaluation(chunk, strict, source)?;
                 if let Some(exit) = exit {
@@ -4372,6 +4438,7 @@ impl ObjectAssignmentPattern {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: DestructuringAssignmentEvaluation
         // The syntax-directed operation DestructuringAssignmentEvaluation takes argument value (an ECMAScript language
         // value) and returns either a normal completion containing unused or an abrupt completion. It is defined
@@ -4387,7 +4454,7 @@ impl ObjectAssignmentPattern {
                 // start:             value
                 //   REQ_COER         value/err
                 // exit:
-                chunk.op(Insn::RequireCoercible);
+                chunk.op(Insn::RequireCoercible, line);
                 Ok(AlwaysAbruptResult)
             }
             ObjectAssignmentPattern::RestOnly { arp, .. } => {
@@ -4404,9 +4471,9 @@ impl ObjectAssignmentPattern {
                 //   <arp.rest_destructuring_assignment_evaluation>     value/err
                 // exit:
 
-                chunk.op(Insn::RequireCoercible);
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Zero);
+                chunk.op(Insn::RequireCoercible, line);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Zero, line);
                 arp.rest_destructuring_assignment_evaluation(chunk, strict, source)?;
                 chunk.fixup(exit).context("OAP: location RO")?;
                 Ok(AlwaysAbruptResult)
@@ -4432,15 +4499,15 @@ impl ObjectAssignmentPattern {
                 //   UNWIND 1                                            err
                 // exit:
 
-                chunk.op(Insn::RequireCoercible);
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::RequireCoercible, line);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 apl.property_destructuring_assignment_evaluation(chunk, strict, source)?;
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::PopList);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::PopList, line);
 
-                let exit2 = chunk.op_jump(Insn::Jump);
+                let exit2 = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind).expect("Jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit2).expect("Jump too short to fail");
 
                 chunk.fixup(exit).context("OAP: location LST")?;
@@ -4464,15 +4531,15 @@ impl ObjectAssignmentPattern {
                 // unwind:                                               err value
                 //   UNWIND 1                                            err
                 // exit:
-                chunk.op(Insn::RequireCoercible);
-                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::RequireCoercible, line);
+                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 apl.property_destructuring_assignment_evaluation(chunk, strict, source)?;
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 arp.rest_destructuring_assignment_evaluation(chunk, strict, source)?;
 
-                let exit2 = chunk.op_jump(Insn::Jump);
+                let exit2 = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind).context("OAP: location LR01")?;
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit2).expect("jump too short to fail");
 
                 chunk.fixup(exit1).context("OAP: location LR02")?;
@@ -4489,6 +4556,7 @@ impl AssignmentPropertyList {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: PropertyDestructuringAssignmentEvaluation
         // The syntax-directed operation PropertyDestructuringAssignmentEvaluation takes argument value (an ECMAScript
         // language value) and returns either a normal completion containing a List of property keys or an abrupt
@@ -4525,15 +4593,15 @@ impl AssignmentPropertyList {
                 //   POP_OUT_LIST 3                                            err value
                 // exit:
                 list.property_destructuring_assignment_evaluation(chunk, strict, source)?;
-                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::SwapList);
+                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::SwapList, line);
                 item.property_destructuring_assignment_evaluation(chunk, strict, source)?;
-                let unwind_deep_list = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::SwapDeepList);
-                chunk.op(Insn::AppendList);
-                let exit2 = chunk.op_jump(Insn::Jump);
+                let unwind_deep_list = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::SwapDeepList, line);
+                chunk.op(Insn::AppendList, line);
+                let exit2 = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind_deep_list).expect("Jump too short to fail");
-                chunk.op_plus_arg(Insn::PopOutList, 3);
+                chunk.op_plus_arg(Insn::PopOutList, 3, line);
                 chunk.fixup(exit2).expect("Jump too short to fail");
                 chunk.fixup(exit1)?;
                 Ok(AlwaysAbruptResult)
@@ -4549,6 +4617,7 @@ impl AssignmentProperty {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: PropertyDestructuringAssignmentEvaluation The syntax-directed operation
         // PropertyDestructuringAssignmentEvaluation takes argument value (an ECMAScript language value) and returns
         // either a normal completion containing a List of property keys or an abrupt completion. It collects a list of
@@ -4606,46 +4675,46 @@ impl AssignmentProperty {
                 // exit:
                 let p_value = ident.string_value();
                 let p = chunk.add_to_string_pool(p_value)?;
-                chunk.op_plus_arg(Insn::String, p);
-                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
-                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Swap);
-                chunk.op(Insn::Pop2Push3);
-                chunk.op_plus_arg(Insn::String, p);
-                chunk.op(Insn::GetV);
-                let unwind1 = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op_plus_arg(Insn::String, p, line);
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
+                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Swap, line);
+                chunk.op(Insn::Pop2Push3, line);
+                chunk.op_plus_arg(Insn::String, p, line);
+                chunk.op(Insn::GetV, line);
+                let unwind1 = chunk.op_jump(Insn::JumpIfAbrupt, line);
 
                 let mut unwind2 = None;
                 if let Some(izer) = izer {
-                    let v_ok = chunk.op_jump(Insn::JumpIfNotUndef);
-                    chunk.op(Insn::Pop);
+                    let v_ok = chunk.op_jump(Insn::JumpIfNotUndef, line);
+                    chunk.op(Insn::Pop, line);
                     let status = if let Some(np) = izer.anonymous_function_definition() {
                         np.compile_named_evaluation(chunk, strict, source, Some(NameLoc::Index(p)))?
                     } else {
                         izer.compile(chunk, strict, source, CompileMod::Unmodified)?
                     };
                     if status.maybe_ref() {
-                        chunk.op(Insn::GetValue);
+                        chunk.op(Insn::GetValue, line);
                     }
                     if status.maybe_abrupt() || status.maybe_ref() {
-                        unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                        unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                     }
                     chunk.fixup(v_ok)?;
                 }
 
-                chunk.op(Insn::PutValue);
-                let exit2 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
-                chunk.op_plus_arg(Insn::String, p);
+                chunk.op(Insn::PutValue, line);
+                let exit2 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
+                chunk.op_plus_arg(Insn::String, p, line);
                 let one = chunk.add_to_float_pool(1.0)?;
-                chunk.op_plus_arg(Insn::Float, one);
-                let exit3 = chunk.op_jump(Insn::Jump);
+                chunk.op_plus_arg(Insn::Float, one, line);
+                let exit3 = chunk.op_jump(Insn::Jump, line);
 
                 chunk.fixup(unwind1)?;
                 if let Some(unwind2) = unwind2 {
                     chunk.fixup(unwind2).expect("jump too short to fail");
                 }
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
 
                 chunk.fixup(exit1)?;
                 chunk.fixup(exit2).expect("jump too short to fail");
@@ -4673,24 +4742,24 @@ impl AssignmentProperty {
                 //   UNWIND 1                                                  err value
                 // exit:
 
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
                 let status = prop_name.compile(chunk, strict, source)?;
                 let mut unwind1 = None;
                 if status.maybe_abrupt() {
-                    unwind1 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    unwind1 = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
-                chunk.op(Insn::Pop2Push3);
+                chunk.op(Insn::Pop2Push3, line);
                 ae.keyed_destructuring_assignment_evaluation(chunk, strict, source)?;
-                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
+                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
                 let one = chunk.add_to_float_pool(1.0)?;
-                chunk.op_plus_arg(Insn::Float, one);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op_plus_arg(Insn::Float, one, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 if let Some(unwind) = unwind1 {
                     chunk.fixup(unwind)?;
                 }
                 chunk.fixup(unwind2).expect("Jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AlwaysAbruptResult)
             }
@@ -4705,6 +4774,7 @@ impl AssignmentRestProperty {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: RestDestructuringAssignmentEvaluation
         // The syntax-directed operation RestDestructuringAssignmentEvaluation takes arguments value (an ECMAScript
         // language value) and excludedNames (a List of property keys) and returns either a normal completion containing
@@ -4741,26 +4811,27 @@ impl AssignmentRestProperty {
         //   UNWIND 1                                     err
         // exit:                                          value/err
 
-        chunk.op(Insn::DupAfterList);
-        let dat_status = self.0.compile(chunk, strict, source)?;
-        let unwind_list_plus_2 = if dat_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-        chunk.op_plus_arg(Insn::RotateDownList, 1);
-        chunk.op(Insn::Object);
-        chunk.op_plus_arg(Insn::RotateDownList, 1);
-        chunk.op(Insn::CopyDataPropsWithExclusions);
-        let unwind_2 = chunk.op_jump(Insn::JumpIfAbrupt);
-        chunk.op(Insn::PutValue);
-        let unwind_1 = chunk.op_jump(Insn::JumpIfAbrupt);
-        chunk.op(Insn::Pop);
-        let exit = chunk.op_jump(Insn::Jump);
+        chunk.op(Insn::DupAfterList, line);
+        let dat_status = self.dat.compile(chunk, strict, source)?;
+        let unwind_list_plus_2 =
+            if dat_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+        chunk.op_plus_arg(Insn::RotateDownList, 1, line);
+        chunk.op(Insn::Object, line);
+        chunk.op_plus_arg(Insn::RotateDownList, 1, line);
+        chunk.op(Insn::CopyDataPropsWithExclusions, line);
+        let unwind_2 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+        chunk.op(Insn::PutValue, line);
+        let unwind_1 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+        chunk.op(Insn::Pop, line);
+        let exit = chunk.op_jump(Insn::Jump, line);
         if let Some(unwind_list_plus_2) = unwind_list_plus_2 {
             chunk.fixup(unwind_list_plus_2).expect("jump too short to fail");
-            chunk.op(Insn::UnwindList);
+            chunk.op(Insn::UnwindList, line);
         }
         chunk.fixup(unwind_2).expect("jump too short to fail");
-        chunk.op_plus_arg(Insn::Unwind, 1);
+        chunk.op_plus_arg(Insn::Unwind, 1, line);
         chunk.fixup(unwind_1).expect("jump too short to fail");
-        chunk.op_plus_arg(Insn::Unwind, 1);
+        chunk.op_plus_arg(Insn::Unwind, 1, line);
         chunk.fixup(exit).expect("jump too short to fail");
 
         Ok(AlwaysAbruptResult)
@@ -4774,6 +4845,7 @@ impl ArrayAssignmentPattern {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: DestructuringAssignmentEvaluation
         // The syntax-directed operation DestructuringAssignmentEvaluation takes argument value (an ECMAScript language
         // value) and returns either a normal completion containing unused or an abrupt completion. It is defined
@@ -4798,17 +4870,17 @@ impl ArrayAssignmentPattern {
                 // unwind:
                 //   UNWIND 1
                 // exit:
-                chunk.op(Insn::Dup);
-                chunk.op(Insn::GetSyncIterator);
-                let unwind1 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Empty);
-                chunk.op(Insn::IteratorClose);
-                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op(Insn::Dup, line);
+                chunk.op(Insn::GetSyncIterator, line);
+                let unwind1 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Empty, line);
+                chunk.op(Insn::IteratorClose, line);
+                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind1).expect("jump too short to fail");
                 chunk.fixup(unwind2).expect("jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AlwaysAbruptResult)
             }
@@ -4834,17 +4906,17 @@ impl ArrayAssignmentPattern {
                 //   UNWIND 1
                 // exit:
 
-                chunk.op(Insn::Dup);
-                chunk.op(Insn::GetSyncIterator);
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
+                chunk.op(Insn::GetSyncIterator, line);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Dup, line);
                 elision.iterator_destructuring_assignment_evaluation(chunk)?;
-                chunk.op(Insn::EmptyIfNotError);
-                chunk.op(Insn::IteratorCloseIfNotDone);
-                chunk.op(Insn::UpdateEmpty);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op(Insn::EmptyIfNotError, line);
+                chunk.op(Insn::IteratorCloseIfNotDone, line);
+                chunk.op(Insn::UpdateEmpty, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind).expect("jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
 
                 Ok(AlwaysAbruptResult)
@@ -4882,30 +4954,30 @@ impl ArrayAssignmentPattern {
                 // unwind:                                                   err value
                 //   UNWIND 1                                                err
                 // exit:                                                     value/err
-                chunk.op(Insn::Dup);
-                chunk.op(Insn::GetSyncIterator);
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
+                chunk.op(Insn::GetSyncIterator, line);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Dup, line);
                 let mut unwind2 = None;
                 if let Some(elision) = elision {
                     elision.iterator_destructuring_assignment_evaluation(chunk)?;
-                    unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 are.iterator_destructuring_assignment_evaluation(chunk, strict, source)?;
-                chunk.op(Insn::EmptyIfNotError);
-                chunk.op(Insn::IteratorCloseIfNotDone);
-                chunk.op(Insn::UpdateEmpty);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op(Insn::EmptyIfNotError, line);
+                chunk.op(Insn::IteratorCloseIfNotDone, line);
+                chunk.op(Insn::UpdateEmpty, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 if let Some(unwind2) = unwind2 {
                     chunk
                         .fixup(unwind2)
                         .context("ArrayAssignmentPattern::destructuring_assignment_evaluation: Location ROU2")?;
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                 }
                 chunk
                     .fixup(unwind)
                     .context("ArrayAssignmentPattern::destructuring_assignment_evaluation: Location ROU1")?;
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
 
                 Ok(AlwaysAbruptResult)
@@ -4932,17 +5004,17 @@ impl ArrayAssignmentPattern {
                 //   UNWIND 1                                                err
                 // exit:                                                     value/err
 
-                chunk.op(Insn::Dup);
-                chunk.op(Insn::GetSyncIterator);
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
+                chunk.op(Insn::GetSyncIterator, line);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Dup, line);
                 ael.iterator_destructuring_assignment_evaluation(chunk, strict, source)?;
-                chunk.op(Insn::EmptyIfNotError);
-                chunk.op(Insn::IteratorCloseIfNotDone);
-                chunk.op(Insn::UpdateEmpty);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op(Insn::EmptyIfNotError, line);
+                chunk.op(Insn::IteratorCloseIfNotDone, line);
+                chunk.op(Insn::UpdateEmpty, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind)?;
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
 
                 Ok(AlwaysAbruptResult)
@@ -4996,19 +5068,19 @@ impl ArrayAssignmentPattern {
                 // unwind:                                                   err value
                 //   UNWIND 1                                                err
                 // exit:                                                     value/err
-                chunk.op(Insn::Dup);
-                chunk.op(Insn::GetSyncIterator);
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
+                chunk.op(Insn::GetSyncIterator, line);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Dup, line);
                 ael.iterator_destructuring_assignment_evaluation(chunk, strict, source)?;
-                let after_list = chunk.op_jump(Insn::JumpIfNormal);
-                chunk.op(Insn::IteratorCloseIfNotDone);
-                let unwind_alt = chunk.op_jump(Insn::Jump);
+                let after_list = chunk.op_jump(Insn::JumpIfNormal, line);
+                chunk.op(Insn::IteratorCloseIfNotDone, line);
+                let unwind_alt = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(after_list).expect("Jump too short to fail");
 
                 let unwind2 = if let Some(elision) = elision.as_ref() {
                     elision.iterator_destructuring_assignment_evaluation(chunk)?;
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
@@ -5017,22 +5089,22 @@ impl ArrayAssignmentPattern {
                     are.iterator_destructuring_assignment_evaluation(chunk, strict, source)?;
                 }
 
-                chunk.op(Insn::EmptyIfNotError);
-                chunk.op(Insn::IteratorCloseIfNotDone);
-                chunk.op(Insn::UpdateEmpty);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op(Insn::EmptyIfNotError, line);
+                chunk.op(Insn::IteratorCloseIfNotDone, line);
+                chunk.op(Insn::UpdateEmpty, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
 
                 if let Some(unwind2) = unwind2 {
                     chunk
                         .fixup(unwind2)
                         .context("ArrayAssignmentPattern::destructuring_assignment_evaluate: Location LRU2")?;
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                 }
                 chunk
                     .fixup(unwind)
                     .context("ArrayAssignmentPattern::destructuring_assignment_evaluate: Location LRU1")?;
                 chunk.fixup(unwind_alt).expect("If unwind worked, unwind_alt will work");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("Jump too short to fail");
 
                 Ok(AlwaysAbruptResult)
@@ -5048,6 +5120,7 @@ impl AssignmentRestElement {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: IteratorDestructuringAssignmentEvaluation The syntax-directed operation
         // IteratorDestructuringAssignmentEvaluation takes argument iteratorRecord (an Iterator Record) and returns
         // either a normal completion containing unused or an abrupt completion.
@@ -5104,32 +5177,32 @@ impl AssignmentRestElement {
         match self.dat.as_ref() {
             DestructuringAssignmentTarget::LeftHandSideExpression(lhse) => {
                 let status = lhse.compile(chunk, strict, source)?;
-                let unwind_a = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-                chunk.op(Insn::Swap);
-                chunk.op(Insn::IteratorRest);
-                let unwind_b = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op_plus_arg(Insn::RotateUp, 3);
-                chunk.op(Insn::Swap);
-                chunk.op(Insn::PutValue);
-                chunk.op(Insn::UpdateEmpty);
-                let exit = chunk.op_jump(Insn::Jump);
+                let unwind_a = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+                chunk.op(Insn::Swap, line);
+                chunk.op(Insn::IteratorRest, line);
+                let unwind_b = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op_plus_arg(Insn::RotateUp, 3, line);
+                chunk.op(Insn::Swap, line);
+                chunk.op(Insn::PutValue, line);
+                chunk.op(Insn::UpdateEmpty, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 if let Some(unwind_a) = unwind_a {
                     chunk.fixup(unwind_a).expect("jump too short to fail");
                 }
                 chunk.fixup(unwind_b).expect("jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AlwaysAbruptResult)
             }
             DestructuringAssignmentTarget::AssignmentPattern(ap) => {
-                chunk.op(Insn::IteratorRest);
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::IteratorRest, line);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 ap.destructuring_assignment_evaluation(chunk, strict, source)?;
-                chunk.op(Insn::EmptyIfNotError);
-                chunk.op(Insn::UpdateEmpty);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op(Insn::EmptyIfNotError, line);
+                chunk.op(Insn::UpdateEmpty, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind).expect("Jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short fo fail");
                 Ok(AlwaysAbruptResult)
             }
@@ -5151,7 +5224,7 @@ impl AssignmentElementList {
         // (Altered in rust-e262 to return either a normal completion containing the input iteratorRecord, or an abrupt
         // completion.)
         //
-
+        let line = self.location().starting_line;
         match self {
             AssignmentElementList::Item(item) => {
                 // AssignmentElementList : AssignmentElisionElement
@@ -5172,7 +5245,7 @@ impl AssignmentElementList {
                 //   <item.iterator_destructuring_assignment_evaluation>   ir/err
                 //   exit:
                 list.iterator_destructuring_assignment_evaluation(chunk, strict, source)?;
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 item.iterator_destructuring_assignment_evaluation(chunk, strict, source)?;
                 chunk.fixup(exit)?;
                 Ok(AlwaysAbruptResult)
@@ -5195,6 +5268,7 @@ impl AssignmentElisionElement {
         // (Altered in rust-e262 to return either a normal completion containing the input iteratorRecord, or an abrupt
         // completion.)
         //
+        let line = self.location().starting_line;
         match &self.elisions {
             Some(elision) => {
                 // AssignmentElisionElement : Elision AssignmentElement
@@ -5207,7 +5281,7 @@ impl AssignmentElisionElement {
                 //   <item.iterator_destructuring_assignment_evaluation>      ir/err
                 //   exit:
                 elision.iterator_destructuring_assignment_evaluation(chunk)?;
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 self.element.iterator_destructuring_assignment_evaluation(chunk, strict, source)?;
                 chunk.fixup(exit).context("AEE: IDAE")?;
                 Ok(AlwaysAbruptResult)
@@ -5229,6 +5303,7 @@ impl AssignmentElement {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: IteratorDestructuringAssignmentEvaluation The syntax-directed operation
         // IteratorDestructuringAssignmentEvaluation takes argument iteratorRecord (an Iterator Record) and returns
         // either a normal completion containing unused or an abrupt completion.
@@ -5314,28 +5389,28 @@ impl AssignmentElement {
         let not_pattern = if let DestructuringAssignmentTarget::LeftHandSideExpression(lhse) = dat.as_ref() {
             let lhse_status = lhse.compile(chunk, strict, source)?;
             if lhse_status.maybe_abrupt() {
-                unwind_1_a = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                unwind_1_a = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
             }
-            chunk.op(Insn::Swap);
+            chunk.op(Insn::Swap, line);
             true
         } else {
             false
         };
-        chunk.op(Insn::EmbellishedIteratorStep);
+        chunk.op(Insn::EmbellishedIteratorStep, line);
         let mut unwind_1_b = None;
         let mut exit_a = None;
         if not_pattern {
-            unwind_1_b = Some(chunk.op_jump(Insn::JumpIfAbrupt));
-            chunk.op(Insn::Swap);
-            chunk.op_plus_arg(Insn::RotateDown, 3);
+            unwind_1_b = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
+            chunk.op(Insn::Swap, line);
+            chunk.op_plus_arg(Insn::RotateDown, 3, line);
         } else {
-            exit_a = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+            exit_a = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
         }
         let mut unwind_2 = None;
         let mut unwind_1_c = None;
         if let Some(izer) = self.initializer.as_ref() {
-            let has_value = chunk.op_jump(Insn::JumpIfNotUndef);
-            chunk.op(Insn::Pop);
+            let has_value = chunk.op_jump(Insn::JumpIfNotUndef, line);
+            chunk.op(Insn::Pop, line);
             let izer_status =
                 if let (Some(np), Some(lhse_id)) = (izer.anonymous_function_definition(), dat.identifier_ref()) {
                     let idx = chunk.add_to_string_pool(lhse_id.string_value()).expect("would already have been added");
@@ -5343,12 +5418,12 @@ impl AssignmentElement {
                 } else {
                     let status = izer.compile(chunk, strict, source, CompileMod::Unmodified)?;
                     if status.maybe_ref() {
-                        chunk.op(Insn::GetValue);
+                        chunk.op(Insn::GetValue, line);
                     }
                     status
                 };
             if izer_status.maybe_abrupt() {
-                let target = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                let target = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 if not_pattern {
                     unwind_2 = target;
                 } else {
@@ -5358,21 +5433,21 @@ impl AssignmentElement {
             chunk.fixup(has_value).context("AE: IDAE: Location hv01")?;
         }
         if not_pattern {
-            chunk.op(Insn::PutValue);
+            chunk.op(Insn::PutValue, line);
         } else {
             dat.destructuring_assignment_evaluation(chunk, strict, source)?;
-            chunk.op(Insn::EmptyIfNotError);
+            chunk.op(Insn::EmptyIfNotError, line);
         }
-        chunk.op(Insn::UpdateEmpty);
+        chunk.op(Insn::UpdateEmpty, line);
         let mut exit_b = None;
         let unwind_1_needed =
             unwind_1_a.is_some() || unwind_1_b.is_some() || unwind_1_c.is_some() || unwind_2.is_some();
         if unwind_1_needed {
-            exit_b = Some(chunk.op_jump(Insn::Jump));
+            exit_b = Some(chunk.op_jump(Insn::Jump, line));
 
             if let Some(unwind_2) = unwind_2 {
                 chunk.fixup(unwind_2).expect("jump is too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
             }
             if let Some(unwind_1) = unwind_1_a {
                 chunk.fixup(unwind_1).context("AE: IDAE: Location uw1a")?;
@@ -5383,7 +5458,7 @@ impl AssignmentElement {
             if let Some(unwind_1) = unwind_1_c {
                 chunk.fixup(unwind_1).context("AE: IDAE: Location uw1c")?;
             }
-            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.op_plus_arg(Insn::Unwind, 1, line);
         }
         if let Some(exit) = exit_a {
             chunk.fixup(exit).context("AE: IDAE: Location ex01")?;
@@ -5400,6 +5475,7 @@ impl AssignmentElement {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: KeyedDestructuringAssignmentEvaluation
         // The syntax-directed operation KeyedDestructuringAssignmentEvaluation takes arguments value (an ECMAScript
         // language value) and propertyName (a property key) and returns either a normal completion containing unused or
@@ -5466,15 +5542,15 @@ impl AssignmentElement {
 
         let unwind_2 = if let DestructuringAssignmentTarget::LeftHandSideExpression(lhse) = self.target.as_ref() {
             let lhse_status = lhse.compile(chunk, strict, source)?;
-            let mark = if lhse_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-            chunk.op_plus_arg(Insn::RotateDown, 3);
+            let mark = if lhse_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+            chunk.op_plus_arg(Insn::RotateDown, 3, line);
             mark
         } else {
             None
         };
-        chunk.op(Insn::GetV);
+        chunk.op(Insn::GetV, line);
         let (unwind_1_a, exit_a) = {
-            let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+            let mark = chunk.op_jump(Insn::JumpIfAbrupt, line);
             if matches!(self.target.as_ref(), DestructuringAssignmentTarget::LeftHandSideExpression(_)) {
                 (Some(mark), None)
             } else {
@@ -5482,8 +5558,8 @@ impl AssignmentElement {
             }
         };
         let (unwind_1_b, exit_b) = if let Some(izer) = self.initializer.as_ref() {
-            let has_value = chunk.op_jump(Insn::JumpIfNotUndef);
-            chunk.op(Insn::Pop);
+            let has_value = chunk.op_jump(Insn::JumpIfNotUndef, line);
+            chunk.op(Insn::Pop, line);
             let status = if let (Some(np), Some(lhse_id)) =
                 (izer.anonymous_function_definition(), self.target.as_ref().identifier_ref())
             {
@@ -5495,11 +5571,11 @@ impl AssignmentElement {
                 izer.compile(chunk, strict, source, CompileMod::Unmodified)?
             };
             if status.maybe_ref() {
-                chunk.op(Insn::GetValue);
+                chunk.op(Insn::GetValue, line);
             }
 
             let (unwind_1, exit) = if status.maybe_ref() || status.maybe_abrupt() {
-                let mark = chunk.op_jump(Insn::JumpIfAbrupt);
+                let mark = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 if matches!(self.target.as_ref(), DestructuringAssignmentTarget::LeftHandSideExpression(_)) {
                     (Some(mark), None)
                 } else {
@@ -5518,15 +5594,15 @@ impl AssignmentElement {
 
         match self.target.as_ref() {
             DestructuringAssignmentTarget::LeftHandSideExpression(_) => {
-                chunk.op(Insn::PutValue);
+                chunk.op(Insn::PutValue, line);
             }
             DestructuringAssignmentTarget::AssignmentPattern(ap) => {
                 ap.destructuring_assignment_evaluation(chunk, strict, source)?;
-                chunk.op(Insn::EmptyIfNotError);
+                chunk.op(Insn::EmptyIfNotError, line);
             }
         }
         let exit_c = if unwind_2.is_some() || unwind_1_a.is_some() || unwind_1_b.is_some() {
-            Some(chunk.op_jump(Insn::Jump))
+            Some(chunk.op_jump(Insn::Jump, line))
         } else {
             None
         };
@@ -5535,14 +5611,14 @@ impl AssignmentElement {
         if let Some(unwind) = unwind_2 {
             assert!(has_unwind1);
             chunk.fixup(unwind)?;
-            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.op_plus_arg(Insn::Unwind, 1, line);
         }
         if let Some(unwind) = unwind_1_a {
             chunk.fixup(unwind)?;
             if let Some(unwind) = unwind_1_b {
                 chunk.fixup(unwind).expect("jump too short to fail");
             }
-            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.op_plus_arg(Insn::Unwind, 1, line);
         }
 
         let has_exit_a = exit_a.is_some();
@@ -5604,6 +5680,7 @@ impl Expression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         match self {
             Expression::FallThru(ae) => ae.compile(chunk, strict, source),
             Expression::Comma(e, ae) => {
@@ -5611,19 +5688,19 @@ impl Expression {
                 let left_status = e.compile(chunk, strict, source)?;
                 // Stack: lref/lval/err
                 if left_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 // Stack: lval/err
                 if left_status.maybe_ref() || left_status.maybe_abrupt() {
-                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 // Stack: lval
-                chunk.op(Insn::Pop);
+                chunk.op(Insn::Pop, line);
                 // Stack: ...
                 let right_status = ae.compile(chunk, strict, source)?;
                 // Stack: rref/rval/err
                 if right_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 // Stack: rval/err
                 if let Some(fixup) = first_exit {
@@ -5644,7 +5721,7 @@ impl ExpressionStatement {
     pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
         let status = self.exp.compile(chunk, strict, source)?;
         if status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, self.location().starting_line);
         }
         Ok((status.maybe_abrupt() || status.maybe_ref()).into())
     }
@@ -5652,14 +5729,15 @@ impl ExpressionStatement {
 
 impl StatementList {
     pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         let mut status = self.list[0].compile(chunk, strict, source)?;
         let mut exits = vec![];
         for item in &self.list[1..] {
             if status.maybe_abrupt() {
-                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
             }
             status = item.compile(chunk, strict, source)?;
-            chunk.op(Insn::UpdateEmpty);
+            chunk.op(Insn::UpdateEmpty, line);
         }
         let might_have_been_abrupt = status.maybe_abrupt() || !exits.is_empty();
         for mark in exits {
@@ -5684,7 +5762,7 @@ impl Statement {
             Statement::Expression(exp) => exp.compile(chunk, strict, source),
             Statement::Block(bs) => bs.compile(chunk, strict, source),
             Statement::Variable(var_statement) => var_statement.compile(chunk, strict, source),
-            Statement::Empty(_) => Ok(EmptyStatement::compile(chunk).into()),
+            Statement::Empty(e) => Ok(e.compile(chunk).into()),
             Statement::If(if_stmt) => if_stmt.compile(chunk, strict, source),
             Statement::Breakable(breakable_statement) => breakable_statement.compile(chunk, strict, source),
             Statement::Continue(c) => c.compile(chunk).map(AbruptResult::from),
@@ -5730,7 +5808,7 @@ impl Declaration {
         match self {
             Declaration::Class(cls) => cls.compile(chunk, source),
             Declaration::Hoistable(_) => {
-                chunk.op(Insn::Empty);
+                chunk.op(Insn::Empty, self.location().starting_line);
                 Ok(AbruptResult::Never)
             }
             Declaration::Lexical(lex) => lex.compile(chunk, strict, source).map(AbruptResult::from),
@@ -5755,7 +5833,7 @@ impl BreakableStatement {
             BreakableStatement::Switch(swtch) => swtch.compile(chunk, strict, source),
         }?;
         if state.maybe_abrupt() {
-            chunk.op(Insn::HandleEmptyBreak);
+            chunk.op(Insn::HandleEmptyBreak, self.location().starting_line);
         }
         Ok(state)
     }
@@ -5791,12 +5869,13 @@ fn block_declaration_instantiation(
 ) -> anyhow::Result<()> {
     for d in declarations {
         let is_constant = d.is_constant_declaration();
+        let line = d.location().starting_line;
         for dn in d.bound_names() {
             let string_idx = chunk.add_to_string_pool(dn)?;
             if is_constant {
-                chunk.op_plus_arg(Insn::CreateStrictImmutableLexBinding, string_idx);
+                chunk.op_plus_arg(Insn::CreateStrictImmutableLexBinding, string_idx, line);
             } else {
-                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, string_idx);
+                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, string_idx, line);
             }
         }
         if let Ok(fcn) = FcnDef::try_from(d.clone()) {
@@ -5804,7 +5883,7 @@ fn block_declaration_instantiation(
             let string_idx =
                 chunk.add_to_string_pool(fcn_name).expect("should find an index, as fcn_name is already in the pool");
             fcn.compile_fo_instantiation(chunk, strict, source)?;
-            chunk.op_plus_arg(Insn::InitializeLexBinding, string_idx);
+            chunk.op_plus_arg(Insn::InitializeLexBinding, string_idx, line);
         }
     }
     Ok(())
@@ -5812,23 +5891,34 @@ fn block_declaration_instantiation(
 
 impl Block {
     pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
-        match &self.statements {
-            None => {
-                chunk.op(Insn::Empty);
-                Ok(NeverAbruptRefResult.into())
-            }
-            Some(sl) => {
-                chunk.op(Insn::PushNewLexEnv);
-                let declarations = sl.lexically_scoped_declarations();
+        let block_location = self.location();
+        let end_of_block_line = last_line_of(&source.text, &block_location);
 
-                block_declaration_instantiation(chunk, strict, source, &declarations)?;
+        let Some(statements) = &self.statements else {
+            // Empty blocks still produce an empty completion.
+            chunk.op(Insn::Empty, end_of_block_line);
+            return Ok(NeverAbruptRefResult.into());
+        };
 
-                let statement_status = sl.compile(chunk, strict, source)?;
-                chunk.op(Insn::PopLexEnv);
+        // Use the line before the first statement for the block setup work, so
+        // disassembly/source quoting associates the lexical-environment preamble
+        // with the block header rather than with the first statement itself.
+        let preamble_line = line_before_span(&source.text, &block_location, &statements.location().span);
 
-                Ok(statement_status)
-            }
-        }
+        // Non-empty blocks execute in a fresh lexical environment. Lexical
+        // declarations are instantiated before the statement list runs.
+        chunk.op(Insn::PushNewLexEnv, preamble_line);
+
+        let declarations = statements.lexically_scoped_declarations();
+        block_declaration_instantiation(chunk, strict, source, &declarations)?;
+
+        let statement_status = statements.compile(chunk, strict, source)?;
+
+        // Leave the block environment after the statement list completion has
+        // been produced, preserving that completion as the block's result.
+        chunk.op(Insn::PopLexEnv, end_of_block_line);
+
+        Ok(statement_status)
     }
 }
 
@@ -5839,10 +5929,11 @@ impl LexicalDeclaration {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         self.list.compile(chunk, strict, source)?;
-        let mark = chunk.op_jump(Insn::JumpIfAbrupt);
-        chunk.op(Insn::Pop);
-        chunk.op(Insn::Empty);
+        let mark = chunk.op_jump(Insn::JumpIfAbrupt, line);
+        chunk.op(Insn::Pop, line);
+        chunk.op(Insn::Empty, line);
         chunk.fixup(mark).expect("Jump is too short to overflow.");
         Ok(AlwaysAbruptResult)
     }
@@ -5855,12 +5946,13 @@ impl BindingList {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         match self {
             BindingList::Item(item) => item.compile(chunk, strict, source),
             BindingList::List(lst, item) => {
                 lst.compile(chunk, strict, source)?;
-                let mark = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
+                let mark = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
                 item.compile(chunk, strict, source)?;
                 chunk.fixup(mark)?;
                 Ok(AlwaysAbruptResult)
@@ -5876,16 +5968,17 @@ impl LexicalBinding {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         match self {
             LexicalBinding::Identifier(bi, init) => {
                 let id = chunk.add_to_string_pool(bi.string_value())?;
-                chunk.op_plus_arg(Insn::String, id);
+                chunk.op_plus_arg(Insn::String, id, line);
                 // Stack: name ...
-                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
                 // Stack: lhs ...
                 let exit_tgt = match init {
                     None => {
-                        chunk.op(Insn::Undefined);
+                        chunk.op(Insn::Undefined, line);
                         None
                     }
                     Some(izer) => {
@@ -5896,15 +5989,15 @@ impl LexicalBinding {
                         };
                         // Stack: rref lhs ...
                         if status.maybe_ref() {
-                            chunk.op(Insn::GetValue);
+                            chunk.op(Insn::GetValue, line);
                             // Stack: value lhs ...
                         }
                         if status.maybe_abrupt() || status.maybe_ref() {
-                            let normal = chunk.op_jump(Insn::JumpIfNormal);
+                            let normal = chunk.op_jump(Insn::JumpIfNormal, line);
                             // Stack: err lhs ...
-                            chunk.op_plus_arg(Insn::Unwind, 1);
+                            chunk.op_plus_arg(Insn::Unwind, 1, line);
                             // Stack: err ...
-                            let exit_tgt = Some(chunk.op_jump(Insn::Jump));
+                            let exit_tgt = Some(chunk.op_jump(Insn::Jump, line));
                             chunk.fixup(normal).expect("Jump is too short to overflow.");
                             exit_tgt
                         } else {
@@ -5913,7 +6006,7 @@ impl LexicalBinding {
                     }
                 };
                 // Stack: value lhs ...
-                chunk.op(Insn::InitializeReferencedBinding);
+                chunk.op(Insn::InitializeReferencedBinding, line);
                 // Stack: empty ...
                 if let Some(mark) = exit_tgt {
                     chunk.fixup(mark).expect("Jump is too short to overflow.");
@@ -5936,10 +6029,10 @@ impl LexicalBinding {
 
                 let status = init.compile(chunk, strict, source, CompileMod::Unmodified)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let exit = if status.maybe_ref() || status.maybe_abrupt() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
@@ -5967,24 +6060,25 @@ impl Initializer {
         source: &SourceTree,
         modifier: CompileMod,
     ) -> anyhow::Result<CompilerStatusFlags> {
+        let line = self.location().starting_line;
         // Sometimes we compile initializers as functions. If that's the case, we need to pop off the arguments first,
         // return the value generated by the initializer, and mark the end of the function.
         if modifier == CompileMod::AsFunction {
-            chunk.op(Insn::FinishArgs);
+            chunk.op(Insn::FinishArgs, line);
             let status = self.ae.compile(chunk, strict, source)?;
             if status.maybe_ref() {
-                chunk.op(Insn::GetValue);
+                chunk.op(Insn::GetValue, line);
             }
             let exit = if status.maybe_ref() || status.maybe_abrupt() {
-                Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
             } else {
                 None
             };
-            chunk.op(Insn::Return);
+            chunk.op(Insn::Return, line);
             if let Some(exit) = exit {
                 chunk.fixup(exit).expect("too short");
             }
-            chunk.op(Insn::EndFunction);
+            chunk.op(Insn::EndFunction, line);
             Ok(CompilerStatusFlags::new().abrupt(true))
         } else {
             self.ae.compile(chunk, strict, source)
@@ -6008,6 +6102,7 @@ impl VariableStatement {
 
 impl VariableDeclarationList {
     pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // Stack: ...
         let mut status = self.list[0].compile(chunk, strict, source)?;
         // Stack: empty/err ...
@@ -6015,10 +6110,10 @@ impl VariableDeclarationList {
         for item in &self.list[1..] {
             // Stack: empty/err ...
             if status.maybe_abrupt() {
-                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
             }
             // Stack: empty ...
-            chunk.op(Insn::Pop);
+            chunk.op(Insn::Pop, line);
             // Stack: ...
             status = item.compile(chunk, strict, source)?;
             // Stack: empty/err ...
@@ -6034,6 +6129,7 @@ impl VariableDeclarationList {
 
 impl VariableDeclaration {
     pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: Evaluation
         match self {
             VariableDeclaration::Identifier(_, None) => {
@@ -6041,7 +6137,7 @@ impl VariableDeclaration {
                 //  1. Return empty.
 
                 // Stack: ...
-                chunk.op(Insn::Empty); // Stack: empty ...
+                chunk.op(Insn::Empty, line); // Stack: empty ...
                 Ok(AbruptResult::Never)
             }
             VariableDeclaration::Identifier(id, Some(izer)) => {
@@ -6059,25 +6155,25 @@ impl VariableDeclaration {
                 let mut exits = vec![];
                 // Stack: ...
                 let idx = chunk.add_to_string_pool(id.string_value())?;
-                chunk.op_plus_arg(Insn::String, idx); // Stack: bindingId ...
-                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }); // Stack: lhs/err ...
-                exits.push(chunk.op_jump(Insn::JumpIfAbrupt)); // Stack: lhs ...
+                chunk.op_plus_arg(Insn::String, idx, line); // Stack: bindingId ...
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line); // Stack: lhs/err ...
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line)); // Stack: lhs ...
                 let izer_flags = if let Some(np) = izer.anonymous_function_definition() {
                     np.compile_named_evaluation(chunk, strict, source, Some(NameLoc::Index(idx)))?
                 } else {
                     izer.compile(chunk, strict, source, CompileMod::Unmodified)? // Stack: rhs/rref/err lhs ...
                 };
                 if izer_flags.maybe_ref() {
-                    chunk.op(Insn::GetValue); // Stack: rhs/err lhs ...
+                    chunk.op(Insn::GetValue, line); // Stack: rhs/err lhs ...
                 }
                 if izer_flags.maybe_abrupt() || izer_flags.maybe_ref() {
-                    let ok_tgt = chunk.op_jump(Insn::JumpIfNormal); // Stack: err lhs ...
-                    chunk.op_plus_arg(Insn::Unwind, 1); // Stack: err ...
-                    exits.push(chunk.op_jump(Insn::Jump));
+                    let ok_tgt = chunk.op_jump(Insn::JumpIfNormal, line); // Stack: err lhs ...
+                    chunk.op_plus_arg(Insn::Unwind, 1, line); // Stack: err ...
+                    exits.push(chunk.op_jump(Insn::Jump, line));
                     chunk.fixup(ok_tgt).expect("Jump too short to overflow.");
                 }
                 // Stack: rhs lhs ...
-                chunk.op(Insn::PutValue); // Stack: err/empty ...
+                chunk.op(Insn::PutValue, line); // Stack: err/empty ...
                 for exit in exits {
                     chunk.fixup(exit)?;
                 }
@@ -6097,10 +6193,10 @@ impl VariableDeclaration {
 
                 let status = init.compile(chunk, strict, source, CompileMod::Unmodified)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let exit = if status.maybe_abrupt() || status.maybe_ref() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
@@ -6117,58 +6213,77 @@ impl VariableDeclaration {
 }
 
 impl EmptyStatement {
-    fn compile(chunk: &mut Chunk) -> NeverAbruptRefResult {
-        chunk.op(Insn::Empty);
+    fn compile(&self, chunk: &mut Chunk) -> NeverAbruptRefResult {
+        chunk.op(Insn::Empty, self.location().starting_line);
         NeverAbruptRefResult
     }
 }
 
 impl IfStatement {
     fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
-        let mut first_exit = None;
-        let mut second_exit = None;
-        let mut third_exit = None;
-        let expr_status = self.expression().compile(chunk, strict, source)?;
-        // Stack: exprRef/exprValue/err
+        let expression = self.expression();
+        let first_statement = self.first_statement();
+
+        let if_location = self.location();
+        let end_of_if = last_line_of(&source.text, &if_location);
+
+        let condition_line = line_before_span(&source.text, &if_location, &first_statement.location().span);
+        let else_line = match self {
+            IfStatement::WithoutElse(..) => end_of_if,
+            IfStatement::WithElse(_, _, false_path, _) => {
+                line_before_span(&source.text, &if_location, &false_path.location().span)
+            }
+        };
+
+        let mut abrupt_exits = Vec::new();
+
+        let expr_status = expression.compile(chunk, strict, source)?;
+
+        // The condition may produce a reference; condition testing needs its value.
         if expr_status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, condition_line);
         }
-        // Stack: exprValue/err
+
+        // Preserve abrupt condition evaluation until the common exit.
         if expr_status.maybe_abrupt() {
-            first_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+            abrupt_exits.push(chunk.op_jump(Insn::JumpIfAbrupt, condition_line));
         }
-        // Stack: exprValue
-        let expr_false = chunk.op_jump(Insn::JumpPopIfFalse);
-        // "True" path
-        let true_path_status = self.first_statement().compile(chunk, strict, source)?;
+
+        let condition_false = chunk.op_jump(Insn::JumpPopIfFalse, condition_line);
+
+        // True path.
+        let true_path_status = first_statement.compile(chunk, strict, source)?;
         if true_path_status.maybe_abrupt() {
-            second_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+            abrupt_exits.push(chunk.op_jump(Insn::JumpIfAbrupt, else_line));
         }
-        let true_complete = chunk.op_jump(Insn::Jump);
-        // "False" path
-        chunk.fixup(expr_false)?;
+
+        let true_path_complete = chunk.op_jump(Insn::Jump, else_line);
+
+        // False path.
+        chunk.fixup(condition_false)?;
+
         let false_path_status = match self {
             IfStatement::WithElse(_, _, false_path, _) => false_path.compile(chunk, strict, source)?,
             IfStatement::WithoutElse(..) => {
-                chunk.op(Insn::Undefined);
+                chunk.op(Insn::Undefined, end_of_if);
                 NeverAbruptRefResult.into()
             }
         };
+
         if false_path_status.maybe_abrupt() {
-            third_exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+            abrupt_exits.push(chunk.op_jump(Insn::JumpIfAbrupt, end_of_if));
         }
-        chunk.fixup(true_complete)?;
-        chunk.op(Insn::Undefined);
-        chunk.op(Insn::Swap);
-        chunk.op(Insn::UpdateEmpty);
-        if let Some(mark) = first_exit {
-            chunk.fixup(mark)?;
-        }
-        if let Some(mark) = second_exit {
-            chunk.fixup(mark)?;
-        }
-        if let Some(mark) = third_exit {
-            chunk.fixup(mark).expect("Jump too short to overflow");
+
+        // Join the normal true/false completions. `UpdateEmpty` gives an
+        // if-without-else its `undefined` completion value when needed.
+        chunk.fixup(true_path_complete)?;
+        chunk.op(Insn::Undefined, end_of_if);
+        chunk.op(Insn::Swap, end_of_if);
+        chunk.op(Insn::UpdateEmpty, end_of_if);
+
+        // All abrupt completions branch here, past the normal-completion join.
+        for exit in abrupt_exits {
+            chunk.fixup(exit)?;
         }
 
         Ok(AbruptResult::from(
@@ -6176,7 +6291,6 @@ impl IfStatement {
         ))
     }
 }
-
 impl IterationStatement {
     fn loop_compile(
         &self,
@@ -6204,6 +6318,7 @@ impl WhileStatement {
         source: &SourceTree,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         //  1. Let V be undefined.
         //  2. Repeat,
         //      a. Let exprRef be ? Evaluation of Expression.
@@ -6232,34 +6347,34 @@ impl WhileStatement {
         // UPDATE_EMPTY             val/err
         // exit:
 
-        chunk.op(Insn::Undefined);
+        chunk.op(Insn::Undefined, line);
         let loop_top = chunk.pos();
         let exp_status = self.exp.compile(chunk, strict, source)?;
         if exp_status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
         let mut exits = vec![];
         if exp_status.maybe_abrupt() || exp_status.maybe_ref() {
-            let mark = chunk.op_jump(Insn::JumpIfNormal);
-            chunk.op_plus_arg(Insn::Unwind, 1);
-            exits.push(chunk.op_jump(Insn::Jump));
+            let mark = chunk.op_jump(Insn::JumpIfNormal, line);
+            chunk.op_plus_arg(Insn::Unwind, 1, line);
+            exits.push(chunk.op_jump(Insn::Jump, line));
             chunk.fixup(mark).expect("jump too short to fail");
         }
-        exits.push(chunk.op_jump(Insn::JumpPopIfFalse));
+        exits.push(chunk.op_jump(Insn::JumpPopIfFalse, line));
         let stmt_status = self.stmt.compile(chunk, strict, source)?;
         let leaving = if stmt_status.maybe_abrupt() {
             let label_set_id = chunk.add_to_string_set_pool(label_set)?;
-            chunk.op_plus_arg(Insn::LoopContinues, label_set_id);
-            Some(chunk.op_jump(Insn::JumpPopIfFalse))
+            chunk.op_plus_arg(Insn::LoopContinues, label_set_id, line);
+            Some(chunk.op_jump(Insn::JumpPopIfFalse, line))
         } else {
             None
         };
-        chunk.op(Insn::CoalesceValue);
-        chunk.op_jump_back(Insn::Jump, loop_top)?;
+        chunk.op(Insn::CoalesceValue, line);
+        chunk.op_jump_back(Insn::Jump, loop_top, line)?;
         if let Some(mark) = leaving {
             chunk.fixup(mark).expect("jump too short to fail");
         }
-        chunk.op(Insn::UpdateEmpty);
+        chunk.op(Insn::UpdateEmpty, line);
         for mark in exits {
             chunk.fixup(mark).expect("these should always be smaller than the loop back, which already was successful");
         }
@@ -6275,6 +6390,7 @@ impl DoWhileStatement {
         source: &SourceTree,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // DoWhileStatement : do Statement while ( Expression ) ;
         //  1. Let V be undefined.
         //  2. Repeat,
@@ -6284,47 +6400,47 @@ impl DoWhileStatement {
         //      d. Let exprRef be the result of evaluating Expression.
         //      e. Let exprValue be ? GetValue(exprRef).
         //      f. If ToBoolean(exprValue) is false, return V.
-        chunk.op(Insn::Undefined);
+        chunk.op(Insn::Undefined, line);
         // Stack: V ...
         let loop_top = chunk.pos();
         let stmt_status = self.stmt.compile(chunk, strict, source)?;
         // Stack: stmtResult V ...
         let loop_ends = if stmt_status.maybe_abrupt() {
             let label_set_id = chunk.add_to_string_set_pool(label_set)?;
-            chunk.op_plus_arg(Insn::LoopContinues, label_set_id);
+            chunk.op_plus_arg(Insn::LoopContinues, label_set_id, line);
             // Stack: LCResult stmtResult V ...
-            Some(chunk.op_jump(Insn::JumpPopIfFalse))
+            Some(chunk.op_jump(Insn::JumpPopIfFalse, line))
         } else {
             None
         };
         // Stack: stmtResult V ...
-        chunk.op(Insn::CoalesceValue);
+        chunk.op(Insn::CoalesceValue, line);
         // Stack: V ...
         let expr_status = self.exp.compile(chunk, strict, source)?;
         // Stack: exprRef/exprVal/err V ...
         if expr_status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
         // Stack: exprVal/err V ...
         let expr_err_exit = if expr_status.maybe_abrupt() || expr_status.maybe_ref() {
-            let short_target = chunk.op_jump(Insn::JumpIfNormal);
+            let short_target = chunk.op_jump(Insn::JumpIfNormal, line);
             // Stack: err V ...
-            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.op_plus_arg(Insn::Unwind, 1, line);
             // Stack: err ...
-            let expr_err_exit = chunk.op_jump(Insn::Jump);
+            let expr_err_exit = chunk.op_jump(Insn::Jump, line);
             chunk.fixup(short_target).expect("Jump too short to fail");
             Some(expr_err_exit)
         } else {
             None
         };
         // Stack: exprVal V ...
-        chunk.op_jump_back(Insn::JumpPopIfTrue, loop_top)?;
+        chunk.op_jump_back(Insn::JumpPopIfTrue, loop_top, line)?;
         // Stack: V ...
         if let Some(mark) = loop_ends {
-            let done_exit = chunk.op_jump(Insn::Jump);
+            let done_exit = chunk.op_jump(Insn::Jump, line);
             chunk.fixup(mark).expect("This is shorter than the jump back. We'll be fine.");
             // Stack: stmtResult V ...
-            chunk.op(Insn::UpdateEmpty);
+            chunk.op(Insn::UpdateEmpty, line);
             chunk.fixup(done_exit).expect("Jump too short to fail");
         }
         // Stack: V ...
@@ -6346,6 +6462,7 @@ impl ForStatement {
         stmt: &Rc<Statement>,
         per_iteration_bindings: &[JSString],
         label_set: &[JSString],
+        starting_line: usize,
     ) -> anyhow::Result<AbruptResult> {
         // ForBodyEvaluation ( test, increment, stmt, perIterationBindings, labelSet )
         // The abstract operation ForBodyEvaluation takes arguments test (an Expression Parse Node or empty),
@@ -6416,62 +6533,62 @@ impl ForStatement {
         let mut exits = vec![];
         let mut maybe_abrupt = AbruptResult::from(pib_id.is_some());
 
-        chunk.op(Insn::Undefined);
+        chunk.op(Insn::Undefined, starting_line);
         if let Some(pib_id) = pib_id {
-            chunk.op_plus_arg(Insn::CreatePerIterationEnvironment, pib_id);
-            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-            chunk.op(Insn::Pop);
+            chunk.op_plus_arg(Insn::CreatePerIterationEnvironment, pib_id, starting_line);
+            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, starting_line));
+            chunk.op(Insn::Pop, starting_line);
         }
         let loop_top = chunk.pos();
         if let Some(test) = test {
             let status = test.compile(chunk, strict, source)?;
             if status.maybe_ref() {
-                chunk.op(Insn::GetValue);
+                chunk.op(Insn::GetValue, starting_line);
             }
             if status.maybe_ref() || status.maybe_abrupt() {
-                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, starting_line));
                 maybe_abrupt = AbruptResult::Maybe;
             }
-            exits.push(chunk.op_jump(Insn::JumpPopIfFalse));
+            exits.push(chunk.op_jump(Insn::JumpPopIfFalse, starting_line));
         }
         let mut update_exit = None;
         let status = stmt.compile(chunk, strict, source)?;
         if status.maybe_abrupt() {
             maybe_abrupt = AbruptResult::Maybe;
             let label_set_id = chunk.add_to_string_set_pool(label_set)?;
-            chunk.op_plus_arg(Insn::LoopContinues, label_set_id);
-            update_exit = Some(chunk.op_jump(Insn::JumpPopIfFalse));
+            chunk.op_plus_arg(Insn::LoopContinues, label_set_id, starting_line);
+            update_exit = Some(chunk.op_jump(Insn::JumpPopIfFalse, starting_line));
         }
-        chunk.op(Insn::CoalesceValue);
+        chunk.op(Insn::CoalesceValue, starting_line);
         if let Some(pib_id) = pib_id {
-            chunk.op_plus_arg(Insn::CreatePerIterationEnvironment, pib_id);
-            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-            chunk.op(Insn::Pop);
+            chunk.op_plus_arg(Insn::CreatePerIterationEnvironment, pib_id, starting_line);
+            unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, starting_line));
+            chunk.op(Insn::Pop, starting_line);
         }
         if let Some(increment) = increment {
             let status = increment.compile(chunk, strict, source)?;
             if status.maybe_ref() {
-                chunk.op(Insn::GetValue);
+                chunk.op(Insn::GetValue, starting_line);
             }
             if status.maybe_ref() || status.maybe_abrupt() {
-                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, starting_line));
                 maybe_abrupt = AbruptResult::Maybe;
             }
-            chunk.op(Insn::Pop);
+            chunk.op(Insn::Pop, starting_line);
         }
-        chunk.op_jump_back(Insn::Jump, loop_top)?;
+        chunk.op_jump_back(Insn::Jump, loop_top, starting_line)?;
         if !unwinds.is_empty() {
             for exit in unwinds {
                 chunk.fixup(exit)?;
             }
-            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.op_plus_arg(Insn::Unwind, 1, starting_line);
             if update_exit.is_some() {
-                exits.push(chunk.op_jump(Insn::Jump));
+                exits.push(chunk.op_jump(Insn::Jump, starting_line));
             }
         }
         if let Some(exit) = update_exit {
             chunk.fixup(exit).expect("This jump should always be shorter than the jump back");
-            chunk.op(Insn::UpdateEmpty);
+            chunk.op(Insn::UpdateEmpty, starting_line);
         }
         for exit in exits {
             chunk.fixup(exit).expect("This jump should be shorter than the loop back or the unwind jump");
@@ -6487,6 +6604,7 @@ impl ForStatement {
         source: &SourceTree,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         match self {
             ForStatement::For(init, test, incr, stmt, _) => {
                 // ForStatement : for ( Expressionopt ; Expressionopt ; Expressionopt ) Statement
@@ -6513,16 +6631,25 @@ impl ForStatement {
                 if let Some(init) = init {
                     let status = init.compile(chunk, strict, source)?;
                     if status.maybe_ref() {
-                        chunk.op(Insn::GetValue);
+                        chunk.op(Insn::GetValue, line);
                     }
                     if status.maybe_ref() || status.maybe_abrupt() {
-                        exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                        exit = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                         maybe_abrupt = AbruptResult::Maybe;
                     }
-                    chunk.op(Insn::Pop);
+                    chunk.op(Insn::Pop, line);
                 }
-                let body_status =
-                    Self::compile_for_body(chunk, strict, source, test.clone(), incr.clone(), stmt, &[], label_set)?;
+                let body_status = Self::compile_for_body(
+                    chunk,
+                    strict,
+                    source,
+                    test.clone(),
+                    incr.clone(),
+                    stmt,
+                    &[],
+                    label_set,
+                    line,
+                )?;
                 if body_status.maybe_abrupt() {
                     maybe_abrupt = AbruptResult::Maybe;
                 }
@@ -6544,12 +6671,21 @@ impl ForStatement {
                 let mut exit = None;
                 let vdl_status = vdl.compile(chunk, strict, source)?;
                 if vdl_status.maybe_abrupt() {
-                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    exit = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                     maybe_abrupt = AbruptResult::Maybe;
                 }
-                chunk.op(Insn::Pop);
-                let body_status =
-                    Self::compile_for_body(chunk, strict, source, test.clone(), incr.clone(), stmt, &[], label_set)?;
+                chunk.op(Insn::Pop, line);
+                let body_status = Self::compile_for_body(
+                    chunk,
+                    strict,
+                    source,
+                    test.clone(),
+                    incr.clone(),
+                    stmt,
+                    &[],
+                    label_set,
+                    line,
+                )?;
                 if body_status.maybe_abrupt() {
                     maybe_abrupt = AbruptResult::Maybe;
                 }
@@ -6600,7 +6736,7 @@ impl ForStatement {
                 //   PLE                      result/err
                 // exit:
 
-                chunk.op(Insn::PushNewLexEnv);
+                chunk.op(Insn::PushNewLexEnv, line);
                 let bound_names = lexdecl.bound_names();
                 let is_const = lexdecl.is_constant_declaration();
                 for bn in &bound_names {
@@ -6612,12 +6748,13 @@ impl ForStatement {
                             Insn::CreatePermanentMutableLexBinding
                         },
                         idx,
+                        line,
                     );
                 }
                 let per_iteration_lets = if is_const { &[] } else { bound_names.as_slice() };
                 lexdecl.compile(chunk, strict, source)?;
-                let popenv = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
+                let popenv = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
                 Self::compile_for_body(
                     chunk,
                     strict,
@@ -6627,9 +6764,10 @@ impl ForStatement {
                     stmt,
                     per_iteration_lets,
                     label_set,
+                    line,
                 )?;
                 chunk.fixup(popenv)?;
-                chunk.op(Insn::PopLexEnv);
+                chunk.op(Insn::PopLexEnv, line);
 
                 Ok(AbruptResult::Maybe)
             }
@@ -6713,6 +6851,15 @@ impl ForInOfLHSExpr<'_> {
             ForInOfLHSExpr::ForDeclaration(fd) => fd.is_destructuring(),
         }
     }
+
+    pub(crate) fn location(&self) -> Location {
+        match self {
+            ForInOfLHSExpr::LeftHandSideExpression(node) => node.location(),
+            ForInOfLHSExpr::AssignmentPattern(node) => node.location(),
+            ForInOfLHSExpr::ForBinding(node) => node.location(),
+            ForInOfLHSExpr::ForDeclaration(node) => node.location(),
+        }
+    }
 }
 
 impl ForInOfStatement {
@@ -6723,6 +6870,7 @@ impl ForInOfStatement {
         uninitialized_bound_names: &[JSString],
         exp: ForInOfExpr,
         kind: IterationKind,
+        starting_line: usize,
     ) -> anyhow::Result<AbruptResult> {
         // ForIn/OfHeadEvaluation ( uninitializedBoundNames, expr, iterationKind )
         // The abstract operation ForIn/OfHeadEvaluation takes arguments uninitializedBoundNames (a List of
@@ -6786,39 +6934,39 @@ impl ForInOfStatement {
         let exp_status = if uninitialized_bound_names.is_empty() {
             exp.compile(chunk, strict, source)?
         } else {
-            chunk.op(Insn::PushNewLexEnv);
+            chunk.op(Insn::PushNewLexEnv, starting_line);
             for name in uninitialized_bound_names.iter().cloned() {
                 let idx = chunk.add_to_string_pool(name)?;
-                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
+                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx, starting_line);
             }
             let exp_status = exp.compile(chunk, strict, source)?;
-            chunk.op(Insn::PopLexEnv);
+            chunk.op(Insn::PopLexEnv, starting_line);
             exp_status
         };
         if exp_status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, starting_line);
         }
         let mut exits = vec![];
         if exp_status.maybe_abrupt() || exp_status.maybe_ref() {
-            exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+            exits.push(chunk.op_jump(Insn::JumpIfAbrupt, starting_line));
         }
         let status = match kind {
             IterationKind::Enumerate => {
-                let break_tgt = chunk.op_jump(Insn::JumpIfNullish);
-                chunk.op(Insn::ToObject);
-                chunk.op(Insn::EnumerateObjectProperties);
-                exits.push(chunk.op_jump(Insn::Jump));
+                let break_tgt = chunk.op_jump(Insn::JumpIfNullish, starting_line);
+                chunk.op(Insn::ToObject, starting_line);
+                chunk.op(Insn::EnumerateObjectProperties, starting_line);
+                exits.push(chunk.op_jump(Insn::Jump, starting_line));
                 chunk.fixup(break_tgt).expect("jump too short to fail");
-                chunk.op(Insn::Pop);
-                chunk.op(Insn::Break);
+                chunk.op(Insn::Pop, starting_line);
+                chunk.op(Insn::Break, starting_line);
                 AbruptResult::from(exp_status.maybe_abrupt() || exp_status.maybe_ref())
             }
             IterationKind::Iterate => {
-                chunk.op(Insn::GetSyncIterator);
+                chunk.op(Insn::GetSyncIterator, starting_line);
                 AbruptResult::Maybe
             }
             IterationKind::AsyncIterate => {
-                chunk.op(Insn::ToDo);
+                chunk.op(Insn::ToDo, starting_line);
                 AbruptResult::Maybe
             }
         };
@@ -6839,6 +6987,7 @@ impl ForInOfStatement {
         label_set: &[JSString],
         iterator_kind: IteratorKind,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = lhs.location().starting_line;
         // ForIn/OfBodyEvaluation ( lhs, stmt, iteratorRecord, iterationKind, lhsKind, labelSet [ , iteratorKind ] )
         // The abstract operation ForIn/OfBodyEvaluation takes arguments lhs (a Parse Node), stmt (a Statement
         // Parse Node), iteratorRecord (an Iterator Record), iterationKind (enumerate or iterate), lhsKind
@@ -7006,20 +7155,23 @@ impl ForInOfStatement {
 
         let destructuring = lhs.is_destructuring();
 
-        chunk.op(Insn::Undefined);
+        chunk.op(Insn::Undefined, line);
         let top_spot = chunk.pos();
-        chunk.op(Insn::Swap);
-        chunk.op(match iterator_kind {
-            IteratorKind::Sync => Insn::IteratorNext,
-            IteratorKind::Async => Insn::ToDo, // Insn::AsyncIteratorNext
-        });
+        chunk.op(Insn::Swap, line);
+        chunk.op(
+            match iterator_kind {
+                IteratorKind::Sync => Insn::IteratorNext,
+                IteratorKind::Async => Insn::ToDo, // Insn::AsyncIteratorNext
+            },
+            line,
+        );
         let mut unwind2s = vec![];
-        unwind2s.push(chunk.op_jump(Insn::JumpIfAbrupt));
-        chunk.op(Insn::IteratorResultComplete);
-        let unwind3 = chunk.op_jump(Insn::JumpIfAbrupt);
-        let pop2_exit = chunk.op_jump(Insn::JumpPopIfTrue);
-        chunk.op(Insn::IteratorResultToValue);
-        unwind2s.push(chunk.op_jump(Insn::JumpIfAbrupt));
+        unwind2s.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+        chunk.op(Insn::IteratorResultComplete, line);
+        let unwind3 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+        let pop2_exit = chunk.op_jump(Insn::JumpPopIfTrue, line);
+        chunk.op(Insn::IteratorResultToValue, line);
+        unwind2s.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
 
         let mut lhs_assignment_spots = None;
 
@@ -7033,9 +7185,9 @@ impl ForInOfStatement {
                     fb.binding_initialization(chunk, strict, source, EnvUsage::UsePutValue)?;
                 } else {
                     fb.compile(chunk, strict)?;
-                    let inner_unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                    chunk.op(Insn::Swap);
-                    chunk.op(Insn::PutValue);
+                    let inner_unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                    chunk.op(Insn::Swap, line);
+                    chunk.op(Insn::PutValue, line);
                     let lhs_calc_done = chunk.pos();
                     lhs_assignment_spots = Some((inner_unwind, lhs_calc_done));
                 }
@@ -7043,14 +7195,14 @@ impl ForInOfStatement {
             ForInOfLHSExpr::LeftHandSideExpression(lhs) => {
                 assert!(!destructuring);
                 lhs.compile(chunk, strict, source)?;
-                let inner_unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Swap);
-                chunk.op(Insn::PutValue);
+                let inner_unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Swap, line);
+                chunk.op(Insn::PutValue, line);
                 let lhs_calc_done = chunk.pos();
                 lhs_assignment_spots = Some((inner_unwind, lhs_calc_done));
             }
             ForInOfLHSExpr::ForDeclaration(lhs) => {
-                chunk.op(Insn::PushNewLexEnv);
+                chunk.op(Insn::PushNewLexEnv, line);
                 lhs.for_declaration_binding_instantiation(chunk)?;
                 if destructuring {
                     lhs.for_declaration_binding_initialization(chunk, strict, source, EnvUsage::UseCurrentLexical)?;
@@ -7059,81 +7211,81 @@ impl ForInOfStatement {
                     let name = chunk
                         .add_to_string_pool(bn.pop().expect("should be exactly one name"))
                         .expect("names should have already been added to string pool in instantiation");
-                    chunk.op_plus_arg(Insn::String, name);
-                    chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
-                    chunk.op(Insn::Swap);
-                    chunk.op(Insn::InitializeReferencedBinding);
+                    chunk.op_plus_arg(Insn::String, name, line);
+                    chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
+                    chunk.op(Insn::Swap, line);
+                    chunk.op(Insn::InitializeReferencedBinding, line);
                 }
             }
         }
-        let statements = chunk.op_jump(Insn::JumpIfNormal);
+        let statements = chunk.op_jump(Insn::JumpIfNormal, line);
         if matches!(lhs, ForInOfLHSExpr::ForDeclaration(_)) {
-            chunk.op(Insn::PopLexEnv);
+            chunk.op(Insn::PopLexEnv, line);
         }
         let mut exits = vec![];
         match (iterator_kind, i_kind) {
             (IteratorKind::Async, _) | (_, IterationKind::AsyncIterate) => {
-                chunk.op_plus_arg(Insn::RotateUp, 3);
-                chunk.op(Insn::Pop);
-                chunk.op(Insn::ToDo); // ASYNC_ITER_CLOSE
-                exits.push(chunk.op_jump(Insn::Jump));
+                chunk.op_plus_arg(Insn::RotateUp, 3, line);
+                chunk.op(Insn::Pop, line);
+                chunk.op(Insn::ToDo, line); // ASYNC_ITER_CLOSE
+                exits.push(chunk.op_jump(Insn::Jump, line));
             }
             (IteratorKind::Sync, IterationKind::Enumerate) => {
-                unwind2s.push(chunk.op_jump(Insn::Jump));
+                unwind2s.push(chunk.op_jump(Insn::Jump, line));
             }
             (IteratorKind::Sync, IterationKind::Iterate) => {
-                chunk.op_plus_arg(Insn::RotateUp, 3);
-                chunk.op(Insn::Pop);
-                chunk.op(Insn::IteratorClose);
-                exits.push(chunk.op_jump(Insn::Jump));
+                chunk.op_plus_arg(Insn::RotateUp, 3, line);
+                chunk.op(Insn::Pop, line);
+                chunk.op(Insn::IteratorClose, line);
+                exits.push(chunk.op_jump(Insn::Jump, line));
             }
         }
 
         if let Some((inner_unwind, lhs_calc_done)) = lhs_assignment_spots {
             chunk.fixup(inner_unwind).expect("Jump too short to overflow");
-            chunk.op_plus_arg(Insn::Unwind, 1);
-            chunk.op_jump_back(Insn::Jump, lhs_calc_done).expect("Jump too short to overflow");
+            chunk.op_plus_arg(Insn::Unwind, 1, line);
+            chunk.op_jump_back(Insn::Jump, lhs_calc_done, line).expect("Jump too short to overflow");
         }
 
         chunk.fixup(statements).expect("Jump too short to overflow");
-        chunk.op(Insn::Pop);
-        chunk.op(Insn::Swap);
+        chunk.op(Insn::Pop, line);
+        chunk.op(Insn::Swap, line);
         stmt.compile(chunk, strict, source)?;
         if matches!(lhs, ForInOfLHSExpr::ForDeclaration(_)) {
-            chunk.op(Insn::PopLexEnv);
+            chunk.op(Insn::PopLexEnv, line);
         }
         let lsid = chunk.add_to_string_set_pool(label_set)?;
-        chunk.op_plus_arg(Insn::LoopContinues, lsid);
-        let loop_termination = chunk.op_jump(Insn::JumpPopIfFalse);
-        chunk.op(Insn::CoalesceValue);
-        chunk.op_jump_back(Insn::Jump, top_spot)?;
+        chunk.op_plus_arg(Insn::LoopContinues, lsid, line);
+        let loop_termination = chunk.op_jump(Insn::JumpPopIfFalse, line);
+        chunk.op(Insn::CoalesceValue, line);
+        chunk.op_jump_back(Insn::Jump, top_spot, line)?;
 
         chunk.fixup(loop_termination).expect("jump too short to fail");
-        chunk.op(Insn::UpdateEmpty);
+        chunk.op(Insn::UpdateEmpty, line);
         match (iterator_kind, i_kind) {
             (_, IterationKind::Enumerate) => {
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
             }
             (IteratorKind::Async, _) => {
-                chunk.op(Insn::ToDo); // ASYNC_ITER_CLOSE
+                chunk.op(Insn::ToDo, line); // ASYNC_ITER_CLOSE
             }
             (IteratorKind::Sync, _) => {
-                chunk.op(Insn::IteratorClose);
+                chunk.op(Insn::IteratorClose, line);
             }
         }
-        exits.push(chunk.op_jump(Insn::Jump));
+        exits.push(chunk.op_jump(Insn::Jump, line));
 
         chunk.fixup(pop2_exit).expect("jump shorter than the jump back to top, which was already successful");
-        chunk.op(Insn::Pop);
-        chunk.op(Insn::Pop);
-        exits.push(chunk.op_jump(Insn::Jump));
+        chunk.op(Insn::Pop, line);
+        chunk.op(Insn::Pop, line);
+        exits.push(chunk.op_jump(Insn::Jump, line));
 
         chunk.fixup(unwind3)?;
-        chunk.op_plus_arg(Insn::Unwind, 1);
+        chunk.op_plus_arg(Insn::Unwind, 1, line);
         for unwind2 in unwind2s {
             chunk.fixup(unwind2)?;
         }
-        chunk.op_plus_arg(Insn::Unwind, 2);
+        chunk.op_plus_arg(Insn::Unwind, 2, line);
         for exit in exits {
             chunk.fixup(exit).expect("Longest exit jump is shorter than unwind2, which was successful");
         }
@@ -7147,6 +7299,7 @@ impl ForInOfStatement {
         source: &SourceTree,
         label_set: &[JSString],
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: ForInOfLoopEvaluation
         // The syntax-directed operation ForInOfLoopEvaluation takes argument labelSet (a List of Strings) and
         // returns either a normal completion containing an ECMAScript language value or an abrupt completion.
@@ -7210,10 +7363,11 @@ impl ForInOfStatement {
         //   JUMP_IF_ABRUPT exit
         //   <body_eval(lhs, stmt, ENUMERATE, ASSIGNMENT, label_set)
         // exit:
-        let head_status = Self::for_in_of_head_evaluation(chunk, strict, source, &names_to_bind, exp, iteration_kind)?;
+        let head_status =
+            Self::for_in_of_head_evaluation(chunk, strict, source, &names_to_bind, exp, iteration_kind, line)?;
         let mut exit = None;
         if head_status.maybe_abrupt() {
-            exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+            exit = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
         }
         Self::for_in_of_body_evaluation(chunk, strict, source, lhs, stmt, iteration_kind, label_set, iterator_kind)?;
         if let Some(exit) = exit {
@@ -7264,6 +7418,7 @@ impl ForBinding {
 
 impl ForDeclaration {
     fn for_declaration_binding_instantiation(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: ForDeclarationBindingInstantiation
         // The syntax-directed operation ForDeclarationBindingInstantiation takes argument environment (a Declarative
         // Environment Record) and returns unused. It is defined piecewise over the following productions:
@@ -7282,7 +7437,7 @@ impl ForDeclaration {
         };
         for name_val in self.binding.bound_names() {
             let name = chunk.add_to_string_pool(name_val)?;
-            chunk.op_plus_arg(insn, name);
+            chunk.op_plus_arg(insn, name, line);
         }
 
         Ok(NeverAbruptRefResult)
@@ -7316,11 +7471,12 @@ impl ForDeclaration {
 
 impl ContinueStatement {
     fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         match self {
-            ContinueStatement::Bare { .. } => chunk.op(Insn::Continue),
+            ContinueStatement::Bare { .. } => chunk.op(Insn::Continue, line),
             ContinueStatement::Labelled { label, .. } => {
                 let str_idx = chunk.add_to_string_pool(label.string_value())?;
-                chunk.op_plus_arg(Insn::TargetedContinue, str_idx);
+                chunk.op_plus_arg(Insn::TargetedContinue, str_idx, line);
             }
         }
         Ok(AlwaysAbruptResult)
@@ -7329,11 +7485,12 @@ impl ContinueStatement {
 
 impl BreakStatement {
     fn compile(&self, chunk: &mut Chunk) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         match self {
-            BreakStatement::Bare { .. } => chunk.op(Insn::Break),
+            BreakStatement::Bare { .. } => chunk.op(Insn::Break, line),
             BreakStatement::Labelled { label, .. } => {
                 let str_idx = chunk.add_to_string_pool(label.string_value())?;
-                chunk.op_plus_arg(Insn::TargetedBreak, str_idx);
+                chunk.op_plus_arg(Insn::TargetedBreak, str_idx, line);
             }
         }
         Ok(AlwaysAbruptResult)
@@ -7342,22 +7499,23 @@ impl BreakStatement {
 
 impl ReturnStatement {
     fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         match self {
             ReturnStatement::Bare { .. } => {
-                chunk.op(Insn::Undefined);
-                chunk.op(Insn::Return);
+                chunk.op(Insn::Undefined, line);
+                chunk.op(Insn::Return, line);
             }
             ReturnStatement::Expression { exp, .. } => {
                 let status = exp.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let exit = if status.maybe_abrupt() || status.maybe_ref() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
-                chunk.op(Insn::Return);
+                chunk.op(Insn::Return, line);
                 if let Some(mark) = exit {
                     chunk.fixup(mark).expect("jump too short to fail");
                 }
@@ -7369,6 +7527,7 @@ impl ReturnStatement {
 
 impl SwitchStatement {
     fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // SwitchStatement : switch ( Expression ) CaseBlock
         //  1. Let exprRef be ? Evaluation of Expression.
         //  2. Let switchValue be ? GetValue(exprRef).
@@ -7394,15 +7553,18 @@ impl SwitchStatement {
 
         let status = self.expression.compile(chunk, strict, source)?;
         if status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
-        let exit =
-            if status.maybe_ref() || status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-        chunk.op(Insn::PushNewLexEnv);
+        let exit = if status.maybe_ref() || status.maybe_abrupt() {
+            Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
+        } else {
+            None
+        };
+        chunk.op(Insn::PushNewLexEnv, line);
         let declarations = self.case_block.lexically_scoped_declarations();
         block_declaration_instantiation(chunk, strict, source, &declarations)?;
         let blocks_status = self.case_block.case_block_evaluation(chunk, strict, source)?;
-        chunk.op(Insn::PopLexEnv);
+        chunk.op(Insn::PopLexEnv, line);
         if let Some(exit) = exit {
             chunk.fixup(exit)?;
         }
@@ -7420,12 +7582,13 @@ impl CaseBlock {
         // The syntax-directed operation CaseBlockEvaluation takes argument input (an ECMAScript language
         // value) and returns either a normal completion containing an ECMAScript language value or an abrupt
         // completion.
+        let line = self.location().starting_line;
         match self {
             CaseBlock::NoDefault(None, _) => {
                 // CaseBlock : { }
                 //  1. Return undefined.
-                chunk.op(Insn::Pop);
-                chunk.op(Insn::Undefined);
+                chunk.op(Insn::Pop, line);
+                chunk.op(Insn::Undefined, line);
                 Ok(AbruptResult::Never)
             }
             CaseBlock::NoDefault(Some(clauses), _) => {
@@ -7469,42 +7632,42 @@ impl CaseBlock {
                 //  UNWIND 2                            err
                 // exit:                                V/err
 
-                chunk.op(Insn::Undefined);
-                chunk.op(Insn::Swap);
-                chunk.op(Insn::False);
+                chunk.op(Insn::Undefined, line);
+                chunk.op(Insn::Swap, line);
+                chunk.op(Insn::False, line);
 
                 let mut unwind_2 = vec![];
                 let mut exit = vec![];
 
                 for clause in clauses.to_vec() {
-                    let do_eval_cont = chunk.op_jump(Insn::JumpIfTrue);
-                    chunk.op(Insn::Pop);
+                    let do_eval_cont = chunk.op_jump(Insn::JumpIfTrue, line);
+                    chunk.op(Insn::Pop, line);
                     let check_status = clause.case_clause_is_selected(chunk, strict, source)?;
                     if check_status.maybe_abrupt() {
-                        unwind_2.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        unwind_2.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                     }
-                    let skip_eval = chunk.op_jump(Insn::JumpIfFalse);
-                    chunk.op(Insn::Pop);
+                    let skip_eval = chunk.op_jump(Insn::JumpIfFalse, line);
+                    chunk.op(Insn::Pop, line);
                     chunk.fixup(do_eval_cont)?;
-                    chunk.op(Insn::Pop);
+                    chunk.op(Insn::Pop, line);
                     let clause_status = clause.compile(chunk, strict, source)?;
-                    chunk.op(Insn::UpdateEmpty);
+                    chunk.op(Insn::UpdateEmpty, line);
                     if clause_status.maybe_abrupt() {
-                        exit.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        exit.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                     }
-                    chunk.op(Insn::True);
+                    chunk.op(Insn::True, line);
                     chunk.fixup(skip_eval)?;
                 }
 
-                exit.push(chunk.op_jump(Insn::JumpPopIfTrue));
-                chunk.op(Insn::Pop);
+                exit.push(chunk.op_jump(Insn::JumpPopIfTrue, line));
+                chunk.op(Insn::Pop, line);
                 let maybe_abrupt = !unwind_2.is_empty() || exit.len() > 1;
                 if !unwind_2.is_empty() {
-                    exit.push(chunk.op_jump(Insn::Jump));
+                    exit.push(chunk.op_jump(Insn::Jump, line));
                     for u in unwind_2 {
                         chunk.fixup(u)?;
                     }
-                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    chunk.op_plus_arg(Insn::Unwind, 2, line);
                 }
                 for e in exit {
                     chunk.fixup(e)?;
@@ -7605,83 +7768,83 @@ impl CaseBlock {
                 //  UNWIND 2
                 // exit:
 
-                chunk.op(Insn::Undefined);
-                chunk.op(Insn::Swap);
-                chunk.op(Insn::False);
+                chunk.op(Insn::Undefined, line);
+                chunk.op(Insn::Swap, line);
+                chunk.op(Insn::False, line);
                 let mut unwind2 = vec![];
                 let mut exit = vec![];
                 if let Some(clauses) = before.as_ref() {
                     for clause in clauses.to_vec() {
-                        let do_eval_cont = chunk.op_jump(Insn::JumpIfTrue);
-                        chunk.op(Insn::Pop);
+                        let do_eval_cont = chunk.op_jump(Insn::JumpIfTrue, line);
+                        chunk.op(Insn::Pop, line);
                         let check_status = clause.case_clause_is_selected(chunk, strict, source)?;
                         if check_status.maybe_abrupt() {
-                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                         }
-                        let skip_eval = chunk.op_jump(Insn::JumpIfFalse);
+                        let skip_eval = chunk.op_jump(Insn::JumpIfFalse, line);
                         chunk.fixup(do_eval_cont)?;
-                        chunk.op_plus_arg(Insn::RotateUp, 3);
+                        chunk.op_plus_arg(Insn::RotateUp, 3, line);
                         let compute_status = clause.compile(chunk, strict, source)?;
-                        chunk.op(Insn::UpdateEmpty);
+                        chunk.op(Insn::UpdateEmpty, line);
                         if compute_status.maybe_abrupt() {
-                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                         }
-                        chunk.op_plus_arg(Insn::RotateDown, 3);
+                        chunk.op_plus_arg(Insn::RotateDown, 3, line);
                         chunk.fixup(skip_eval)?;
                     }
                 }
-                chunk.op(Insn::False);
-                chunk.op(Insn::Swap);
+                chunk.op(Insn::False, line);
+                chunk.op(Insn::Swap, line);
                 if let Some(clauses) = after.as_ref() {
-                    let skip_second_clauses = chunk.op_jump(Insn::JumpPopIfTrue);
+                    let skip_second_clauses = chunk.op_jump(Insn::JumpPopIfTrue, line);
                     for clause in clauses.to_vec() {
-                        let do_eval2 = chunk.op_jump(Insn::JumpIfTrue);
-                        chunk.op(Insn::Pop);
+                        let do_eval2 = chunk.op_jump(Insn::JumpIfTrue, line);
+                        chunk.op(Insn::Pop, line);
                         let check_status = clause.case_clause_is_selected(chunk, strict, source)?;
                         if check_status.maybe_abrupt() {
-                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                         }
-                        let skip_eval2 = chunk.op_jump(Insn::JumpIfFalse);
+                        let skip_eval2 = chunk.op_jump(Insn::JumpIfFalse, line);
                         chunk.fixup(do_eval2)?;
-                        chunk.op_plus_arg(Insn::RotateUp, 3);
+                        chunk.op_plus_arg(Insn::RotateUp, 3, line);
                         let compute_status = clause.compile(chunk, strict, source)?;
-                        chunk.op(Insn::UpdateEmpty);
+                        chunk.op(Insn::UpdateEmpty, line);
                         if compute_status.maybe_abrupt() {
-                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                            unwind2.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                         }
-                        chunk.op_plus_arg(Insn::RotateDown, 3);
+                        chunk.op_plus_arg(Insn::RotateDown, 3, line);
                         chunk.fixup(skip_eval2)?;
                     }
                     chunk.fixup(skip_second_clauses)?;
                 } else {
-                    chunk.op(Insn::Pop);
+                    chunk.op(Insn::Pop, line);
                 }
-                chunk.op(Insn::Swap);
-                chunk.op(Insn::Pop);
-                exit.push(chunk.op_jump(Insn::JumpPopIfTrue));
+                chunk.op(Insn::Swap, line);
+                chunk.op(Insn::Pop, line);
+                exit.push(chunk.op_jump(Insn::JumpPopIfTrue, line));
                 let default_status = default.compile(chunk, strict, source)?;
-                chunk.op(Insn::UpdateEmpty);
+                chunk.op(Insn::UpdateEmpty, line);
                 if let Some(clauses) = after.as_ref() {
                     if default_status.maybe_abrupt() {
-                        exit.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        exit.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                     }
                     for clause in clauses.to_vec() {
                         let status = clause
                             .compile(chunk, strict, source)
                             .expect("This compiled once before, it should compile fine now, too.");
-                        chunk.op(Insn::UpdateEmpty);
+                        chunk.op(Insn::UpdateEmpty, line);
                         if status.maybe_abrupt() {
-                            exit.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                            exit.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                         }
                     }
                 }
                 let maybe_abrupt = !unwind2.is_empty() || default_status.maybe_abrupt();
                 if !unwind2.is_empty() {
-                    exit.push(chunk.op_jump(Insn::Jump));
+                    exit.push(chunk.op_jump(Insn::Jump, line));
                     for mark in unwind2 {
                         chunk.fixup(mark)?;
                     }
-                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    chunk.op_plus_arg(Insn::Unwind, 2, line);
                 }
                 for mark in exit {
                     chunk.fixup(mark)?;
@@ -7704,7 +7867,7 @@ impl DefaultClause {
             None => {
                 // DefaultClause : default :
                 //  1. Return EMPTY.
-                chunk.op(Insn::Empty);
+                chunk.op(Insn::Empty, self.location().starting_line);
                 Ok(AbruptResult::Never)
             }
         }
@@ -7722,7 +7885,7 @@ impl CaseClause {
             None => {
                 // CaseClause : case Expression :
                 //  1. Return EMPTY.
-                chunk.op(Insn::Empty);
+                chunk.op(Insn::Empty, self.location().starting_line);
                 Ok(AbruptResult::Never)
             }
         }
@@ -7734,6 +7897,7 @@ impl CaseClause {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // The abstract operation CaseClauseIsSelected takes arguments C (a CaseClause Parse Node) and input
         // (an ECMAScript language value) and returns either a normal completion containing a Boolean or an
         // abrupt completion. It determines whether C matches input. It performs the following steps when
@@ -7757,18 +7921,21 @@ impl CaseClause {
         //  UNWIND 1                     err input
         // exit:                         bool/err input
 
-        chunk.op(Insn::Dup);
+        chunk.op(Insn::Dup, line);
         let status = self.expression.compile(chunk, strict, source)?;
         if status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
-        let unwind_1 =
-            if status.maybe_ref() || status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-        chunk.op(Insn::StrictEqual);
+        let unwind_1 = if status.maybe_ref() || status.maybe_abrupt() {
+            Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
+        } else {
+            None
+        };
+        chunk.op(Insn::StrictEqual, line);
         if let Some(unwind) = unwind_1 {
-            let exit = chunk.op_jump(Insn::Jump);
+            let exit = chunk.op_jump(Insn::Jump, line);
             chunk.fixup(unwind).expect("Short jump should fit");
-            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.op_plus_arg(Insn::Unwind, 1, line);
             chunk.fixup(exit).expect("Short jump should fit");
             Ok(AbruptResult::Maybe)
         } else {
@@ -7795,7 +7962,7 @@ impl LabelledStatement {
         let item_status = self.item.labelled_compile(chunk, strict, source, &label_set)?;
         if item_status.maybe_abrupt() {
             let str_idx = chunk.add_to_string_pool(label)?;
-            chunk.op_plus_arg(Insn::HandleTargetedBreak, str_idx);
+            chunk.op_plus_arg(Insn::HandleTargetedBreak, str_idx, self.location().starting_line);
         }
         Ok(item_status)
     }
@@ -7810,7 +7977,7 @@ impl LabelledItem {
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         match self {
-            LabelledItem::Function(_) => Ok(AbruptResult::from(FunctionDeclaration::compile(chunk))),
+            LabelledItem::Function(f) => Ok(AbruptResult::from(f.compile(chunk))),
             LabelledItem::Statement(s) => s.labelled_compile(chunk, strict, source, label_set),
         }
     }
@@ -7828,6 +7995,7 @@ impl ThrowStatement {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: Evaluation
         // ThrowStatement : throw Expression ;
         // 1. Let exprRef be the result of evaluating Expression.
@@ -7835,11 +8003,14 @@ impl ThrowStatement {
         // 3. Return ThrowCompletion(exprValue).
         let status = self.exp.compile(chunk, strict, source)?; // Stack: exp/ref/err ...
         if status.maybe_ref() {
-            chunk.op(Insn::GetValue); // Stack: exp/err ...
+            chunk.op(Insn::GetValue, line); // Stack: exp/err ...
         }
-        let abort_target =
-            if status.maybe_abrupt() || status.maybe_ref() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-        chunk.op(Insn::Throw);
+        let abort_target = if status.maybe_abrupt() || status.maybe_ref() {
+            Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
+        } else {
+            None
+        };
+        chunk.op(Insn::Throw, line);
         if let Some(tgt) = abort_target {
             chunk.fixup(tgt).expect("Jump too short to overflow");
         }
@@ -7852,6 +8023,7 @@ impl TryStatement {
     ///
     /// See [TryStatement evaluation](https://tc39.es/ecma262/#sec-try-statement-runtime-semantics-evaluation)
     pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         match self {
             TryStatement::Catch { block, catch, .. } => {
                 // TryStatement : try Block Catch
@@ -7859,18 +8031,18 @@ impl TryStatement {
                 //  2. If B.[[Type]] is throw, let C be Completion(CatchClauseEvaluation of Catch with argument B.[[Value]]).
                 //  3. Else, let C be B.
                 //  4. Return ? UpdateEmpty(C, undefined).
-                chunk.op(Insn::Undefined);
+                chunk.op(Insn::Undefined, line);
                 let status = block.compile(chunk, strict, source)?;
                 // Stack: val/empty/err undefined ...
                 if status.maybe_abrupt() {
-                    let exit = chunk.op_jump(Insn::JumpNotThrow);
+                    let exit = chunk.op_jump(Insn::JumpNotThrow, line);
                     // Stack: err undefined ...
                     catch.compile_catch_clause_evaluation(chunk, strict, source)?;
                     // Stack: catch: val/empty/err undefined ...
                     chunk.fixup(exit)?;
                 }
                 // Stack: (block: val/empty/abrupt -or- catch: val/empty/err) undefined ...
-                chunk.op(Insn::UpdateEmpty);
+                chunk.op(Insn::UpdateEmpty, line);
                 // Stack: val/err ...
                 Ok(AbruptResult::from(status.maybe_abrupt()))
             }
@@ -7880,24 +8052,24 @@ impl TryStatement {
                 //  2. Let F be the result of evaluating Finally.
                 //  3. If F.[[Type]] is normal, set F to B.
                 //  4. Return ? UpdateEmpty(F, undefined).
-                chunk.op(Insn::Undefined);
+                chunk.op(Insn::Undefined, line);
                 // Stack: undefined ...
                 let status = block.compile(chunk, strict, source)?;
                 // Stack: block:val/empty/err undefined ...
                 let finally_status = finally.compile(chunk, strict, source)?;
                 // Stack: finally:val/empty/err block:val/empty/err undefined ...
                 let short_jump =
-                    if finally_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                    if finally_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                 // Stack: finally:val/empty block:val/empty/err undefined ...
-                chunk.op(Insn::Pop);
+                chunk.op(Insn::Pop, line);
                 // Stack: block: val/empty/err undefined ...
-                chunk.op(Insn::UpdateEmpty);
+                chunk.op(Insn::UpdateEmpty, line);
                 // Stack: block: val/err ...
                 if finally_status.maybe_abrupt() {
-                    let short_exit = chunk.op_jump(Insn::Jump);
+                    let short_exit = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(short_jump.expect("properly set")).expect("Jump too short to fail");
                     // Stack: finally:err block: val/empty/err undefined ...
-                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    chunk.op_plus_arg(Insn::Unwind, 2, line);
                     // Stack: finally:err ...
                     chunk.fixup(short_exit).expect("Jump too short to fail");
                 }
@@ -7912,12 +8084,12 @@ impl TryStatement {
                 //  4. Let F be the result of evaluating Finally.
                 //  5. If F.[[Type]] is normal, set F to C.
                 //  6. Return ? UpdateEmpty(F, undefined).
-                chunk.op(Insn::Undefined);
+                chunk.op(Insn::Undefined, line);
                 // Stack: undefined ...
                 let block_status = block.compile(chunk, strict, source)?;
                 // Stack: val/empty/err undefined ...
                 if block_status.maybe_abrupt() {
-                    let after_catch = chunk.op_jump(Insn::JumpNotThrow);
+                    let after_catch = chunk.op_jump(Insn::JumpNotThrow, line);
                     // Stack: err undefined ...
                     catch.compile_catch_clause_evaluation(chunk, strict, source)?;
                     // Stack: catch: val/empty/err undefined ...
@@ -7927,17 +8099,17 @@ impl TryStatement {
                 let finally_status = finally.compile(chunk, strict, source)?;
                 // Stack: finally: val/empty/err (block: val/empty/abt -or- catch: val/empty/err) undefined
                 let short_jump =
-                    if finally_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                    if finally_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                 // Stack: finally:val/empty (block: val/empty/abt -or- catch: val/empty/err) undefined ...
-                chunk.op(Insn::Pop);
+                chunk.op(Insn::Pop, line);
                 // Stack: (block: val/empty/abt -or- catch: val/empty/err) undefined ...
-                chunk.op(Insn::UpdateEmpty);
+                chunk.op(Insn::UpdateEmpty, line);
                 // Stack: (block: val/abt -or- catch: val/err) ...
                 if finally_status.maybe_abrupt() {
-                    let short_exit = chunk.op_jump(Insn::Jump);
+                    let short_exit = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(short_jump.expect("properly set")).expect("Jump too short to fail");
                     // Stack: finally:err (block: val/empty/abt -or- catch: val/empty/err) undefined ...
-                    chunk.op_plus_arg(Insn::Unwind, 2);
+                    chunk.op_plus_arg(Insn::Unwind, 2, line);
                     // Stack: finally:err ...
                     chunk.fixup(short_exit).expect("Jump too short to fail");
                 }
@@ -7955,6 +8127,7 @@ impl Catch {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // Stack: Throw(value) ...
         match &self.parameter {
             None => {
@@ -7964,7 +8137,7 @@ impl Catch {
                 // start:                 Throw(value) ...
                 //   POP                  ...
                 //   <body.evaluation>    value/err ...
-                chunk.op(Insn::Pop);
+                chunk.op(Insn::Pop, line);
                 self.block.compile(chunk, strict, source)
             }
             Some(catch_parameter) => {
@@ -7982,20 +8155,21 @@ impl Catch {
                 //  7. Let B be the result of evaluating Block.
                 //  8. Set the running execution context's LexicalEnvironment to oldEnv.
                 //  9. Return ? B.
-                chunk.op(Insn::PushNewLexEnv);
+                chunk.op(Insn::PushNewLexEnv, line);
                 for arg_name in catch_parameter.bound_names() {
                     let idx = chunk.add_to_string_pool(arg_name)?;
-                    chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
+                    chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx, line);
                 }
-                chunk.op(Insn::ExtractThrownValue);
+                chunk.op(Insn::ExtractThrownValue, line);
                 let param_status = catch_parameter.compile_binding_initialization(chunk, strict, source)?;
-                let fixup = if param_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-                chunk.op(Insn::Pop);
+                let fixup =
+                    if param_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+                chunk.op(Insn::Pop, line);
                 let block_status = self.block.compile(chunk, strict, source)?;
                 if let Some(fixup) = fixup {
                     chunk.fixup(fixup)?;
                 }
-                chunk.op(Insn::PopLexEnv);
+                chunk.op(Insn::PopLexEnv, line);
 
                 Ok(AbruptResult::from(param_status.maybe_abrupt() || block_status.maybe_abrupt()))
             }
@@ -8023,7 +8197,8 @@ impl CatchParameter {
                 let status = node
                     .compile_binding_initialization(chunk, strict, EnvUsage::UseCurrentLexical)
                     .map(AbruptResult::from)?;
-                chunk.op(Insn::Empty);
+                let line = self.location().starting_line;
+                chunk.op(Insn::Empty, line);
                 Ok(status)
             }
             CatchParameter::Pattern(node) => node
@@ -8034,8 +8209,8 @@ impl CatchParameter {
 }
 
 impl FunctionDeclaration {
-    fn compile(chunk: &mut Chunk) -> NeverAbruptRefResult {
-        chunk.op(Insn::Empty);
+    fn compile(&self, chunk: &mut Chunk) -> NeverAbruptRefResult {
+        chunk.op(Insn::Empty, self.location().starting_line);
         NeverAbruptRefResult
     }
 
@@ -8088,7 +8263,12 @@ impl FunctionDeclaration {
             this_mode: ThisLexicality::NonLexicalThis,
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
-        chunk.op_plus_two_args(Insn::InstantiateOrdinaryFunctionObject, name_id, func_id);
+        chunk.op_plus_two_args(
+            Insn::InstantiateOrdinaryFunctionObject,
+            name_id,
+            func_id,
+            self.location().starting_line,
+        );
         Ok(AlwaysAbruptResult)
     }
 }
@@ -8127,6 +8307,7 @@ impl FunctionExpression {
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: InstantiateOrdinaryFunctionExpression
+        let line = self.location().starting_line;
         match &self.ident {
             None => {
                 // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name and
@@ -8147,7 +8328,7 @@ impl FunctionExpression {
                     Some(NameLoc::Index(id)) => Some(id),
                     Some(NameLoc::OnStack) => None,
                 } {
-                    chunk.op_plus_arg(Insn::String, name_id);
+                    chunk.op_plus_arg(Insn::String, name_id, line);
                 }
 
                 let span = self.location().span;
@@ -8163,13 +8344,13 @@ impl FunctionExpression {
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
-                chunk.op_plus_arg(Insn::InstantiateIdFreeFunctionExpression, func_id);
+                chunk.op_plus_arg(Insn::InstantiateIdFreeFunctionExpression, func_id, line);
                 Ok(AlwaysAbruptResult)
             }
             Some(bi) => {
                 let name = bi.string_value();
                 let name_idx = chunk.add_to_string_pool(name)?;
-                chunk.op_plus_arg(Insn::String, name_idx);
+                chunk.op_plus_arg(Insn::String, name_idx, line);
 
                 let span = self.location().span;
                 let params = ParamSource::from(Rc::clone(&self.params));
@@ -8184,7 +8365,7 @@ impl FunctionExpression {
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
-                chunk.op_plus_arg(Insn::InstantiateOrdinaryFunctionExpression, func_id);
+                chunk.op_plus_arg(Insn::InstantiateOrdinaryFunctionExpression, func_id, line);
                 Ok(AlwaysAbruptResult)
             }
         }
@@ -8399,8 +8580,9 @@ pub(crate) fn compile_fdi(
         && !parameter_names.contains(&a)
         && !(!has_parameter_expressions && (function_names.contains(&a) || lexical_names.contains(&a)));
 
+    let line = info.to_compile.location().starting_line;
     if !strict && has_parameter_expressions {
-        chunk.op(Insn::PushNewLexEnv);
+        chunk.op(Insn::PushNewLexEnv, line);
     }
 
     let param_name_indexes =
@@ -8413,21 +8595,22 @@ pub(crate) fn compile_fdi(
                 Insn::CreatePermanentMutableLexIfMissing
             },
             sidx,
+            line,
         );
     }
 
     // 22-23.
     if arguments_object_needed {
         if strict || !simple_parameter_list {
-            chunk.op(Insn::CreateUnmappedArguments);
+            chunk.op(Insn::CreateUnmappedArguments, line);
         } else {
-            chunk.op(Insn::CreateMappedArguments);
+            chunk.op(Insn::CreateMappedArguments, line);
             let mut mapped_names = vec![];
             for (idx, &name) in param_name_indexes.iter().enumerate().rev() {
                 if !mapped_names.contains(&name) {
                     mapped_names.push(name);
                     let idx = u16::try_from(idx)?;
-                    chunk.op_plus_two_args(Insn::AddMappedArgument, name, idx);
+                    chunk.op_plus_two_args(Insn::AddMappedArgument, name, idx, line);
                 }
             }
         }
@@ -8435,8 +8618,9 @@ pub(crate) fn compile_fdi(
         chunk.op_plus_arg(
             if strict { Insn::CreateNonStrictImmutableLexBinding } else { Insn::CreatePermanentMutableLexBinding },
             args_idx,
+            line,
         );
-        chunk.op_plus_arg(Insn::InitializeLexBinding, args_idx);
+        chunk.op_plus_arg(Insn::InitializeLexBinding, args_idx, line);
         parameter_names.push(JSString::from("arguments"));
     }
 
@@ -8450,28 +8634,28 @@ pub(crate) fn compile_fdi(
     // Stack: N arg[N-1] ... arg[0] func ... ---or--- err func ...
     let mut exit = None;
     if status.maybe_abrupt() {
-        exit = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+        exit = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
     }
-    chunk.op(Insn::FinishArgs);
+    chunk.op(Insn::FinishArgs, line);
     // Stack: func ...
 
     // 27-28.
     if has_parameter_expressions {
         // b. Let varEnv be NewDeclarativeEnvironment(env).
         // c. Set the VariableEnvironment of calleeContext to varEnv.
-        chunk.op(Insn::PushNewVarEnvFromLex);
+        chunk.op(Insn::PushNewVarEnvFromLex, line);
         let mut instantiated_var_names = AHashSet::<JSString>::new();
         for n in var_names {
             if !instantiated_var_names.contains(&n) {
                 instantiated_var_names.insert(n.clone());
                 let idx = chunk.add_to_string_pool(n.clone())?;
-                chunk.op_plus_arg(Insn::CreatePermanentMutableVarBinding, idx);
+                chunk.op_plus_arg(Insn::CreatePermanentMutableVarBinding, idx, line);
                 if !parameter_names.contains(&n) || function_names.contains(&n) {
-                    chunk.op(Insn::Undefined);
+                    chunk.op(Insn::Undefined, line);
                 } else {
-                    chunk.op_plus_arg(Insn::GetLexBinding, idx);
+                    chunk.op_plus_arg(Insn::GetLexBinding, idx, line);
                 }
-                chunk.op_plus_arg(Insn::InitializeVarBinding, idx);
+                chunk.op_plus_arg(Insn::InitializeVarBinding, idx, line);
             }
         }
         // now varEnv == current variable environment
@@ -8480,9 +8664,9 @@ pub(crate) fn compile_fdi(
         for n in var_names {
             if !instantiated_var_names.contains(&n) {
                 let idx = chunk.add_to_string_pool(n.clone())?;
-                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx);
-                chunk.op(Insn::Undefined);
-                chunk.op_plus_arg(Insn::InitializeLexBinding, idx);
+                chunk.op_plus_arg(Insn::CreatePermanentMutableLexBinding, idx, line);
+                chunk.op(Insn::Undefined, line);
+                chunk.op_plus_arg(Insn::InitializeLexBinding, idx, line);
                 instantiated_var_names.insert(n);
             }
         }
@@ -8501,10 +8685,10 @@ pub(crate) fn compile_fdi(
     // ==> lexenv is now the current lexical environment;
     //     varenv is now current lexical environment if !has_parameter_expressions else current variable environment
     match (strict, has_parameter_expressions) {
-        (true, true) => chunk.op(Insn::SetLexEnvToVarEnv),
+        (true, true) => chunk.op(Insn::SetLexEnvToVarEnv, line),
         (true, false) => (),
-        (false, true) => chunk.op(Insn::PushNewLexEnvFromVar),
-        (false, false) => chunk.op(Insn::PushNewLexEnv),
+        (false, true) => chunk.op(Insn::PushNewLexEnvFromVar, line),
+        (false, false) => chunk.op(Insn::PushNewLexEnv, line),
     }
 
     // 33-34.
@@ -8519,6 +8703,7 @@ pub(crate) fn compile_fdi(
                     Insn::CreatePermanentMutableLexBinding
                 },
                 idx,
+                line,
             );
         }
     }
@@ -8528,7 +8713,7 @@ pub(crate) fn compile_fdi(
         let fname = f.bound_name();
         let idx = chunk.add_to_string_pool(fname).expect("Name already present (steps 27-28)");
         f.compile_fo_instantiation(chunk, strict, source)?;
-        chunk.op_plus_arg(Insn::SetMutableVarBinding, idx);
+        chunk.op_plus_arg(Insn::SetMutableVarBinding, idx, line);
     }
 
     // Done
@@ -8549,12 +8734,13 @@ impl ArrowFunction {
         source: &SourceTree,
         name: Option<NameLoc>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         if let Some(name_id) = match name {
             None => Some(chunk.add_to_string_pool(JSString::from(""))?),
             Some(NameLoc::Index(id)) => Some(id),
             Some(NameLoc::OnStack) => None,
         } {
-            chunk.op_plus_arg(Insn::String, name_id);
+            chunk.op_plus_arg(Insn::String, name_id, line);
         }
 
         let span = self.location().span;
@@ -8570,7 +8756,7 @@ impl ArrowFunction {
             this_mode: ThisLexicality::LexicalThis,
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
-        chunk.op_plus_arg(Insn::InstantiateArrowFunctionExpression, func_id);
+        chunk.op_plus_arg(Insn::InstantiateArrowFunctionExpression, func_id, line);
         Ok(AlwaysAbruptResult)
     }
 
@@ -8614,12 +8800,13 @@ impl ConciseBody {
         // ConciseBody : ExpressionBody
         //  1. Perform ? FunctionDeclarationInstantiation(functionObject, argumentsList).
         //  2. Return the result of evaluating ExpressionBody.
+        let line = self.location().starting_line;
         match self {
             ConciseBody::Function { body, .. } => body.compile_body(chunk, source, info),
             ConciseBody::Expression(exp) => {
                 // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
                 let fdi_status = compile_fdi(chunk, source, info)?;
-                let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
 
                 // Stack: func ...
                 let strict = info.strict;
@@ -8630,7 +8817,7 @@ impl ConciseBody {
                     chunk.fixup(mark)?;
                 }
 
-                chunk.op(Insn::EndFunction);
+                chunk.op(Insn::EndFunction, line);
 
                 Ok(AbruptResult::from(fdi_status.maybe_abrupt() || eval_status.maybe_abrupt()))
             }
@@ -8644,13 +8831,17 @@ impl ExpressionBody {
         //  1. Let exprRef be the result of evaluating AssignmentExpression.
         //  2. Let exprValue be ? GetValue(exprRef).
         //  3. Return Completion Record { [[Type]]: return, [[Value]]: exprValue, [[Target]]: empty }.
+        let line = self.location().starting_line;
         let status = self.expression.compile(chunk, strict, source)?;
         if status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
-        let exit =
-            if status.maybe_abrupt() || status.maybe_ref() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-        chunk.op(Insn::Return);
+        let exit = if status.maybe_abrupt() || status.maybe_ref() {
+            Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
+        } else {
+            None
+        };
+        chunk.op(Insn::Return, line);
         if let Some(mark) = exit {
             chunk.fixup(mark).expect("Jump too short to overflow");
         }
@@ -8715,8 +8906,10 @@ impl FormalParameters {
                 //   JUMP_IF_ABRUPT exit
                 //   <rest.compile_binding_initialization(env)>   err/0
                 // exit:
+                let line = self.location().starting_line;
                 let list_status = list.compile_binding_initialization(chunk, strict, source, env)?;
-                let exit = if list_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exit =
+                    if list_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                 rest.compile_binding_initialization(chunk, strict, source, env)?;
                 if let Some(exit) = exit {
                     chunk.fixup(exit).expect("jump too short to fail");
@@ -8738,7 +8931,7 @@ impl ArrowParameters {
         // Stack: N arg[n-1] ... arg[0]
         match self {
             ArrowParameters::Identifier(bi) => {
-                chunk.op(Insn::ExtractArg);
+                chunk.op(Insn::ExtractArg, self.location().starting_line);
                 // Stack: val n-1 arg[n-1] ... arg[1]
                 bi.compile_binding_initialization(chunk, strict, env).map(AbruptResult::from)
             }
@@ -8771,7 +8964,13 @@ impl UniqueFormalParameters {
     }
 }
 
-fn compile_initialize_bound_name(chunk: &mut Chunk, strict: bool, env: EnvUsage, idx: u16) -> NeverAbruptRefResult {
+fn compile_initialize_bound_name(
+    chunk: &mut Chunk,
+    strict: bool,
+    env: EnvUsage,
+    idx: u16,
+    line: usize,
+) -> NeverAbruptRefResult {
     // Input Stack: value ...
     // Output Stack: ...
     match env {
@@ -8782,17 +8981,17 @@ fn compile_initialize_bound_name(chunk: &mut Chunk, strict: bool, env: EnvUsage,
             //  PUT_VALUE                [empty]/err
             //  POP_OR_PANIC
 
-            chunk.op_plus_arg(Insn::String, idx);
-            chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
-            chunk.op(Insn::Swap);
-            chunk.op(Insn::PutValue);
+            chunk.op_plus_arg(Insn::String, idx, line);
+            chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
+            chunk.op(Insn::Swap, line);
+            chunk.op(Insn::PutValue, line);
             // The spec has this PutValue marked with '?'. But I can't figure out how to get there. If this panic
             // happens, add a test! (ChatGPT can't figure out how to get to this error, either.)
-            chunk.op(Insn::PopOrPanic);
+            chunk.op(Insn::PopOrPanic, line);
         }
         EnvUsage::UseCurrentLexical => {
             //  ILB idx
-            chunk.op_plus_arg(Insn::InitializeLexBinding, idx);
+            chunk.op_plus_arg(Insn::InitializeLexBinding, idx, line);
         }
     }
     NeverAbruptRefResult
@@ -8813,7 +9012,7 @@ impl BindingIdentifier {
             BindingIdentifier::Await { .. } => JSString::from("await"),
         };
         let id_idx = chunk.add_to_string_pool(binding_id)?;
-        compile_initialize_bound_name(chunk, strict, env, id_idx);
+        compile_initialize_bound_name(chunk, strict, env, id_idx, self.location().starting_line);
         Ok(NeverAbruptRefResult)
     }
 
@@ -8828,13 +9027,14 @@ impl BindingIdentifier {
         //      await
         //  1. Let bindingId be StringValue of BindingIdentifier.
         //  2. Return ? ResolveBinding(bindingId).
+        let line = self.location().starting_line;
         let binding_id = chunk.add_to_string_pool(match self {
             BindingIdentifier::Identifier { identifier, .. } => identifier.string_value(),
             BindingIdentifier::Yield { .. } => "yield".into(),
             BindingIdentifier::Await { .. } => "await".into(),
         })?;
-        chunk.op_plus_arg(Insn::String, binding_id);
-        chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+        chunk.op_plus_arg(Insn::String, binding_id, line);
+        chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
         Ok(CompilerStatusFlags::new().abrupt(true).reference(true))
     }
 }
@@ -8855,8 +9055,10 @@ impl FormalParameterList {
                 //    JUMP_IF_ABRUPT exit             M arg[M-1] ... arg[0]
                 //    <item.compile_binding_init>     err/(Q arg[Q-1] ... arg[0])
                 // exit:
+                let line = self.location().starting_line;
                 let list_status = list.compile_binding_initialization(chunk, strict, source, env)?;
-                let exit = if list_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exit =
+                    if list_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                 let item_status = item.compile_binding_initialization(chunk, strict, source, env)?;
                 if let Some(mark) = exit {
                     chunk.fixup(mark)?;
@@ -8888,6 +9090,7 @@ impl BindingElement {
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         // Stack: N arg[n-1] ... arg[0]
+        let line = self.location().starting_line;
         match self {
             BindingElement::Single(single) => single.compile_binding_initialization(chunk, strict, source, env),
             BindingElement::Pattern(bp, None) => {
@@ -8900,13 +9103,13 @@ impl BindingElement {
                 // unwind:                      err (n-1) arg(n-1) ... arg(1)
                 //   UNWIND_LIST                err
                 // exit:                        ((n-1) arg(n-1) ... arg(1)) or err
-                chunk.op(Insn::ExtractArg);
+                chunk.op(Insn::ExtractArg, line);
                 bp.compile_binding_initialization(chunk, strict, source, env)?;
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
-                let exit = chunk.op_jump(Insn::Jump);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind).expect("Jump too short to fail");
-                chunk.op(Insn::UnwindList);
+                chunk.op(Insn::UnwindList, line);
                 chunk.fixup(exit).expect("Jump too short to fail");
                 Ok(AbruptResult::Maybe)
             }
@@ -8927,27 +9130,27 @@ impl BindingElement {
                 //   UNWIND_LIST                err
                 // exit:                        ((n-1) arg(n-1) ... arg(1)) or err
 
-                chunk.op(Insn::ExtractArg);
-                let mark = chunk.op_jump(Insn::JumpIfNotUndef);
-                chunk.op(Insn::Pop);
+                chunk.op(Insn::ExtractArg, line);
+                let mark = chunk.op_jump(Insn::JumpIfNotUndef, line);
+                chunk.op(Insn::Pop, line);
                 let izer_status = init.compile(chunk, strict, source, CompileMod::Unmodified)?;
                 if izer_status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let mut unwind = None;
                 if izer_status.maybe_abrupt() || izer_status.maybe_ref() {
-                    unwind = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                    unwind = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 chunk.fixup(mark)?;
                 bp.compile_binding_initialization(chunk, strict, source, env)?;
-                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
-                let exit = chunk.op_jump(Insn::Jump);
+                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 if let Some(unwind) = unwind {
                     chunk.fixup(unwind)?;
                 }
                 chunk.fixup(unwind2).expect("jump too short to fail");
-                chunk.op(Insn::UnwindList);
+                chunk.op(Insn::UnwindList, line);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AbruptResult::Maybe)
             }
@@ -8961,6 +9164,7 @@ impl BindingElement {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: KeyedBindingInitialization
         // The syntax-directed operation KeyedBindingInitialization takes arguments value (an ECMAScript language
         // value), environment (an Environment Record or undefined), and propertyName (a property key) and returns
@@ -9001,18 +9205,18 @@ impl BindingElement {
                 //   <bp.binding_initialization(env)>  [empty]/err
                 // exit:
 
-                chunk.op(Insn::GetV);
+                chunk.op(Insn::GetV, line);
                 let mut exits = vec![];
-                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 if let Some(izer) = izer {
-                    let vok = chunk.op_jump(Insn::JumpIfNotUndef);
-                    chunk.op(Insn::Pop);
+                    let vok = chunk.op_jump(Insn::JumpIfNotUndef, line);
+                    chunk.op(Insn::Pop, line);
                     let status = izer.compile(chunk, strict, source, CompileMod::Unmodified)?;
                     if status.maybe_ref() {
-                        chunk.op(Insn::GetValue);
+                        chunk.op(Insn::GetValue, line);
                     }
                     if status.maybe_abrupt() || status.maybe_ref() {
-                        exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                     }
                     chunk.fixup(vok)?;
                 }
@@ -9032,6 +9236,7 @@ impl BindingElement {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: IteratorBindingInitialization
         // The syntax-directed operation IteratorBindingInitialization takes arguments iteratorRecord (an Iterator
         // Record) and environment (an Environment Record or undefined) and returns either a normal completion
@@ -9089,30 +9294,30 @@ impl BindingElement {
                 //   UNWIND 1                    err
                 // exit:                         ir/err
 
-                chunk.op(Insn::EmbellishedIteratorStep);
+                chunk.op(Insn::EmbellishedIteratorStep, line);
                 let mut exits = vec![];
                 let mut unwinds = vec![];
-                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 if let Some(izer) = izer {
-                    let no_init = chunk.op_jump(Insn::JumpIfNotUndef);
-                    chunk.op(Insn::Pop);
+                    let no_init = chunk.op_jump(Insn::JumpIfNotUndef, line);
+                    chunk.op(Insn::Pop, line);
                     let status = izer.compile(chunk, strict, source, CompileMod::Unmodified)?;
                     if status.maybe_ref() {
-                        chunk.op(Insn::GetValue);
+                        chunk.op(Insn::GetValue, line);
                     }
                     if status.maybe_abrupt() || status.maybe_ref() {
-                        unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                     }
                     chunk.fixup(no_init)?;
                 }
                 bp.compile_binding_initialization(chunk, strict, source, env)?;
-                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                chunk.op(Insn::Pop);
-                exits.push(chunk.op_jump(Insn::Jump));
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+                chunk.op(Insn::Pop, line);
+                exits.push(chunk.op_jump(Insn::Jump, line));
                 for mark in unwinds {
                     chunk.fixup(mark)?;
                 }
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 for mark in exits {
                     chunk.fixup(mark)?;
                 }
@@ -9130,26 +9335,27 @@ impl SingleNameBinding {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // Stack: N arg[n-1] ... arg[0]
         let (id, maybe_init) = {
             let SingleNameBinding::Id(id, maybe_init) = &self;
             (id, maybe_init.as_ref())
         };
-        chunk.op(Insn::ExtractArg);
+        chunk.op(Insn::ExtractArg, line);
         // Stack: val N-1 arg[n-1] ... arg[1]
         let binding_id = id.string_value();
         let id_idx = chunk.add_to_string_pool(binding_id)?;
-        chunk.op_plus_arg(Insn::String, id_idx);
-        chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+        chunk.op_plus_arg(Insn::String, id_idx, line);
+        chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
         // Stack: ref val N-1 arg[n-1] ... arg[1]
-        chunk.op(Insn::Swap);
+        chunk.op(Insn::Swap, line);
         // Stack: val ref N-1 arg[n-1] ... arg[1]
         let mut exit = None;
         let mut no_init = None;
         if let Some(init) = maybe_init {
-            no_init = Some(chunk.op_jump(Insn::JumpIfNotUndef));
+            no_init = Some(chunk.op_jump(Insn::JumpIfNotUndef, line));
             // Stack: undefined ref N-1 arg[n-1] ... arg[1]
-            chunk.op(Insn::Pop);
+            chunk.op(Insn::Pop, line);
             // Stack: ref N-1 arg[n-1] ... arg[1]
             let init_status = if let Some(np) = init.anonymous_function_definition() {
                 np.compile_named_evaluation(chunk, strict, source, Some(NameLoc::Index(id_idx)))?
@@ -9158,16 +9364,16 @@ impl SingleNameBinding {
             };
             // Stack: ref/val/err ref N-1 arg[n-1] ... arg[1]
             if init_status.maybe_ref() {
-                chunk.op(Insn::GetValue);
+                chunk.op(Insn::GetValue, line);
             }
             // Stack: val/err ref N-1 arg[n-1] ... arg[1]
             if init_status.maybe_abrupt() || init_status.maybe_ref() {
-                let close = chunk.op_jump(Insn::JumpIfNormal);
+                let close = chunk.op_jump(Insn::JumpIfNormal, line);
                 // Stack: err ref N-1 arg[n-1] ... arg[1]
-                chunk.op_plus_arg(Insn::Unwind, 1);
-                chunk.op(Insn::UnwindList);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
+                chunk.op(Insn::UnwindList, line);
                 // Stack: err
-                exit = Some(chunk.op_jump(Insn::Jump));
+                exit = Some(chunk.op_jump(Insn::Jump, line));
                 chunk.fixup(close).expect("Jump too close to overflow");
             }
             // Stack: val ref N-1 arg[n-1] ... arg[1]
@@ -9176,10 +9382,10 @@ impl SingleNameBinding {
             chunk.fixup(mark)?;
         }
         match env {
-            EnvUsage::UsePutValue => chunk.op(Insn::PutValue),
-            EnvUsage::UseCurrentLexical => chunk.op(Insn::InitializeReferencedBinding),
+            EnvUsage::UsePutValue => chunk.op(Insn::PutValue, line),
+            EnvUsage::UseCurrentLexical => chunk.op(Insn::InitializeReferencedBinding, line),
         }
-        chunk.op(Insn::Pop);
+        chunk.op(Insn::Pop, line);
         if let Some(&mark) = exit.as_ref() {
             chunk.fixup(mark).expect("jump too short to overflow");
         }
@@ -9195,6 +9401,7 @@ impl SingleNameBinding {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: KeyedBindingInitialization
         // The syntax-directed operation KeyedBindingInitialization takes arguments value (an ECMAScript language
         // value), environment (an Environment Record or undefined), and propertyName (a property key) and returns
@@ -9257,40 +9464,43 @@ impl SingleNameBinding {
                 // exit:
                 let binding_id_val = id.string_value();
                 let binding_id = chunk.add_to_string_pool(binding_id_val)?;
-                chunk.op_plus_arg(Insn::String, binding_id);
-                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
-                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op_plus_arg(Insn::RotateDown, 3);
-                chunk.op(Insn::GetV);
+                chunk.op_plus_arg(Insn::String, binding_id, line);
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
+                let unwind2 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op_plus_arg(Insn::RotateDown, 3, line);
+                chunk.op(Insn::GetV, line);
                 let mut unwind1s = vec![];
-                unwind1s.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                unwind1s.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 if let Some(izer) = izer {
-                    let vok = chunk.op_jump(Insn::JumpIfNotUndef);
-                    chunk.op(Insn::Pop);
+                    let vok = chunk.op_jump(Insn::JumpIfNotUndef, line);
+                    chunk.op(Insn::Pop, line);
                     let status = if let Some(np) = izer.anonymous_function_definition() {
                         np.compile_named_evaluation(chunk, strict, source, Some(NameLoc::Index(binding_id)))?
                     } else {
                         izer.compile(chunk, strict, source, CompileMod::Unmodified)?
                     };
                     if status.maybe_ref() {
-                        chunk.op(Insn::GetValue);
+                        chunk.op(Insn::GetValue, line);
                     }
                     if status.maybe_ref() || status.maybe_abrupt() {
-                        unwind1s.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                        unwind1s.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                     }
                     chunk.fixup(vok)?;
                 }
-                chunk.op(match env {
-                    EnvUsage::UsePutValue => Insn::PutValue,
-                    EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
-                });
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op(
+                    match env {
+                        EnvUsage::UsePutValue => Insn::PutValue,
+                        EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
+                    },
+                    line,
+                );
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind2)?;
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 for mark in unwind1s {
                     chunk.fixup(mark).expect("jump shorter than unwind2, which was already successful");
                 }
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
 
                 Ok(AlwaysAbruptResult)
@@ -9305,6 +9515,7 @@ impl SingleNameBinding {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: IteratorBindingInitialization
         // The syntax-directed operation IteratorBindingInitialization takes arguments iteratorRecord (an Iterator
         // Record) and environment (an Environment Record or undefined) and returns either a normal completion
@@ -9384,45 +9595,48 @@ impl SingleNameBinding {
                 let binding_id = chunk.add_to_string_pool(binding_id_val)?;
                 let mut unwind1 = vec![];
                 let mut unwind2 = None;
-                chunk.op_plus_arg(Insn::String, binding_id);
-                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
-                unwind1.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                chunk.op(Insn::Swap);
-                chunk.op(Insn::EmbellishedIteratorStep);
-                unwind1.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                chunk.op_plus_arg(Insn::String, binding_id, line);
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
+                unwind1.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+                chunk.op(Insn::Swap, line);
+                chunk.op(Insn::EmbellishedIteratorStep, line);
+                unwind1.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 if let Some(izer) = izer {
-                    let vok = chunk.op_jump(Insn::JumpIfNotUndef);
-                    chunk.op(Insn::Pop);
+                    let vok = chunk.op_jump(Insn::JumpIfNotUndef, line);
+                    chunk.op(Insn::Pop, line);
                     let status = if let Some(np) = izer.anonymous_function_definition() {
                         np.compile_named_evaluation(chunk, strict, source, Some(NameLoc::Index(binding_id)))?
                     } else {
                         izer.compile(chunk, strict, source, CompileMod::Unmodified)?
                     };
                     if status.maybe_ref() {
-                        chunk.op(Insn::GetValue);
+                        chunk.op(Insn::GetValue, line);
                     }
                     if status.maybe_ref() || status.maybe_abrupt() {
-                        unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt));
+                        unwind2 = Some(chunk.op_jump(Insn::JumpIfAbrupt, line));
                     }
                     chunk.fixup(vok)?;
                 }
-                chunk.op(Insn::Swap);
-                chunk.op_plus_arg(Insn::RotateDown, 3);
-                chunk.op(match env {
-                    EnvUsage::UsePutValue => Insn::PutValue,
-                    EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
-                });
-                unwind1.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                chunk.op(Insn::Pop);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op(Insn::Swap, line);
+                chunk.op_plus_arg(Insn::RotateDown, 3, line);
+                chunk.op(
+                    match env {
+                        EnvUsage::UsePutValue => Insn::PutValue,
+                        EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
+                    },
+                    line,
+                );
+                unwind1.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+                chunk.op(Insn::Pop, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 if let Some(mark) = unwind2 {
                     chunk.fixup(mark).expect("Jump too short to fail");
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                 }
                 for mark in unwind1 {
                     chunk.fixup(mark)?;
                 }
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AlwaysAbruptResult)
             }
@@ -9438,6 +9652,7 @@ impl BindingPattern {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // The syntax-directed operation BindingInitialization takes arguments value (an ECMAScript language value) and
         // environment (an Environment Record or undefined) and returns either a normal completion containing unused or
         // an abrupt completion.
@@ -9453,8 +9668,8 @@ impl BindingPattern {
                 //   <obp.bi(env)>          empty/err
                 // exit:                    empty/err
 
-                chunk.op(Insn::RequireCoercible);
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::RequireCoercible, line);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 obp.compile_binding_initialization(chunk, strict, source, env)?;
                 chunk.fixup(exit)?;
 
@@ -9477,12 +9692,12 @@ impl BindingPattern {
                 //    IR_CLOSE_IF_NOT_DONE   [empty]/err   (steps 3 & 4, above)
                 // exit:                     [empty]/err
 
-                chunk.op(Insn::GetSyncIterator);
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::GetSyncIterator, line);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Dup, line);
                 abp.iterator_binding_initialization(chunk, strict, source, env)?;
-                chunk.op(Insn::EmptyIfNotError);
-                chunk.op(Insn::IteratorCloseIfNotDone);
+                chunk.op(Insn::EmptyIfNotError, line);
+                chunk.op(Insn::IteratorCloseIfNotDone, line);
                 chunk.fixup(exit)?;
 
                 Ok(AlwaysAbruptResult)
@@ -9499,6 +9714,7 @@ impl ObjectBindingPattern {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: BindingInitialization
         // The syntax-directed operation BindingInitialization takes arguments value (an ECMAScript language value) and
         // environment (an Environment Record or undefined) and returns either a normal completion containing unused or
@@ -9518,8 +9734,8 @@ impl ObjectBindingPattern {
                 // start:           value
                 //   POP
                 //   EMPTY          empty
-                chunk.op(Insn::Pop);
-                chunk.op(Insn::Empty);
+                chunk.op(Insn::Pop, line);
+                chunk.op(Insn::Empty, line);
                 Ok(AbruptResult::Never)
             }
             ObjectBindingPattern::ListOnly { bpl, .. } | ObjectBindingPattern::ListRest { bpl, brp: None, .. } => {
@@ -9538,9 +9754,9 @@ impl ObjectBindingPattern {
                 // exit:
 
                 bpl.property_binding_initialization(chunk, strict, source, env)?;
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::PopList);
-                chunk.op(Insn::Empty);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::PopList, line);
+                chunk.op(Insn::Empty, line);
                 chunk.fixup(exit).expect("Jump should be to short to fail");
                 Ok(AbruptResult::Maybe)
             }
@@ -9553,7 +9769,7 @@ impl ObjectBindingPattern {
                 // start:                                        value
                 //   ZERO                                        excludedNames value
                 //   brp.rest_binding_initialization(env)        [empty]/err
-                chunk.op(Insn::Zero);
+                chunk.op(Insn::Zero, line);
                 brp.rest_binding_initialization(chunk, strict, env)?;
                 Ok(AbruptResult::Maybe)
             }
@@ -9573,13 +9789,13 @@ impl ObjectBindingPattern {
                 // unwind:                                          err value
                 //   UNWIND 1                                       err
                 // exit:                                            [empty]/err
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
                 bpl.property_binding_initialization(chunk, strict, source, env)?;
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 brp.rest_binding_initialization(chunk, strict, env)?;
-                let exit = chunk.op_jump(Insn::Jump);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind).expect("Jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("Jump too short to fail");
                 Ok(AbruptResult::Maybe)
             }
@@ -9595,6 +9811,7 @@ impl BindingPropertyList {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: PropertyBindingInitialization
         // The syntax-directed operation PropertyBindingInitialization takes arguments value (an ECMAScript language
         // value) and environment (an Environment Record or undefined) and returns either a normal completion containing
@@ -9630,20 +9847,20 @@ impl BindingPropertyList {
                 //   UNWIND_LIST
                 // exit:
 
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
                 bpl.property_binding_initialization(chunk, strict, source, env)?;
-                let unwind_value = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::SwapList);
+                let unwind_value = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::SwapList, line);
                 bp.property_binding_initialization(chunk, strict, source, env)?;
-                let unwind_list = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::AppendList);
+                let unwind_list = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::AppendList, line);
                 let mut exits = vec![];
-                exits.push(chunk.op_jump(Insn::Jump));
+                exits.push(chunk.op_jump(Insn::Jump, line));
                 chunk.fixup(unwind_value)?;
-                chunk.op_plus_arg(Insn::Unwind, 1);
-                exits.push(chunk.op_jump(Insn::Jump));
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
+                exits.push(chunk.op_jump(Insn::Jump, line));
                 chunk.fixup(unwind_list).expect("jump too short to overflow");
-                chunk.op(Insn::UnwindList);
+                chunk.op(Insn::UnwindList, line);
                 for mark in exits {
                     chunk.fixup(mark).expect("jumps too short to overflow");
                 }
@@ -9662,6 +9879,7 @@ impl BindingProperty {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: PropertyBindingInitialization
         // The syntax-directed operation PropertyBindingInitialization takes arguments value (an ECMAScript language
         // value) and environment (an Environment Record or undefined) and returns either a normal completion containing
@@ -9686,12 +9904,12 @@ impl BindingProperty {
                 let name_val = snb.bound_names().pop().expect("snb should have exactly one bound name");
                 let name = chunk.add_to_string_pool(name_val)?;
                 let one = chunk.add_to_float_pool(1.0)?;
-                chunk.op_plus_arg(Insn::String, name);
+                chunk.op_plus_arg(Insn::String, name, line);
                 snb.keyed_binding_initialization(chunk, strict, source, env)?;
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
-                chunk.op_plus_arg(Insn::String, name);
-                chunk.op_plus_arg(Insn::Float, one);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
+                chunk.op_plus_arg(Insn::String, name, line);
+                chunk.op_plus_arg(Insn::Float, one, line);
                 chunk.fixup(exit).expect("jump too short to fail");
 
                 Ok(AlwaysAbruptResult)
@@ -9717,19 +9935,19 @@ impl BindingProperty {
                 let pn_status = pn.compile(chunk, strict, source)?;
                 let mut unwinds = vec![];
                 if pn_status.maybe_abrupt() {
-                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
-                chunk.op(Insn::Pop2Push3);
+                chunk.op(Insn::Pop2Push3, line);
                 be.keyed_binding_initialization(chunk, strict, source, env)?;
-                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                chunk.op(Insn::Pop);
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+                chunk.op(Insn::Pop, line);
                 let one = chunk.add_to_float_pool(1.0)?;
-                chunk.op_plus_arg(Insn::Float, one);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op_plus_arg(Insn::Float, one, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 for mark in unwinds {
                     chunk.fixup(mark)?;
                 }
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AlwaysAbruptResult)
             }
@@ -9749,8 +9967,9 @@ impl BindingRestProperty {
         // environment (an Environment Record or undefined), and excludedNames (a List of property keys) and returns
         // either a normal completion containing unused or an abrupt completion. It is defined piecewise over the
         // following productions:
+        let line = self.location().starting_line;
         match self {
-            BindingRestProperty::Id(bi) => {
+            BindingRestProperty::Id(bi, _) => {
                 // BindingRestProperty : ... BindingIdentifier
                 //  1. Let lhs be ? ResolveBinding(StringValue of BindingIdentifier, environment).
                 //  2. Let restObj be OrdinaryObjectCreate(%Object.prototype%).
@@ -9776,23 +9995,26 @@ impl BindingRestProperty {
                 // exit:
                 let binding_id_val = bi.string_value();
                 let binding_id = chunk.add_to_string_pool(binding_id_val)?;
-                chunk.op_plus_arg(Insn::String, binding_id);
-                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
-                let unwind_list_plus_1 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op_plus_arg(Insn::RotateDownList, 1);
-                chunk.op(Insn::Object);
-                chunk.op_plus_arg(Insn::RotateDownList, 1);
-                chunk.op(Insn::CopyDataPropsWithExclusions);
-                let unwind_1 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(match env {
-                    EnvUsage::UsePutValue => Insn::PutValue,
-                    EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
-                });
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op_plus_arg(Insn::String, binding_id, line);
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
+                let unwind_list_plus_1 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op_plus_arg(Insn::RotateDownList, 1, line);
+                chunk.op(Insn::Object, line);
+                chunk.op_plus_arg(Insn::RotateDownList, 1, line);
+                chunk.op(Insn::CopyDataPropsWithExclusions, line);
+                let unwind_1 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(
+                    match env {
+                        EnvUsage::UsePutValue => Insn::PutValue,
+                        EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
+                    },
+                    line,
+                );
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind_list_plus_1).expect("jump too short to fail");
-                chunk.op(Insn::UnwindList);
+                chunk.op(Insn::UnwindList, line);
                 chunk.fixup(unwind_1).expect("Jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
 
                 Ok(AlwaysAbruptResult)
@@ -9809,6 +10031,7 @@ impl ArrayBindingPattern {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: IteratorBindingInitialization
         // The syntax-directed operation IteratorBindingInitialization takes arguments iteratorRecord (an Iterator
         // Record) and environment (an Environment Record or undefined) and returns either a normal completion
@@ -9858,7 +10081,7 @@ impl ArrayBindingPattern {
                 let exit = if let Some(elision) = elision {
                     let status = elision.iterator_destructuring_assignment_evaluation(chunk)?;
                     assert!(status.maybe_abrupt());
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
@@ -9890,7 +10113,7 @@ impl ArrayBindingPattern {
 
                 let status = bel.iterator_binding_initialization(chunk, strict, source, env)?;
                 assert!(status.maybe_abrupt());
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 let status = elision.iterator_destructuring_assignment_evaluation(chunk)?;
                 assert!(status.maybe_abrupt());
                 chunk.fixup(exit).expect("jump too short to fail");
@@ -9918,11 +10141,11 @@ impl ArrayBindingPattern {
                 let status = bel.iterator_binding_initialization(chunk, strict, source, env)?;
                 assert!(status.maybe_abrupt());
                 let mut exits = vec![];
-                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 if let Some(elisions) = elision {
                     let status = elisions.iterator_destructuring_assignment_evaluation(chunk)?;
                     assert!(status.maybe_abrupt());
-                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                    exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 }
                 let status = bre.iterator_binding_initialization(chunk, strict, source, env)?;
                 assert!(status.maybe_abrupt());
@@ -9943,6 +10166,7 @@ impl BindingElementList {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: IteratorBindingInitialization
         // The syntax-directed operation IteratorBindingInitialization takes arguments iteratorRecord (an Iterator
         // Record) and environment (an Environment Record or undefined) and returns either a normal completion
@@ -9979,7 +10203,7 @@ impl BindingElementList {
 
                 let status = list.iterator_binding_initialization(chunk, strict, source, env)?;
                 assert!(status.maybe_abrupt());
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 let status = element.iterator_binding_initialization(chunk, strict, source, env)?;
                 assert!(status.maybe_abrupt());
                 chunk.fixup(exit)?;
@@ -10029,9 +10253,10 @@ impl BindingElisionElement {
                 //   JUMP_IF_ABRUPT exit      ir
                 //   <be.ibi(env)>            ir/err
                 // exit:
+                let line = self.location().starting_line;
 
                 elision.iterator_destructuring_assignment_evaluation(chunk)?;
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 let status = be.iterator_binding_initialization(chunk, strict, source, env)?;
                 assert!(status.maybe_abrupt());
                 chunk.fixup(exit)?;
@@ -10050,6 +10275,7 @@ impl BindingRestElement {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: IteratorBindingInitialization
         // The syntax-directed operation IteratorBindingInitialization takes arguments iteratorRecord (an Iterator
         // Record) and environment (an Environment Record or undefined) and returns either a normal completion
@@ -10104,26 +10330,29 @@ impl BindingRestElement {
 
                 let binding_id_val = bi.string_value();
                 let binding_id = chunk.add_to_string_pool(binding_id_val)?;
-                chunk.op_plus_arg(Insn::String, binding_id);
-                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
+                chunk.op_plus_arg(Insn::String, binding_id, line);
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
                 let mut unwinds = vec![];
-                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                chunk.op(Insn::Swap);
-                chunk.op(Insn::IteratorRest);
-                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                chunk.op(Insn::Swap);
-                chunk.op_plus_arg(Insn::RotateDown, 3);
-                chunk.op(match env {
-                    EnvUsage::UsePutValue => Insn::PutValue,
-                    EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
-                });
-                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                chunk.op(Insn::Pop);
-                let exit = chunk.op_jump(Insn::Jump);
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+                chunk.op(Insn::Swap, line);
+                chunk.op(Insn::IteratorRest, line);
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+                chunk.op(Insn::Swap, line);
+                chunk.op_plus_arg(Insn::RotateDown, 3, line);
+                chunk.op(
+                    match env {
+                        EnvUsage::UsePutValue => Insn::PutValue,
+                        EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
+                    },
+                    line,
+                );
+                unwinds.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+                chunk.op(Insn::Pop, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 for mark in unwinds {
                     chunk.fixup(mark).expect("Jumps too short to fail");
                 }
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
 
                 Ok(AlwaysAbruptResult)
@@ -10157,15 +10386,15 @@ impl BindingRestElement {
                 //   UNWIND 1                            err
                 // exit:                                 ir/err
 
-                chunk.op(Insn::IteratorRest);
+                chunk.op(Insn::IteratorRest, line);
                 let mut exits = vec![];
-                exits.push(chunk.op_jump(Insn::JumpIfAbrupt));
+                exits.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
                 bp.compile_binding_initialization(chunk, strict, source, env)?;
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
-                exits.push(chunk.op_jump(Insn::Jump));
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
+                exits.push(chunk.op_jump(Insn::Jump, line));
                 chunk.fixup(unwind).expect("jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 for mark in exits {
                     chunk.fixup(mark)?;
                 }
@@ -10181,6 +10410,7 @@ impl BindingRestElement {
         source: &SourceTree,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // This is like iterator_binding_initialization, except that the list is on the stack, rather than sitting in an
         // iterator object somewhere in the heap.
         match self {
@@ -10223,21 +10453,24 @@ impl BindingRestElement {
                 // exit:                            err/0
                 let binding_id_val = bi.string_value();
                 let binding_id = chunk.add_to_string_pool(binding_id_val)?;
-                chunk.op_plus_arg(Insn::String, binding_id);
-                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve });
-                let unwind_list = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op_plus_arg(Insn::RotateDownList, 0);
-                chunk.op(Insn::ListToArray);
-                chunk.op(match env {
-                    EnvUsage::UsePutValue => Insn::PutValue,
-                    EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
-                });
-                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
-                chunk.op(Insn::Zero);
-                let exit2 = chunk.op_jump(Insn::Jump);
+                chunk.op_plus_arg(Insn::String, binding_id, line);
+                chunk.op(if strict { Insn::StrictResolve } else { Insn::Resolve }, line);
+                let unwind_list = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op_plus_arg(Insn::RotateDownList, 0, line);
+                chunk.op(Insn::ListToArray, line);
+                chunk.op(
+                    match env {
+                        EnvUsage::UsePutValue => Insn::PutValue,
+                        EnvUsage::UseCurrentLexical => Insn::InitializeReferencedBinding,
+                    },
+                    line,
+                );
+                let exit1 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
+                chunk.op(Insn::Zero, line);
+                let exit2 = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind_list).expect("Jump too short to fail");
-                chunk.op(Insn::UnwindList);
+                chunk.op(Insn::UnwindList, line);
                 chunk.fixup(exit1).expect("Jump too short to fail");
                 chunk.fixup(exit2).expect("Jump too short to fail");
                 Ok(AlwaysAbruptResult)
@@ -10268,11 +10501,11 @@ impl BindingRestElement {
                 //   ZERO
                 // exit:
 
-                chunk.op(Insn::ListToArray);
+                chunk.op(Insn::ListToArray, line);
                 bp.compile_binding_initialization(chunk, strict, source, env)?;
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Pop);
-                chunk.op(Insn::Zero);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Pop, line);
+                chunk.op(Insn::Zero, line);
                 chunk.fixup(exit).expect("jump too short to fail");
 
                 Ok(AlwaysAbruptResult)
@@ -10324,8 +10557,9 @@ impl FunctionBody {
         // Both steps 1 and 2 have compilable code.
 
         // Stack: N arg[n-1] arg[n-2] ... arg[1] arg[0] func
+        let line = self.location().starting_line;
         let fdi_status = compile_fdi(chunk, source, info)?;
-        let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        let exit = if fdi_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
 
         // Stack: func ...
         let strict = info.strict || self.function_body_contains_use_strict();
@@ -10336,7 +10570,7 @@ impl FunctionBody {
             chunk.fixup(mark)?;
         }
 
-        chunk.op(Insn::EndFunction);
+        chunk.op(Insn::EndFunction, line);
 
         Ok(AbruptResult::from(fdi_status.maybe_abrupt() || eval_status.maybe_abrupt()))
     }
@@ -10347,7 +10581,7 @@ impl FunctionStatementList {
         match self {
             FunctionStatementList::Statements(s) => s.compile(chunk, strict, source),
             FunctionStatementList::Empty(_) => {
-                chunk.op(Insn::Undefined);
+                chunk.op(Insn::Undefined, self.location().starting_line);
                 Ok(NeverAbruptRefResult.into())
             }
         }
@@ -10368,7 +10602,7 @@ impl ClassDeclaration {
         // EMPTY_IF_NOT_ERROR                             [empty]/e
 
         let decl_status = self.binding_class_declaration_evaluation(chunk, source)?;
-        chunk.op(Insn::EmptyIfNotError);
+        chunk.op(Insn::EmptyIfNotError, self.location().starting_line);
         Ok(decl_status)
     }
 
@@ -10385,7 +10619,7 @@ impl ClassDeclaration {
         // NOTE
         // ClassDeclaration : class ClassTail only occurs as part of an ExportDeclaration and establishing its binding
         // is handled as part of the evaluation action for that production. See 16.2.3.7.
-
+        let line = self.location().starting_line;
         match self {
             ClassDeclaration::Named { ident, tail, location } => {
                 // ClassDeclaration : class BindingIdentifier ClassTail
@@ -10406,13 +10640,13 @@ impl ClassDeclaration {
                 let class_name = ident.string_value();
                 let idx = chunk.add_to_string_pool(class_name)?;
                 tail.class_definition_evaluation(chunk, source, Some(idx), NameLoc::Index(idx))?;
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 let src_idx = chunk.add_to_string_pool(JSString::from(
                     &source.text[location.span.starting_index..location.span.starting_index + location.span.length],
                 ))?;
-                chunk.op_plus_arg(Insn::AttachSourceText, src_idx);
-                chunk.op(Insn::Dup);
-                compile_initialize_bound_name(chunk, true, EnvUsage::UseCurrentLexical, idx);
+                chunk.op_plus_arg(Insn::AttachSourceText, src_idx, line);
+                chunk.op(Insn::Dup, line);
+                compile_initialize_bound_name(chunk, true, EnvUsage::UseCurrentLexical, idx, line);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AbruptResult::Maybe)
             }
@@ -10423,11 +10657,11 @@ impl ClassDeclaration {
                 //  3. Return value.
                 let default_idx = chunk.add_to_string_pool("default".into())?;
                 tail.class_definition_evaluation(chunk, source, None, NameLoc::Index(default_idx))?;
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 let src_idx = chunk.add_to_string_pool(JSString::from(
                     &source.text[location.span.starting_index..location.span.starting_index + location.span.length],
                 ))?;
-                chunk.op_plus_arg(Insn::AttachSourceText, src_idx);
+                chunk.op_plus_arg(Insn::AttachSourceText, src_idx, line);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AbruptResult::Maybe)
             }
@@ -10451,13 +10685,13 @@ impl ClassExpression {
         //   JUMP_IF_ABRUPT exit                                   F
         //   ATTACH_SOURCE <text>                                  F
         // exit:
-
+        let line = self.location().starting_line;
         let status = self.tail.class_definition_evaluation(chunk, source, None, name)?;
-        let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
         let source_loc = self.location().span;
         let source_text = &source.text[source_loc.starting_index..source_loc.starting_index + source_loc.length];
         let source_idx = chunk.add_to_string_pool(JSString::from(source_text))?;
-        chunk.op_plus_arg(Insn::AttachSourceText, source_idx);
+        chunk.op_plus_arg(Insn::AttachSourceText, source_idx, line);
         if let Some(exit) = exit {
             chunk.fixup(exit).expect("Jump too short to fail");
         }
@@ -10465,6 +10699,7 @@ impl ClassExpression {
     }
 
     fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+        let line = self.location().starting_line;
         match &self.ident {
             Some(binding_id) => {
                 // ClassExpression : class BindingIdentifier ClassTail
@@ -10485,12 +10720,12 @@ impl ClassExpression {
                     Some(binding_id),
                     NameLoc::Index(binding_id),
                 )?;
-                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                 let source_loc = self.location().span;
                 let source_text =
                     &source.text[source_loc.starting_index..source_loc.starting_index + source_loc.length];
                 let source_idx = chunk.add_to_string_pool(JSString::from(source_text))?;
-                chunk.op_plus_arg(Insn::AttachSourceText, source_idx);
+                chunk.op_plus_arg(Insn::AttachSourceText, source_idx, line);
                 if let Some(exit) = exit {
                     chunk.fixup(exit).expect("Jump too short to fail");
                 }
@@ -10510,12 +10745,12 @@ impl ClassExpression {
 
                 let emptystr = chunk.add_to_string_pool(JSString::from(""))?;
                 let status = self.tail.class_definition_evaluation(chunk, source, None, NameLoc::Index(emptystr))?;
-                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                 let source_loc = self.location().span;
                 let source_text =
                     &source.text[source_loc.starting_index..source_loc.starting_index + source_loc.length];
                 let source_idx = chunk.add_to_string_pool(JSString::from(source_text))?;
-                chunk.op_plus_arg(Insn::AttachSourceText, source_idx);
+                chunk.op_plus_arg(Insn::AttachSourceText, source_idx, line);
                 if let Some(exit) = exit {
                     chunk.fixup(exit).expect("Jump too short to fail");
                 }
@@ -10748,40 +10983,40 @@ impl ClassTail {
         // unwind2:
         //    UNWIND 2
         // exit:
-
+        let line = self.location().starting_line;
         match class_name {
             NameLoc::OnStack => {}
             NameLoc::Index(idx) => {
-                chunk.op_plus_arg(Insn::String, idx);
+                chunk.op_plus_arg(Insn::String, idx, line);
             }
         }
-        chunk.op(Insn::PushNewLexEnv);
+        chunk.op(Insn::PushNewLexEnv, line);
         if let Some(binding_idx) = class_binding {
-            chunk.op_plus_arg(Insn::CreateStrictImmutableLexBinding, binding_idx);
+            chunk.op_plus_arg(Insn::CreateStrictImmutableLexBinding, binding_idx, line);
         }
         let unwind_2 = match &self.heritage {
             None => {
-                chunk.op(Insn::FunctionPrototype);
-                chunk.op(Insn::ObjectPrototype);
+                chunk.op(Insn::FunctionPrototype, line);
+                chunk.op(Insn::ObjectPrototype, line);
                 None
             }
             Some(heritage) => {
                 heritage.compile(chunk, source)?;
-                chunk.op(Insn::SetAsideLexEnv);
-                chunk.op(Insn::Swap);
-                chunk.op(Insn::GetParentsFromSuperclass);
-                let jmp_src = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op_plus_arg(Insn::RotateUp, 3);
-                chunk.op(Insn::RestoreLexEnv);
+                chunk.op(Insn::SetAsideLexEnv, line);
+                chunk.op(Insn::Swap, line);
+                chunk.op(Insn::GetParentsFromSuperclass, line);
+                let jmp_src = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op_plus_arg(Insn::RotateUp, 3, line);
+                chunk.op(Insn::RestoreLexEnv, line);
                 Some(jmp_src)
             }
         };
-        chunk.op(Insn::ObjectWithProto);
-        chunk.op(Insn::PushNewPrivateEnv);
+        chunk.op(Insn::ObjectWithProto, line);
+        chunk.op(Insn::PushNewPrivateEnv, line);
         let constructor = if let Some(body) = &self.body {
             for binding in body.private_bound_identifiers() {
                 let idx = chunk.add_to_string_pool(binding.name)?;
-                chunk.op_plus_arg(Insn::CreatePrivateNameIfMissing, idx);
+                chunk.op_plus_arg(Insn::CreatePrivateNameIfMissing, idx, line);
             }
             body.constructor_method()
         } else {
@@ -10792,31 +11027,31 @@ impl ClassTail {
 
         match constructor {
             None => {
-                chunk.op_plus_arg(Insn::RotateDown, 3);
-                chunk.op(Insn::CreateDefaultConstructor);
+                chunk.op_plus_arg(Insn::RotateDown, 3, line);
+                chunk.op(Insn::CreateDefaultConstructor, line);
             }
             Some(element) => {
-                chunk.op(Insn::Dup);
-                chunk.op_plus_arg(Insn::RotateDown, 4);
+                chunk.op(Insn::Dup, line);
+                chunk.op_plus_arg(Insn::RotateDown, 4, line);
                 element.define_method(chunk, source)?;
-                fix_envs_and_exit.push(chunk.op_jump(Insn::JumpIfAbrupt));
-                chunk.op(Insn::Pop);
-                chunk.op(Insn::MakeClassConstructorAndSetName);
+                fix_envs_and_exit.push(chunk.op_jump(Insn::JumpIfAbrupt, line));
+                chunk.op(Insn::Pop, line);
+                chunk.op(Insn::MakeClassConstructorAndSetName, line);
             }
         }
-        chunk.op(Insn::MakeConstructorWithProto);
+        chunk.op(Insn::MakeConstructorWithProto, line);
         if self.heritage.is_some() {
-            chunk.op(Insn::SetDerived);
+            chunk.op(Insn::SetDerived, line);
         }
-        chunk.op(Insn::Dup);
-        chunk.op_plus_arg(Insn::RotateUp, 3);
-        chunk.op(Insn::Dup);
-        chunk.op_plus_arg(Insn::RotateDown, 4);
-        chunk.op(Insn::Swap);
+        chunk.op(Insn::Dup, line);
+        chunk.op_plus_arg(Insn::RotateUp, 3, line);
+        chunk.op(Insn::Dup, line);
+        chunk.op_plus_arg(Insn::RotateDown, 4, line);
+        chunk.op(Insn::Swap, line);
         let cstr_idx = chunk.add_to_string_pool(JSString::from("constructor"))?;
-        chunk.op_plus_arg(Insn::String, cstr_idx);
-        chunk.op_plus_arg(Insn::DefineMethodProperty, 0);
-        chunk.op(Insn::Pop);
+        chunk.op_plus_arg(Insn::String, cstr_idx, line);
+        chunk.op_plus_arg(Insn::DefineMethodProperty, 0, line);
+        chunk.op(Insn::Pop, line);
 
         let elements = if let Some(body) = &self.body { body.non_constructor_elements() } else { vec![] };
 
@@ -10825,51 +11060,51 @@ impl ClassTail {
         let mut jump_targets = vec![];
         for e in elements {
             if ready_for_static != e.is_static() {
-                chunk.op(Insn::Swap);
+                chunk.op(Insn::Swap, line);
                 ready_for_static = !ready_for_static;
             }
             let status = e.class_element_evaluation(chunk, source)?;
             if status.maybe_abrupt() {
-                let tgt = chunk.op_jump(Insn::JumpIfAbrupt);
+                let tgt = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 jump_targets.push((count, tgt));
             }
-            chunk.op_plus_arg(Insn::RotateDown, 3);
+            chunk.op_plus_arg(Insn::RotateDown, 3, line);
             count += 1;
         }
         if ready_for_static {
-            chunk.op(Insn::Swap);
+            chunk.op(Insn::Swap, line);
         }
-        chunk.op(Insn::Pop);
+        chunk.op(Insn::Pop, line);
         if let Some(binding_idx) = class_binding {
-            chunk.op(Insn::Dup);
-            chunk.op_plus_arg(Insn::InitializeLexBinding, binding_idx);
+            chunk.op(Insn::Dup, line);
+            chunk.op_plus_arg(Insn::InitializeLexBinding, binding_idx, line);
         }
-        chunk.op(Insn::PopLexEnv);
-        chunk.op_plus_arg(Insn::AttachElements, count);
-        chunk.op(Insn::PopPrivateEnv);
+        chunk.op(Insn::PopLexEnv, line);
+        chunk.op_plus_arg(Insn::AttachElements, count, line);
+        chunk.op(Insn::PopPrivateEnv, line);
 
         let elements_can_throw = if jump_targets.is_empty() && fix_envs_and_exit.is_empty() {
             if let Some(unwind_backref) = unwind_2 {
                 chunk.fixup(unwind_backref)?;
-                chunk.op_plus_arg(Insn::UnwindIfAbrupt, 2);
+                chunk.op_plus_arg(Insn::UnwindIfAbrupt, 2, line);
             }
             false
         } else {
-            let exit = chunk.op_jump(Insn::Jump);
+            let exit = chunk.op_jump(Insn::Jump, line);
             for (count, target) in jump_targets {
                 chunk.fixup(target)?;
-                chunk.op_plus_arg(Insn::Unwind, count);
-                fix_envs_and_exit.push(chunk.op_jump(Insn::Jump));
+                chunk.op_plus_arg(Insn::Unwind, count, line);
+                fix_envs_and_exit.push(chunk.op_jump(Insn::Jump, line));
             }
             for tgt in fix_envs_and_exit {
                 chunk.fixup(tgt).expect("jump too short to fail");
             }
-            chunk.op(Insn::PopLexEnv);
-            chunk.op(Insn::PopPrivateEnv);
+            chunk.op(Insn::PopLexEnv, line);
+            chunk.op(Insn::PopPrivateEnv, line);
             if let Some(unwind_backref) = unwind_2 {
                 chunk.fixup(unwind_backref)?;
             }
-            chunk.op_plus_arg(Insn::Unwind, 2);
+            chunk.op_plus_arg(Insn::Unwind, 2, line);
             chunk.fixup(exit).expect("jump too short to fail");
             true
         };
@@ -10901,14 +11136,14 @@ impl ClassElement {
         // The syntax-directed operation ClassElementEvaluation takes argument object (an Object) and returns either a
         // normal completion containing either a ClassFieldDefinition Record, a ClassStaticBlockDefinition Record, a
         // PrivateElement, or unused, or an abrupt completion. It is defined piecewise over the following productions:
-
+        let line = self.location().starting_line;
         match self {
             ClassElement::Standard { method } => {
                 // ClassElement :
                 //      MethodDefinition
                 //      static MethodDefinition
                 //  1. Return ? MethodDefinitionEvaluation of MethodDefinition with arguments object and false.
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
                 method.method_definition_evaluation(false, chunk, true, source).map(AbruptResult::from)
             }
             ClassElement::Static { method, .. } => {
@@ -10916,9 +11151,9 @@ impl ClassElement {
                 //      MethodDefinition
                 //      static MethodDefinition
                 //  1. Return ? MethodDefinitionEvaluation of MethodDefinition with arguments object and false.
-                chunk.op(Insn::Dup);
+                chunk.op(Insn::Dup, line);
                 method.method_definition_evaluation(false, chunk, true, source)?;
-                chunk.op(Insn::StaticClassItem);
+                chunk.op(Insn::StaticClassItem, line);
                 Ok(AbruptResult::Maybe)
             }
             ClassElement::Field { field, .. } => {
@@ -10947,7 +11182,7 @@ impl ClassElement {
             ClassElement::Empty { .. } => {
                 // ClassElement : ;
                 //  1. Return unused.
-                chunk.op(Insn::Empty);
+                chunk.op(Insn::Empty, line);
                 Ok(AbruptResult::Never)
             }
         }
@@ -10966,9 +11201,10 @@ impl ClassElementName {
                 //  4. Assert: Exactly one element of names is a Private Name whose [[Description]] is privateIdentifier.
                 //  5. Let privateName be the Private Name in names whose [[Description]] is privateIdentifier.
                 //  6. Return privateName.
+                let line = self.location().starting_line;
                 let private_identifier = data.string_value.clone();
                 let private_identifier_idx = chunk.add_to_string_pool(private_identifier)?;
-                chunk.op_plus_arg(Insn::PrivateIdLookup, private_identifier_idx);
+                chunk.op_plus_arg(Insn::PrivateIdLookup, private_identifier_idx, line);
                 Ok(AbruptResult::Never)
             }
         }
@@ -11024,8 +11260,9 @@ impl FieldDefinition {
         //   EVAL_CLASS_FIELD_DEF(initializer)  // FieldRecord homeObject
         // exit:
 
+        let line = self.location().starting_line;
         let status = self.name.compile(chunk, source)?;
-        let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        let exit = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
         match &self.init {
             Some(init) => {
                 let info = StashedFunctionData {
@@ -11042,13 +11279,12 @@ impl FieldDefinition {
                 } else {
                     Insn::EvaluateInitializedClassFieldDefinition
                 };
-                chunk.op_plus_arg(opcode, func_id);
+                chunk.op_plus_arg(opcode, func_id, line);
             }
-            None => chunk.op(if staticness == Static::Yes {
-                Insn::NameOnlyStaticFieldRecord
-            } else {
-                Insn::NameOnlyFieldRecord
-            }),
+            None => chunk.op(
+                if staticness == Static::Yes { Insn::NameOnlyStaticFieldRecord } else { Insn::NameOnlyFieldRecord },
+                line,
+            ),
         }
         if let Some(exit) = exit {
             chunk.fixup(exit).expect("jump too short to fail");
@@ -11082,6 +11318,7 @@ impl ClassStaticBlock {
         //
         // start:                                          obj
         //   EVAL_CSBD(code)                               err/elem obj
+        let line = self.location().starting_line;
         let info = StashedFunctionData {
             source_text: String::new(),
             params: Rc::new(FormalParameters::Empty(Location::default())).into(),
@@ -11091,16 +11328,17 @@ impl ClassStaticBlock {
             this_mode: ThisLexicality::NonLexicalThis,
         };
         let func_id = chunk.add_to_func_stash(info)?;
-        chunk.op_plus_arg(Insn::EvaluateClassStaticBlockDefinition, func_id);
+        chunk.op_plus_arg(Insn::EvaluateClassStaticBlockDefinition, func_id, line);
         Ok(NeverAbruptRefResult)
     }
 }
 
 impl ClassStaticBlockBody {
     pub(crate) fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
-        chunk.op(Insn::FinishArgs);
+        let line = self.location().starting_line;
+        chunk.op(Insn::FinishArgs, line);
         self.0.compile(chunk, source)?;
-        chunk.op(Insn::EndFunction);
+        chunk.op(Insn::EndFunction, line);
         Ok(AbruptResult::Maybe)
     }
 }
@@ -11112,7 +11350,7 @@ impl ClassStaticBlockStatementList {
             ClassStaticBlockStatementList::Empty(_) => {
                 // ClassStaticBlockStatementList : [empty]
                 //  1. Return undefined.
-                chunk.op(Insn::Undefined);
+                chunk.op(Insn::Undefined, self.location().starting_line);
                 Ok(AbruptResult::Never)
             }
         }
@@ -11165,10 +11403,10 @@ impl MethodDefinition {
                 // unwind_1:                 err (prototype/propkey)
                 //  UNWIND 1                 err
                 // exit:                     err/(propkey closure)
-
+                let line = self.location().starting_line;
                 let status = class_element_name.compile(chunk, source)?;
-                let unwind_2 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-                chunk.op_plus_arg(Insn::RotateDown, 3);
+                let unwind_2 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+                chunk.op_plus_arg(Insn::RotateDown, 3, line);
                 let source_text = source.text
                     [location.span.starting_index..location.span.starting_index + location.span.length]
                     .to_string();
@@ -11181,16 +11419,16 @@ impl MethodDefinition {
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let idx = chunk.add_to_func_stash(info)?;
-                chunk.op_plus_arg(Insn::DefineMethod, idx);
-                let unwind_1 = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::Swap);
-                let exit = chunk.op_jump(Insn::Jump);
+                chunk.op_plus_arg(Insn::DefineMethod, idx, line);
+                let unwind_1 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::Swap, line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 if let Some(spot) = unwind_2 {
                     chunk.fixup(spot).expect("jump too short to fail");
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                 }
                 chunk.fixup(unwind_1).expect("jump too short to fail");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("jump too short to fail");
                 Ok(AlwaysAbruptResult)
             }
@@ -11209,6 +11447,7 @@ impl MethodDefinition {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: MethodDefinitionEvaluation
         //
         // The syntax-directed operation MethodDefinitionEvaluation takes arguments object (an Object) and enumerable (a
@@ -11232,22 +11471,22 @@ impl MethodDefinition {
                 //  <md.define_method>           err/(propertykey closure) object
                 //  JUMP_IF_ABRUPT unwind        propertykey closure object
                 //  SET_FUNC_NAME                propertykey closure object
-                //  DEFMETHPROP(enumerable)      err/empty/PrivateElement
+                //  DEFMETHPROP(enumerable, line)      err/empty/PrivateElement
                 //  JUMP exit
                 // unwind:
                 //  UNWIND 1                     err
                 // exit:                         err/empty/PrivateElement
 
-                chunk.op(Insn::Dup);
-                chunk.op(Insn::FunctionPrototype);
-                chunk.op(Insn::Swap);
+                chunk.op(Insn::Dup, line);
+                chunk.op(Insn::FunctionPrototype, line);
+                chunk.op(Insn::Swap, line);
                 self.define_method(chunk, strict, source)?;
-                let unwind = chunk.op_jump(Insn::JumpIfAbrupt);
-                chunk.op(Insn::SetFunctionName);
-                chunk.op_plus_arg(Insn::DefineMethodProperty, u16::from(enumerable));
-                let exit = chunk.op_jump(Insn::Jump);
+                let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
+                chunk.op(Insn::SetFunctionName, line);
+                chunk.op_plus_arg(Insn::DefineMethodProperty, u16::from(enumerable), line);
+                let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind).expect("Short jumps should work");
-                chunk.op_plus_arg(Insn::Unwind, 1);
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
                 chunk.fixup(exit).expect("short jump");
 
                 Ok(AlwaysAbruptResult)
@@ -11281,7 +11520,7 @@ impl MethodDefinition {
                 //   UNWIND 1                                    err
                 // exit:                                         err/empty/PrivateElement
                 let status = name.compile(chunk, source)?;
-                let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                 let source_text = source.text
                     [location.span.starting_index..location.span.starting_index + location.span.length]
                     .to_string();
@@ -11294,12 +11533,12 @@ impl MethodDefinition {
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let idx = chunk.add_to_func_stash(info)?;
-                chunk.op_plus_two_args(Insn::DefineGetter, idx, u16::from(enumerable));
+                chunk.op_plus_two_args(Insn::DefineGetter, idx, u16::from(enumerable), line);
 
                 if let Some(unwind) = unwind {
-                    let exit = chunk.op_jump(Insn::Jump);
+                    let exit = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(unwind).expect("short jumps should be ok");
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                     chunk.fixup(exit).expect("short jumps should be ok");
                 }
 
@@ -11332,7 +11571,7 @@ impl MethodDefinition {
                 //   UNWIND 1                                    err
                 // exit:                                         err/empty/PrivateElement
                 let status = name.compile(chunk, source)?;
-                let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+                let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
                 let source_text = source.text
                     [location.span.starting_index..location.span.starting_index + location.span.length]
                     .to_string();
@@ -11345,12 +11584,12 @@ impl MethodDefinition {
                     this_mode: ThisLexicality::NonLexicalThis,
                 };
                 let idx = chunk.add_to_func_stash(info)?;
-                chunk.op_plus_two_args(Insn::DefineSetter, idx, u16::from(enumerable));
+                chunk.op_plus_two_args(Insn::DefineSetter, idx, u16::from(enumerable), line);
 
                 if let Some(unwind) = unwind {
-                    let exit = chunk.op_jump(Insn::Jump);
+                    let exit = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(unwind).expect("short jumps should be ok");
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                     chunk.fixup(exit).expect("short jumps should be ok");
                 }
 
@@ -11381,6 +11620,7 @@ impl GeneratorExpression {
         source: &SourceTree,
         id: Option<NameLoc>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: InstantiateGeneratorFunctionExpression
         // The syntax-directed operation InstantiateGeneratorFunctionExpression takes optional argument name (a property
         // key or a Private Name) and returns a function object. It is defined piecewise over the following productions:
@@ -11402,7 +11642,7 @@ impl GeneratorExpression {
             Some(NameLoc::Index(id)) => Some(id),
             Some(NameLoc::OnStack) => None,
         } {
-            chunk.op_plus_arg(Insn::String, name_id);
+            chunk.op_plus_arg(Insn::String, name_id, line);
         }
 
         let span = self.location().span;
@@ -11418,7 +11658,7 @@ impl GeneratorExpression {
             this_mode: ThisLexicality::NonLexicalThis,
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
-        chunk.op_plus_arg(Insn::InstantiateGeneratorFunctionExpression, func_id);
+        chunk.op_plus_arg(Insn::InstantiateGeneratorFunctionExpression, func_id, line);
         Ok(AlwaysAbruptResult)
     }
 
@@ -11475,6 +11715,7 @@ impl GeneratorDeclaration {
         //
         // NOTE An anonymous GeneratorDeclaration can only occur as part of an export default declaration, and its
         // function code is therefore always strict mode code.
+        let line = self.location().starting_line;
         let name = if let Some(id) = &self.ident { id.string_value() } else { JSString::from("default") };
         let name_id = chunk.add_to_string_pool(name)?;
         let span = self.location().span;
@@ -11490,7 +11731,7 @@ impl GeneratorDeclaration {
             this_mode: ThisLexicality::NonLexicalThis,
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
-        chunk.op_plus_two_args(Insn::InstantiateGeneratorFunctionObject, name_id, func_id);
+        chunk.op_plus_two_args(Insn::InstantiateGeneratorFunctionObject, name_id, func_id, line);
         Ok(AlwaysAbruptResult)
     }
 }
@@ -11530,9 +11771,9 @@ impl GeneratorMethod {
         // unwind_1:
         //   UNWIND 1
         // exit:
-
+        let line = self.location().starting_line;
         let name_status = self.name.compile(chunk, source)?;
-        let unwind = if name_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
+        let unwind = if name_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
         let span = self.location().span;
         let source_text = source.text[span.starting_index..(span.starting_index + span.length)].to_string();
         let params = ParamSource::from(Rc::clone(&self.params));
@@ -11546,11 +11787,11 @@ impl GeneratorMethod {
             this_mode: ThisLexicality::NonLexicalThis,
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
-        chunk.op_plus_two_args(Insn::InstantiateGeneratorMethod, func_id, u16::from(enumerable));
+        chunk.op_plus_two_args(Insn::InstantiateGeneratorMethod, func_id, u16::from(enumerable), line);
         if let Some(unwind) = unwind {
-            let exit = chunk.op_jump(Insn::Jump);
+            let exit = chunk.op_jump(Insn::Jump, line);
             chunk.fixup(unwind).expect("jump too short to fail");
-            chunk.op_plus_arg(Insn::Unwind, 1);
+            chunk.op_plus_arg(Insn::Unwind, 1, line);
             chunk.fixup(exit).expect("jump too short to fail");
         }
         Ok(AlwaysAbruptResult)
@@ -11614,17 +11855,18 @@ impl GeneratorBody {
         //   END_FUNCTION
         // exit:
 
+        let line = self.location().starting_line;
         let status = compile_fdi(chunk, source, info)?;
-        let endf = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-        chunk.op(Insn::GeneratorStartFromFunction);
+        let endf = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+        chunk.op(Insn::GeneratorStartFromFunction, line);
 
         let strict = info.strict || self.0.function_body_contains_use_strict();
         let _ = self.0.statements.compile(chunk, strict, source)?;
 
         if let Some(endf) = endf {
-            let exit = chunk.op_jump(Insn::Jump);
+            let exit = chunk.op_jump(Insn::Jump, line);
             chunk.fixup(endf)?;
-            chunk.op(Insn::EndFunction);
+            chunk.op(Insn::EndFunction, line);
             chunk.fixup(exit).expect("Jump too short to fail");
         }
 
@@ -11639,6 +11881,7 @@ impl SuperProperty {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptRefResult> {
+        let line = self.location().starting_line;
         // Runtime Semantics: Evaluation
         match self {
             SuperProperty::Expression { exp, .. } => {
@@ -11663,22 +11906,22 @@ impl SuperProperty {
                 // unwind1:                    err actualThis
                 //   UNWIND 1                  err
                 // exit:                       err/ref
-                chunk.op(Insn::This);
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::This, line);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 let status = exp.compile(chunk, strict, source)?;
                 if status.maybe_ref() {
-                    chunk.op(Insn::GetValue);
+                    chunk.op(Insn::GetValue, line);
                 }
                 let unwind1 = if status.maybe_ref() || status.maybe_abrupt() {
-                    Some(chunk.op_jump(Insn::JumpIfAbrupt))
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
                 } else {
                     None
                 };
-                chunk.op_plus_arg(Insn::MakeSuperPropertyReference, u16::from(strict));
+                chunk.op_plus_arg(Insn::MakeSuperPropertyReference, u16::from(strict), line);
                 if let Some(unwind1) = unwind1 {
-                    let exit_2 = chunk.op_jump(Insn::Jump);
+                    let exit_2 = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(unwind1).expect("jump too short to fail");
-                    chunk.op_plus_arg(Insn::Unwind, 1);
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
                     chunk.fixup(exit_2).expect("jump too short to fail");
                 }
                 chunk.fixup(exit)?;
@@ -11698,11 +11941,11 @@ impl SuperProperty {
                 //   STRING id                 propertyKey actualThis
                 //   SUPER_REF strict          err/ref
                 // exit:
-                chunk.op(Insn::This);
-                let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+                chunk.op(Insn::This, line);
+                let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 let id_idx = chunk.add_to_string_pool(id.string_value.clone())?;
-                chunk.op_plus_arg(Insn::String, id_idx);
-                chunk.op_plus_arg(Insn::MakeSuperPropertyReference, u16::from(strict));
+                chunk.op_plus_arg(Insn::String, id_idx, line);
+                chunk.op_plus_arg(Insn::MakeSuperPropertyReference, u16::from(strict), line);
                 chunk.fixup(exit).expect("Jump too short to fail");
                 Ok(AlwaysAbruptRefResult)
             }
@@ -11747,27 +11990,28 @@ impl SuperCall {
         // unwind_2:
         //   UNWIND 2
         // exit:
-        chunk.op(Insn::GetNewTarget);
-        chunk.op(Insn::GetSuperConstructor);
+        let line = self.location().starting_line;
+        chunk.op(Insn::GetNewTarget, line);
+        chunk.op(Insn::GetSuperConstructor, line);
         let args_status = self.arguments.argument_list_evaluation(chunk, strict, source)?;
-        let unwind2 = if args_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt)) } else { None };
-        chunk.op_plus_arg(Insn::RotateListDown, 2);
-        chunk.op(Insn::ConstructorCheck);
-        let unwind1 = chunk.op_jump(Insn::JumpIfAbrupt);
-        chunk.op(Insn::Swap);
-        chunk.op_plus_arg(Insn::RotateListUp, 2);
-        chunk.op(Insn::Construct);
-        let exit = chunk.op_jump(Insn::JumpIfAbrupt);
+        let unwind2 = if args_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+        chunk.op_plus_arg(Insn::RotateListDown, 2, line);
+        chunk.op(Insn::ConstructorCheck, line);
+        let unwind1 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+        chunk.op(Insn::Swap, line);
+        chunk.op_plus_arg(Insn::RotateListUp, 2, line);
+        chunk.op(Insn::Construct, line);
+        let exit = chunk.op_jump(Insn::JumpIfAbrupt, line);
 
-        chunk.op(Insn::BindThisAndInit);
-        let exit2 = chunk.op_jump(Insn::Jump);
+        chunk.op(Insn::BindThisAndInit, line);
+        let exit2 = chunk.op_jump(Insn::Jump, line);
         chunk.fixup(unwind1).expect("jump too short to fail");
-        chunk.op_plus_arg(Insn::Unwind, 1);
-        chunk.op(Insn::UnwindList);
+        chunk.op_plus_arg(Insn::Unwind, 1, line);
+        chunk.op(Insn::UnwindList, line);
         if let Some(unwind) = unwind2 {
-            let exit3 = chunk.op_jump(Insn::Jump);
+            let exit3 = chunk.op_jump(Insn::Jump, line);
             chunk.fixup(unwind).expect("jump too short to fail");
-            chunk.op_plus_arg(Insn::Unwind, 2);
+            chunk.op_plus_arg(Insn::Unwind, 2, line);
             chunk.fixup(exit3).expect("jump in range");
         }
         chunk.fixup(exit2).expect("jump in range");
@@ -11804,21 +12048,22 @@ impl WithStatement {
         //   POP_ENV                         err/val/empty
         //   UNDEFINED_IF_EMPTY              err/val/undefined
         // exit:
+        let line = self.location().starting_line;
         let expr_status = self.expression.compile(chunk, strict, source)?;
         if expr_status.maybe_ref() {
-            chunk.op(Insn::GetValue);
+            chunk.op(Insn::GetValue, line);
         }
         let exit_1 = if expr_status.maybe_abrupt() || expr_status.maybe_ref() {
-            Some(chunk.op_jump(Insn::JumpIfAbrupt))
+            Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
         } else {
             None
         };
-        chunk.op(Insn::ToObject);
-        let exit_2 = chunk.op_jump(Insn::JumpIfAbrupt);
-        chunk.op(Insn::PushWithEnv);
+        chunk.op(Insn::ToObject, line);
+        let exit_2 = chunk.op_jump(Insn::JumpIfAbrupt, line);
+        chunk.op(Insn::PushWithEnv, line);
         self.statement.compile(chunk, strict, source)?;
-        chunk.op(Insn::PopLexEnv);
-        chunk.op(Insn::UndefinedIfEmpty);
+        chunk.op(Insn::PopLexEnv, line);
+        chunk.op(Insn::UndefinedIfEmpty, line);
         if let Some(exit) = exit_1 {
             chunk.fixup(exit).context("WithExpression Fixup Failure 01")?;
         }

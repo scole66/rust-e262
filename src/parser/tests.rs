@@ -14,13 +14,25 @@ fn calculate_hash<T: Hash>(t: &T) -> u64 {
     s.finish()
 }
 
-impl From<u32> for Location {
-    fn from(src: u32) -> Self {
-        Location { starting_line: 1, starting_column: src, span: Span { starting_index: src as usize - 1, length: 0 } }
+impl From<i32> for Location {
+    fn from(src: i32) -> Self {
+        let col = usize::try_from(src).unwrap();
+        Location::from(col)
     }
 }
-impl From<(u32, u32)> for Location {
-    fn from(src: (u32, u32)) -> Self {
+impl From<u32> for Location {
+    fn from(src: u32) -> Self {
+        let col = usize::try_from(src).unwrap();
+        Location::from(col)
+    }
+}
+impl From<usize> for Location {
+    fn from(src: usize) -> Self {
+        Location { starting_line: 1, starting_column: src, span: Span { starting_index: src - 1, length: 0 } }
+    }
+}
+impl From<(usize, usize)> for Location {
+    fn from(src: (usize, usize)) -> Self {
         let (line, column) = src;
         // This "all previous lines are 256 chars" is a bit unrealistic, but it makes for unsurprising tests. (We can't
         // guarantee, in a test context, that the values of line & column are consistent with starting index. Line 20,
@@ -29,8 +41,20 @@ impl From<(u32, u32)> for Location {
         Location {
             starting_line: line,
             starting_column: column,
-            span: Span { starting_index: (line - 1) as usize * 256 + column as usize - 1, length: 0 },
+            span: Span { starting_index: (line - 1) * 256 + column - 1, length: 0 },
         }
+    }
+}
+impl From<(u32, u32)> for Location {
+    fn from(src: (u32, u32)) -> Self {
+        let (line, column) = src;
+        Location::from((usize::try_from(line).unwrap(), usize::try_from(column).unwrap()))
+    }
+}
+impl From<(i32, i32)> for Location {
+    fn from(src: (i32, i32)) -> Self {
+        let (line, column) = src;
+        Location::from((usize::try_from(line).unwrap(), usize::try_from(column).unwrap()))
     }
 }
 impl From<&str> for Location {
@@ -38,8 +62,8 @@ impl From<&str> for Location {
         Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: src.len() } }
     }
 }
-impl From<(u32, u32, u32)> for Location {
-    fn from(src: (u32, u32, u32)) -> Self {
+impl From<(usize, usize, usize)> for Location {
+    fn from(src: (usize, usize, usize)) -> Self {
         let (line, column, length) = src;
         // This "all previous lines are 256 chars" is a bit unrealistic, but it makes for unsurprising tests. (We can't
         // guarantee, in a test context, that the values of line & column are consistent with starting index. Line 20,
@@ -48,8 +72,27 @@ impl From<(u32, u32, u32)> for Location {
         Location {
             starting_line: line,
             starting_column: column,
-            span: Span { starting_index: (line - 1) as usize * 256 + column as usize - 1, length: length as usize },
+            span: Span { starting_index: (line - 1) * 256 + column - 1, length },
         }
+    }
+}
+
+impl From<(u32, u32, u32)> for Location {
+    fn from(src: (u32, u32, u32)) -> Self {
+        let (line, column, length) = src;
+        let line = usize::try_from(line).unwrap();
+        let column = usize::try_from(column).unwrap();
+        let length = usize::try_from(length).unwrap();
+        Location::from((line, column, length))
+    }
+}
+impl From<(i32, i32, i32)> for Location {
+    fn from(src: (i32, i32, i32)) -> Self {
+        let (line, column, length) = src;
+        let line = usize::try_from(line).unwrap();
+        let column = usize::try_from(column).unwrap();
+        let length = usize::try_from(length).unwrap();
+        Location::from((line, column, length))
     }
 }
 

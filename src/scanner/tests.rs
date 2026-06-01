@@ -556,7 +556,7 @@ fn keyword_test_helper(inp: &str, expected: Option<Keyword>) {
         (
             Token::Identifier(IdentifierData { string_value: JSString::from(inp), keyword_id: expected }),
             Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: inp.len() } },
-            Scanner { line: 1, column: u32::try_from(inp.len() + 1).unwrap(), start_idx: inp.len() }
+            Scanner { line: 1, column: inp.len() + 1, start_idx: inp.len() }
         )
     );
 }
@@ -701,7 +701,7 @@ mod punctuator {
             (
                 tok,
                 Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: inp.len() } },
-                Scanner { line: 1, column: u32::try_from(inp.chars().count() + 1).unwrap(), start_idx: inp.len() }
+                Scanner { line: 1, column: inp.chars().count() + 1, start_idx: inp.len() }
             )
         );
     }
@@ -762,18 +762,14 @@ mod punctuator {
         punct_check("??", Token::Punctuator(Punctuator::QQ));
     }
 
-    fn punct_chk2(inp: &str, tok: Token, consumed: u32) {
+    fn punct_chk2(inp: &str, tok: Token, consumed: usize) {
         let result = scan_token(&Scanner::new(), inp, InputElementGoal::RegExp);
         assert_eq!(
             result,
             (
                 tok,
-                Location {
-                    starting_line: 1,
-                    starting_column: 1,
-                    span: Span { starting_index: 0, length: consumed as usize }
-                },
-                Scanner { line: 1, column: consumed + 1, start_idx: consumed as usize }
+                Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: consumed } },
+                Scanner { line: 1, column: consumed + 1, start_idx: consumed }
             )
         );
     }
@@ -901,9 +897,9 @@ fn signed_integer_04() {
     assert_eq!(result, Some(Scanner { line: 1, column: 4, start_idx: 3 }));
 }
 
-fn decimal_literal_helper(text: &str, count: u32) {
+fn decimal_literal_helper(text: &str, count: usize) {
     let result = decimal_literal(&Scanner::new(), text);
-    assert_eq!(result, Some(Scanner { line: 1, column: count + 1, start_idx: count as usize }));
+    assert_eq!(result, Some(Scanner { line: 1, column: count + 1, start_idx: count }));
 }
 #[test]
 fn decimal_literal_01() {
@@ -977,7 +973,7 @@ fn non_zero_digit_empty() {
 fn dbil_helper(text: &str) {
     assert_eq!(
         decimal_big_integer_literal(&Scanner::new(), text),
-        Some(Scanner { line: 1, column: u32::try_from(text.len() + 1).unwrap(), start_idx: text.len() })
+        Some(Scanner { line: 1, column: text.len() + 1, start_idx: text.len() })
     );
 }
 #[test]
