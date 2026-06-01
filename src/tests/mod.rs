@@ -1254,7 +1254,7 @@ pub(crate) fn make_ecmascript_function(src: &str) -> Object {
     let realm = current_realm_record().unwrap();
     let global_env = realm.borrow().global_env.clone().unwrap();
     let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
-    let chunk = Rc::new(Chunk::new("empty"));
+    let chunk = Rc::new(Chunk::new("empty", 1));
     ordinary_function_create(function_prototype, src, params, body, this_mode, global_env, None, true, chunk)
 }
 

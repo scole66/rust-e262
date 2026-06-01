@@ -2090,7 +2090,7 @@ mod insn_impl {
         let info = sfd_operand(chunk)?;
         let to_compile: Rc<FunctionExpression> = info.to_compile.clone().try_into()?;
         let name = nameify(&info.source_text, 50);
-        let mut compiled = Chunk::new(name);
+        let mut compiled = Chunk::new(name, to_compile.location().starting_line);
         let compilation_status = to_compile.body.compile_body(&mut compiled, source, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
@@ -2098,7 +2098,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
-        for line in compiled.disassemble() {
+        for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
@@ -2164,7 +2164,7 @@ mod insn_impl {
         // First: compile the function.
         let to_compile: Rc<FunctionExpression> = info.to_compile.clone().try_into()?;
         let chunk_name = nameify(&info.source_text, 50);
-        let mut compiled = Chunk::new(chunk_name);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
         let compilation_status = to_compile.body.compile_body(&mut compiled, source, info);
         if let Err(err) = compilation_status {
             let _ = pop_completion()?;
@@ -2172,7 +2172,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
-        for line in compiled.disassemble() {
+        for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
@@ -2215,7 +2215,7 @@ mod insn_impl {
 
         let to_compile: Rc<ArrowFunction> = info.to_compile.clone().try_into()?;
         let chunk_name = nameify(&info.source_text, 50);
-        let mut compiled = Chunk::new(chunk_name);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
         let compilation_status = to_compile.body.compile_body(&mut compiled, source, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
@@ -2223,7 +2223,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
-        for line in compiled.disassemble() {
+        for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
@@ -2252,7 +2252,7 @@ mod insn_impl {
         let to_compile: Rc<FunctionDeclaration> =
             info.to_compile.clone().try_into().context("finding function compilation source")?;
         let chunk_name = nameify(&info.source_text, 50);
-        let mut compiled = Chunk::new(chunk_name);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
         let compilation_status = to_compile.body.compile_body(&mut compiled, source, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
@@ -2260,7 +2260,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
-        for line in compiled.disassemble() {
+        for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
@@ -2302,7 +2302,7 @@ mod insn_impl {
         let to_compile: Rc<GeneratorDeclaration> =
             info.to_compile.clone().try_into().context("finding function compilation source")?;
         let chunk_name = nameify(&info.source_text, 50);
-        let mut compiled = Chunk::new(chunk_name);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
         let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, source, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
@@ -2310,7 +2310,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
-        for line in compiled.disassemble() {
+        for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
@@ -2368,14 +2368,14 @@ mod insn_impl {
         let to_compile: Rc<GeneratorMethod> =
             info.to_compile.clone().try_into().context("finding generator method compilation source")?;
         let chunk_name = nameify(&info.source_text, 50);
-        let mut compiled = Chunk::new(chunk_name);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
         let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, source, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
-        for line in compiled.disassemble() {
+        for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
@@ -3070,14 +3070,14 @@ mod insn_impl {
         let to_compile: Rc<MethodDefinition> = info.to_compile.clone().try_into()?;
         if let MethodDefinition::NamedFunction(_, _, body, _) = to_compile.as_ref() {
             let name = nameify(&info.source_text, 50);
-            let mut compiled = Chunk::new(name);
+            let mut compiled = Chunk::new(name, to_compile.location().starting_line);
             let compilation_status = body.compile_body(&mut compiled, source, info);
             if let Err(err) = compilation_status {
                 let typeerror = create_type_error(err.to_string());
                 push_completion(Err(typeerror)).expect(PUSHABLE);
                 return Ok(());
             }
-            for line in compiled.disassemble() {
+            for line in compiled.disassemble(&source.text) {
                 println!("{line}");
             }
 
@@ -3157,7 +3157,7 @@ mod insn_impl {
         let prod_text_loc = to_compile.location().span;
         let prod_text = &source.text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
         let chunk_name = nameify(prod_text, 50);
-        let mut compiled = Chunk::new(chunk_name);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
         let compilation_status = fb.compile_body(&mut compiled, source, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
@@ -3165,7 +3165,7 @@ mod insn_impl {
             return Ok(());
         }
 
-        for line in compiled.disassemble() {
+        for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
@@ -3230,7 +3230,7 @@ mod insn_impl {
         let prod_text_loc = to_compile.location().span;
         let prod_text = &source.text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
         let chunk_name = nameify(prod_text, 50);
-        let mut compiled = Chunk::new(chunk_name);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
         let compilation_status = fb.compile_body(&mut compiled, source, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
@@ -3238,7 +3238,7 @@ mod insn_impl {
             return Ok(());
         }
 
-        for line in compiled.disassemble() {
+        for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
@@ -3318,7 +3318,7 @@ mod insn_impl {
 
         let to_compile: Rc<GeneratorExpression> = info.to_compile.clone().try_into()?;
         let chunk_name = nameify(&info.source_text, 50);
-        let mut compiled = Chunk::new(chunk_name);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
         let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, source, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
@@ -3326,7 +3326,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
-        for line in compiled.disassemble() {
+        for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
@@ -4454,9 +4454,9 @@ fn evaluate_initialized_class_field_definition(
     let prod_text_loc = to_compile.location().span;
     let prod_text = &source.text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
     let chunk_name = nameify(prod_text, 50);
-    let mut compiled = Chunk::new(chunk_name);
+    let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
     to_compile.init.as_ref().unwrap().compile(&mut compiled, info.strict, source, CompileMod::AsFunction)?;
-    for line in compiled.disassemble() {
+    for line in compiled.disassemble(&source.text) {
         println!("{line}");
     }
 
@@ -4496,9 +4496,9 @@ fn evaluate_class_static_block_definition(
     let prod_text_loc = to_compile.location().span;
     let prod_text = &source.text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
     let chunk_name = nameify(prod_text, 50);
-    let mut compiled = Chunk::new(chunk_name);
+    let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
     to_compile.block.as_ref().compile(&mut compiled, source)?;
-    for line in compiled.disassemble() {
+    for line in compiled.disassemble(&source.text) {
         println!("{line}");
     }
 
@@ -4745,12 +4745,12 @@ pub(crate) fn parse_script(source_text: &str, realm: Rc<RefCell<Realm>>) -> Resu
     match script {
         Err(errs) => Err(errs),
         Ok(script) => {
-            let mut chunk = Chunk::new("top level script");
+            let mut chunk = Chunk::new("top level script", 1);
             let source = SourceTree { ast, text: source_text.to_string() };
             script
                 .compile(&mut chunk, false, &source)
                 .map_err(|err| vec![create_syntax_error_object(format!("{err}"), None)])?;
-            for line in chunk.disassemble() {
+            for line in chunk.disassemble(&source.text) {
                 println!("{line}");
             }
             Ok(ScriptRecord { realm, ecmascript_code: script, compiled: Rc::new(chunk), text: source_text.into() })

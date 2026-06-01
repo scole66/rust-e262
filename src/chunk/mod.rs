@@ -28,6 +28,8 @@ pub(crate) struct Chunk {
     pub(crate) name: String,
     pub(crate) strings: Vec<JSString>,
     pub(crate) opcodes: Vec<Opcode>,
+    pub(crate) line_numbers: Vec<usize>,
+    pub(crate) first_line: usize,
     pub(crate) floats: Vec<f64>,
     pub(crate) bigints: Vec<Rc<BigInt>>,
     pub(crate) string_sets: Vec<AHashSet<JSString>>,
@@ -36,8 +38,8 @@ pub(crate) struct Chunk {
 }
 
 impl Chunk {
-    pub(crate) fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), ..Default::default() }
+    pub(crate) fn new(name: impl Into<String>, first_line: usize) -> Self {
+        Self { name: name.into(), first_line, ..Default::default() }
     }
 
     #[cfg(test)]
@@ -96,35 +98,45 @@ impl Chunk {
         result.try_into().map_err(|_| anyhow!("Out of room for more functions!"))
     }
 
-    pub(crate) fn op(&mut self, opcode: Insn) {
+    pub(crate) fn op(&mut self, opcode: Insn, line_num: usize) {
         self.opcodes.push(opcode.into());
+        self.line_numbers.push(line_num);
     }
 
-    pub(crate) fn op_plus_arg(&mut self, opcode: Insn, arg: u16) {
+    pub(crate) fn op_plus_arg(&mut self, opcode: Insn, arg: u16, line_num: usize) {
         self.opcodes.push(opcode.into());
         self.opcodes.push(arg);
+        self.line_numbers.push(line_num);
+        self.line_numbers.push(line_num);
     }
 
-    pub(crate) fn op_plus_two_args(&mut self, opcode: Insn, arg1: u16, arg2: u16) {
+    pub(crate) fn op_plus_two_args(&mut self, opcode: Insn, arg1: u16, arg2: u16, line_num: usize) {
         self.opcodes.push(opcode.into());
         self.opcodes.push(arg1);
         self.opcodes.push(arg2);
+        self.line_numbers.push(line_num);
+        self.line_numbers.push(line_num);
+        self.line_numbers.push(line_num);
     }
 
-    pub(crate) fn op_jump(&mut self, opcode: Insn) -> usize {
+    pub(crate) fn op_jump(&mut self, opcode: Insn, line_num: usize) -> usize {
         self.opcodes.push(opcode.into());
         self.opcodes.push(0);
+        self.line_numbers.push(line_num);
+        self.line_numbers.push(line_num);
         self.opcodes.len() - 1
     }
 
     #[expect(clippy::cast_sign_loss)]
-    pub(crate) fn op_jump_back(&mut self, opcode: Insn, location: usize) -> anyhow::Result<()> {
+    pub(crate) fn op_jump_back(&mut self, opcode: Insn, location: usize, line_num: usize) -> anyhow::Result<()> {
         self.opcodes.push(opcode.into());
         let delta = isize::try_from(location).expect("a hope and a prayer")
             - isize::try_from(self.opcodes.len()).expect("should be ok")
             - 1;
         let offset = i16::try_from(delta)?;
         self.opcodes.push(offset as u16);
+        self.line_numbers.push(line_num);
+        self.line_numbers.push(line_num);
         Ok(())
     }
 
@@ -381,11 +393,20 @@ impl Chunk {
         }
     }
 
-    pub(crate) fn disassemble(&self) -> Vec<String> {
+    pub(crate) fn disassemble(&self, text: &str) -> Vec<String> {
         let mut idx = 0;
         let mut result = vec![];
+        let mut last_printed_line_number = self.first_line.max(1) - 1;
+        let mut text_iter = text.lines().skip(last_printed_line_number).map(ToString::to_string);
         result.push(format!("====== {} ======", self.name));
         while idx < self.opcodes.len() {
+            let opcode_line_number = self.line_numbers[idx];
+            while opcode_line_number > last_printed_line_number {
+                last_printed_line_number += 1;
+                let line_from_source = text_iter.next().unwrap_or_else(String::new);
+                let output_line = format!("{last_printed_line_number:05}: {line_from_source}");
+                result.push(output_line);
+            }
             let (inc, repr) = self.insn_repr_at(idx);
             idx += inc;
             result.push(repr);

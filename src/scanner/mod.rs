@@ -371,8 +371,8 @@ impl Token {
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub(crate) struct Scanner {
-    pub(crate) line: u32,
-    pub(crate) column: u32,
+    pub(crate) line: usize,
+    pub(crate) column: usize,
     pub(crate) start_idx: usize,
 }
 impl Scanner {
@@ -687,7 +687,7 @@ fn code_point(scanner: &Scanner, source: &str) -> Option<Scanner> {
         {
             return Some(Scanner {
                 line: scanner.line,
-                column: u32::try_from(scanner.column as usize + count).expect("column should fit in 32 bits"),
+                column: scanner.column + count,
                 start_idx: scanner.start_idx + count,
             });
         }
@@ -1083,14 +1083,7 @@ fn optional_chaining_punctuator(scanner: &Scanner, source: &str) -> Option<(Toke
 fn other_punctuator(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
     let mut iter = source[scanner.start_idx..].chars();
     let mt = |tk, delta| {
-        Some((
-            tk,
-            Scanner {
-                line: scanner.line,
-                column: scanner.column + delta,
-                start_idx: scanner.start_idx + delta as usize,
-            },
-        ))
+        Some((tk, Scanner { line: scanner.line, column: scanner.column + delta, start_idx: scanner.start_idx + delta }))
     };
     match iter.next() {
         Some('{') => mt(Token::Punctuator(Punctuator::LeftBrace), 1),
@@ -1776,11 +1769,7 @@ fn template_hex_digits(
             None
         },
         raw_chars[..consumed].to_vec(),
-        Scanner {
-            line: scanner.line,
-            column: u32::try_from(scanner.column as usize + consumed).expect("column should fit in 32 bits"),
-            start_idx: scanner.start_idx + consumed,
-        },
+        Scanner { line: scanner.line, column: scanner.column + consumed, start_idx: scanner.start_idx + consumed },
         consumed,
     )
 }
@@ -1853,7 +1842,7 @@ fn template_hex_digits_by_value(
                 raw_chars,
                 Scanner {
                     line: scanner.line,
-                    column: u32::try_from(scanner.column as usize + consumed).expect("column should be less than 64k"),
+                    column: scanner.column + consumed,
                     start_idx: scanner.start_idx + consumed,
                 },
                 consumed,
@@ -2066,10 +2055,7 @@ fn debug_token(scanner: &Scanner, source: &str) -> Option<(Token, Scanner)> {
                                 Token::Debug(DebugKind::Number(num)),
                                 Scanner {
                                     line: s.line,
-                                    column: u32::try_from(
-                                        s.column as usize + source[s.start_idx..=s.start_idx + 1 + idx].chars().count(),
-                                    )
-                                    .expect("column should be less than 64k"),
+                                    column: s.column + source[s.start_idx..=s.start_idx + 1 + idx].chars().count(),
                                     start_idx: s.start_idx + 1 + idx + 1,
                                 },
                             ))
@@ -2178,7 +2164,7 @@ fn regular_expression_literal(scanner: &Scanner, source: &str, goal: InputElemen
                 let chars_in_match = source[scanner.start_idx..scanner.start_idx + flag_end].chars().count();
                 let after_scanner = Scanner {
                     line: scanner.line,
-                    column: u32::try_from(scanner.column as usize + chars_in_match).expect("column should fit"),
+                    column: scanner.column + chars_in_match,
                     start_idx: scanner.start_idx + flag_end,
                 };
                 let token = Token::RegularExpression(RegularExpressionData { body, flags });

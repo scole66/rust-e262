@@ -97,7 +97,7 @@ mod agent {
         let sr = ScriptRecord {
             realm: realm_ref.clone(),
             ecmascript_code: Maker::new("").script(),
-            compiled: Rc::new(Chunk::new("test")),
+            compiled: Rc::new(Chunk::new("test", 1)),
             text: String::new(),
         };
         let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
@@ -120,7 +120,7 @@ mod agent {
             let sr = ScriptRecord {
                 realm: realm_ref.clone(),
                 ecmascript_code: Maker::new("").script(),
-                compiled: Rc::new(Chunk::new("test")),
+                compiled: Rc::new(Chunk::new("test", 1)),
                 text: String::new(),
             };
             let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));
@@ -761,7 +761,7 @@ mod agent {
 #[test]
 fn prepare_for_execution() {
     setup_test_agent();
-    let chunk = Rc::new(Chunk::new("test sentinel"));
+    let chunk = Rc::new(Chunk::new("test sentinel", 1));
 
     super::prepare_for_execution(0, Rc::clone(&chunk));
 
@@ -897,8 +897,8 @@ mod parse_script {
         assert_eq!(format!("{ecmascript_code}"), "'hello world' ;");
         assert_eq!(compiled.name, "top level script");
         assert_eq!(
-            compiled.disassemble().iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
-            svec(&["STRING 0 (hello world)",])
+            compiled.disassemble(src).iter().map(String::as_str).filter_map(disasm_filt).collect::<Vec<_>>(),
+            svec(&["00001: /* hello! */ 'hello world';", "STRING 0 (hello world)",])
         );
         assert_eq!(text, src);
     }
@@ -1317,7 +1317,7 @@ mod current_script_or_module {
         let sr = ScriptRecord {
             realm: realm_ref.clone(),
             ecmascript_code: Maker::new("").script(),
-            compiled: Rc::new(Chunk::new("test")),
+            compiled: Rc::new(Chunk::new("test", 1)),
             text: String::new(),
         };
         let test_ec = ExecutionContext::new(None, realm_ref, Some(ScriptOrModule::Script(Rc::new(sr))));

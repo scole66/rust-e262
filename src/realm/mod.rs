@@ -1278,9 +1278,9 @@ pub(crate) fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Co
                                 &source_tree,
                             ) {
                                 Ok(()) => {
-                                    let mut chunk = Chunk::new("eval code");
+                                    let mut chunk = Chunk::new("eval code", 1);
                                     script.compile(&mut chunk, strict_eval, &source_tree).unwrap();
-                                    for line in chunk.disassemble() {
+                                    for line in chunk.disassemble(&source_tree.text) {
                                         println!("{line}");
                                     }
                                     evaluate(Rc::new(chunk), &source_tree)

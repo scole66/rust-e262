@@ -830,7 +830,7 @@ mod ordinary_set_prototype_of {
                 vec![],
                 None,
                 false,
-                Rc::new(Chunk::new("test"))
+                Rc::new(Chunk::new("test", 1))
             ),
             None
         )
@@ -935,7 +935,7 @@ mod ordinary_prevent_extensions {
         vec![],
         None,
         false,
-        Rc::new(Chunk::new("test"))
+        Rc::new(Chunk::new("test", 1))
     ) => (true, false); "with FunctionObject")]
     #[test_case(
         || BuiltInFunctionObject::new(None, true, current_realm_record().unwrap(), None, Box::new(steps), None)
@@ -1116,7 +1116,7 @@ mod ordinary_define_own_property {
             vec![],
             None,
             false,
-            Rc::new(Chunk::new("test"))
+            Rc::new(Chunk::new("test", 1))
         ),
         || PropertyKey::from("pk"),
         || PotentialPropertyDescriptor::new().value(99).writable(true).enumerable(true).configurable(true)
@@ -1773,7 +1773,7 @@ mod ordinary_has_property {
                 vec![],
                 None,
                 false,
-                Rc::new(Chunk::new("test"))
+                Rc::new(Chunk::new("test", 1))
             ))
         }
         => Ok(true);
@@ -1947,7 +1947,7 @@ mod ordinary_get {
                 vec![],
                 None,
                 false,
-                Rc::new(Chunk::new("test"))
+                Rc::new(Chunk::new("test", 1))
             ))
         }
         => sok("undefined");
@@ -2047,7 +2047,7 @@ mod ordinary_set {
             vec![],
             None,
             false,
-            Rc::new(Chunk::new("test"))))
+            Rc::new(Chunk::new("test", 1))))
         => Ok((true, "undefined".to_string()));
         "FunctionObject argument"
     )]
@@ -2474,7 +2474,7 @@ mod ordinary_delete {
             vec![],
             None,
             false,
-            Rc::new(Chunk::new("test"))
+            Rc::new(Chunk::new("test", 1))
         ),
         "key"
         => Ok((true, String::new()));
@@ -2568,7 +2568,7 @@ mod ordinary_own_property_keys {
                 vec![],
                 None,
                 false,
-                Rc::new(Chunk::new("test"))
+                Rc::new(Chunk::new("test", 1))
             )
         }
         => svec(&[]);
@@ -5417,7 +5417,7 @@ mod get_function_realm {
                 vec![],
                 None,
                 false,
-                Rc::new(Chunk::new("test"))
+                Rc::new(Chunk::new("test", 1))
             );
             pop_execution_context();
             obj

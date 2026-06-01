@@ -6,7 +6,7 @@ pub(crate) fn check<T>(res: ParseResult<T>) -> (Rc<T>, Scanner) {
     assert!(res.is_ok());
     res.unwrap()
 }
-pub(crate) fn check_err<T>(res: ParseResult<T>, msg: &str, line: u32, column: u32)
+pub(crate) fn check_err<T>(res: ParseResult<T>, msg: &str, line: usize, column: usize)
 where
     T: fmt::Debug,
 {
@@ -15,14 +15,14 @@ where
     assert_eq!(err.location.starting_column, column);
     assert_eq!(format!("{err}"), String::from(msg));
 }
-pub(crate) fn expected_scan(count: u32) -> Scanner {
+pub(crate) fn expected_scan(count: usize) -> Scanner {
     // Expected Scanner for tests. (The real world will be more varied.)
-    Scanner { line: 1, column: count + 1, start_idx: count as usize }
+    Scanner { line: 1, column: count + 1, start_idx: count }
 }
 pub(crate) fn sv(strings: &[&str]) -> Vec<String> {
     strings.iter().map(|s| String::from(*s)).collect()
 }
-pub(crate) fn chk_scan(scanner: &Scanner, count: u32) {
+pub(crate) fn chk_scan(scanner: &Scanner, count: usize) {
     assert_eq!(*scanner, expected_scan(count));
 }
 pub(crate) fn newparser(text: &str) -> Parser<'_> {
@@ -2856,7 +2856,7 @@ pub(crate) fn find_text(src: &str, needle: &str) -> Location {
     };
     src.find(needle).map_or(loc_default, |starting_index| Location {
         starting_line: 1,
-        starting_column: u32::try_from(starting_index).unwrap() + 1,
+        starting_column: starting_index + 1,
         span: Span { starting_index, length: needle_length },
     })
 }
