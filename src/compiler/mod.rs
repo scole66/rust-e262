@@ -6287,9 +6287,7 @@ impl IfStatement {
         }
 
         Ok(AbruptResult::from(
-            expr_status.maybe_abrupt()
-                || true_path_status.maybe_abrupt()
-                || false_path_status.maybe_abrupt(),
+            expr_status.maybe_abrupt() || true_path_status.maybe_abrupt() || false_path_status.maybe_abrupt(),
         ))
     }
 }

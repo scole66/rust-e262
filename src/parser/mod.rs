@@ -419,7 +419,7 @@ impl Location {
 }
 
 pub(crate) fn last_line_of(text: &str, loc: &Location) -> usize {
-    let sub_section = text[loc.span.starting_index .. loc.span.starting_index + loc.span.length].trim_end();
+    let sub_section = text[loc.span.starting_index..loc.span.starting_index + loc.span.length].trim_end();
     let line_count = sub_section.lines().count();
     loc.starting_line + line_count.max(1) - 1
 }
@@ -430,7 +430,6 @@ pub(crate) fn line_before_span(text: &str, loc: &Location, span: &Span) -> usize
     let sub_section = text[loc.span.starting_index..span.starting_index].trim_end();
     let line_count = sub_section.lines().count();
     loc.starting_line + line_count.max(1) - 1
-
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash, Default)]

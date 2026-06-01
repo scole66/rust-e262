@@ -768,11 +768,7 @@ mod punctuator {
             result,
             (
                 tok,
-                Location {
-                    starting_line: 1,
-                    starting_column: 1,
-                    span: Span { starting_index: 0, length: consumed }
-                },
+                Location { starting_line: 1, starting_column: 1, span: Span { starting_index: 0, length: consumed } },
                 Scanner { line: 1, column: consumed + 1, start_idx: consumed }
             )
         );
