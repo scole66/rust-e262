@@ -204,6 +204,8 @@ struct Arguments {
     path: String,
     #[arg(short, long, id = "OUTPATH")]
     keep_constructed: Option<String>,
+    #[arg(short, long)]
+    force: bool,
 }
 
 fn main() -> Result<()> {
@@ -217,6 +219,11 @@ fn main() -> Result<()> {
         .map(config::Value::into_string)
         .collect::<std::result::Result<Vec<_>, _>>()?;
     let harness_path = config.get_string("harness_root")?;
+    let ignored_tests = config
+        .get_array("skipped_tests")?
+        .into_iter()
+        .map(config::Value::into_string)
+        .collect::<std::result::Result<Vec<_>, _>>()?;
 
     color_eyre::install()?;
 
@@ -224,7 +231,9 @@ fn main() -> Result<()> {
     let test_name = args.path;
     let info = construct_test(&harness_path, Path::new(&test_name), false)?;
 
-    if !ignored_features.iter().map(ToString::to_string).any(|f| info.features.contains(&f)) {
+    if (args.force || !ignored_tests.iter().any(|path| test_name.ends_with(path.as_str())))
+        && !ignored_features.iter().any(|f| info.features.contains(f))
+    {
         for source in &info.source {
             if let Some(path) = args.keep_constructed.as_ref() {
                 let output_path = Path::new(path).join(format!("{}.js", source.mark));

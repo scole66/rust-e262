@@ -2101,6 +2101,12 @@ pub(crate) fn construct(
     complete_call(&ECMAScriptValue::from(func))
 }
 
+impl Object {
+    pub(crate) fn construct(&self, args: &[ECMAScriptValue], new_target: Option<&Object>) -> Completion<ECMAScriptValue> {
+        construct(self, args, new_target)
+    }
+}
+
 pub(crate) fn initiate_construct(func: &Object, args: &[ECMAScriptValue], new_target: Option<&Object>) {
     let nt = new_target.unwrap_or(func);
     let cstr = func.o.to_constructable().unwrap();
@@ -2363,6 +2369,25 @@ pub(crate) fn ordinary_has_instance(c: &ECMAScriptValue, o: &ECMAScriptValue) ->
     }
 }
 
+impl Object {
+    pub(crate) fn species_constructor(&self, default_ctor: Object) -> Completion<Object> {
+        let ctor = self.get(&"constructor".into())?;
+        match ctor {
+            ECMAScriptValue::Undefined => Ok(default_ctor),
+            ECMAScriptValue::Object(ctor) => {
+                let species = ctor.get(&wks(WksId::Species).into())?;
+                if species == ECMAScriptValue::Undefined || species == ECMAScriptValue::Null {
+                    Ok(default_ctor)
+                } else if let Some(species) = species.into_constructor() {
+                    Ok(species)
+                } else {
+                    Err(create_type_error("constructor must be a function"))
+                }
+            }
+            _ => Err(create_type_error("constructor must be an object")),
+        }
+    }
+}
 // EnumerableOwnPropertyNames ( O, kind )
 //
 // The abstract operation EnumerableOwnPropertyNames takes arguments O (an Object) and kind (key, value, or key+value).

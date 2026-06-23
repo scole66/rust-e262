@@ -901,7 +901,10 @@ impl AtomEscape {
     }
 }
 
-fn group_specifiers_that_match(group_specifiers: &[&GroupSpecifier], this_group_name: &GroupName) -> Vec<usize> {
+pub(crate) fn group_specifiers_that_match(
+    group_specifiers: &[&GroupSpecifier],
+    this_group_name: &GroupName,
+) -> Vec<usize> {
     // Static Semantics: GroupSpecifiersThatMatch ( thisGroupName )
     //
     // The abstract operation GroupSpecifiersThatMatch takes argument thisGroupName (a GroupName Parse Node) and returns
@@ -1097,14 +1100,19 @@ impl fmt::Display for UnicodePropertyValueExpression {
     }
 }
 
-struct PotentialPropertyValue {
-    name: &'static str,
-    alias: &'static str,
+pub(crate) struct PotentialPropertyValue {
+    pub(crate) name: &'static str,
+    pub(crate) alias: &'static str,
 }
-struct PotentialPropertyCategory {
-    property_name: &'static str,
-    alias_name: &'static str,
-    potential_values: &'static [PotentialPropertyValue],
+pub(crate) struct PotentialPropertyCategory {
+    pub(crate) property_name: &'static str,
+    pub(crate) alias_name: &'static str,
+    pub(crate) potential_values: &'static [PotentialPropertyValue],
+}
+
+pub(crate) struct CanonicalDescription {
+    pub(crate) name: &'static str,
+    pub(crate) alias: Option<&'static str>,
 }
 
 impl UnicodePropertyValueExpression {
@@ -1127,7 +1135,7 @@ impl UnicodePropertyValueExpression {
         }
     }
 
-    const PROPERTY_POSSIBILITIES: &[PotentialPropertyCategory] = &[
+    pub(crate) const PROPERTY_POSSIBILITIES: &[PotentialPropertyCategory] = &[
         PotentialPropertyCategory {
             property_name: "General_Category",
             alias_name: "gc",
@@ -1362,6 +1370,7 @@ impl UnicodePropertyValueExpression {
     }
 
     fn property_value_ok(name: &str, value: &str) -> bool {
+        let name = if name == "scx" || name == "Script_Extensions" { "sc" } else { name };
         let item = Self::PROPERTY_POSSIBILITIES
             .iter()
             .find(|ppc| ppc.property_name == name || ppc.alias_name == name)
@@ -1369,108 +1378,63 @@ impl UnicodePropertyValueExpression {
         item.potential_values.iter().any(|ppv| ppv.name == value || ppv.alias == value)
     }
 
-    const TABLE_65: &[&str] = &[
-        "ASCII",
-        "ASCII_Hex_Digit",
-        "AHex",
-        "Alphabetic",
-        "Alpha",
-        "Any",
-        "Assigned",
-        "Bidi_Control",
-        "Bidi_C",
-        "Bidi_Mirrored",
-        "Bidi_M",
-        "Case_Ignorable",
-        "CI",
-        "Cased",
-        "Changes_When_Casefolded",
-        "CWCF",
-        "Changes_When_Casemapped",
-        "CWCM",
-        "Changes_When_Lowercased",
-        "CWL",
-        "Changes_When_NFKC_Casefolded",
-        "CWKCF",
-        "Changes_When_Titlecased",
-        "CWT",
-        "Changes_When_Uppercased",
-        "CWU",
-        "Dash",
-        "Default_Ignorable_Code_Point",
-        "DI",
-        "Deprecated",
-        "Dep",
-        "Diacritic",
-        "Dia",
-        "Emoji",
-        "Emoji_Component",
-        "EComp",
-        "Emoji_Modifier",
-        "EMod",
-        "Emoji_Modifier_Base",
-        "EBase",
-        "Emoji_Presentation",
-        "EPres",
-        "Extended_Pictographic",
-        "ExtPict",
-        "Extender",
-        "Ext",
-        "Grapheme_Base",
-        "Gr_Base",
-        "Grapheme_Extend",
-        "Gr_Ext",
-        "Hex_Digit",
-        "Hex",
-        "IDS_Binary_Operator",
-        "IDSB",
-        "IDS_Trinary_Operator",
-        "IDST",
-        "ID_Continue",
-        "IDC",
-        "ID_Start",
-        "IDS",
-        "Ideographic",
-        "Ideo",
-        "Join_Control",
-        "Join_C",
-        "Logical_Order_Exception",
-        "LOE",
-        "Lowercase",
-        "Lower",
-        "Math",
-        "Noncharacter_Code_Point",
-        "NChar",
-        "Pattern_Syntax",
-        "Pat_Syn",
-        "Pattern_White_Space",
-        "Pat_WS",
-        "Quotation_Mark",
-        "QMark",
-        "Radical",
-        "Regional_Indicator",
-        "RI",
-        "Sentence_Terminal",
-        "STerm",
-        "Soft_Dotted",
-        "SD",
-        "Terminal_Punctuation",
-        "Term",
-        "Unified_Ideograph",
-        "UIdeo",
-        "Uppercase",
-        "Upper",
-        "Variation_Selector",
-        "VS",
-        "White_Space",
-        "space",
-        "XID_Continue",
-        "XIDC",
-        "XID_Start",
-        "XIDS",
+    pub(crate) const TABLE_65_CANON: &[CanonicalDescription] = &[
+        CanonicalDescription { name: "ASCII", alias: None },
+        CanonicalDescription { name: "ASCII_Hex_Digit", alias: Some("AHex") },
+        CanonicalDescription { name: "Alphabetic", alias: Some("Alpha") },
+        CanonicalDescription { name: "Any", alias: None },
+        CanonicalDescription { name: "Assigned", alias: None },
+        CanonicalDescription { name: "Bidi_Control", alias: Some("Bidi_C") },
+        CanonicalDescription { name: "Bidi_Mirrored", alias: Some("Bidi_M") },
+        CanonicalDescription { name: "Case_Ignorable", alias: Some("CI") },
+        CanonicalDescription { name: "Cased", alias: None },
+        CanonicalDescription { name: "Changes_When_Casefolded", alias: Some("CWCF") },
+        CanonicalDescription { name: "Changes_When_Casemapped", alias: Some("CWCM") },
+        CanonicalDescription { name: "Changes_When_Lowercased", alias: Some("CWL") },
+        CanonicalDescription { name: "Changes_When_NFKC_Casefolded", alias: Some("CWKCF") },
+        CanonicalDescription { name: "Changes_When_Titlecased", alias: Some("CWT") },
+        CanonicalDescription { name: "Changes_When_Uppercased", alias: Some("CWU") },
+        CanonicalDescription { name: "Dash", alias: None },
+        CanonicalDescription { name: "Default_Ignorable_Code_Point", alias: Some("DI") },
+        CanonicalDescription { name: "Deprecated", alias: Some("Dep") },
+        CanonicalDescription { name: "Diacritic", alias: Some("Dia") },
+        CanonicalDescription { name: "Emoji", alias: None },
+        CanonicalDescription { name: "Emoji_Component", alias: Some("EComp") },
+        CanonicalDescription { name: "Emoji_Modifier", alias: Some("EMod") },
+        CanonicalDescription { name: "Emoji_Modifier_Base", alias: Some("EBase") },
+        CanonicalDescription { name: "Emoji_Presentation", alias: Some("EPres") },
+        CanonicalDescription { name: "Extended_Pictographic", alias: Some("ExtPict") },
+        CanonicalDescription { name: "Extender", alias: Some("Ext") },
+        CanonicalDescription { name: "Grapheme_Base", alias: Some("Gr_Base") },
+        CanonicalDescription { name: "Grapheme_Extend", alias: Some("Gr_Ext") },
+        CanonicalDescription { name: "Hex_Digit", alias: Some("Hex") },
+        CanonicalDescription { name: "IDS_Binary_Operator", alias: Some("IDSB") },
+        CanonicalDescription { name: "IDS_Trinary_Operator", alias: Some("IDST") },
+        CanonicalDescription { name: "ID_Continue", alias: Some("IDC") },
+        CanonicalDescription { name: "ID_Start", alias: Some("IDS") },
+        CanonicalDescription { name: "Ideographic", alias: Some("Ideo") },
+        CanonicalDescription { name: "Join_Control", alias: Some("Join_C") },
+        CanonicalDescription { name: "Logical_Order_Exception", alias: Some("LOE") },
+        CanonicalDescription { name: "Lowercase", alias: Some("Lower") },
+        CanonicalDescription { name: "Math", alias: None },
+        CanonicalDescription { name: "Noncharacter_Code_Point", alias: Some("NChar") },
+        CanonicalDescription { name: "Pattern_Syntax", alias: Some("Pat_Syn") },
+        CanonicalDescription { name: "Pattern_White_Space", alias: Some("Pat_WS") },
+        CanonicalDescription { name: "Quotation_Mark", alias: Some("QMark") },
+        CanonicalDescription { name: "Radical", alias: None },
+        CanonicalDescription { name: "Regional_Indicator", alias: Some("RI") },
+        CanonicalDescription { name: "Sentence_Terminal", alias: Some("STerm") },
+        CanonicalDescription { name: "Soft_Dotted", alias: Some("SD") },
+        CanonicalDescription { name: "Terminal_Punctuation", alias: Some("Term") },
+        CanonicalDescription { name: "Unified_Ideograph", alias: Some("UIdeo") },
+        CanonicalDescription { name: "Uppercase", alias: Some("Upper") },
+        CanonicalDescription { name: "Variation_Selector", alias: Some("VS") },
+        CanonicalDescription { name: "White_Space", alias: Some("space") },
+        CanonicalDescription { name: "XID_Continue", alias: Some("XIDC") },
+        CanonicalDescription { name: "XID_Start", alias: Some("XIDS") },
     ];
 
-    const BINARY_UNARY_PROPERTIES: &[&str] = &[
+    pub(crate) const BINARY_UNARY_PROPERTIES: &[&str] = &[
         "Basic_Emoji",
         "Emoji_Keycap_Sequence",
         "RGI_Emoji_Modifier_Sequence",
@@ -1485,19 +1449,9 @@ impl UnicodePropertyValueExpression {
             .iter()
             .find(|ppc| ppc.property_name == "General_Category")
             .expect("this one is in the table");
-        if item.potential_values.iter().any(|ppv| ppv.name == name || ppv.alias == name) {
-            return true;
-        }
-
-        if Self::TABLE_65.contains(&name) {
-            return true;
-        }
-
-        if Self::BINARY_UNARY_PROPERTIES.contains(&name) {
-            return usm == UnicodeSetsMode::Allowed;
-        }
-
-        false
+        item.potential_values.iter().any(|ppv| ppv.name == name || ppv.alias == name)
+            || Self::TABLE_65_CANON.iter().any(|c| c.name == name || c.alias == Some(name))
+            || usm == UnicodeSetsMode::Allowed && Self::BINARY_UNARY_PROPERTIES.contains(&name)
     }
 
     fn early_errors(&self, usm: UnicodeSetsMode) -> Vec<Object> {
@@ -1563,7 +1517,7 @@ impl UnicodePropertyValueExpression {
 // UnicodePropertyNameCharacters ::
 //      UnicodePropertyNameCharacter UnicodePropertyNameCharactersopt
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub(crate) struct UnicodePropertyName(String);
+pub(crate) struct UnicodePropertyName(pub(crate) String);
 impl fmt::Display for UnicodePropertyName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -1587,7 +1541,7 @@ impl UnicodePropertyName {
 // UnicodePropertyValueCharacters ::
 //      UnicodePropertyValueCharacter UnicodePropertyValueCharactersopt
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub(crate) struct UnicodePropertyValue(String);
+pub(crate) struct UnicodePropertyValue(pub(crate) String);
 impl fmt::Display for UnicodePropertyValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -1609,7 +1563,7 @@ impl UnicodePropertyValue {
 // LoneUnicodePropertyNameOrValue ::
 //      UnicodePropertyValueCharacters
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub(crate) struct LoneUnicodePropertyNameOrValue(String);
+pub(crate) struct LoneUnicodePropertyNameOrValue(pub(crate) String);
 impl fmt::Display for LoneUnicodePropertyNameOrValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -1626,28 +1580,49 @@ impl LoneUnicodePropertyNameOrValue {
 
 // GroupSpecifier[UnicodeMode] ::
 //      ? GroupName[?UnicodeMode]
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub(crate) struct GroupSpecifier(GroupName);
+#[derive(Debug, Clone)]
+pub(crate) struct GroupSpecifier {
+    name: GroupName,
+    left_capturing_parens_before: usize,
+}
+
 impl fmt::Display for GroupSpecifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "?{}", self.0)
+        write!(f, "?{}", self.name)
     }
 }
 impl GroupSpecifier {
     fn parse(scanner: &Scanner, mode: UnicodeMode) -> Option<(Self, ScannerMutation)> {
+        let lcpb = scanner.left_capturing_parens;
         let mut new_scanner = scanner.clone();
         new_scanner.consume('?')?;
         let (name, amt) = GroupName::parse(&new_scanner, mode)?;
         new_scanner.update(&amt);
-        Some((Self(name), ScannerMutation::new(&new_scanner)))
+        Some((Self { name, left_capturing_parens_before: lcpb }, ScannerMutation::new(&new_scanner)))
     }
 
     pub(crate) fn capturing_group_name(&self) -> JSString {
-        self.0.capturing_group_name()
+        self.name.capturing_group_name()
     }
 
     fn early_errors(&self) -> Vec<Object> {
-        self.0.early_errors()
+        self.name.early_errors()
+    }
+
+    pub(crate) fn count_left_capturing_parens_before(&self) -> usize {
+        // Static Semantics: CountLeftCapturingParensBefore ( node )
+        //
+        // The abstract operation CountLeftCapturingParensBefore takes argument node (a Parse Node) and returns a
+        // non-negative integer. It returns the number of left-capturing parentheses within the enclosing pattern that
+        // occur to the left of node.
+        //
+        // It performs the following steps when called:
+        //
+        //  1. Assert: node is an instance of a production in the RegExp Pattern grammar.
+        //  2. Let pattern be the Pattern containing node.
+        //  3. Return the number of Atom :: ( GroupSpecifieropt Disjunction ) Parse Nodes contained within pattern that
+        //     either occur before node or contain node.
+        self.left_capturing_parens_before
     }
 }
 
@@ -2922,7 +2897,7 @@ impl Atom {
                 vec![]
             }
             AtomNode::GroupedDisjunction { group_specifier, disjunction } => {
-                let mut result = vec![group_specifier.as_ref().map(|gs| &gs.0)];
+                let mut result = vec![group_specifier.as_ref().map(|gs| &gs.name)];
                 let mut disjunction_names = disjunction.group_name_associations();
                 result.append(&mut disjunction_names);
                 result

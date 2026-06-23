@@ -38,7 +38,7 @@ pub(crate) fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
     let regexp_constructor = create_builtin_function(
         Box::new(regexp_constructor_function),
         Some(ConstructorKind::Base),
-        1_f64,
+        2_f64,
         PropertyKey::from("RegExp"),
         BUILTIN_FUNCTION_SLOTS,
         Some(realm.clone()),
@@ -944,6 +944,8 @@ fn reg_exp_initialize(obj: Object, pattern: ECMAScriptValue, flags: ECMAScriptVa
         )
     })?;
 
+    let group_specifiers = parse_result.all_group_specifiers();
+
     let regex_obj = obj.o.to_regexp_object().expect("this should be a regex obj");
     {
         let mut regex_data = regex_obj.regexp_data.borrow_mut();
@@ -956,14 +958,14 @@ fn reg_exp_initialize(obj: Object, pattern: ECMAScriptValue, flags: ECMAScriptVa
             unicode,
             unicode_sets,
             capturing_groups_count: parse_result.count_left_capturing_parens_within(),
-            has_group_names: !parse_result.all_group_specifiers().is_empty(),
+            has_group_names: !group_specifiers.is_empty(),
             group_names: parse_result
                 .group_name_associations()
                 .into_iter()
                 .map(|gs| gs.map(GroupName::capturing_group_name))
                 .collect(),
         };
-        let matcher = parse_result.compile_pattern(&regex_data.reg_exp_record);
+        let matcher = parse_result.compile_pattern(&regex_data.reg_exp_record, &group_specifiers);
         regex_data.reg_exp_matcher = Some(matcher);
     }
 
@@ -1337,11 +1339,18 @@ fn regexp_prototype_test(
 }
 
 fn regexp_prototype_to_string(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
     _arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    match this_value {
+        ECMAScriptValue::Object(regexp) => {
+            let pattern = to_string(regexp.get(&"source".into())?)?;
+            let flags = to_string(regexp.get(&"flags".into())?)?;
+            Ok(ECMAScriptValue::String(JSString::from("/").concat(pattern).concat("/").concat(flags)))
+        }
+        _ => Err(create_type_error("Method RegExp.prototype.toString called on incompatible receiver")),
+    }
 }
 
 fn regexp_prototype_match(
@@ -1414,7 +1423,7 @@ fn regexp_prototype_match(
             } else {
                 // Non-global @@match is just one RegExpExec result, including
                 // captures, index, input, and named groups if present.
-                Ok(reg_exp_exec(this_value, strx)?.into())
+                Ok(ECMAScriptValue::to_obj_or_null(reg_exp_exec(this_value, strx)?))
             }
         }
 
@@ -1423,10 +1432,50 @@ fn regexp_prototype_match(
 }
 
 fn regexp_prototype_match_all(
-    _this_value: &ECMAScriptValue,
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
+    // RegExp.prototype [ %Symbol.matchAll% ] ( string )
+    let mut args = FuncArgs::from(arguments);
+    let string = args.next_arg();
+
+    // This method performs the following steps when called:
+    //
+    // 1. Let regexp be the this value.
+    let regexp = this_value;
+    if let ECMAScriptValue::Object(regexp) = regexp {
+        // 3. Set string to ? ToString(string).
+        let string = to_string(string)?;
+        // 4. Let speciesCtor be ? SpeciesConstructor(regexp, %RegExp%).
+        let species_ctor = regexp.species_constructor(intrinsic(IntrinsicId::RegExp))?;
+        // 5. Let flags be ? ToString(? Get(regexp, "flags")).
+        let flags = to_string(regexp.get(&"flags".into())?)?;
+        // 9. If flags contains "g", let global be true.
+        // 10. Else, let global be false.
+        let global = flags.contains('g' as u16);
+        // 11. If flags contains "u" or flags contains "v", let fullUnicode be true.
+        // 12. Else, let fullUnicode be false.
+        let full_unicode = flags.contains('u' as u16) || flags.contains('v' as u16);
+        // 6. Let matcher be ? Construct(speciesCtor, « regexp, flags »).
+        let matcher = species_ctor.construct(&[regexp.into(), flags.into()], None)?;
+        if let ECMAScriptValue::Object(matcher) = matcher {
+            // 7. Let lastIndex be ? ToLength(? Get(regexp, "lastIndex")).
+            let last_index = to_length(regexp.get(&"lastIndex".into())?)?;
+            // 8. Perform ? Set(matcher, "lastIndex", lastIndex, true).
+            matcher.set("lastIndex", last_index, true)?;
+            // 13. Return CreateRegExpStringIterator(matcher, string, global, fullUnicode).
+            Ok(create_reg_exp_string_iterator(matcher, string, global, full_unicode).into())
+        } else {
+            panic!("spec says the construct method only returns objects, so we should never get here")
+        }
+    } else {
+        // 2. If regexp is not an Object, throw a TypeError exception.
+        Err(create_type_error("Method RegExp.prototype[Symbol.matchAll] called on incompatible receiver"))
+    }
+}
+
+fn create_reg_exp_string_iterator(regexp: Object, string: JSString, global: bool, full_unicode: bool) -> Object {
     todo!()
 }
 
@@ -1985,7 +2034,15 @@ fn escape_regexp_pattern(pattern: &JSString, _flags: &JSString) -> JSString {
 
 mod casefold;
 mod compile;
+#[allow(clippy::unreadable_literal, clippy::redundant_static_lifetimes)]
+mod gc;
 pub(crate) mod parse;
+#[allow(clippy::unreadable_literal, clippy::redundant_static_lifetimes)]
+mod property_bool;
+#[allow(clippy::unreadable_literal, clippy::redundant_static_lifetimes)]
+mod sc;
+#[allow(clippy::unreadable_literal, clippy::redundant_static_lifetimes)]
+mod scx;
 
 // pub(crate) fn generate_legacy_canonicalize_ranges() -> Vec<CanonicalizeRange> {
 //     let mappings = (0..=0x10_FFFF)

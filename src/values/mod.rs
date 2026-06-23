@@ -1584,6 +1584,16 @@ impl ECMAScriptValue {
         None
     }
 
+    pub(crate) fn into_constructor(self) -> Option<Object> {
+        if let Self::Object(o) = self
+            && o.is_constructor()
+        {
+            Some(o)
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn is_constructor(&self) -> bool {
         if let Self::Object(o) = self { o.is_constructor() } else { false }
     }
