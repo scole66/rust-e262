@@ -40,6 +40,9 @@ impl<'a> From<&'a BoundFunctionObject> for &'a dyn ObjectInterface {
 }
 
 impl ObjectInterface for BoundFunctionObject {
+    fn as_object_interface(&self) -> &dyn ObjectInterface {
+        self
+    }
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
@@ -67,116 +70,6 @@ impl ObjectInterface for BoundFunctionObject {
 
     fn to_bound_function_object(&self) -> Option<&BoundFunctionObject> {
         Some(self)
-    }
-
-    // [[GetPrototypeOf]] ( )
-    //
-    // The [[GetPrototypeOf]] internal method of an ordinary object O takes no arguments and returns a normal completion
-    // containing either an Object or null. It performs the following steps when called:
-    //
-    //  1. Return OrdinaryGetPrototypeOf(O).
-    fn get_prototype_of(&self) -> Completion<Option<Object>> {
-        Ok(ordinary_get_prototype_of(self))
-    }
-
-    // [[SetPrototypeOf]] ( V )
-    //
-    // The [[SetPrototypeOf]] internal method of an ordinary object O takes argument V (an Object or null). It performs
-    // the following steps when called:
-    //
-    //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
-        Ok(ordinary_set_prototype_of(self, obj))
-    }
-
-    // [[IsExtensible]] ( )
-    //
-    // The [[IsExtensible]] internal method of an ordinary object O takes no arguments. It performs the following steps
-    // when called:
-    //
-    //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self) -> Completion<bool> {
-        Ok(ordinary_is_extensible(self))
-    }
-
-    // [[PreventExtensions]] ( )
-    //
-    // The [[PreventExtensions]] internal method of an ordinary object O takes no arguments. It performs the following
-    // steps when called:
-    //
-    //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self) -> Completion<bool> {
-        Ok(ordinary_prevent_extensions(self))
-    }
-
-    // [[GetOwnProperty]] ( P )
-    //
-    // The [[GetOwnProperty]] internal method of an ordinary object O takes argument P (a property key). It performs the
-    // following steps when called:
-    //
-    //  1. Return ! OrdinaryGetOwnProperty(O, P).
-    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
-        Ok(ordinary_get_own_property(self, key))
-    }
-
-    // [[DefineOwnProperty]] ( P, Desc )
-    //
-    // The [[DefineOwnProperty]] internal method of an ordinary object O takes arguments P (a property key) and Desc (a
-    // Property Descriptor). It performs the following steps when called:
-    //
-    //  1. Return ? OrdinaryDefineOwnProperty(O, P, Desc).
-    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
-        ordinary_define_own_property(self, key, desc)
-    }
-
-    // [[HasProperty]] ( P )
-    //
-    // The [[HasProperty]] internal method of an ordinary object O takes argument P (a property key). It performs the
-    // following steps when called:
-    //
-    //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
-        ordinary_has_property(self, key)
-    }
-
-    // [[Get]] ( P, Receiver )
-    //
-    // The [[Get]] internal method of an ordinary object O takes arguments P (a property key) and Receiver (an
-    // ECMAScript language value). It performs the following steps when called:
-    //
-    //  1. Return ? OrdinaryGet(O, P, Receiver).
-    fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        ordinary_get(self, key, receiver)
-    }
-
-    // [[Set]] ( P, V, Receiver )
-    //
-    // The [[Set]] internal method of an ordinary object O takes arguments P (a property key), V (an ECMAScript language
-    // value), and Receiver (an ECMAScript language value). It performs the following steps when called:
-    //
-    //  1. Return ? OrdinarySet(O, P, V, Receiver).
-    fn set(&self, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
-        ordinary_set(self, key, v, receiver)
-    }
-
-    // [[Delete]] ( P )
-    //
-    // The [[Delete]] internal method of an ordinary object O takes argument P (a property key). It performs the
-    // following steps when called:
-    //
-    //  1. Return ? OrdinaryDelete(O, P).
-    fn delete(&self, key: &PropertyKey) -> Completion<bool> {
-        ordinary_delete(self, key)
-    }
-
-    // [[OwnPropertyKeys]] ( )
-    //
-    // The [[OwnPropertyKeys]] internal method of an ordinary object O takes no arguments. It performs the following
-    // steps when called:
-    //
-    // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(self))
     }
 }
 
