@@ -48,11 +48,11 @@ impl ECMAScriptValue {
 //
 //  1. Assert: Type(O) is Object.
 //  2. Return ? O.[[IsExtensible]]().
-pub(crate) fn is_extensible<'a, T>(obj: T) -> Completion<bool>
+pub(crate) fn is_extensible<T>(obj: &T) -> Completion<bool>
 where
-    T: Into<&'a dyn ObjectInterface>,
+    T: ObjectInterface + ?Sized,
 {
-    obj.into().is_extensible()
+    obj.is_extensible()
 }
 
 // IsIntegralNumber ( argument )

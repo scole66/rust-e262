@@ -1425,7 +1425,7 @@ impl GlobalEnvironmentRecord {
     //  5. Return ? IsExtensible(globalObject).
     pub(crate) fn can_declare_global_var(&self, name: &JSString) -> Completion<bool> {
         let global_object = &self.object_record.binding_object;
-        Ok(global_object.has_own_property(&name.clone().into())? || is_extensible(global_object)?)
+        Ok(global_object.has_own_property(&name.clone().into())? || global_object.is_extensible()?)
     }
 
     // CanDeclareGlobalFunction ( N )
@@ -1445,7 +1445,7 @@ impl GlobalEnvironmentRecord {
         let global_object = &self.object_record.binding_object;
         let existing_prop = global_object.o.get_own_property(&name.clone().into())?;
         match existing_prop {
-            None => is_extensible(global_object),
+            None => global_object.is_extensible(),
             Some(prop) => {
                 Ok(prop.configurable
                     || (prop.is_data_descriptor() && prop.is_writable() == Some(true) && prop.enumerable))
@@ -1474,7 +1474,7 @@ impl GlobalEnvironmentRecord {
     pub(crate) fn create_global_var_binding(&self, name: JSString, deletable: bool) -> Completion<()> {
         let global_object = &self.object_record.binding_object;
         let has_property = global_object.has_own_property(&name.clone().into())?;
-        let extensible = is_extensible(global_object)?;
+        let extensible = global_object.is_extensible()?;
         if !has_property && extensible {
             self.object_record.create_mutable_binding(name.clone(), deletable)?;
             self.object_record.initialize_binding(&name, ECMAScriptValue::Undefined)?;

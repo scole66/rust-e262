@@ -733,7 +733,7 @@ fn object_is_extensible(
         | ECMAScriptValue::Number(_)
         | ECMAScriptValue::BigInt(_)
         | ECMAScriptValue::Symbol(_) => Ok(ECMAScriptValue::from(false)),
-        ECMAScriptValue::Object(obj) => is_extensible(&obj).map(ECMAScriptValue::from),
+        ECMAScriptValue::Object(obj) => obj.is_extensible().map(ECMAScriptValue::from),
     }
 }
 
