@@ -39,6 +39,9 @@ impl<'a> From<&'a StringObject> for &'a dyn ObjectInterface {
 }
 
 impl ObjectInterface for StringObject {
+    fn as_object_interface(&self) -> &dyn ObjectInterface {
+        self
+    }
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
@@ -57,22 +60,6 @@ impl ObjectInterface for StringObject {
 
     fn kind(&self) -> ObjectTag {
         ObjectTag::String
-    }
-
-    fn get_prototype_of(&self) -> Completion<Option<Object>> {
-        Ok(ordinary_get_prototype_of(self))
-    }
-
-    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
-        Ok(ordinary_set_prototype_of(self, obj))
-    }
-
-    fn is_extensible(&self) -> Completion<bool> {
-        Ok(ordinary_is_extensible(self))
-    }
-
-    fn prevent_extensions(&self) -> Completion<bool> {
-        Ok(ordinary_prevent_extensions(self))
     }
 
     fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
@@ -108,22 +95,6 @@ impl ObjectInterface for StringObject {
             }
             _ => ordinary_define_own_property(self, key, desc),
         }
-    }
-
-    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
-        ordinary_has_property(self, key)
-    }
-
-    fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        ordinary_get(self, key, receiver)
-    }
-
-    fn set(&self, key: PropertyKey, value: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
-        ordinary_set(self, key, value, receiver)
-    }
-
-    fn delete(&self, key: &PropertyKey) -> Completion<bool> {
-        ordinary_delete(self, key)
     }
 
     fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {

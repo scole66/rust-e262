@@ -190,6 +190,9 @@ impl<'a> From<&'a TestObject> for &'a dyn ObjectInterface {
 }
 
 impl ObjectInterface for TestObject {
+    fn as_object_interface(&self) -> &dyn ObjectInterface {
+        self
+    }
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
@@ -412,6 +415,9 @@ impl<'a> From<&'a AdaptableObject> for &'a dyn ObjectInterface {
 }
 
 impl ObjectInterface for AdaptableObject {
+    fn as_object_interface(&self) -> &dyn ObjectInterface {
+        self
+    }
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }

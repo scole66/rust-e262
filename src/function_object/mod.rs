@@ -796,6 +796,9 @@ pub(crate) trait CallableObject: ObjectInterface {
 }
 
 impl ObjectInterface for FunctionObject {
+    fn as_object_interface(&self) -> &dyn ObjectInterface {
+        self
+    }
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
@@ -821,40 +824,6 @@ impl ObjectInterface for FunctionObject {
     fn to_constructable(&self) -> Option<&dyn CallableObject> {
         let is_c = self.function_data().borrow().is_constructor;
         if is_c { Some(self) } else { None }
-    }
-
-    fn get_prototype_of(&self) -> Completion<Option<Object>> {
-        Ok(ordinary_get_prototype_of(self))
-    }
-    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
-        Ok(ordinary_set_prototype_of(self, obj))
-    }
-    fn is_extensible(&self) -> Completion<bool> {
-        Ok(ordinary_is_extensible(self))
-    }
-    fn prevent_extensions(&self) -> Completion<bool> {
-        Ok(ordinary_prevent_extensions(self))
-    }
-    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
-        Ok(ordinary_get_own_property(self, key))
-    }
-    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
-        ordinary_define_own_property(self, key, desc)
-    }
-    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
-        ordinary_has_property(self, key)
-    }
-    fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        ordinary_get(self, key, receiver)
-    }
-    fn set(&self, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
-        ordinary_set(self, key, v, receiver)
-    }
-    fn delete(&self, key: &PropertyKey) -> Completion<bool> {
-        ordinary_delete(self, key)
-    }
-    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(self))
     }
 }
 
@@ -1650,6 +1619,9 @@ pub(crate) trait BuiltinFunctionInterface: CallableObject {
 }
 
 impl ObjectInterface for BuiltInFunctionObject {
+    fn as_object_interface(&self) -> &dyn ObjectInterface {
+        self
+    }
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
@@ -1678,40 +1650,6 @@ impl ObjectInterface for BuiltInFunctionObject {
     }
     fn kind(&self) -> ObjectTag {
         ObjectTag::Function
-    }
-
-    fn get_prototype_of(&self) -> Completion<Option<Object>> {
-        Ok(ordinary_get_prototype_of(self))
-    }
-    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
-        Ok(ordinary_set_prototype_of(self, obj))
-    }
-    fn is_extensible(&self) -> Completion<bool> {
-        Ok(ordinary_is_extensible(self))
-    }
-    fn prevent_extensions(&self) -> Completion<bool> {
-        Ok(ordinary_prevent_extensions(self))
-    }
-    fn get_own_property(&self, key: &PropertyKey) -> Completion<Option<PropertyDescriptor>> {
-        Ok(ordinary_get_own_property(self, key))
-    }
-    fn define_own_property(&self, key: PropertyKey, desc: PotentialPropertyDescriptor) -> Completion<bool> {
-        ordinary_define_own_property(self, key, desc)
-    }
-    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
-        ordinary_has_property(self, key)
-    }
-    fn get(&self, key: &PropertyKey, receiver: &ECMAScriptValue) -> Completion<ECMAScriptValue> {
-        ordinary_get(self, key, receiver)
-    }
-    fn set(&self, key: PropertyKey, v: ECMAScriptValue, receiver: &ECMAScriptValue) -> Completion<bool> {
-        ordinary_set(self, key, v, receiver)
-    }
-    fn delete(&self, key: &PropertyKey) -> Completion<bool> {
-        ordinary_delete(self, key)
-    }
-    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(self))
     }
 }
 

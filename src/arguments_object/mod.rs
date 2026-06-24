@@ -68,6 +68,9 @@ impl<'a> From<&'a ArgumentsObject> for &'a dyn ObjectInterface {
 }
 
 impl ObjectInterface for ArgumentsObject {
+    fn as_object_interface(&self) -> &dyn ObjectInterface {
+        self
+    }
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
@@ -82,40 +85,6 @@ impl ObjectInterface for ArgumentsObject {
     }
     fn to_arguments_object(&self) -> Option<&ArgumentsObject> {
         Some(self)
-    }
-
-    fn get_prototype_of(&self) -> Completion<Option<Object>> {
-        Ok(ordinary_get_prototype_of(self))
-    }
-
-    // [[SetPrototypeOf]] ( V )
-    //
-    // The [[SetPrototypeOf]] internal method of an ordinary object O takes argument V (an Object or null). It performs
-    // the following steps when called:
-    //
-    //  1. Return ! OrdinarySetPrototypeOf(O, V).
-    fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
-        Ok(ordinary_set_prototype_of(self, obj))
-    }
-
-    // [[IsExtensible]] ( )
-    //
-    // The [[IsExtensible]] internal method of an ordinary object O takes no arguments. It performs the following steps
-    // when called:
-    //
-    //  1. Return ! OrdinaryIsExtensible(O).
-    fn is_extensible(&self) -> Completion<bool> {
-        Ok(ordinary_is_extensible(self))
-    }
-
-    // [[PreventExtensions]] ( )
-    //
-    // The [[PreventExtensions]] internal method of an ordinary object O takes no arguments. It performs the following
-    // steps when called:
-    //
-    //  1. Return ! OrdinaryPreventExtensions(O).
-    fn prevent_extensions(&self) -> Completion<bool> {
-        Ok(ordinary_prevent_extensions(self))
     }
 
     /// Returns the property descriptor corresponding to the given key, or None if the key does not exist.
@@ -219,16 +188,6 @@ impl ObjectInterface for ArgumentsObject {
         }
     }
 
-    // [[HasProperty]] ( P )
-    //
-    // The [[HasProperty]] internal method of an ordinary object O takes argument P (a property key). It performs the
-    // following steps when called:
-    //
-    //  1. Return ? OrdinaryHasProperty(O, P).
-    fn has_property(&self, key: &PropertyKey) -> Completion<bool> {
-        ordinary_has_property(self, key)
-    }
-
     /// Retrieves the value of a property from an object, following the prototype chain
     ///
     /// See [Get](https://tc39.es/ecma262/#sec-arguments-exotic-objects-get-p-receiver) in ECMA-262.
@@ -319,16 +278,6 @@ impl ObjectInterface for ArgumentsObject {
             }
         }
         Ok(result)
-    }
-
-    // [[OwnPropertyKeys]] ( )
-    //
-    // The [[OwnPropertyKeys]] internal method of an ordinary object O takes no arguments. It performs the following
-    // steps when called:
-    //
-    // 1. Return ! OrdinaryOwnPropertyKeys(O).
-    fn own_property_keys(&self) -> Completion<Vec<PropertyKey>> {
-        Ok(ordinary_own_property_keys(self))
     }
 }
 

@@ -13,6 +13,9 @@ pub(crate) struct ProxyObject {
 }
 
 impl ObjectInterface for ProxyObject {
+    fn as_object_interface(&self) -> &dyn ObjectInterface {
+        self
+    }
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
@@ -99,7 +102,7 @@ impl ObjectInterface for ProxyObject {
             }
         };
 
-        if !is_extensible(target)? {
+        if !target.is_extensible()? {
             let target_proto = target.o.get_prototype_of()?;
             if target_proto != handler_proto {
                 return Err(create_type_error("proxy error: non-extensible targets cannot change prototypes"));
@@ -156,7 +159,7 @@ impl ObjectInterface for ProxyObject {
         if !boolean_trap_result {
             return Ok(false);
         }
-        let extensible_target = is_extensible(target)?;
+        let extensible_target = target.is_extensible()?;
         if extensible_target {
             return Ok(true);
         }
@@ -198,7 +201,7 @@ impl ObjectInterface for ProxyObject {
             return target.o.is_extensible();
         }
         let boolean_trap_result = to_boolean(call(&trap, &handler, &[ECMAScriptValue::from(target)])?);
-        let target_result = is_extensible(target)?;
+        let target_result = target.is_extensible()?;
         if boolean_trap_result != target_result {
             return Err(create_type_error("proxy error: extensible property cannot be changed"));
         }
@@ -239,7 +242,7 @@ impl ObjectInterface for ProxyObject {
         }
         let boolean_trap_result = to_boolean(call(&trap, &handler, &[ECMAScriptValue::from(target)])?);
         if boolean_trap_result {
-            let extensible_target = is_extensible(target)?;
+            let extensible_target = target.is_extensible()?;
             if extensible_target {
                 return Err(create_type_error("proxy error: extensible property cannot be changed"));
             }
@@ -318,7 +321,7 @@ impl ObjectInterface for ProxyObject {
                 None => Ok(None),
                 Some(pd) => {
                     if pd.configurable {
-                        let extensible_target = is_extensible(target)?;
+                        let extensible_target = target.is_extensible()?;
                         if extensible_target {
                             Ok(None)
                         } else {
@@ -334,7 +337,7 @@ impl ObjectInterface for ProxyObject {
                 }
             };
         }
-        let extensible_target = is_extensible(target)?;
+        let extensible_target = target.is_extensible()?;
         let result_desc = to_property_descriptor(&trap_result_obj)?.complete();
         let valid =
             is_compatible_property_descriptor(extensible_target, result_desc.clone().into(), target_desc.as_ref());
@@ -420,7 +423,7 @@ impl ObjectInterface for ProxyObject {
             return Ok(false);
         }
         let target_desc = target.o.get_own_property(&key)?;
-        let extensible_target = is_extensible(target)?;
+        let extensible_target = target.is_extensible()?;
         let setting_config_false = match &desc.configurable {
             Some(configurable) => !configurable,
             None => false,
@@ -514,7 +517,7 @@ impl ObjectInterface for ProxyObject {
                         "proxy error: A property cannot be reported as non-existent, if it exists as a non-configurable own property of the target object.",
                     ));
                 }
-                if !is_extensible(target)? {
+                if !target.is_extensible()? {
                     return Err(create_type_error(
                         "proxy error: A property cannot be reported as non-existent, if it exists as an own property of the target object and the target object is not extensible.",
                     ));
@@ -716,7 +719,7 @@ impl ObjectInterface for ProxyObject {
             None => Ok(true),
             Some(target_desc) => {
                 if target_desc.configurable {
-                    let extensible_target = is_extensible(target)?;
+                    let extensible_target = target.is_extensible()?;
                     if extensible_target {
                         Ok(true)
                     } else {
@@ -800,7 +803,7 @@ impl ObjectInterface for ProxyObject {
         if has_duplicates {
             return Err(create_type_error("proxy error: The returned List may not contain duplicate entries."));
         }
-        let extensible_target = is_extensible(target)?;
+        let extensible_target = target.is_extensible()?;
         let target_keys = target.o.own_property_keys()?;
         let mut target_configurable_keys = vec![];
         let mut target_nonconfigurable_keys = vec![];
@@ -1197,6 +1200,9 @@ impl BuiltinFunctionWithRevokableProxySlot {
 }
 
 impl ObjectInterface for BuiltinFunctionWithRevokableProxySlot {
+    fn as_object_interface(&self) -> &dyn ObjectInterface {
+        self
+    }
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         self.func.common_object_data()
     }
