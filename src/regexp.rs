@@ -3,6 +3,7 @@ use casefold::*;
 use compile::*;
 use itertools::Itertools;
 use parse::*;
+use std::cell::Cell;
 use std::iter;
 
 pub(crate) fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
@@ -195,7 +196,7 @@ pub(crate) fn provision_regexp_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_symbol_function!(regexp_prototype_match_all, WksId::MatchAll, 1.0);
     prototype_symbol_function!(regexp_prototype_replace, WksId::Replace, 2.0);
     prototype_symbol_function!(regexp_prototype_search, WksId::Search, 1.0);
-    prototype_symbol_function!(regexp_prototyep_split, WksId::Split, 2.0);
+    prototype_symbol_function!(regexp_prototype_split, WksId::Split, 2.0);
     prototype_getter!(regexp_prototype_dotall, "dotAll");
     prototype_getter!(regexp_prototype_flags, "flags");
     prototype_getter!(regexp_prototype_global, "global");
@@ -347,21 +348,12 @@ pub(crate) struct RegExpObject {
     regexp_data: RefCell<RegExpData>,
 }
 
-impl<'a> From<&'a RegExpObject> for &'a dyn ObjectInterface {
-    fn from(obj: &'a RegExpObject) -> Self {
-        obj
-    }
-}
-
 impl ObjectInterface for RegExpObject {
     fn as_object_interface(&self) -> &dyn ObjectInterface {
         self
     }
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
-    }
-    fn uses_ordinary_get_prototype_of(&self) -> bool {
-        true
     }
     fn to_regexp_object(&self) -> Option<&RegExpObject> {
         Some(self)
@@ -1369,7 +1361,7 @@ fn regexp_prototype_match_all(
 }
 
 fn create_reg_exp_string_iterator(regexp: Object, string: JSString, global: bool, full_unicode: bool) -> Object {
-    todo!()
+    RegExpStringIterator::object(regexp, string, global, full_unicode)
 }
 
 fn regexp_prototype_replace(
@@ -1636,12 +1628,122 @@ fn regexp_prototype_search(
     }
 }
 
-fn regexp_prototyep_split(
-    _this_value: &ECMAScriptValue,
+fn regexp_prototype_split(
+    this_value: &ECMAScriptValue,
     _new_target: Option<&Object>,
-    _arguments: &[ECMAScriptValue],
+    arguments: &[ECMAScriptValue],
 ) -> Completion<ECMAScriptValue> {
-    todo!()
+    let mut args = FuncArgs::from(arguments);
+    let string = args.next_arg();
+    let limit = args.next_arg();
+
+    let ECMAScriptValue::Object(regexp) = this_value else {
+        return Err(create_type_error("RegExp.prototype[@@split] requires an object receiver"));
+    };
+
+    // Split works on the stringified input, but all regexp customization comes
+    // from the receiver: species construction, flags, and RegExpExec behavior.
+    let string = to_string(string)?;
+
+    let species_ctor = regexp.species_constructor(intrinsic(IntrinsicId::RegExp))?;
+    let flags = to_string(regexp.get(&"flags".into())?)?;
+
+    // `u` and `v` both make empty-match advancement move by code point rather
+    // than by UTF-16 code unit.
+    let unicode_matching = flags.contains(u16::from(b'u')) || flags.contains(u16::from(b'v'));
+
+    // The splitter is always sticky. Reusing or adding `y` lets the loop test
+    // exactly at `search_index`.
+    let new_flags = if flags.contains(u16::from(b'y')) { flags } else { flags.concat("y") };
+
+    let splitter =
+        species_ctor.construct(&[ECMAScriptValue::Object(regexp.clone()), ECMAScriptValue::String(new_flags)], None)?;
+    let splitter_obj = splitter.object_ref().expect(GOODCSTR);
+
+    let array = array_create(0.0, None).expect("zero length array construction should not fail");
+
+    let lim = if limit.is_undefined() { u32::MAX } else { limit.to_uint32()? };
+    if lim == 0 {
+        return Ok(ECMAScriptValue::Object(array));
+    }
+
+    let mut length_a = 0;
+
+    // An empty input has a special result: if the pattern matches it, the split
+    // result is empty; otherwise the result contains the original empty string.
+    if string.is_empty() {
+        if reg_exp_exec(&splitter, string.clone())?.is_some() {
+            return Ok(ECMAScriptValue::Object(array));
+        }
+
+        array.create_data_property_or_throw("0", string).expect(GOODOBJ);
+        return Ok(ECMAScriptValue::Object(array));
+    }
+
+    let size = string.len();
+    let mut last_match_end = 0;
+    let mut search_index = 0;
+
+    while search_index < size {
+        // Sticky matching makes RegExpExec try the separator exactly at
+        // `search_index`.
+        splitter_obj.set("lastIndex", search_index, true)?;
+
+        let Some(match_result) = reg_exp_exec(&splitter, string.clone())? else {
+            // No separator at this position; advance to the next possible start.
+            search_index = advance_string_index(&string, search_index, unicode_matching);
+            continue;
+        };
+
+        let match_end =
+            to_usize(splitter_obj.get(&"lastIndex".into())?.to_length()?).expect(JS_INTEGER_USIZE_EXPECT).min(size);
+
+        if match_end == last_match_end {
+            // Empty separators do not produce a split element immediately. Move
+            // forward so the loop cannot get stuck matching the same empty span.
+            search_index = advance_string_index(&string, search_index, unicode_matching);
+            continue;
+        }
+
+        // Emit the text between the end of the previous match and the start of
+        // this one.
+        let substring = JSString::from(&string.as_slice()[last_match_end..search_index]);
+        if append_split_value(&array, &mut length_a, lim, substring) {
+            return Ok(ECMAScriptValue::Object(array));
+        }
+
+        last_match_end = match_end;
+
+        // Capturing groups in the separator are inserted into the split result
+        // immediately after the preceding substring.
+        let number_of_captures = match_result.length_of_array_like()?;
+        let number_of_captures = to_usize((number_of_captures - 1.0).max(0.0)).expect(JS_INTEGER_USIZE_EXPECT);
+
+        for capture_index in 1..=number_of_captures {
+            let next_capture = match_result.get(&PropertyKey::from(capture_index))?;
+
+            if append_split_value(&array, &mut length_a, lim, next_capture) {
+                return Ok(ECMAScriptValue::Object(array));
+            }
+        }
+
+        // Continue searching from the end of the matched separator.
+        search_index = last_match_end;
+    }
+
+    // The final element is the tail after the last separator match. This is
+    // emitted even when it is the empty string.
+    let substring = JSString::from(&string.as_slice()[last_match_end..size]);
+    array.create_data_property_or_throw(length_a, substring).expect(GOODOBJ);
+
+    Ok(ECMAScriptValue::Object(array))
+}
+
+fn append_split_value(array: &Object, length: &mut u32, limit: u32, value: impl Into<ECMAScriptValue>) -> bool {
+    array.create_data_property_or_throw(*length, value).expect(GOODOBJ);
+    *length += 1;
+
+    *length == limit
 }
 
 fn regexp_prototype_dotall(
@@ -1923,6 +2025,153 @@ fn escape_regexp_pattern(pattern: &JSString, _flags: &JSString) -> JSString {
     }
 
     JSString::from(out)
+}
+
+#[derive(Debug)]
+pub(crate) struct RegExpStringIterator {
+    common: RefCell<CommonObjectData>,
+    iterating_regexp: Object,
+    iterated_string: JSString,
+    global: bool,
+    unicode: bool,
+    done: Cell<bool>,
+}
+
+impl ObjectInterface for RegExpStringIterator {
+    fn as_object_interface(&self) -> &dyn ObjectInterface {
+        self
+    }
+
+    fn common_object_data(&self) -> &RefCell<CommonObjectData> {
+        &self.common
+    }
+
+    fn as_regexp_string_iterator(&self) -> Option<&Self> {
+        Some(self)
+    }
+}
+
+impl RegExpStringIterator {
+    pub(crate) fn new(regexp: Object, string: JSString, global: bool, full_unicode: bool) -> Self {
+        Self {
+            common: RefCell::new(CommonObjectData::new(
+                Some(intrinsic(IntrinsicId::RegExpStringIteratorPrototype)),
+                true,
+                REGEXP_STRING_ITERATOR_SLOTS,
+            )),
+            iterating_regexp: regexp,
+            iterated_string: string,
+            global,
+
+            // `full_unicode` records whether empty global matches should advance
+            // by Unicode code point rather than by UTF-16 code unit.
+            unicode: full_unicode,
+
+            // Iterators become permanently exhausted after a failed match or,
+            // for non-global iteration, after the first successful match.
+            done: Cell::new(false),
+        }
+    }
+
+    pub(crate) fn object(regexp: Object, string: JSString, global: bool, full_unicode: bool) -> Object {
+        Object { o: Rc::new(Self::new(regexp, string, global, full_unicode)) }
+    }
+}
+
+pub(crate) fn provision_regexp_string_iterator(realm: &Rc<RefCell<Realm>>) {
+    let iterator_prototype = realm.borrow().intrinsics.iterator_prototype.clone();
+    let function_prototype = realm.borrow().intrinsics.function_prototype.clone();
+
+    // Install the shared prototype for RegExp string iterators. Individual
+    // iterator objects store their iteration state in internal slots and inherit
+    // `next` from this prototype.
+    let regexp_string_iterator_prototype = ordinary_object_create(Some(iterator_prototype));
+    realm.borrow_mut().intrinsics.reg_exp_string_iterator_prototype = regexp_string_iterator_prototype.clone();
+
+    macro_rules! prototype_function {
+        ( $steps:expr, $name:expr, $length:expr ) => {
+            let key = PropertyKey::from($name);
+            let function_object = create_builtin_function(
+                Box::new($steps),
+                None,
+                $length,
+                key.clone(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                None,
+            );
+
+            define_property_or_throw(
+                &regexp_string_iterator_prototype,
+                key,
+                PotentialPropertyDescriptor::new()
+                    .value(function_object)
+                    .writable(true)
+                    .enumerable(false)
+                    .configurable(true),
+            )
+            .unwrap();
+        };
+    }
+
+    prototype_function!(regexp_string_iterator_next, "next", 0.0);
+
+    // `%RegExpStringIteratorPrototype%[Symbol.toStringTag]` provides the
+    // observable brand used by `Object.prototype.toString`.
+    let desc = PotentialPropertyDescriptor::new().value("RegExp String Iterator").configurable(true);
+    let key = PropertyKey::from(wks(WksId::ToStringTag));
+    define_property_or_throw(&regexp_string_iterator_prototype, key, desc).unwrap();
+}
+
+fn regexp_string_iterator_next(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    let ECMAScriptValue::Object(iterator_obj) = this_value else {
+        return Err(create_type_error("RegExp String Iterator next requires an object receiver"));
+    };
+
+    let Some(iterator_obj) = iterator_obj.as_regexp_string_iterator() else {
+        return Err(create_type_error("RegExp String Iterator next requires a RegExp String Iterator receiver"));
+    };
+
+    // Once exhausted, RegExp string iterators stay exhausted.
+    if iterator_obj.done.get() {
+        return Ok(create_iter_result_object(ECMAScriptValue::Undefined, true).into());
+    }
+
+    let regexp = iterator_obj.iterating_regexp.clone();
+    let string = iterator_obj.iterated_string.clone();
+    let global = iterator_obj.global;
+    let full_unicode = iterator_obj.unicode;
+
+    let matched = reg_exp_exec(&ECMAScriptValue::Object(regexp.clone()), string.clone())?;
+
+    let Some(matched) = matched else {
+        // A failed exec exhausts the iterator.
+        iterator_obj.done.set(true);
+        return Ok(create_iter_result_object(ECMAScriptValue::Undefined, true).into());
+    };
+
+    if !global {
+        // Non-global iterators produce at most one match.
+        iterator_obj.done.set(true);
+        return Ok(create_iter_result_object(ECMAScriptValue::Object(matched), false).into());
+    }
+
+    // Global iteration relies on the RegExp object's `lastIndex`. Empty matches
+    // need a manual bump so repeated calls cannot match the same empty string
+    // forever.
+    let match_string = to_string(matched.get(&"0".into())?)?;
+    if match_string.is_empty() {
+        let this_index = to_usize(to_length(regexp.get(&"lastIndex".into())?)?).expect(JS_INTEGER_USIZE_EXPECT);
+        let next_index = advance_string_index(&string, this_index, full_unicode);
+        regexp.set("lastIndex", next_index, true)?;
+    }
+
+    Ok(create_iter_result_object(ECMAScriptValue::Object(matched), false).into())
 }
 
 mod casefold;

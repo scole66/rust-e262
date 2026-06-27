@@ -495,10 +495,11 @@ impl CharacterEscape {
         }
         let ch = new_scanner.peek();
         if ch == Some(u32::from('c')) {
-            new_scanner.advance().expect(PREVIOUSLY_SCANNED);
-            if let Some((al, consumed)) = AsciiLetter::parse(&new_scanner) {
-                new_scanner.update(&consumed);
-                return Some((Self::CAsciiLetter(al), ScannerMutation::new(&new_scanner)));
+            let mut control_escape_scanner = new_scanner.clone();
+            control_escape_scanner.advance().expect(PREVIOUSLY_SCANNED);
+            if let Some((al, consumed)) = AsciiLetter::parse(&control_escape_scanner) {
+                control_escape_scanner.update(&consumed);
+                return Some((Self::CAsciiLetter(al), ScannerMutation::new(&control_escape_scanner)));
             }
         } else if ch == Some(u32::from('0')) {
             let lookahead = new_scanner.lookahead(1);

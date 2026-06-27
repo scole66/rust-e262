@@ -46,14 +46,6 @@ impl ObjectInterface for StringObject {
         &self.common
     }
 
-    fn uses_ordinary_get_prototype_of(&self) -> bool {
-        true
-    }
-
-    fn id(&self) -> usize {
-        self.common.borrow().objid
-    }
-
     fn to_string_obj(&self) -> Option<&StringObject> {
         Some(self)
     }

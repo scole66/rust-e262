@@ -1133,6 +1133,18 @@ impl UnicodePropertyValueExpression {
                 let assigned = CharSet::difference(&all, &unassigned);
                 return Ok(assigned);
             }
+        } else if (name == "Script" || name == "Script_Extensions") && value == "Unknown" {
+            let mut set = CharSet::from((0, 0x10_ffff));
+            let table = Self::PROPERTY_TABLE
+                .iter()
+                .find(|&(table_name, _)| *table_name == name)
+                .expect("Script & Script_Extensions tables should exist");
+            let (name, table) = table;
+            for script_name in table.iter().map(|&(x, _)| x) {
+                let known = Self::property_charset(name, script_name).expect("known good args");
+                set = CharSet::difference(&set, &known);
+            }
+            return Ok(set);
         }
 
         // Binary properties are stored under the empty property name because the property itself is the lookup key and

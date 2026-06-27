@@ -802,12 +802,6 @@ impl ObjectInterface for FunctionObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
-    fn uses_ordinary_get_prototype_of(&self) -> bool {
-        true
-    }
-    fn id(&self) -> usize {
-        self.common.borrow().objid
-    }
     fn to_function_obj(&self) -> Option<&dyn FunctionInterface> {
         Some(self)
     }
@@ -1625,12 +1619,6 @@ impl ObjectInterface for BuiltInFunctionObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
-    fn uses_ordinary_get_prototype_of(&self) -> bool {
-        true
-    }
-    fn id(&self) -> usize {
-        self.common.borrow().objid
-    }
     fn to_function_obj(&self) -> Option<&dyn FunctionInterface> {
         None
     }
@@ -1826,6 +1814,7 @@ impl FunctionDeclaration {
             let typeerror = create_type_error(err.to_string());
             return Err(typeerror);
         }
+        #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
@@ -1912,6 +1901,7 @@ impl GeneratorDeclaration {
             let typeerror = create_type_error(err.to_string());
             return Err(typeerror);
         }
+        #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
@@ -2427,6 +2417,7 @@ pub(crate) fn create_dynamic_function(
         let typeerror = create_type_error(err.to_string());
         return Err(typeerror);
     }
+        #[cfg(debug_assertions)]
     for line in compiled.disassemble(&source_tree.text) {
         println!("{line}");
     }

@@ -476,6 +476,12 @@ impl From<u64> for PropertyKey {
     }
 }
 
+impl From<u32> for PropertyKey {
+    fn from(num: u32) -> Self {
+        Self::from(num.to_string())
+    }
+}
+
 impl From<i32> for PropertyKey {
     fn from(num: i32) -> Self {
         Self::from(num.to_string())

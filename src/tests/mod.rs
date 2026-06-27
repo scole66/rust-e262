@@ -202,10 +202,6 @@ impl ObjectInterface for TestObject {
             (ThrowsOrNot::BehavesNormally, ThrowsOrNot::BehavesNormally)
         )
     }
-    fn id(&self) -> usize {
-        self.common.borrow().objid
-    }
-
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
         if self.get_prototype_of == ThrowsOrNot::Throws {
             Err(create_type_error("[[GetPrototypeOf]] called on TestObject"))
@@ -423,9 +419,6 @@ impl ObjectInterface for AdaptableObject {
     }
     fn uses_ordinary_get_prototype_of(&self) -> bool {
         self.get_prototype_of_override.is_none() && self.set_prototype_of_override.is_none()
-    }
-    fn id(&self) -> usize {
-        self.common.borrow().objid
     }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {

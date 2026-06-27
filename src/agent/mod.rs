@@ -2,7 +2,6 @@ use super::*;
 use ahash::AHashSet;
 use anyhow::{Context, anyhow};
 use genawaiter::rc::{Co, Gen};
-use itertools::Itertools;
 use num::pow::Pow;
 use num::{BigInt, BigUint, ToPrimitive, Zero};
 use std::cell::{Cell, RefCell};
@@ -14,6 +13,9 @@ use std::fmt;
 use std::ops::Not;
 use std::rc::Rc;
 use thiserror::Error;
+
+#[cfg(debug_assertions)]
+use itertools::Itertools;
 
 // The tail-call optimization tests "work" if they can go 100,000 deep. (Because TCO means that we don't
 // actually consume context stack space.) So we put in an artificial limit for less than that so that TCO
@@ -2098,6 +2100,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
+        #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
@@ -2172,6 +2175,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
+        #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
@@ -2223,6 +2227,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
+        #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
@@ -2260,6 +2265,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
+        #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
@@ -2310,6 +2316,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
+        #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
@@ -2375,6 +2382,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
+        #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
@@ -3077,6 +3085,7 @@ mod insn_impl {
                 push_completion(Err(typeerror)).expect(PUSHABLE);
                 return Ok(());
             }
+            #[cfg(debug_assertions)]
             for line in compiled.disassemble(&source.text) {
                 println!("{line}");
             }
@@ -3165,6 +3174,7 @@ mod insn_impl {
             return Ok(());
         }
 
+        #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
@@ -3238,6 +3248,7 @@ mod insn_impl {
             return Ok(());
         }
 
+        #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
@@ -3326,6 +3337,7 @@ mod insn_impl {
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
+        #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
@@ -3871,24 +3883,26 @@ pub(crate) async fn execute(
     loop {
         let index = AGENT.with(|agent| agent.execution_context_stack.borrow().len() - 1);
         assert!(index <= RECURSION_LIMIT, "Recursion limit exceeded");
-        /* Diagnostics */
-        print!("[{index:2}] Stack: [ ");
-        AGENT.with(|agent| {
-            print!(
-                "{}",
-                agent.execution_context_stack.borrow()[index]
-                    .stack
-                    .iter()
-                    .rev()
-                    .map(|fc| match fc {
-                        Ok(nc) => format!("{nc}"),
-                        Err(ac) => format!("{ac}"),
-                    })
-                    .join(" ] [ ")
-            );
-        });
-        println!(" ]");
-
+        #[cfg(debug_assertions)]
+        {
+            /* Diagnostics */
+            print!("[{index:2}] Stack: [ ");
+            AGENT.with(|agent| {
+                print!(
+                    "{}",
+                    agent.execution_context_stack.borrow()[index]
+                        .stack
+                        .iter()
+                        .rev()
+                        .map(|fc| match fc {
+                            Ok(nc) => format!("{nc}"),
+                            Err(ac) => format!("{ac}"),
+                        })
+                        .join(" ] [ ")
+                );
+            });
+            println!(" ]");
+        }
         if index < initial_context_index {
             break;
         }
@@ -3900,10 +3914,13 @@ pub(crate) async fn execute(
         if AGENT.with(|agent| agent.execution_context_stack.borrow()[index].pc) >= chunk.opcodes.len() {
             break;
         }
-        let (_, repr) = chunk.insn_repr_at(AGENT.with(|agent| agent.execution_context_stack.borrow()[index].pc));
-        AGENT.with(|agent| {
-            println!("{:04}{}", agent.execution_context_stack.borrow()[index].pc, repr);
-        });
+        #[cfg(debug_assertions)]
+        {
+            let (_, repr) = chunk.insn_repr_at(AGENT.with(|agent| agent.execution_context_stack.borrow()[index].pc));
+            AGENT.with(|agent| {
+                println!("{:04}{}", agent.execution_context_stack.borrow()[index].pc, repr);
+            });
+        }
 
         /* Real work */
         let icode = chunk.opcodes[AGENT.with(|agent| agent.execution_context_stack.borrow()[index].pc)]; // in range due to while condition
@@ -4456,6 +4473,7 @@ fn evaluate_initialized_class_field_definition(
     let chunk_name = nameify(prod_text, 50);
     let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
     to_compile.init.as_ref().unwrap().compile(&mut compiled, info.strict, source, CompileMod::AsFunction)?;
+    #[cfg(debug_assertions)]
     for line in compiled.disassemble(&source.text) {
         println!("{line}");
     }
@@ -4498,6 +4516,7 @@ fn evaluate_class_static_block_definition(
     let chunk_name = nameify(prod_text, 50);
     let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
     to_compile.block.as_ref().compile(&mut compiled, source)?;
+    #[cfg(debug_assertions)]
     for line in compiled.disassemble(&source.text) {
         println!("{line}");
     }
@@ -4750,6 +4769,7 @@ pub(crate) fn parse_script(source_text: &str, realm: Rc<RefCell<Realm>>) -> Resu
             script
                 .compile(&mut chunk, false, &source)
                 .map_err(|err| vec![create_syntax_error_object(format!("{err}"), None)])?;
+            #[cfg(debug_assertions)]
             for line in chunk.disassemble(&source.text) {
                 println!("{line}");
             }
@@ -4861,6 +4881,7 @@ pub(crate) fn global_declaration_instantiation(
     strict: bool,
     source: &SourceTree,
 ) -> Completion<()> {
+    #[cfg(debug_assertions)]
     println!("Creating Globals...");
     let lex_names = script.lexically_declared_names();
     let var_names = script.var_declared_names();
@@ -4922,9 +4943,13 @@ pub(crate) fn global_declaration_instantiation(
         };
         for dn in names {
             if is_constant {
+                #[cfg(debug_assertions)]
+
                 println!("   immutable: {dn}");
                 env.create_immutable_binding(dn, true)?;
             } else {
+                #[cfg(debug_assertions)]
+
                 println!("   mutable:   {dn}");
                 env.create_mutable_binding(dn, false)?;
             }
@@ -4938,13 +4963,16 @@ pub(crate) fn global_declaration_instantiation(
             strict,
             source,
         )?;
+        #[cfg(debug_assertions)]
         println!("   function:  {name}");
         env.create_global_function_binding(name, func_obj, false)?;
     }
     for vn in declared_var_names {
+        #[cfg(debug_assertions)]
         println!("   var:       {vn}");
         env.create_global_var_binding(vn, false)?;
     }
+    #[cfg(debug_assertions)]
     println!("..done");
 
     Ok(())
@@ -5130,12 +5158,6 @@ impl ObjectInterface for ForInIteratorObject {
     }
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
-    }
-    fn uses_ordinary_get_prototype_of(&self) -> bool {
-        true
-    }
-    fn id(&self) -> usize {
-        self.common.borrow().objid
     }
     fn to_for_in_iterator(&self) -> Option<&ForInIteratorObject> {
         Some(self)

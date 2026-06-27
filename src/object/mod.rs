@@ -1141,7 +1141,6 @@ impl fmt::Display for ObjectTag {
 pub(crate) trait ObjectInterface: Debug {
     fn as_object_interface(&self) -> &dyn ObjectInterface;
     fn common_object_data(&self) -> &RefCell<CommonObjectData>;
-    fn uses_ordinary_get_prototype_of(&self) -> bool; // True if implements ordinary defintion of GetPrototypeOf
     fn id(&self) -> usize {
         // Unique object id. Used for object "is_same" detection.
         self.common_object_data().borrow().objid
@@ -1211,6 +1210,9 @@ pub(crate) trait ObjectInterface: Debug {
     fn to_regexp_object(&self) -> Option<&RegExpObject> {
         None
     }
+    fn as_regexp_string_iterator(&self) -> Option<&RegExpStringIterator> {
+        None
+    }
     #[cfg(test)]
     fn is_proxy_object(&self) -> bool {
         false
@@ -1235,6 +1237,9 @@ pub(crate) trait ObjectInterface: Debug {
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self.as_object_interface()))
+    }
+    fn uses_ordinary_get_prototype_of(&self) -> bool {
+        true // True if implements ordinary defintion of GetPrototypeOf
     }
     fn set_prototype_of(&self, obj: Option<Object>) -> Completion<bool> {
         Ok(ordinary_set_prototype_of(self.as_object_interface(), obj))
@@ -1371,15 +1376,9 @@ impl ObjectInterface for OrdinaryObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.data
     }
-    fn uses_ordinary_get_prototype_of(&self) -> bool {
-        true
-    }
     #[cfg(test)]
     fn is_plain_object(&self) -> bool {
         true
-    }
-    fn id(&self) -> usize {
-        self.data.borrow().objid
     }
 }
 
@@ -1597,6 +1596,10 @@ impl Object {
     pub(crate) fn is_extensible(&self) -> Completion<bool> {
         self.o.is_extensible()
     }
+
+    pub(crate) fn as_regexp_string_iterator(&self) -> Option<&RegExpStringIterator> {
+        self.o.as_regexp_string_iterator()
+    }
 }
 
 // MakeBasicObject ( internalSlotsList )
@@ -1668,6 +1671,12 @@ pub(crate) enum InternalSlotName {
     OriginalFlags,
     RegExpRecord,
     RegExpMatcher,
+    // RegExpStringIterator
+    IteratingRegExp,
+    IteratedString,
+    Global,
+    Unicode,
+    Done,
     //Nonsense, // For testing purposes, for the time being.
 }
 pub(crate) const ORDINARY_OBJECT_SLOTS: &[InternalSlotName] =
@@ -1739,6 +1748,15 @@ pub(crate) const REGEXP_OBJECT_SLOTS: &[InternalSlotName] = &[
     InternalSlotName::OriginalFlags,
     InternalSlotName::RegExpRecord,
     InternalSlotName::RegExpMatcher,
+];
+pub(crate) const REGEXP_STRING_ITERATOR_SLOTS: &[InternalSlotName] = &[
+    InternalSlotName::Prototype,
+    InternalSlotName::Extensible,
+    InternalSlotName::IteratingRegExp,
+    InternalSlotName::IteratedString,
+    InternalSlotName::Global,
+    InternalSlotName::Unicode,
+    InternalSlotName::Done,
 ];
 
 impl ECMAScriptValue {
@@ -2022,7 +2040,11 @@ pub(crate) fn construct(
 }
 
 impl Object {
-    pub(crate) fn construct(&self, args: &[ECMAScriptValue], new_target: Option<&Object>) -> Completion<ECMAScriptValue> {
+    pub(crate) fn construct(
+        &self,
+        args: &[ECMAScriptValue],
+        new_target: Option<&Object>,
+    ) -> Completion<ECMAScriptValue> {
         construct(self, args, new_target)
     }
 }
@@ -2531,9 +2553,6 @@ impl ObjectInterface for ImmutablePrototypeExoticObject {
     }
     fn uses_ordinary_get_prototype_of(&self) -> bool {
         false
-    }
-    fn id(&self) -> usize {
-        self.data.borrow().objid
     }
 
     // [[SetPrototypeOf]] ( V )

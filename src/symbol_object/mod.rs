@@ -37,14 +37,6 @@ impl ObjectInterface for SymbolObject {
         &self.common
     }
 
-    fn uses_ordinary_get_prototype_of(&self) -> bool {
-        true
-    }
-
-    fn id(&self) -> usize {
-        self.common.borrow().objid
-    }
-
     fn to_symbol_obj(&self) -> Option<&dyn SymbolObjectInterface> {
         Some(self)
     }
