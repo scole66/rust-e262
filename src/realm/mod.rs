@@ -64,6 +64,7 @@ pub(crate) enum IntrinsicId {
     Reflect,
     RegExp,
     RegExpPrototype,
+    RegExpStringIteratorPrototype,
     String,
     StringIteratorPrototype,
     StringPrototype,
@@ -148,7 +149,7 @@ pub(crate) struct Intrinsics {
     pub(crate) reflect: Object,                   // Reflect	The Reflect object (28.1)
     pub(crate) reg_exp: Object,                   // RegExp	The RegExp constructor (22.2.3)
     pub(crate) reg_exp_prototype: Object,
-    //pub(crate) reg_exp_string_iterator_prototype: Object, // The prototype of RegExp String Iterator objects (22.2.7)
+    pub(crate) reg_exp_string_iterator_prototype: Object, // The prototype of RegExp String Iterator objects (22.2.7)
     //pub(crate) set: Object,                               // Set	The Set constructor (24.2.1)
     //pub(crate) set_iterator_prototype: Object,            // The prototype of Set iterator objects (24.2.5)
     //pub(crate) shared_array_buffer: Object, // SharedArrayBuffer	The SharedArrayBuffer constructor (25.2.2)
@@ -253,7 +254,7 @@ impl Intrinsics {
             reflect: dead.clone(),
             reg_exp: dead.clone(),
             reg_exp_prototype: dead.clone(),
-            //reg_exp_string_iterator_prototype: dead.clone(),
+            reg_exp_string_iterator_prototype: dead.clone(),
             //set: dead.clone(),
             //set_iterator_prototype: dead.clone(),
             //shared_array_buffer: dead.clone(),
@@ -333,6 +334,7 @@ impl Intrinsics {
             IntrinsicId::Reflect => &self.reflect,
             IntrinsicId::RegExp => &self.reg_exp,
             IntrinsicId::RegExpPrototype => &self.reg_exp_prototype,
+            IntrinsicId::RegExpStringIteratorPrototype => &self.reg_exp_string_iterator_prototype,
             IntrinsicId::String => &self.string,
             IntrinsicId::StringIteratorPrototype => &self.string_iterator_prototype,
             IntrinsicId::StringPrototype => &self.string_prototype,
@@ -549,6 +551,7 @@ pub(crate) fn create_intrinsics(realm_rec: &Rc<RefCell<Realm>>) {
     provision_math_intrinsic(realm_rec);
     provision_reflect_intrinsic(realm_rec);
     provision_regexp_intrinsic(realm_rec);
+    provision_regexp_string_iterator(realm_rec);
     provision_date_intrinsic(realm_rec);
     provision_map_intrinsic(realm_rec);
     provision_json_intrinsic(realm_rec);

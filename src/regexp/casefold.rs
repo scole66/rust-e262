@@ -2,6 +2,7 @@ use crate::regexp::CanonicalizeRange;
 use ahash::AHashMap;
 use std::sync::LazyLock;
 
+/// code point -> code point from CaseFolding.txt for all the SIMPLE MAPPING values
 const SIMPLE_CASE_FOLDING: &[(u32, u32)] = &[
     (0x0041, 0x0061),
     (0x0042, 0x0062),
@@ -791,10 +792,12 @@ const SIMPLE_CASE_FOLDING: &[(u32, u32)] = &[
     (0x1FCA, 0x1F74),
     (0x1FCB, 0x1F75),
     (0x1FCC, 0x1FC3),
+    (0x1FD3, 0x0390),
     (0x1FD8, 0x1FD0),
     (0x1FD9, 0x1FD1),
     (0x1FDA, 0x1F76),
     (0x1FDB, 0x1F77),
+    (0x1FE3, 0x03B0),
     (0x1FE8, 0x1FE0),
     (0x1FE9, 0x1FE1),
     (0x1FEA, 0x1F7A),
@@ -1163,6 +1166,7 @@ const SIMPLE_CASE_FOLDING: &[(u32, u32)] = &[
     (0xABBD, 0x13ED),
     (0xABBE, 0x13EE),
     (0xABBF, 0x13EF),
+    (0xFB05, 0xFB06),
     (0xFF21, 0xFF41),
     (0xFF22, 0xFF42),
     (0xFF23, 0xFF43),
@@ -3193,8 +3197,10 @@ pub(crate) const SIMPLE_CASE_FOLD_RANGES: &[CanonicalizeRange] = &[
     CanonicalizeRange { first: 0x1FBE, last: 0x1FBE, delta: -7173 },
     CanonicalizeRange { first: 0x1FC8, last: 0x1FCB, delta: -86 },
     CanonicalizeRange { first: 0x1FCC, last: 0x1FCC, delta: -9 },
+    CanonicalizeRange { first: 0x1FD3, last: 0x1FD3, delta: -7235 },
     CanonicalizeRange { first: 0x1FD8, last: 0x1FD9, delta: -8 },
     CanonicalizeRange { first: 0x1FDA, last: 0x1FDB, delta: -100 },
+    CanonicalizeRange { first: 0x1FE3, last: 0x1FE3, delta: -7219 },
     CanonicalizeRange { first: 0x1FE8, last: 0x1FE9, delta: -8 },
     CanonicalizeRange { first: 0x1FEA, last: 0x1FEB, delta: -112 },
     CanonicalizeRange { first: 0x1FEC, last: 0x1FEC, delta: -7 },
@@ -3393,6 +3399,7 @@ pub(crate) const SIMPLE_CASE_FOLD_RANGES: &[CanonicalizeRange] = &[
     CanonicalizeRange { first: 0xA7C5, last: 0xA7C5, delta: -42307 },
     CanonicalizeRange { first: 0xA7C6, last: 0xA7C6, delta: -35384 },
     CanonicalizeRange { first: 0xAB70, last: 0xABBF, delta: -38864 },
+    CanonicalizeRange { first: 0xFB05, last: 0xFB05, delta: 1 },
     CanonicalizeRange { first: 0xFF21, last: 0xFF3A, delta: 32 },
     CanonicalizeRange { first: 0x10400, last: 0x10427, delta: 40 },
     CanonicalizeRange { first: 0x104B0, last: 0x104D3, delta: 40 },

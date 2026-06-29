@@ -344,9 +344,6 @@ impl ObjectInterface for MapObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
-    fn uses_ordinary_get_prototype_of(&self) -> bool {
-        true
-    }
     fn kind(&self) -> ObjectTag {
         ObjectTag::Map
     }

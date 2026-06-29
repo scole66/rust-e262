@@ -476,6 +476,12 @@ impl From<u64> for PropertyKey {
     }
 }
 
+impl From<u32> for PropertyKey {
+    fn from(num: u32) -> Self {
+        Self::from(num.to_string())
+    }
+}
+
 impl From<i32> for PropertyKey {
     fn from(num: i32) -> Self {
         Self::from(num.to_string())
@@ -1582,6 +1588,16 @@ impl ECMAScriptValue {
             return Some(o);
         }
         None
+    }
+
+    pub(crate) fn into_constructor(self) -> Option<Object> {
+        if let Self::Object(o) = self
+            && o.is_constructor()
+        {
+            Some(o)
+        } else {
+            None
+        }
     }
 
     pub(crate) fn is_constructor(&self) -> bool {

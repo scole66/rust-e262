@@ -465,12 +465,6 @@ impl ObjectInterface for GeneratorObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
-    fn uses_ordinary_get_prototype_of(&self) -> bool {
-        true
-    }
-    fn id(&self) -> usize {
-        self.common.borrow().objid
-    }
     #[cfg(test)]
     fn is_generator_object(&self) -> bool {
         true

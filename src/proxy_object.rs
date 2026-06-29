@@ -22,9 +22,6 @@ impl ObjectInterface for ProxyObject {
     fn uses_ordinary_get_prototype_of(&self) -> bool {
         false
     }
-    fn id(&self) -> usize {
-        self.common.borrow().objid
-    }
     fn to_proxy_object(&self) -> Option<&ProxyObject> {
         Some(self)
     }

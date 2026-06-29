@@ -26,12 +26,6 @@ impl ObjectInterface for NumberObject {
     fn common_object_data(&self) -> &RefCell<CommonObjectData> {
         &self.common
     }
-    fn uses_ordinary_get_prototype_of(&self) -> bool {
-        true
-    }
-    fn id(&self) -> usize {
-        self.common.borrow().objid
-    }
     fn to_number_obj(&self) -> Option<&dyn NumberObjectInterface> {
         Some(self)
     }

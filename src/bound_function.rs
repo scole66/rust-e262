@@ -47,10 +47,6 @@ impl ObjectInterface for BoundFunctionObject {
         &self.common
     }
 
-    fn uses_ordinary_get_prototype_of(&self) -> bool {
-        true
-    }
-
     fn to_callable_obj(&self) -> Option<&dyn CallableObject> {
         Some(self)
     }

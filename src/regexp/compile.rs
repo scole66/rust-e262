@@ -1,6 +1,8 @@
 use crate::regexp::*;
+use ahash::AHashMap;
+use anyhow::anyhow;
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::LazyLock;
+use std::sync::{LazyLock, RwLock};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum Direction {
@@ -58,8 +60,8 @@ impl Pattern {
         matcher.as_ref()(state, continuation)
     }
 
-    pub(crate) fn compile_pattern(&self, rer: &RegExpRecord) -> PatternMatcher {
-        let matcher = self.0.compile_subpattern(rer, Direction::Forward);
+    pub(crate) fn compile_pattern(&self, rer: &RegExpRecord, group_specifiers: &[&GroupSpecifier]) -> PatternMatcher {
+        let matcher = self.0.compile_subpattern(rer, Direction::Forward, group_specifiers);
         let capture_count = rer.capturing_groups_count;
 
         Rc::new(move |input, index| Self::run_matcher(&matcher, capture_count, input, index))
@@ -67,7 +69,12 @@ impl Pattern {
 }
 
 impl Disjunction {
-    pub(crate) fn compile_subpattern(&self, rer: &RegExpRecord, direction: Direction) -> Matcher {
+    pub(crate) fn compile_subpattern(
+        &self,
+        rer: &RegExpRecord,
+        direction: Direction,
+        group_specifiers: &[&GroupSpecifier],
+    ) -> Matcher {
         // The syntax-directed operation CompileSubpattern takes arguments rer (a RegExp Record) and direction (forward
         // or backward) and returns a Matcher.
         // Disjunction :: Alternative | Disjunction
@@ -76,7 +83,7 @@ impl Disjunction {
         // 3. Return MatchTwoAlternatives(m1, m2).
         //
         // Note: Since we transformed this chain into a vector, this needs a bit of modification.
-        let mut iterator = self.0.iter().map(|alt| alt.compile_subpattern(rer, direction));
+        let mut iterator = self.0.iter().map(|alt| alt.compile_subpattern(rer, direction, group_specifiers));
         match_any_alternatives(&mut iterator)
     }
 }
@@ -110,7 +117,12 @@ fn run_match_any_alternatives(
 }
 
 impl Alternative {
-    pub(crate) fn compile_subpattern(&self, rer: &RegExpRecord, direction: Direction) -> Matcher {
+    pub(crate) fn compile_subpattern(
+        &self,
+        rer: &RegExpRecord,
+        direction: Direction,
+        group_specifiers: &[&GroupSpecifier],
+    ) -> Matcher {
         // The syntax-directed operation CompileSubpattern takes arguments rer (a RegExp Record) and direction (forward
         // or backward) and returns a Matcher.
         //  Alternative :: [empty]
@@ -122,8 +134,9 @@ impl Alternative {
 
         // Since we parsed as a sequence of Terms, this is equivalent to
         //  [empty] Term Term ... Term (where there may be any number >= 0 of Terms)
-        let mut iterator =
-            [empty_matcher()].into_iter().chain(self.0.iter().map(|term| term.compile_subpattern(rer, direction)));
+        let mut iterator = [empty_matcher()]
+            .into_iter()
+            .chain(self.0.iter().map(|term| term.compile_subpattern(rer, direction, group_specifiers)));
         match_all_terms(&mut iterator, direction)
     }
 }
@@ -280,21 +293,26 @@ fn run_match_term_inner(
 // }
 
 impl Term {
-    pub(crate) fn compile_subpattern(&self, rer: &RegExpRecord, direction: Direction) -> Matcher {
+    pub(crate) fn compile_subpattern(
+        &self,
+        rer: &RegExpRecord,
+        direction: Direction,
+        group_specifiers: &[&GroupSpecifier],
+    ) -> Matcher {
         // The syntax-directed operation CompileSubpattern takes arguments rer (a RegExp Record) and direction (forward
         // or backward) and returns a Matcher.
         match &self.node {
             TermNode::Assertion(assertion) => {
                 // Term :: Assertion
                 // 1. Return CompileAssertion of Assertion with argument regexpRecord.
-                assertion.compile_assertion(rer)
+                assertion.compile_assertion(rer, group_specifiers)
                 // Note 4
                 // The resulting Matcher is independent of direction.
             }
             TermNode::Atom(atom, None) => {
                 // Term :: Atom
                 // 1. Return CompileAtom of Atom with arguments rer and direction.
-                atom.compile_atom(rer, direction)
+                atom.compile_atom(rer, direction, group_specifiers)
             }
             TermNode::Atom(atom, Some(quantifier)) => {
                 // Term :: Atom Quantifier
@@ -307,7 +325,7 @@ impl Term {
                 //    a. Assert: x is a MatchState.
                 //    b. Assert: c is a MatcherContinuation.
                 //    c. Return RepeatMatcher(m, q.[[Min]], q.[[Max]], q.[[Greedy]], x, c, parenIndex, parenCount).
-                let m = atom.compile_atom(rer, direction);
+                let m = atom.compile_atom(rer, direction, group_specifiers);
                 let q = quantifier.compile_quantifier();
                 let paren_index = self.count_left_capturing_parens_before();
                 let paren_count = atom.count_left_capturing_parens_within();
@@ -434,7 +452,7 @@ fn repeat_matcher(
 }
 
 impl Assertion {
-    fn compile_assertion(&self, rer: &RegExpRecord) -> Matcher {
+    fn compile_assertion(&self, rer: &RegExpRecord, group_specifiers: &[&GroupSpecifier]) -> Matcher {
         match self {
             Assertion::Start => {
                 let rer = rer.clone();
@@ -507,7 +525,7 @@ impl Assertion {
             Assertion::LookAhead(disjunction) => {
                 // Lookahead checks the subpattern from the current position
                 // without consuming input.
-                let m = disjunction.compile_subpattern(rer, Direction::Forward);
+                let m = disjunction.compile_subpattern(rer, Direction::Forward, group_specifiers);
 
                 Rc::new(move |state, continuation| {
                     // Run the assertion body with an identity continuation so we
@@ -527,7 +545,7 @@ impl Assertion {
             Assertion::NegLookAhead(disjunction) => {
                 // Negative lookahead succeeds only when the forward subpattern
                 // fails at the current position.
-                let m = disjunction.compile_subpattern(rer, Direction::Forward);
+                let m = disjunction.compile_subpattern(rer, Direction::Forward, group_specifiers);
 
                 Rc::new(move |state, continuation| {
                     let d: MatcherContinuation = Rc::new(Some);
@@ -543,7 +561,7 @@ impl Assertion {
                 // Lookbehind checks the subpattern ending at the current
                 // position. The subpattern is compiled in backward direction,
                 // but a successful assertion still consumes no input.
-                let m = disjunction.compile_subpattern(rer, Direction::Backward);
+                let m = disjunction.compile_subpattern(rer, Direction::Backward, group_specifiers);
 
                 Rc::new(move |state, continuation| {
                     let d: MatcherContinuation = Rc::new(Some);
@@ -561,7 +579,7 @@ impl Assertion {
             Assertion::NegLookBehind(disjunction) => {
                 // Negative lookbehind succeeds only when the backward subpattern
                 // fails ending at the current position.
-                let m = disjunction.compile_subpattern(rer, Direction::Backward);
+                let m = disjunction.compile_subpattern(rer, Direction::Backward, group_specifiers);
 
                 Rc::new(move |state, continuation| {
                     let d: MatcherContinuation = Rc::new(Some);
@@ -736,7 +754,12 @@ fn group_matcher(
 }
 
 impl Atom {
-    pub(crate) fn compile_atom(&self, rer: &RegExpRecord, direction: Direction) -> Matcher {
+    pub(crate) fn compile_atom(
+        &self,
+        rer: &RegExpRecord,
+        direction: Direction,
+        group_specifiers: &[&GroupSpecifier],
+    ) -> Matcher {
         // Runtime Semantics: CompileAtom
         //
         // The syntax-directed operation CompileAtom takes arguments rer (a RegExp Record) and direction (forward or
@@ -767,7 +790,7 @@ impl Atom {
                 }
                 character_set_matcher(rer, &a, false, direction)
             }
-            AtomNode::AtomEscape(atom_escape) => atom_escape.compile_atom(rer, direction),
+            AtomNode::AtomEscape(atom_escape) => atom_escape.compile_atom(rer, direction, group_specifiers),
             AtomNode::CharacterClass(character_class) => {
                 // Atom :: CharacterClass
                 // 1. Let cc be CompileCharacterClass of CharacterClass with argument rer.
@@ -827,7 +850,7 @@ impl Atom {
                 //       ix. Let z be the MatchState { [[Input]]: input, [[EndIndex]]: ye, [[Captures]]: cap }.
                 //       x. Return c(z).
                 //    d. Return m(x, d).
-                let m = disjunction.compile_subpattern(rer, direction);
+                let m = disjunction.compile_subpattern(rer, direction, group_specifiers);
                 let paren_index = self.count_left_capturing_parens_before();
                 Rc::new(move |x, c| group_matcher(x, c, direction, &m, paren_index))
             }
@@ -835,7 +858,7 @@ impl Atom {
                 let empty_remove = RegularExpressionModifiers::default();
                 let remove = remove.as_ref().unwrap_or(&empty_remove);
                 let new_rer = rer.update_modifiers(add, remove);
-                disjunction.compile_subpattern(&new_rer, direction)
+                disjunction.compile_subpattern(&new_rer, direction, group_specifiers)
             }
         }
     }
@@ -938,7 +961,6 @@ impl ClassAtom {
 }
 
 impl CharacterClassEscape {
-    #[expect(unused_variables)]
     pub(crate) fn compile_to_char_set(&self, rer: &RegExpRecord) -> CharSet {
         // Runtime Semantics: CompileToCharSet
         // The syntax-directed operation CompileToCharSet takes argument rer (a RegExp Record) and returns a CharSet.
@@ -980,8 +1002,8 @@ impl CharacterClassEscape {
                 // 2. Return CharacterComplement(regexpRecord, charSet).
                 maybe_simple_case_folding(rer, word_characters(rer)).character_complement(rer)
             }
-            CharacterClassEscape::Property(unicode_property_value_expression) => todo!(),
-            CharacterClassEscape::NotProperty(unicode_property_value_expression) => todo!(),
+            CharacterClassEscape::Property(ve) => ve.compile_to_char_set(rer),
+            CharacterClassEscape::NotProperty(ve) => ve.compile_to_char_set(rer).character_complement(rer),
         }
     }
 }
@@ -997,33 +1019,206 @@ fn run_character_set_matcher(
     state: MatchState,
     continuation: &MatcherContinuation,
     rer: &RegExpRecord,
-    a: &CharSet,
+    char_set: &CharSet,
     invert: bool,
     direction: Direction,
 ) -> Option<MatchState> {
-    let MatchState { input, end_index: e, captures: cap } = state;
-    let f = match direction {
-        Direction::Forward => e + 1,
+    let MatchState { input, end_index, captures } = state;
+
+    // Character set matching consumes exactly one input character. Forward
+    // matching reads at `end_index` and advances; backward matching reads the
+    // character before `end_index` and retreats.
+    let next_index = match direction {
+        Direction::Forward => end_index + 1,
         Direction::Backward => {
-            if e == 0 {
+            if end_index == 0 {
                 return None;
             }
-            e - 1
+            end_index - 1
         }
     };
-    let input_length = input.len();
-    if f > input_length {
+
+    // Forward matching can run off the end of the input. Backward matching was
+    // already guarded against moving before the start.
+    if next_index > input.len() {
         return None;
     }
-    let index = e.min(f);
-    let ch = input[index];
-    let cc = rer.canonicalize(ch);
-    let found = a.contains(cc);
+
+    // This is the input position actually tested: `end_index` for forward
+    // matching, and `end_index - 1` for backward matching.
+    let matched_index = end_index.min(next_index);
+    let ch = input[matched_index];
+
+    // Character sets are canonicalized when their matcher is created. Canonicalize
+    // the input character too, so ignore-case matching compares canonical values
+    // on both sides.
+    let canonical_ch = rer.canonicalize(ch);
+    let found = char_set.contains(canonical_ch);
+
+    // Inverted character classes succeed exactly when the character was not in
+    // the set.
     if invert == found {
         return None;
     }
-    let y = MatchState { input, end_index: f, captures: cap };
-    continuation(y)
+
+    // Character set matching does not modify captures; it only moves the current
+    // input position.
+    continuation(MatchState { input, end_index: next_index, captures })
+}
+
+fn unicode_match_property(rer: &RegExpRecord, property: &str) -> anyhow::Result<&'static str> {
+    if rer.unicode_sets == UnicodeSetsMode::Allowed
+        && let Some(&item) = UnicodePropertyValueExpression::BINARY_UNARY_PROPERTIES.iter().find(|p| **p == property)
+    {
+        Ok(item)
+    } else if let Some(item) =
+        UnicodePropertyValueExpression::TABLE_65_CANON.iter().find(|c| c.name == property || c.alias == Some(property))
+    {
+        Ok(item.name)
+    } else if let Some(item) = UnicodePropertyValueExpression::PROPERTY_POSSIBILITIES
+        .iter()
+        .find(|cat| cat.property_name == property || cat.alias_name == property)
+    {
+        Ok(item.property_name)
+    } else {
+        Err(anyhow!("Invalid Unicode property name"))
+    }
+}
+
+fn unicode_match_property_value(property: &str, value: &str) -> anyhow::Result<&'static str> {
+    let property = if property == "Script_Extensions" { "Script" } else { property };
+    let ppv_list = UnicodePropertyValueExpression::PROPERTY_POSSIBILITIES
+        .iter()
+        .find(|x| x.property_name == property)
+        .ok_or_else(|| anyhow!("Invalid Unicode property name"))?
+        .potential_values;
+    ppv_list
+        .iter()
+        .find(|&ppv| ppv.name == value || ppv.alias == value)
+        .map(|pv| pv.alias)
+        .ok_or_else(|| anyhow!("Invalid Unicode property value"))
+}
+
+type UnicodeRangeTable = &'static [(u32, u32)];
+type UnicodePropertyValueTable = (&'static str, UnicodeRangeTable);
+type UnicodePropertyTable = (&'static str, &'static [UnicodePropertyValueTable]);
+impl UnicodePropertyValueExpression {
+    const PROPERTY_TABLE: &[UnicodePropertyTable] = &[
+        ("General_Category", gc::BY_NAME),
+        ("Script", sc::BY_NAME),
+        ("Script_Extensions", scx::BY_NAME),
+        ("", property_bool::BY_NAME),
+    ];
+
+    fn get_property_charset(name: &str, value: &str) -> anyhow::Result<CharSet> {
+        // Look up the generated Unicode range table for the normalized property name, then the normalized property
+        // value within that table.
+
+        // There are a handful of properties that are not present in the unicode tables but instead are simply defined
+        // in Unicode Technical Report 18, Section 1.2.5: General Category Property, under the heading "Core
+        // Properties".
+        if name.is_empty() {
+            if value == "Any" {
+                // The special property `Any` matches `[\u{0}-\u{10FFFF}]`.
+                return Ok(CharSet::from((0, 0x10_ffff)));
+            }
+            if value == "ASCII" {
+                // The special property `ASCII` matches `[\u{0}-\u{7F}]`,
+                return Ok(CharSet::from((0, 0x7f)));
+            }
+            if value == "Assigned" {
+                // The special property `Assigned` matches `\P{Unassigned}`.
+                let unassigned = Self::property_charset("General_Category", "Unassigned").expect("known good args");
+                let all = CharSet::from((0, 0x10_ffff));
+                let assigned = CharSet::difference(&all, &unassigned);
+                return Ok(assigned);
+            }
+        } else if (name == "Script" || name == "Script_Extensions") && value == "Unknown" {
+            let mut set = CharSet::from((0, 0x10_ffff));
+            let table = Self::PROPERTY_TABLE
+                .iter()
+                .find(|&(table_name, _)| *table_name == name)
+                .expect("Script & Script_Extensions tables should exist");
+            let (name, table) = table;
+            for script_name in table.iter().map(|&(x, _)| x) {
+                let known = Self::property_charset(name, script_name).expect("known good args");
+                set = CharSet::difference(&set, &known);
+            }
+            return Ok(set);
+        }
+
+        // Binary properties are stored under the empty property name because the property itself is the lookup key and
+        // the implied value is `True`.
+        let table = Self::PROPERTY_TABLE
+            .iter()
+            .find(|&(table_name, _)| *table_name == name)
+            .ok_or_else(|| anyhow!("bad name"))?
+            .1;
+
+        let cs = table.iter().find(|&(value_name, _)| *value_name == value).ok_or_else(|| anyhow!("bad value"))?.1;
+
+        Ok(CharSet::from(cs))
+    }
+
+    fn property_charset(name: &'static str, value: &'static str) -> anyhow::Result<CharSet> {
+        static CACHE: LazyLock<RwLock<AHashMap<(&'static str, &'static str), CharSet>>> =
+            LazyLock::new(|| RwLock::new(AHashMap::new()));
+
+        let key = (name, value);
+
+        // Most property escapes reuse a small set of Unicode tables. Cache the converted CharSet so repeated parses do
+        // not rebuild the same ranges.
+        if let Some(cs) =
+            CACHE.read().expect("property charset cache lock should not be poisoned during read").get(&key)
+        {
+            return Ok(cs.clone());
+        }
+
+        // Build outside the write lock so other threads can keep reading cached properties while this table is
+        // converted.
+        let cs = Self::get_property_charset(name, value)?;
+
+        let mut cache = CACHE.write().expect("property charset cache lock should not be poisoned during write");
+
+        // Another thread may have inserted the same table while we were building
+        // it; keep that value if it exists.
+        let cs = cache.entry(key).or_insert_with(|| cs).clone();
+
+        Ok(cs)
+    }
+
+    pub(crate) fn compile_to_char_set(&self, rer: &RegExpRecord) -> CharSet {
+        match self {
+            UnicodePropertyValueExpression::NameValue { name, value: val } => {
+                // Explicit property escapes, such as `\p{Script=Greek}`, are normalized through the Unicode alias
+                // tables before indexing the generated data.
+                let property = unicode_match_property(rer, &name.0).expect("names should have been validated");
+                let value = unicode_match_property_value(property, &val.0).expect("values should have been validated");
+
+                Self::property_charset(property, value).expect("name/value pair should have generated Unicode data")
+            }
+
+            UnicodePropertyValueExpression::Lone(s) => {
+                if let Ok(val) = unicode_match_property_value("General_Category", &s.0) {
+                    // A lone value that names a General_Category value is treated as `General_Category=value`, for
+                    // example `\p{Lu}`.
+                    Self::property_charset("General_Category", val)
+                        .expect("General_Category value should have generated Unicode data")
+                } else {
+                    // Otherwise, a lone name denotes a binary Unicode property whose implied value is `True`, for
+                    // example `\p{Alphabetic}`.
+                    let property = unicode_match_property(rer, &s.0).expect("property name should have been validated");
+
+                    let cs = Self::property_charset("", property)
+                        .expect("binary property should have generated Unicode data");
+
+                    // UnicodeSets ignore-case mode folds property sets after lookup, matching the spec's
+                    // MaybeSimpleCaseFolding step.
+                    maybe_simple_case_folding(rer, cs)
+                }
+            }
+        }
+    }
 }
 
 fn all_characters(rer: &RegExpRecord) -> CharSet {
@@ -1235,6 +1430,24 @@ impl From<u32> for CharSet {
     }
 }
 
+impl From<(u32, u32)> for CharSet {
+    fn from(value: (u32, u32)) -> Self {
+        let mut set = CharSet::default();
+        set.insert_range(value.0, value.1);
+        set
+    }
+}
+
+impl From<&[(u32, u32)]> for CharSet {
+    fn from(value: &[(u32, u32)]) -> Self {
+        let mut set = CharSet::default();
+        for &(low, high) in value {
+            set.insert_range(low, high);
+        }
+        set
+    }
+}
+
 impl CharSet {
     fn contains(&self, x: u32) -> bool {
         self.ranges.range(..=x).next_back().is_some_and(|(&start, &end)| start <= x && x <= end)
@@ -1342,7 +1555,7 @@ impl CharSet {
     }
 
     /// Returns all values in `a` that are not present in `s`.
-    fn difference(a: &Self, s: &Self) -> Self {
+    pub(crate) fn difference(a: &Self, s: &Self) -> Self {
         let mut out = Self::default();
 
         for (a_start, a_end) in a.ranges() {
@@ -1669,8 +1882,12 @@ fn backreference_matcher(rer: &RegExpRecord, backreferences: &[usize], direction
 }
 
 impl AtomEscape {
-    #[expect(unused_variables)]
-    pub(crate) fn compile_atom(&self, rer: &RegExpRecord, direction: Direction) -> Matcher {
+    pub(crate) fn compile_atom(
+        &self,
+        rer: &RegExpRecord,
+        direction: Direction,
+        group_specifiers: &[&GroupSpecifier],
+    ) -> Matcher {
         // Runtime Semantics: CompileAtom
         //
         // The syntax-directed operation CompileAtom takes arguments rer (a RegExp Record) and direction (forward or
@@ -1725,7 +1942,15 @@ impl AtomEscape {
                 let a = CharSet::from(cv);
                 character_set_matcher(rer, &a, false, direction)
             }
-            AtomEscape::GroupName(group_name) => todo!(),
+            AtomEscape::GroupName(group_name) => {
+                let matching_group_specifiers = group_specifiers_that_match(group_specifiers, group_name);
+                let mut paren_indices = vec![];
+                for group_specifier_idx in matching_group_specifiers {
+                    let paren_index = group_specifiers[group_specifier_idx].count_left_capturing_parens_before();
+                    paren_indices.push(paren_index + 1);
+                }
+                backreference_matcher(rer, &paren_indices, direction)
+            }
         }
     }
 }
