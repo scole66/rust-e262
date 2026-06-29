@@ -2417,7 +2417,7 @@ pub(crate) fn create_dynamic_function(
         let typeerror = create_type_error(err.to_string());
         return Err(typeerror);
     }
-        #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)]
     for line in compiled.disassemble(&source_tree.text) {
         println!("{line}");
     }
