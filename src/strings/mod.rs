@@ -39,7 +39,10 @@ impl JSString {
     #[must_use]
     pub(crate) fn concat(&self, s: impl Into<JSString>) -> JSString {
         let tail = s.into();
-
+        self.concat_from_ref(&tail)
+    }
+    #[must_use]
+    pub(crate) fn concat_from_ref(&self, tail: &JSString) -> JSString {
         // Build the combined code-unit buffer directly instead of concatenating
         // through temporary JSString/Rc containers.
         let mut combined = Vec::with_capacity(self.len() + tail.len());
