@@ -2775,22 +2775,36 @@ const WEEKDAY_NAMES: [&[u16]; 7] = [
     utf16_const!("Fri"),
     utf16_const!("Sat"),
 ];
-const MONTH_NAMES: [&[u16]; 12] = [
-    utf16_const!("Jan"),
-    utf16_const!("Feb"),
-    utf16_const!("Mar"),
-    utf16_const!("Apr"),
-    utf16_const!("May"),
-    utf16_const!("Jun"),
-    utf16_const!("Jul"),
-    utf16_const!("Aug"),
-    utf16_const!("Sep"),
-    utf16_const!("Oct"),
-    utf16_const!("Nov"),
-    utf16_const!("Dec"),
-];
-const MONTH_NAMES_STR: [&str; 12] =
-    ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+macro_rules! string_tables {
+    (
+        $u16_name:ident,
+        $str_name:ident,
+        [$($s:literal),+ $(,)?]
+    ) => {
+        const $u16_name: [&[u16]; string_tables!(@count $($s),+)] = [
+            $(utf16_const!($s)),+
+        ];
+
+        const $str_name: [&str; string_tables!(@count $($s),+)] = [
+            $($s),+
+        ];
+    };
+
+    (@count $($s:literal),+) => {
+        <[()]>::len(&[$(string_tables!(@unit $s)),+])
+    };
+
+    (@unit $s:literal) => {
+        ()
+    };
+}
+
+string_tables!(
+    MONTH_NAMES,
+    MONTH_NAMES_STR,
+    ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+);
 
 fn date_string(tv: f64) -> JSString {
     // DateString ( tv )
