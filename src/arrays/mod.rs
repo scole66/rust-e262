@@ -3307,11 +3307,11 @@ fn array_prototype_to_locale_string(
     // can be transferred to other kinds of objects for use as a method.
     let array = to_object(this_value.clone())?;
     let len = to_usize(array.length_of_array_like()?).expect("LengthOfArrayLike should clamp the value");
-    let separator = locale::LIST_SEPARATOR;
+    let separator = JSString::from(locale::LIST_SEPARATOR);
     let mut result = JSString::from("");
     for k in 0..len {
         if k > 0 {
-            result = result.concat(separator);
+            result = result.concat(&separator);
         }
         let element = array.get(&PropertyKey::from(k))?;
         if element != ECMAScriptValue::Undefined && element != ECMAScriptValue::Null {

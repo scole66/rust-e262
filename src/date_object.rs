@@ -1486,7 +1486,7 @@ fn parse_date(date_str: &JSString) -> f64 {
                         .map_or((f64::NAN, 0), |yy| (f64::from(yy), yy))
                 };
                 let month = f64::from(
-                    MONTH_NAMES
+                    MONTH_NAMES_STR
                         .iter()
                         .enumerate()
                         .find(|&(_, &name)| {
@@ -2759,14 +2759,40 @@ fn time_string(tv: f64) -> JSString {
     // 2. Let minute be ToZeroPaddedDecimalString(ℝ(MinFromTime(tv)), 2).
     // 3. Let second be ToZeroPaddedDecimalString(ℝ(SecFromTime(tv)), 2).
     // 4. Return the string-concatenation of hour, ":", minute, ":", second, the code unit 0x0020 (SPACE), and "GMT".
+    const COLON: &[u16] = utf16_const!(":");
+    const GMT: &[u16] = utf16_const!(" GMT");
     let hour = to_zero_padded_decimal_string(usize::from(hour_from_time(tv)), 2);
     let minute = to_zero_padded_decimal_string(usize::from(min_from_time(tv)), 2);
     let second = to_zero_padded_decimal_string(usize::from(sec_from_time(tv)), 2);
-    hour.concat(":").concat(minute).concat(":").concat(second).concat(" GMT")
+    hour.concat(COLON).concat(minute).concat(COLON).concat(second).concat(GMT)
 }
 
-const WEEKDAY_NAMES: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTH_NAMES: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WEEKDAY_NAMES: [&[u16]; 7] = [
+    utf16_const!("Sun"),
+    utf16_const!("Mon"),
+    utf16_const!("Tue"),
+    utf16_const!("Wed"),
+    utf16_const!("Thu"),
+    utf16_const!("Fri"),
+    utf16_const!("Sat"),
+];
+const MONTH_NAMES: [&[u16]; 12] = [
+    utf16_const!("Jan"),
+    utf16_const!("Feb"),
+    utf16_const!("Mar"),
+    utf16_const!("Apr"),
+    utf16_const!("May"),
+    utf16_const!("Jun"),
+    utf16_const!("Jul"),
+    utf16_const!("Aug"),
+    utf16_const!("Sep"),
+    utf16_const!("Oct"),
+    utf16_const!("Nov"),
+    utf16_const!("Dec"),
+];
+const MONTH_NAMES_STR: [&str; 12] = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
 
 fn date_string(tv: f64) -> JSString {
     // DateString ( tv )
@@ -2811,15 +2837,15 @@ fn date_string(tv: f64) -> JSString {
     let month = MONTH_NAMES[month_from_time(tv) as usize];
     let day = to_zero_padded_decimal_string(date_from_time(tv) as usize, 2);
     let yv = year_from_time(tv);
-    let year_sign = if yv >= 0 { "" } else { "-" };
+    let year_sign = if yv >= 0 { &[] } else { MINUS };
     let padded_year = to_zero_padded_decimal_string(yv.abs().try_into().unwrap(), 4);
 
     JSString::from(weekday)
-        .concat(" ")
+        .concat(BLANK)
         .concat(month)
-        .concat(" ")
+        .concat(BLANK)
         .concat(day)
-        .concat(" ")
+        .concat(BLANK)
         .concat(year_sign)
         .concat(padded_year)
 }
@@ -2859,8 +2885,8 @@ fn time_zone_string(tv: f64) -> anyhow::Result<JSString> {
     let (offset_sign, abs_offset) = if offset.signum() > 0.0 { ("+", offset) } else { ("-", -offset) };
     let offset_min = to_zero_padded_decimal_string(usize::from(min_from_time(abs_offset)), 2);
     let offset_hour = to_zero_padded_decimal_string(usize::from(hour_from_time(abs_offset)), 2);
-    let tz_name = " (UTC)";
-    Ok(JSString::from(offset_sign).concat(offset_hour).concat(offset_min).concat(tz_name))
+    const UTC_NAME: &[u16] = utf16_const!(" (UTC)");
+    Ok(JSString::from(offset_sign).concat(offset_hour).concat(offset_min).concat(UTC_NAME))
 }
 
 fn to_date_string(tv: f64) -> anyhow::Result<JSString> {
@@ -2879,7 +2905,7 @@ fn to_date_string(tv: f64) -> anyhow::Result<JSString> {
         let date = date_string(t);
         let time = time_string(t);
         let zone = time_zone_string(tv)?;
-        Ok(date.concat(" ").concat(time).concat(zone))
+        Ok(date.concat(BLANK).concat(time).concat(zone))
     }
 }
 
@@ -2945,19 +2971,19 @@ fn date_prototype_toutcstring(
         let month = MONTH_NAMES[month_from_time(tv) as usize];
         let day = to_zero_padded_decimal_string(date_from_time(tv) as usize, 2);
         let yv = year_from_time(tv);
-        let year_sign = if yv >= 0 { "" } else { "-" };
+        let year_sign = if yv >= 0 { &[] } else { MINUS };
         let padded_year = to_zero_padded_decimal_string(yv.abs().try_into().unwrap(), 4);
 
         Ok(ECMAScriptValue::String(
             JSString::from(weekday)
-                .concat(", ")
+                .concat(COMMA_BLANK)
                 .concat(day)
-                .concat(" ")
+                .concat(BLANK)
                 .concat(month)
-                .concat(" ")
+                .concat(BLANK)
                 .concat(year_sign)
                 .concat(padded_year)
-                .concat(" ")
+                .concat(BLANK)
                 .concat(time_string(tv)),
         ))
     }

@@ -619,7 +619,7 @@ impl Symbol {
     }
     pub(crate) fn descriptive_string(&self) -> JSString {
         let desc = self.description().unwrap_or_else(|| JSString::from(""));
-        JSString::from("Symbol(").concat(desc).concat(")")
+        JSString::from("Symbol(").concat(desc).concat(utf16_const!(")"))
     }
 }
 
