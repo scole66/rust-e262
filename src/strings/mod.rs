@@ -16,6 +16,12 @@ pub(crate) struct JSString {
     s: Rc<[u16]>,
 }
 
+impl AsRef<[u16]> for JSString {
+    fn as_ref(&self) -> &[u16] {
+        self.s.as_ref()
+    }
+}
+
 impl JSString {
     /// Returns the string's underlying UTF-16 code units.
     pub(crate) fn as_slice(&self) -> &[u16] {
@@ -37,14 +43,14 @@ impl JSString {
     /// Concatenation preserves the exact UTF-16 code-unit sequence of both strings,
     /// including any lone surrogates.
     #[must_use]
-    pub(crate) fn concat(&self, s: impl Into<JSString>) -> JSString {
-        let tail = s.into();
+    pub(crate) fn concat(&self, s: impl AsRef<[u16]>) -> JSString {
+        let tail = s.as_ref();
 
         // Build the combined code-unit buffer directly instead of concatenating
         // through temporary JSString/Rc containers.
         let mut combined = Vec::with_capacity(self.len() + tail.len());
         combined.extend_from_slice(self.as_slice());
-        combined.extend_from_slice(tail.as_slice());
+        combined.extend_from_slice(tail);
 
         JSString::from(combined)
     }
@@ -185,6 +191,11 @@ impl From<String> for JSString {
         Self::from(source.as_str())
     }
 }
+impl From<&String> for JSString {
+    fn from(source: &String) -> Self {
+        Self::from(source.as_str())
+    }
+}
 
 impl fmt::Debug for JSString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -245,6 +256,39 @@ impl std::cmp::PartialEq<&str> for JSString {
         }
     }
 }
+
+pub(crate) const fn ascii_str_to_u16<const N: usize>(s: &str) -> [u16; N] {
+    let bytes = s.as_bytes();
+    let mut out = [0u16; N];
+
+    let mut i = 0;
+    while i < N {
+        let byte = bytes[i];
+
+        // Optional: enforce that this macro is only used for ASCII strings.
+        assert!(byte.is_ascii());
+
+        out[i] = byte as u16;
+        i += 1;
+    }
+
+    out
+}
+
+#[macro_export]
+macro_rules! utf16_const {
+    ($s:literal) => {
+        &ascii_str_to_u16::<{ $s.len() }>($s)
+    };
+}
+
+pub(crate) const BLANK: &[u16] = utf16_const!(" ");
+pub(crate) const MINUS: &[u16] = utf16_const!("-");
+pub(crate) const COMMA_BLANK: &[u16] = utf16_const!(", ");
+pub(crate) const COLON: &[u16] = utf16_const!(":");
+pub(crate) const COLON_BLANK: &[u16] = utf16_const!(": ");
+pub(crate) const NEWLINE: &[u16] = utf16_const!("\n");
+pub(crate) const SLASH: &[u16] = utf16_const!("/");
 
 // Static Semantics: UTF16SurrogatePairToCodePoint ( lead, trail )
 //

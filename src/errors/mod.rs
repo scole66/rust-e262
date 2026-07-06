@@ -309,7 +309,7 @@ pub(crate) fn error_prototype_tostring(
         } else if msg.is_empty() {
             Ok(ECMAScriptValue::from(name))
         } else {
-            Ok(ECMAScriptValue::from(name.concat(": ").concat(msg)))
+            Ok(ECMAScriptValue::from(name.concat(COLON_BLANK).concat(msg)))
         }
     } else {
         Err(create_type_error("Error.prototype.toString called with non-object this value"))

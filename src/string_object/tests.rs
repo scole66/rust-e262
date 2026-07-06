@@ -889,7 +889,7 @@ fn ordinary_object_with_data_properties(entries: &[(&str, ECMAScriptValue)]) -> 
                 Ok(ECMAScriptValue::String(
                     JSString::from("custom:")
                         .concat(receiver)
-                        .concat(":")
+                        .concat(COLON)
                         .concat(replace_value),
                 ))
             },
@@ -970,11 +970,11 @@ fn ordinary_object_with_data_properties(entries: &[(&str, ECMAScriptValue)]) -> 
             Ok(ECMAScriptValue::String(
                 JSString::from("[")
                     .concat(matched)
-                    .concat("@")
+                    .concat(utf16_const!("@"))
                     .concat(position)
-                    .concat(" in ")
+                    .concat(utf16_const!(" in "))
                     .concat(full_string)
-                    .concat("]"),
+                    .concat(utf16_const!("]")),
             ))
         });
 
