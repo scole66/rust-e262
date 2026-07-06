@@ -2759,7 +2759,6 @@ fn time_string(tv: f64) -> JSString {
     // 2. Let minute be ToZeroPaddedDecimalString(ℝ(MinFromTime(tv)), 2).
     // 3. Let second be ToZeroPaddedDecimalString(ℝ(SecFromTime(tv)), 2).
     // 4. Return the string-concatenation of hour, ":", minute, ":", second, the code unit 0x0020 (SPACE), and "GMT".
-    const COLON: &[u16] = utf16_const!(":");
     const GMT: &[u16] = utf16_const!(" GMT");
     let hour = to_zero_padded_decimal_string(usize::from(hour_from_time(tv)), 2);
     let minute = to_zero_padded_decimal_string(usize::from(min_from_time(tv)), 2);

@@ -285,6 +285,7 @@ macro_rules! utf16_const {
 pub(crate) const BLANK: &[u16] = utf16_const!(" ");
 pub(crate) const MINUS: &[u16] = utf16_const!("-");
 pub(crate) const COMMA_BLANK: &[u16] = utf16_const!(", ");
+pub(crate) const COLON: &[u16] = utf16_const!(":");
 pub(crate) const COLON_BLANK: &[u16] = utf16_const!(": ");
 pub(crate) const NEWLINE: &[u16] = utf16_const!("\n");
 pub(crate) const SLASH: &[u16] = utf16_const!("/");

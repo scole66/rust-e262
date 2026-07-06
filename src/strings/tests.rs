@@ -189,10 +189,12 @@ mod jsstring {
     }
 
     #[test_case(&JSString::from("Head: "), JSString::from("tail") => "Head: tail"; "jsstring")]
-    #[test_case(&JSString::from("Head: "), "other tail" => "Head: other tail"; "&str value")]
-    #[test_case(&JSString::from("Head:"), &['b' as u16, 'o' as u16, 'b' as u16][..] => "Head:bob"; "&[u16] style")]
-    #[test_case(&JSString::from("Head:"), String::from("alice") => "Head:alice"; "String style")]
-    fn concat(s1: &JSString, s2: impl Into<JSString>) -> String {
+    #[test_case(&JSString::from("Head: "), &JSString::from("tiger") => "Head: tiger"; "jsstring ref")]
+    #[test_case(&JSString::from("Head: "), utf16_const!("a") => "Head: a"; "&[u16; 1] style")]
+    #[test_case(&JSString::from("Head: "), utf16_const!("abcd") => "Head: abcd"; "&[u16; 4] style")]
+    #[test_case(&JSString::from("Head: "), utf16_const!("0123456789a") => "Head: 0123456789a"; "&[u16; 11] style")]
+    #[test_case(&JSString::from("Head: "), &['b' as u16, 'o' as u16, 'b' as u16][..] => "Head: bob"; "&[u16] style")]
+    fn concat(s1: &JSString, s2: impl AsRef<[u16]>) -> String {
         s1.concat(s2).to_string()
     }
 
