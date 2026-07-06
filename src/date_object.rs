@@ -2789,9 +2789,8 @@ const MONTH_NAMES: [&[u16]; 12] = [
     utf16_const!("Nov"),
     utf16_const!("Dec"),
 ];
-const MONTH_NAMES_STR: [&str; 12] = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-];
+const MONTH_NAMES_STR: [&str; 12] =
+    ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 fn date_string(tv: f64) -> JSString {
     // DateString ( tv )
@@ -2872,6 +2871,7 @@ fn time_zone_string(tv: f64) -> anyhow::Result<JSString> {
     //     the code unit 0x0020 (SPACE), the code unit 0x0028 (LEFT PARENTHESIS), an implementation-defined timezone
     //     name, and the code unit 0x0029 (RIGHT PARENTHESIS).
     //  10. Return the string-concatenation of offsetSign, offsetHour, offsetMin, and tzName.
+    const UTC_NAME: &[u16] = utf16_const!(" (UTC)");
     let system_time_zone_identifier = system_time_zone_identifier();
     let offset_ns = match parse_time_zone_offset_string(&system_time_zone_identifier) {
         Some(value) => value,
@@ -2884,7 +2884,6 @@ fn time_zone_string(tv: f64) -> anyhow::Result<JSString> {
     let (offset_sign, abs_offset) = if offset.signum() > 0.0 { ("+", offset) } else { ("-", -offset) };
     let offset_min = to_zero_padded_decimal_string(usize::from(min_from_time(abs_offset)), 2);
     let offset_hour = to_zero_padded_decimal_string(usize::from(hour_from_time(abs_offset)), 2);
-    const UTC_NAME: &[u16] = utf16_const!(" (UTC)");
     Ok(JSString::from(offset_sign).concat(offset_hour).concat(offset_min).concat(UTC_NAME))
 }
 
