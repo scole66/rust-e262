@@ -2316,13 +2316,13 @@ pub(crate) fn create_dynamic_function(
         }
         parts
     };
-    let body_parse_string = JSString::from("\n").concat(body_string).concat("\n");
+    let body_parse_string = JSString::from("\n").concat(&body_string).concat(NEWLINE);
     let source_string = JSString::from(prefix)
-        .concat(" anonymous(")
-        .concat(p.clone())
-        .concat("\n) {")
-        .concat(body_parse_string.clone())
-        .concat("}");
+        .concat(utf16_const!(" anonymous("))
+        .concat(JSString::from(&p))
+        .concat(utf16_const!("\n) {"))
+        .concat(&body_parse_string)
+        .concat(utf16_const!("}"));
     let source_text = String::from(source_string);
     let parameters = parse_text(
         &p,

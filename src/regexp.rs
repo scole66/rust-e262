@@ -1232,7 +1232,7 @@ fn regexp_prototype_to_string(
         ECMAScriptValue::Object(regexp) => {
             let pattern = to_string(regexp.get(&"source".into())?)?;
             let flags = to_string(regexp.get(&"flags".into())?)?;
-            Ok(ECMAScriptValue::String(JSString::from("/").concat(pattern).concat("/").concat(flags)))
+            Ok(ECMAScriptValue::String(JSString::from(SLASH).concat(pattern).concat(SLASH).concat(flags)))
         }
         _ => Err(create_type_error("Method RegExp.prototype.toString called on incompatible receiver")),
     }
@@ -1654,7 +1654,7 @@ fn regexp_prototype_split(
 
     // The splitter is always sticky. Reusing or adding `y` lets the loop test
     // exactly at `search_index`.
-    let new_flags = if flags.contains(u16::from(b'y')) { flags } else { flags.concat("y") };
+    let new_flags = if flags.contains(u16::from(b'y')) { flags } else { flags.concat(utf16_const!("y")) };
 
     let splitter =
         species_ctor.construct(&[ECMAScriptValue::Object(regexp.clone()), ECMAScriptValue::String(new_flags)], None)?;
