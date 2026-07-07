@@ -1,4 +1,3 @@
-#![expect(dead_code)]
 use super::*;
 use ahash::AHashSet;
 use combinations::Combination;
@@ -13,6 +12,7 @@ pub(crate) enum UnicodeMode {
     Denied,
 }
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[expect(dead_code)]
 enum NamedCaptureGroups {
     Allowed,
     Denied,
@@ -74,10 +74,6 @@ impl<'src> Scanner<'src> {
     pub(crate) fn update(&mut self, mutation: &ScannerMutation) {
         self.read_idx = mutation.new_idx;
         self.left_capturing_parens = mutation.new_paren;
-    }
-
-    pub(crate) fn done(&self) -> bool {
-        self.read_idx >= self.all.len()
     }
 
     pub(crate) fn peek(&self) -> Option<u32> {
@@ -146,17 +142,8 @@ impl<'src> Scanner<'src> {
             })
     }
 
-    pub(crate) fn advance_by_bytes(&mut self, amt: usize) {
-        self.read_idx += amt;
-    }
-
     pub(crate) fn finished(&self) -> bool {
         self.read_idx >= self.all.len()
-    }
-
-    pub(crate) fn matches_at(&self, ch: char, position: usize) -> Option<usize> {
-        let target = u32::from(ch);
-        self.lookahead(position).and_then(|newch| if newch == target { Some(1) } else { None })
     }
 
     fn is_ascii_letter(ch: u32) -> bool {
@@ -211,19 +198,11 @@ impl<'src> Scanner<'src> {
         if let Some(ch) = char::from_u32(ch) { is_unicode_id_start(ch) || ch == '$' || ch == '_' } else { false }
     }
 
-    pub(crate) fn identifier_start_char(&mut self) -> Option<u32> {
-        self.consume_filter(Self::is_identifier_start_char)
-    }
-
     fn is_identifier_part_char(ch: u32) -> bool {
         // IdentifierPartChar ::
         //      UnicodeIDContinue
         //      $
         if let Some(ch) = char::from_u32(ch) { is_unicode_id_continue(ch) || ch == '$' } else { false }
-    }
-
-    pub(crate) fn identifier_part_char(&mut self) -> Option<u32> {
-        self.consume_filter(Self::is_identifier_part_char)
     }
 
     fn is_pattern_char(ch: u32) -> bool {
@@ -1981,29 +1960,6 @@ impl Disjunction {
     }
 }
 
-fn run_m2a(m1: &Matcher, m2: &Matcher, state: MatchState, continuation: MatcherContinuation) -> Option<MatchState> {
-    let r = m1.as_ref()(state.clone(), continuation.clone());
-    match r {
-        Some(state) => Some(state),
-        None => m2.as_ref()(state, continuation),
-    }
-}
-
-fn match_two_alternatives(m1: Matcher, m2: Matcher) -> Matcher {
-    // MatchTwoAlternatives ( m1, m2 )
-    //
-    // The abstract operation MatchTwoAlternatives takes arguments m1 (a Matcher) and m2 (a Matcher) and returns a
-    // Matcher. It performs the following steps when called:
-    //
-    // 1. Return a new Matcher with parameters (x, c) that captures m1 and m2 and performs the following steps when called:
-    //    a. Assert: x is a MatchState.
-    //    b. Assert: c is a MatcherContinuation.
-    //    c. Let r be m1(x, c).
-    //    d. If r is not failure, return r.
-    //    e. Return m2(x, c).
-    Rc::new(move |state, continuation| run_m2a(&m1, &m2, state, continuation))
-}
-
 // Alternative[UnicodeMode, UnicodeSetsMode, NamedCaptureGroups] ::
 //      [empty]
 //      Alternative[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups] Term[?UnicodeMode, ?UnicodeSetsMode, ?NamedCaptureGroups]
@@ -2490,108 +2446,7 @@ impl RegularExpressionModifiers {
         None
     }
 }
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum REModifier {
-    DoNothing,
-    Add,
-    Remove,
-}
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) struct REModifiers {
-    case_insensitive: REModifier,
-    multiline: REModifier,
-    dot_all: REModifier,
-}
-impl fmt::Display for REModifiers {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut additions = vec![];
-        let mut removals = vec![];
-        match self.case_insensitive {
-            REModifier::DoNothing => {}
-            REModifier::Add => additions.push("i"),
-            REModifier::Remove => removals.push("i"),
-        }
-        match self.multiline {
-            REModifier::DoNothing => {}
-            REModifier::Add => additions.push("m"),
-            REModifier::Remove => removals.push("m"),
-        }
-        match self.dot_all {
-            REModifier::DoNothing => {}
-            REModifier::Add => additions.push("s"),
-            REModifier::Remove => removals.push("s"),
-        }
-        if additions.is_empty() && removals.is_empty() {
-            Ok(())
-        } else if removals.is_empty() {
-            write!(f, "{}", join_display(&additions, ""))
-        } else if additions.is_empty() {
-            write!(f, "-{}", join_display(&removals, ""))
-        } else {
-            write!(f, "{}-{}", join_display(&additions, ""), join_display(&removals, ""))
-        }
-    }
-}
-impl TryFrom<(RegularExpressionModifiers, Option<RegularExpressionModifiers>)> for REModifiers {
-    type Error = Object;
-    fn try_from(value: (RegularExpressionModifiers, Option<RegularExpressionModifiers>)) -> Result<Self, Self::Error> {
-        let (add_mods, remove_mods) = value;
-        if let Some(remove_mods) = remove_mods {
-            if add_mods.0.iter().any(|m| remove_mods.0.contains(m)) {
-                Err(create_syntax_error_object(
-                    format!(
-                        "Conflicting regexp modifiers: cannot both add and remove the same modifier: +{} -{}",
-                        join_display(&add_mods.0, ""),
-                        join_display(&remove_mods.0, "")
-                    ),
-                    None,
-                ))
-            } else {
-                Ok(Self {
-                    case_insensitive: if add_mods.0.contains(&RegularExpressionModifier::CaseInsensitive) {
-                        REModifier::Add
-                    } else if remove_mods.0.contains(&RegularExpressionModifier::CaseInsensitive) {
-                        REModifier::Remove
-                    } else {
-                        REModifier::DoNothing
-                    },
-                    multiline: if add_mods.0.contains(&RegularExpressionModifier::Multiline) {
-                        REModifier::Add
-                    } else if remove_mods.0.contains(&RegularExpressionModifier::Multiline) {
-                        REModifier::Remove
-                    } else {
-                        REModifier::DoNothing
-                    },
-                    dot_all: if add_mods.0.contains(&RegularExpressionModifier::DotAll) {
-                        REModifier::Add
-                    } else if remove_mods.0.contains(&RegularExpressionModifier::DotAll) {
-                        REModifier::Remove
-                    } else {
-                        REModifier::DoNothing
-                    },
-                })
-            }
-        } else {
-            Ok(Self {
-                case_insensitive: if add_mods.0.contains(&RegularExpressionModifier::CaseInsensitive) {
-                    REModifier::Add
-                } else {
-                    REModifier::DoNothing
-                },
-                multiline: if add_mods.0.contains(&RegularExpressionModifier::Multiline) {
-                    REModifier::Add
-                } else {
-                    REModifier::DoNothing
-                },
-                dot_all: if add_mods.0.contains(&RegularExpressionModifier::DotAll) {
-                    REModifier::Add
-                } else {
-                    REModifier::DoNothing
-                },
-            })
-        }
-    }
-}
+
 impl RegularExpressionModifier {
     fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         let mut new_scanner = scanner.clone();

@@ -20,13 +20,13 @@ pub(crate) struct CaptureRange {
 
 #[derive(Debug, Clone)]
 pub(crate) struct MatchState {
-    pub(crate) input: Vec<u32>,
+    pub(crate) input: Rc<[u32]>,
     pub(crate) end_index: usize,
     pub(crate) captures: Vec<Option<CaptureRange>>,
 }
 
-pub(crate) type MatcherContinuation = Rc<dyn Fn(MatchState) -> Option<MatchState>>;
-pub(crate) type Matcher = Rc<dyn Fn(MatchState, MatcherContinuation) -> Option<MatchState>>;
+pub(crate) type MatcherContinuation = Rc<dyn Fn(MatchState) -> Step>;
+pub(crate) type Matcher = Rc<dyn Fn(MatchState, MatcherContinuation) -> Step>;
 pub(crate) type PatternMatcher = Rc<dyn Fn(&[u32], usize) -> Option<MatchState>>;
 
 pub(crate) struct RegExpData {
@@ -47,17 +47,113 @@ impl std::fmt::Debug for RegExpData {
     }
 }
 
-impl Pattern {
-    #[expect(clippy::unnecessary_wraps)]
-    fn identity(y: MatchState) -> Option<MatchState> {
-        Some(y)
-    }
+pub(crate) enum Step {
+    Done(Option<MatchState>),
+    CallMatcher {
+        matcher: Matcher,
+        state: MatchState,
+        continuation: MatcherContinuation,
+    },
+    CallContinuation {
+        state: MatchState,
+        continuation: MatcherContinuation,
+    },
+    PushChoice {
+        fallback: Box<Step>,
+        then_do: Box<Step>,
+    },
+    RunMatchAnyAlternatives {
+        alternatives: Rc<Vec<Matcher>>,
+        index: usize,
+        state: MatchState,
+        continuation: MatcherContinuation,
+    },
+    RepeatMatcher {
+        matcher: Matcher,
+        min: usize,
+        max: Option<usize>,
+        greedy: bool,
+        state: MatchState,
+        continuation: MatcherContinuation,
+        p_index: usize,
+        p_count: usize,
+    },
+    // Runs an assertion submatcher to completion as an isolated submatch.
+    // The result is then handled by the trampoline, not by recursive Rust calls.
+    PositiveLookaround {
+        matcher: Matcher,
+        state: MatchState,
+        continuation: MatcherContinuation,
+    },
 
+    NegativeLookaround {
+        matcher: Matcher,
+        state: MatchState,
+        continuation: MatcherContinuation,
+    },
+}
+
+fn run(mut step: Step) -> Option<MatchState> {
+    let mut choices = vec![];
+    loop {
+        step = match step {
+            Step::Done(Some(state)) => return Some(state),
+            Step::Done(None) => choices.pop()?,
+            Step::CallMatcher { matcher, state, continuation } => matcher(state, continuation),
+            Step::CallContinuation { state, continuation } => continuation(state),
+            Step::PushChoice { fallback, then_do } => {
+                choices.push(*fallback);
+                *then_do
+            }
+            Step::RunMatchAnyAlternatives { alternatives, index, state, continuation } => {
+                run_match_any_alternatives(&alternatives, index, state, continuation)
+            }
+            Step::RepeatMatcher { matcher, min, max, greedy, state, continuation, p_index, p_count } => {
+                repeat_matcher_step(matcher, min, max, greedy, state, continuation, p_index, p_count)
+            }
+            Step::PositiveLookaround { matcher, state, continuation } => {
+                let assertion_start = state.clone();
+
+                let result =
+                    run(Step::CallMatcher { matcher, state: state.clone(), continuation: identity_continuation() });
+
+                match result {
+                    Some(assertion_result) => {
+                        let continued_state = MatchState {
+                            input: assertion_start.input,
+                            end_index: assertion_start.end_index,
+                            captures: assertion_result.captures,
+                        };
+
+                        Step::CallContinuation { continuation, state: continued_state }
+                    }
+                    None => Step::Done(None),
+                }
+            }
+            Step::NegativeLookaround { matcher, state, continuation } => {
+                let result =
+                    run(Step::CallMatcher { matcher, state: state.clone(), continuation: identity_continuation() });
+
+                match result {
+                    Some(_) => Step::Done(None),
+                    None => Step::CallContinuation { continuation, state },
+                }
+            }
+        }
+    }
+}
+
+fn identity_continuation() -> MatcherContinuation {
+    Rc::new(|state| Step::Done(Some(state)))
+}
+
+impl Pattern {
     fn run_matcher(matcher: &Matcher, capture_count: usize, input: &[u32], index: usize) -> Option<MatchState> {
-        let continuation: MatcherContinuation = Rc::new(Self::identity);
+        let continuation: MatcherContinuation = identity_continuation();
         let captures = vec![None; capture_count];
-        let state = MatchState { input: Vec::from(input), end_index: index, captures };
-        matcher.as_ref()(state, continuation)
+        let state = MatchState { input: Rc::from(input), end_index: index, captures };
+        let first_step = Step::CallMatcher { matcher: matcher.clone(), state, continuation };
+        run(first_step)
     }
 
     pub(crate) fn compile_pattern(&self, rer: &RegExpRecord, group_specifiers: &[&GroupSpecifier]) -> PatternMatcher {
@@ -75,20 +171,30 @@ impl Disjunction {
         direction: Direction,
         group_specifiers: &[&GroupSpecifier],
     ) -> Matcher {
-        // The syntax-directed operation CompileSubpattern takes arguments rer (a RegExp Record) and direction (forward
-        // or backward) and returns a Matcher.
-        // Disjunction :: Alternative | Disjunction
-        // 1. Let m1 be CompileSubpattern of Alternative with arguments rer and direction.
-        // 2. Let m2 be CompileSubpattern of Disjunction with arguments rer and direction.
-        // 3. Return MatchTwoAlternatives(m1, m2).
+        // CompileSubpattern for Disjunction.
         //
-        // Note: Since we transformed this chain into a vector, this needs a bit of modification.
-        let mut iterator = self.0.iter().map(|alt| alt.compile_subpattern(rer, direction, group_specifiers));
-        match_any_alternatives(&mut iterator)
+        // The spec grammar represents a disjunction as a recursive chain:
+        //
+        //     Disjunction :: Alternative
+        //     Disjunction :: Alternative | Disjunction
+        //
+        // and defines compilation recursively:
+        //
+        //     m1 = CompileSubpattern(Alternative)
+        //     m2 = CompileSubpattern(Disjunction)
+        //     return MatchTwoAlternatives(m1, m2)
+        //
+        // Our parser stores the alternatives as a flat vector instead of a recursive
+        // chain. Compile each Alternative to a Matcher, then build one matcher that
+        // tries them in source order with the same left-to-right alternative
+        // semantics as repeated MatchTwoAlternatives.
+        let alternatives = self.0.iter().map(|alt| alt.compile_subpattern(rer, direction, group_specifiers));
+
+        match_any_alternatives(alternatives)
     }
 }
 
-fn match_any_alternatives(alternatives: &mut impl Iterator<Item = Matcher>) -> Matcher {
+fn match_any_alternatives(alternatives: impl IntoIterator<Item = Matcher>) -> Matcher {
     // 1. Return a new matcher with parameters (x, c) that captures the alternatives and performs the following steps
     //    when called:
     //    a. Let k = 0.
@@ -98,22 +204,33 @@ fn match_any_alternatives(alternatives: &mut impl Iterator<Item = Matcher>) -> M
     //       iii. if r is not failure, return r.
     //       iv. let k = k + 1.
     //    c. return failure
-    let alts = alternatives.collect::<Vec<_>>();
-    Rc::new(move |state, continuation| run_match_any_alternatives(&alts, &state, &continuation))
+    let alts = Rc::new(alternatives.into_iter().collect::<Vec<_>>());
+    Rc::new(move |state, continuation| run_match_any_alternatives(&alts, 0, state, continuation))
 }
 
 fn run_match_any_alternatives(
-    alternatives: &[Matcher],
-    state: &MatchState,
-    continuation: &MatcherContinuation,
-) -> Option<MatchState> {
-    for m in alternatives {
-        let r = m.as_ref()(state.clone(), continuation.clone());
-        if r.is_some() {
-            return r;
-        }
+    alternatives: &Rc<Vec<Matcher>>,
+    index: usize,
+    state: MatchState,
+    continuation: MatcherContinuation,
+) -> Step {
+    let Some(matcher) = alternatives.get(index).cloned() else {
+        return Step::Done(None);
+    };
+
+    if index + 1 >= alternatives.len() {
+        return Step::CallMatcher { matcher, state, continuation };
     }
-    None
+
+    Step::PushChoice {
+        fallback: Box::new(Step::RunMatchAnyAlternatives {
+            alternatives: Rc::clone(alternatives),
+            index: index + 1,
+            state: state.clone(),
+            continuation: continuation.clone(),
+        }),
+        then_do: Box::new(Step::CallMatcher { matcher, state, continuation }),
+    }
 }
 
 impl Alternative {
@@ -123,174 +240,80 @@ impl Alternative {
         direction: Direction,
         group_specifiers: &[&GroupSpecifier],
     ) -> Matcher {
-        // The syntax-directed operation CompileSubpattern takes arguments rer (a RegExp Record) and direction (forward
-        // or backward) and returns a Matcher.
-        //  Alternative :: [empty]
-        //  1. Return EmptyMatcher().
-        //  Alternative :: Alternative Term
-        //  1. Let m1 be CompileSubpattern of Alternative with arguments rer and direction.
-        //  2. Let m2 be CompileSubpattern of Term with arguments rer and direction.
-        //  3. Return MatchSequence(m1, m2, direction).
+        // CompileSubpattern for Alternative.
+        //
+        // The spec grammar represents an Alternative recursively:
+        //
+        //     Alternative :: [empty]
+        //     Alternative :: Alternative Term
+        //
+        // and defines compilation in terms of EmptyMatcher for the empty case,
+        // then repeated MatchSequence composition as each Term is added.
+        //
+        // Our parser stores an Alternative as a flat sequence of Terms. Compile
+        // each Term to a Matcher, then compose the sequence in the requested
+        // direction. If there are no terms, match_all_terms returns EmptyMatcher,
+        // preserving the spec's Alternative :: [empty] behavior.
+        let terms = self.0.iter().map(|term| term.compile_subpattern(rer, direction, group_specifiers));
 
-        // Since we parsed as a sequence of Terms, this is equivalent to
-        //  [empty] Term Term ... Term (where there may be any number >= 0 of Terms)
-        let mut iterator = [empty_matcher()]
-            .into_iter()
-            .chain(self.0.iter().map(|term| term.compile_subpattern(rer, direction, group_specifiers)));
-        match_all_terms(&mut iterator, direction)
+        match_all_terms(terms, direction)
     }
-}
-
-fn run_empty(state: MatchState, continuation: &MatcherContinuation) -> Option<MatchState> {
-    //  Performs the following steps when called:
-    //    a. Assert: x is a MatchState.
-    //    b. Assert: c is a MatcherContinuation.
-    //    c. Return c(x).
-    continuation.as_ref()(state)
 }
 
 fn empty_matcher() -> Matcher {
-    // EmptyMatcher ( )
-    // The abstract operation EmptyMatcher takes no arguments and returns a Matcher. It performs the following steps when called:
+    // EmptyMatcher returns a matcher that, when called with (state, continuation),
+    // succeeds at the current position by calling continuation(state).
     //
-    // 1. Return a new Matcher with parameters (x, c) that captures nothing and performs the following steps when called:
-    //    a. Assert: x is a MatchState.
-    //    b. Assert: c is a MatcherContinuation.
-    //    c. Return c(x).
-    //
-    Rc::new(move |state, continuation| run_empty(state, &continuation))
+    // Since matchers are trampolined, "calling the continuation" is represented as
+    // a Step rather than a direct Rust function call.
+    Rc::new(move |state, continuation| Step::CallContinuation { continuation, state })
 }
 
-fn match_all_terms(terms: &mut impl Iterator<Item = Matcher>, direction: Direction) -> Matcher {
+fn match_all_terms(terms: impl IntoIterator<Item = Matcher>, direction: Direction) -> Matcher {
     // Compose a non-empty list of term matchers into one matcher.
     //
-    // Forward matching runs the terms from left to right. Backward matching runs
-    // the same terms from right to left. Each step wraps the matcher built so
-    // far with a continuation that runs the next term before the caller's
-    // continuation.
-    let trms = terms.collect::<Vec<_>>();
+    // The spec builds a chain of matchers, where each term's continuation runs
+    // the next term. The last term receives the caller's continuation.
+    //
+    // Forward matching composes terms left-to-right. Backward matching composes
+    // the same source terms right-to-left.
+    //
+    // Because matching is trampolined, each composed matcher returns the next
+    // call as a Step instead of invoking the next matcher directly.
+    let mut trms = terms.into_iter().collect::<Vec<_>>();
 
-    match direction {
-        Direction::Forward => match trms.as_slice() {
-            [first, rest @ ..] => {
-                let mut m = first.clone();
-
-                for term in rest {
-                    let inner_m = m.clone();
-                    let inner_term = term.clone();
-
-                    m = Rc::new(move |state, continuation| {
-                        run_match_term_inner(&inner_m, inner_term.clone(), state, continuation)
-                    });
-                }
-
-                m
-            }
-            [] => panic!("match_all_terms should be called with at least one matcher"),
-        },
-
-        Direction::Backward => match trms.as_slice() {
-            [rest @ .., last] => {
-                let mut m = last.clone();
-
-                for term in rest.iter().rev() {
-                    let inner_m = m.clone();
-                    let inner_term = term.clone();
-
-                    m = Rc::new(move |state, continuation| {
-                        run_match_term_inner(&inner_m, inner_term.clone(), state, continuation)
-                    });
-                }
-
-                m
-            }
-            [] => panic!("match_all_terms should be called with at least one matcher"),
-        },
+    if matches!(direction, Direction::Backward) {
+        trms.reverse();
     }
+
+    let Some(first) = trms.first().cloned() else {
+        return empty_matcher();
+    };
+
+    let mut m = first;
+
+    for term in trms.iter().skip(1) {
+        let inner_m = m.clone();
+        let inner_term = term.clone();
+
+        m = Rc::new(move |state, continuation| {
+            run_match_term_inner(inner_m.clone(), inner_term.clone(), state, continuation)
+        });
+    }
+
+    m
 }
 
-fn run_match_term_inner(
-    m1: &Matcher,
-    m2: Matcher,
-    state: MatchState,
-    continuation: MatcherContinuation,
-) -> Option<MatchState> {
-    let d = Rc::new(move |y: MatchState| m2.as_ref()(y, continuation.clone()));
-    m1.as_ref()(state, d)
+fn run_match_term_inner(m1: Matcher, m2: Matcher, state: MatchState, continuation: MatcherContinuation) -> Step {
+    // After m1 succeeds, run m2 with the original caller's continuation.
+    let d: MatcherContinuation = Rc::new(move |y: MatchState| Step::CallMatcher {
+        matcher: m2.clone(),
+        state: y,
+        continuation: continuation.clone(),
+    });
+
+    Step::CallMatcher { matcher: m1, state, continuation: d }
 }
-
-// [empty] TermA TermB TermC
-// m = match_sequence(e-a-b-matcher, c-matcher)
-//   = |x, c| {
-//        let continuation-c = |y| c-matcher(y, c)
-//        e-a-b-matcher(x, continuation-c)
-//     }
-// e-a-b-matcher = match_sequence(e-a-matcher, b-matcher)
-//   = |x, c| {
-//        let continuation-b = |y| b-matcher(y, c)
-//        e-a-matcher(x, continuation-b)
-//     }
-// e-a-matcher = match_sequene(e-matcher, a-matcher)
-//   = |x, c| {
-//       let continuation-a = |y| a-matcher(y, c)
-//       e-matcher(x, continuation-a)
-//     }
-
-// fn match_sequence(m1: Matcher, m2: Matcher, direction: Direction) -> Matcher {
-//     // MatchSequence ( m1, m2, direction )
-//     //
-//     // The abstract operation MatchSequence takes arguments m1 (a Matcher), m2 (a Matcher), and direction (forward or
-//     // backward) and returns a Matcher. It performs the following steps when called:
-//     //
-//     // 1. If direction is forward, then
-//     //    a. Return a new Matcher with parameters (x, c) that captures m1 and m2 and performs the following steps when
-//     //       called:
-//     //       i. Assert: x is a MatchState.
-//     //       ii. Assert: c is a MatcherContinuation.
-//     //       iii. Let d be a new MatcherContinuation with parameters (y) that captures c and m2 and performs the
-//     //            following steps when called:
-//     //            1. Assert: y is a MatchState.
-//     //            2. Return m2(y, c).
-//     //       iv. Return m1(x, d).
-//     // 2. Assert: direction is backward.
-//     // 3. Return a new Matcher with parameters (x, c) that captures m1 and m2 and performs the following steps when
-//     //    called:
-//     //    a. Assert: x is a MatchState.
-//     //    b. Assert: c is a MatcherContinuation.
-//     //    c. Let d be a new MatcherContinuation with parameters (y) that captures c and m1 and performs the following
-//     //       steps when called:
-//     //       i. Assert: y is a MatchState.
-//     //       ii. Return m1(y, c).
-//     //    d. Return m2(x, d).
-//     match direction {
-//         Direction::Forward => {
-//             Rc::new(move |state, continuation| run_forward_match_sequence(&m1, m2.clone(), state, continuation))
-//         }
-//         Direction::Backward => {
-//             Rc::new(move |state, continuation| run_backward_match_sequence(m1.clone(), &m2, state, continuation))
-//         }
-//     }
-// }
-//
-// fn run_forward_match_sequence(
-//     m1: &Matcher,
-//     m2: Matcher,
-//     state: MatchState,
-//     continuation: MatcherContinuation,
-// ) -> Option<MatchState> {
-//     let d: MatcherContinuation = Rc::new(move |y: MatchState| m2.as_ref()(y, continuation.clone()));
-//     m1.as_ref()(state, d)
-// }
-//
-// fn run_backward_match_sequence(
-//     m1: Matcher,
-//     m2: &Matcher,
-//     state: MatchState,
-//     continuation: MatcherContinuation,
-// ) -> Option<MatchState> {
-//     let d: MatcherContinuation = Rc::new(move |y: MatchState| m1.as_ref()(y, continuation.clone()));
-//     m2.as_ref()(state, d)
-// }
 
 impl Term {
     pub(crate) fn compile_subpattern(
@@ -299,56 +322,64 @@ impl Term {
         direction: Direction,
         group_specifiers: &[&GroupSpecifier],
     ) -> Matcher {
-        // The syntax-directed operation CompileSubpattern takes arguments rer (a RegExp Record) and direction (forward
-        // or backward) and returns a Matcher.
+        // CompileSubpattern for Term.
+        //
+        // A Term is either an Assertion, a bare Atom, or an Atom followed by a
+        // Quantifier. Assertions are independent of direction. Bare atoms compile
+        // directly to their atom matcher.
+        //
+        // For quantified atoms, the spec compiles the Atom to a matcher `m`,
+        // compiles the Quantifier to `{ min, max, greedy }`, computes the capture
+        // range that must be cleared on each repetition, and returns a matcher
+        // that invokes RepeatMatcher.
+        //
+        // Since this engine is trampolined, the returned matcher does not call
+        // RepeatMatcher directly. It returns a Step describing that call, so the
+        // trampoline loop can execute the repetition without growing the Rust
+        // call stack.
         match &self.node {
             TermNode::Assertion(assertion) => {
                 // Term :: Assertion
-                // 1. Return CompileAssertion of Assertion with argument regexpRecord.
+                //
+                // Assertions do not consume input, and their compiled matcher is
+                // independent of the matching direction.
                 assertion.compile_assertion(rer, group_specifiers)
-                // Note 4
-                // The resulting Matcher is independent of direction.
             }
+
             TermNode::Atom(atom, None) => {
                 // Term :: Atom
-                // 1. Return CompileAtom of Atom with arguments rer and direction.
                 atom.compile_atom(rer, direction, group_specifiers)
             }
+
             TermNode::Atom(atom, Some(quantifier)) => {
                 // Term :: Atom Quantifier
-                // 1. Let m be CompileAtom of Atom with arguments rer and direction.
-                // 2. Let q be CompileQuantifier of Quantifier.
-                // 3. Assert: q.[[Min]] ≤ q.[[Max]].
-                // 4. Let parenIndex be CountLeftCapturingParensBefore(Term).
-                // 5. Let parenCount be CountLeftCapturingParensWithin(Atom).
-                // 6. Return a new Matcher with parameters (x, c) that captures m, q, parenIndex, and parenCount and performs the following steps when called:
-                //    a. Assert: x is a MatchState.
-                //    b. Assert: c is a MatcherContinuation.
-                //    c. Return RepeatMatcher(m, q.[[Min]], q.[[Max]], q.[[Greedy]], x, c, parenIndex, parenCount).
-                let m = atom.compile_atom(rer, direction, group_specifiers);
-                let q = quantifier.compile_quantifier();
-                let paren_index = self.count_left_capturing_parens_before();
-                let paren_count = atom.count_left_capturing_parens_within();
-                Rc::new(move |state, continuation| {
-                    repeat_matcher(&m, q.min, q.max, q.greedy, state, &continuation, paren_index, paren_count)
+                let matcher = atom.compile_atom(rer, direction, group_specifiers);
+                let quantifier = quantifier.compile_quantifier();
+
+                debug_assert!(quantifier.max.is_none_or(|max| quantifier.min <= max));
+
+                let p_index = self.count_left_capturing_parens_before();
+                let p_count = atom.count_left_capturing_parens_within();
+
+                Rc::new(move |state, continuation| Step::RepeatMatcher {
+                    matcher: matcher.clone(),
+                    min: quantifier.min,
+                    max: quantifier.max,
+                    greedy: quantifier.greedy,
+                    state,
+                    continuation,
+                    p_index,
+                    p_count,
                 })
             }
         }
     }
 
     fn count_left_capturing_parens_before(&self) -> usize {
-        // Static Semantics: CountLeftCapturingParensBefore ( node )
-        //
-        // The abstract operation CountLeftCapturingParensBefore takes argument node (a Parse Node) and returns a
-        // non-negative integer. It returns the number of left-capturing parentheses within the enclosing pattern that
-        // occur to the left of node.
-        //
-        // It performs the following steps when called:
-        //
-        //  1. Assert: node is an instance of a production in the RegExp Pattern grammar.
-        //  2. Let pattern be the Pattern containing node.
-        //  3. Return the number of Atom :: ( GroupSpecifieropt Disjunction ) Parse Nodes contained within pattern that
-        //     either occur before node or contain node.
+        // CountLeftCapturingParensBefore returns the number of capturing groups
+        // in the enclosing pattern that occur before this term, plus groups that
+        // contain this term. The parser computes and stores that value while
+        // building the regexp AST.
         self.left_capturing_parens_before
     }
 }
@@ -356,99 +387,111 @@ impl Term {
 #[expect(clippy::too_many_arguments)]
 fn repeater_continuation(
     y: MatchState,
-    m: &Matcher,
+    matcher: Matcher,
     min: usize,
     max: Option<usize>,
     greedy: bool,
-    state: &MatchState,
-    continuation: &MatcherContinuation,
-    paren_index: usize,
-    paren_count: usize,
-) -> Option<MatchState> {
-    //    a. Assert: y is a MatchState.
-    //    b. If min = 0 and y.[[EndIndex]] = matchState.[[EndIndex]], return failure.
-    //    c. If min = 0, let min2 be 0; else let min2 be min - 1.
-    //    d. If max = +∞, let max2 be +∞; else let max2 be max - 1.
-    //    e. Return RepeatMatcher(m, min2, max2, greedy, y, continue, parenIndex, parenCount).
-    if min == 0 && y.end_index == state.end_index {
-        return None;
+    previous_state: &MatchState,
+    continuation: MatcherContinuation,
+    p_index: usize,
+    p_count: usize,
+) -> Step {
+    // This is the continuation `d` from RepeatMatcher.
+    //
+    // It is called after one repetition of `matcher` succeeds. If the repetition
+    // was allowed to match zero times and made no progress, fail to avoid an
+    // infinite loop for patterns such as /(?:)*/.
+    //
+    // Otherwise, decrement the remaining repetition bounds and schedule another
+    // RepeatMatcher step. This is the trampolined form of the spec's recursive
+    // call to RepeatMatcher.
+    if min == 0 && y.end_index == previous_state.end_index {
+        return Step::Done(None);
     }
-    let min2 = if min == 0 { 0 } else { min - 1 };
-    let max2 = max.map(|max| max - 1);
-    repeat_matcher(m, min2, max2, greedy, y, continuation, paren_index, paren_count)
+
+    Step::RepeatMatcher {
+        matcher,
+        min: min.saturating_sub(1),
+        max: max.map(|max| max - 1),
+        greedy,
+        state: y,
+        continuation,
+        p_index,
+        p_count,
+    }
 }
 
 #[expect(clippy::too_many_arguments)]
-fn repeat_matcher(
-    m: &Matcher,
+fn repeat_matcher_step(
+    matcher: Matcher,
     min: usize,
     max: Option<usize>,
     greedy: bool,
     state: MatchState,
-    continuation: &MatcherContinuation,
+    continuation: MatcherContinuation,
     p_index: usize,
     p_count: usize,
-) -> Option<MatchState> {
-    // RepeatMatcher ( m, min, max, greedy, matchState, continue, parenIndex, parenCount )
+) -> Step {
+    // RepeatMatcher(m, min, max, greedy, state, continuation, p_index, p_count)
     //
-    // The abstract operation RepeatMatcher takes arguments m (a Matcher), min (a non-negative integer), max (a
-    // non-negative integer or +∞), greedy (a Boolean), matchState (a MatchState), continue (a MatcherContinuation),
-    // parenIndex (a non-negative integer), and parenCount (a non-negative integer) and returns either a MatchState or
-    // failure. It performs the following steps when called:
+    // This follows the spec's RepeatMatcher operation, but returns the next
+    // trampoline Step instead of directly invoking matchers and continuations.
     //
-    // 1. If max = 0, return continue(matchState).
-    // 2. Let d be a new MatcherContinuation with parameters (y) that captures m, min, max, greedy, matchState,
-    //    continue, parenIndex, and parenCount and performs the following steps when called:
-    //    a. Assert: y is a MatchState.
-    //    b. If min = 0 and y.[[EndIndex]] = matchState.[[EndIndex]], return failure.
-    //    c. If min = 0, let min2 be 0; else let min2 be min - 1.
-    //    d. If max = +∞, let max2 be +∞; else let max2 be max - 1.
-    //    e. Return RepeatMatcher(m, min2, max2, greedy, y, continue, parenIndex, parenCount).
-    // 3. Let cap be a copy of matchState.[[Captures]].
-    // 4. For each integer k in the inclusive interval from parenIndex + 1 to parenIndex + parenCount, set cap[k] to
-    //    undefined.
-    // 5. Let input be matchState.[[Input]].
-    // 6. Let e be matchState.[[EndIndex]].
-    // 7. Let xr be the MatchState { [[Input]]: input, [[EndIndex]]: e, [[Captures]]: cap }.
-    // 8. If min ≠ 0, return m(xr, d).
-    // 9. If greedy is false, then
-    //    a. Let z be continue(matchState).
-    //    b. If z is not failure, return z.
-    //    c. Return m(xr, d).
-    // 10. Let z be m(xr, d).
-    // 11. If z is not failure, return z.
-    // 12. Return continue(matchState).
-    if max.is_some_and(|max| max == 0) {
-        return continuation(state);
+    // Greedy and non-greedy behavior is represented with PushChoice:
+    //
+    //   greedy:     try another repetition first; on failure, try continuation
+    //   non-greedy: try continuation first; on failure, try another repetition
+    //
+    // This preserves the spec's backtracking order while keeping the native Rust
+    // stack shallow.
+    if max == Some(0) {
+        return Step::CallContinuation { continuation, state };
     }
-    let mut cap = state.captures.clone();
-    for item in cap.iter_mut().take(p_index + p_count).skip(p_index) {
-        *item = None;
+
+    let mut captures = state.captures.clone();
+
+    for capture in captures.iter_mut().take(p_index + p_count).skip(p_index) {
+        *capture = None;
     }
-    let input = state.input.clone();
-    let e = state.end_index;
-    let xr = MatchState { input, end_index: e, captures: cap };
-    let value = state.clone();
-    let continue_copy = continuation.clone();
-    let matcher_copy = m.clone();
-    let d = Rc::new(move |y| {
-        repeater_continuation(y, &matcher_copy, min, max, greedy, &value, &continue_copy, p_index, p_count)
-    });
-    if min != 0 {
-        return m.as_ref()(xr, d);
-    }
-    if !greedy {
-        let z = continuation(state);
-        if z.is_some() {
-            return z;
+
+    let repeated_state = MatchState { input: state.input.clone(), end_index: state.end_index, captures };
+
+    let previous_state = state.clone();
+
+    let d: MatcherContinuation = Rc::new({
+        let matcher = matcher.clone();
+        let continuation = continuation.clone();
+
+        move |y: MatchState| {
+            repeater_continuation(
+                y,
+                matcher.clone(),
+                min,
+                max,
+                greedy,
+                &previous_state,
+                continuation.clone(),
+                p_index,
+                p_count,
+            )
         }
-        return m.as_ref()(xr, d);
+    });
+
+    if min != 0 {
+        return Step::CallMatcher { matcher, state: repeated_state, continuation: d };
     }
-    let z = m.as_ref()(xr, d);
-    if z.is_some() {
-        return z;
+
+    if greedy {
+        Step::PushChoice {
+            then_do: Box::new(Step::CallMatcher { matcher, state: repeated_state, continuation: d }),
+            fallback: Box::new(Step::CallContinuation { continuation, state }),
+        }
+    } else {
+        Step::PushChoice {
+            then_do: Box::new(Step::CallContinuation { continuation, state }),
+            fallback: Box::new(Step::CallMatcher { matcher, state: repeated_state, continuation: d }),
+        }
     }
-    continuation(state)
 }
 
 impl Assertion {
@@ -458,16 +501,16 @@ impl Assertion {
                 let rer = rer.clone();
 
                 Rc::new(move |state, continuation| {
-                    let input = state.input.as_slice();
+                    let input = state.input.as_ref();
                     let e = state.end_index;
 
                     // `^` matches the start of input, or the position after a
                     // line terminator when multiline mode is enabled. The sticky
                     // flag does not change this behavior.
                     if e == 0 || rer.multiline == Lines::Multi && LINE_TERMINATORS.contains(&input[e - 1]) {
-                        continuation(state)
+                        Step::CallContinuation { continuation, state }
                     } else {
-                        None
+                        Step::Done(None)
                     }
                 })
             }
@@ -476,16 +519,18 @@ impl Assertion {
                 let rer = rer.clone();
 
                 Rc::new(move |state, continuation| {
-                    let input = state.input.as_slice();
+                    let input = state.input.as_ref();
                     let e = state.end_index;
                     let input_length = input.len();
 
                     // `$` matches the end of input, or the position before a
                     // line terminator when multiline mode is enabled.
-                    if e == input_length || rer.multiline == Lines::Multi && LINE_TERMINATORS.contains(&input[e]) {
-                        continuation(state)
+                    if e == input_length
+                        || rer.multiline == Lines::Multi && e < input_length && LINE_TERMINATORS.contains(&input[e])
+                    {
+                        Step::CallContinuation { continuation, state }
                     } else {
-                        None
+                        Step::Done(None)
                     }
                 })
             }
@@ -494,7 +539,7 @@ impl Assertion {
                 let rer = rer.clone();
 
                 Rc::new(move |state, continuation| {
-                    let input = state.input.as_slice();
+                    let input = state.input.as_ref();
                     let e = state.end_index;
 
                     // A word boundary exists when exactly one side of the
@@ -502,7 +547,7 @@ impl Assertion {
                     let before = e > 0 && is_word_char(&rer, input, e - 1);
                     let after = is_word_char(&rer, input, e);
 
-                    if before == after { None } else { continuation(state) }
+                    if before == after { Step::Done(None) } else { Step::CallContinuation { continuation, state } }
                 })
             }
 
@@ -510,7 +555,7 @@ impl Assertion {
                 let rer = rer.clone();
 
                 Rc::new(move |state, continuation| {
-                    let input = state.input.as_slice();
+                    let input = state.input.as_ref();
                     let e = state.end_index;
 
                     // A non-boundary exists when both sides of the current
@@ -518,76 +563,58 @@ impl Assertion {
                     let before = e > 0 && is_word_char(&rer, input, e - 1);
                     let after = is_word_char(&rer, input, e);
 
-                    if before == after { continuation(state) } else { None }
+                    if before == after { Step::CallContinuation { continuation, state } } else { Step::Done(None) }
                 })
             }
 
             Assertion::LookAhead(disjunction) => {
-                // Lookahead checks the subpattern from the current position
-                // without consuming input.
-                let m = disjunction.compile_subpattern(rer, Direction::Forward, group_specifiers);
+                // Positive lookahead checks the subpattern from the current
+                // position without consuming input. If the assertion body
+                // succeeds, its captures are kept but the original end_index is
+                // restored before continuing.
+                let matcher = disjunction.compile_subpattern(rer, Direction::Forward, group_specifiers);
 
-                Rc::new(move |state, continuation| {
-                    // Run the assertion body with an identity continuation so we
-                    // can observe whether it matches and collect its captures.
-                    let d: MatcherContinuation = Rc::new(Some);
-
-                    let r = m.as_ref()(state.clone(), d)?;
-
-                    // Positive lookahead keeps captures produced inside the
-                    // assertion, but restores the original input position.
-                    let z = MatchState { input: state.input, end_index: state.end_index, captures: r.captures };
-
-                    continuation(z)
+                Rc::new(move |state, continuation| Step::PositiveLookaround {
+                    matcher: matcher.clone(),
+                    state,
+                    continuation,
                 })
             }
 
             Assertion::NegLookAhead(disjunction) => {
                 // Negative lookahead succeeds only when the forward subpattern
                 // fails at the current position.
-                let m = disjunction.compile_subpattern(rer, Direction::Forward, group_specifiers);
+                let matcher = disjunction.compile_subpattern(rer, Direction::Forward, group_specifiers);
 
-                Rc::new(move |state, continuation| {
-                    let d: MatcherContinuation = Rc::new(Some);
-
-                    match m.as_ref()(state.clone(), d) {
-                        Some(_) => None,
-                        None => continuation(state),
-                    }
+                Rc::new(move |state, continuation| Step::NegativeLookaround {
+                    matcher: matcher.clone(),
+                    state,
+                    continuation,
                 })
             }
 
             Assertion::LookBehind(disjunction) => {
-                // Lookbehind checks the subpattern ending at the current
-                // position. The subpattern is compiled in backward direction,
-                // but a successful assertion still consumes no input.
-                let m = disjunction.compile_subpattern(rer, Direction::Backward, group_specifiers);
+                // Positive lookbehind checks the subpattern ending at the
+                // current position. The subpattern is compiled backward, but a
+                // successful assertion still consumes no input.
+                let matcher = disjunction.compile_subpattern(rer, Direction::Backward, group_specifiers);
 
-                Rc::new(move |state, continuation| {
-                    let d: MatcherContinuation = Rc::new(Some);
-
-                    let r = m.as_ref()(state.clone(), d)?;
-
-                    // Positive lookbehind keeps captures produced inside the
-                    // assertion, but restores the original input position.
-                    let z = MatchState { input: state.input, end_index: state.end_index, captures: r.captures };
-
-                    continuation(z)
+                Rc::new(move |state, continuation| Step::PositiveLookaround {
+                    matcher: matcher.clone(),
+                    state,
+                    continuation,
                 })
             }
 
             Assertion::NegLookBehind(disjunction) => {
                 // Negative lookbehind succeeds only when the backward subpattern
                 // fails ending at the current position.
-                let m = disjunction.compile_subpattern(rer, Direction::Backward, group_specifiers);
+                let matcher = disjunction.compile_subpattern(rer, Direction::Backward, group_specifiers);
 
-                Rc::new(move |state, continuation| {
-                    let d: MatcherContinuation = Rc::new(Some);
-
-                    match m.as_ref()(state.clone(), d) {
-                        Some(_) => None,
-                        None => continuation(state),
-                    }
+                Rc::new(move |state, continuation| Step::NegativeLookaround {
+                    matcher: matcher.clone(),
+                    state,
+                    continuation,
                 })
             }
         }
@@ -683,74 +710,57 @@ impl QuantifierPrefix {
 fn group_continuation(
     state: &MatchState,
     outer_state: &MatchState,
-    continuation: &MatcherContinuation,
+    continuation: MatcherContinuation,
     direction: Direction,
     paren_index: usize,
-) -> Option<MatchState> {
-    // A MatcherContinuation with parameters (y) that captures x, c, direction, and parenIndex and performs the
-    // following steps when called:
+) -> Step {
+    // Capturing group continuation.
     //
-    //       i. Assert: y is a MatchState.
-    //       ii. Let cap be a copy of y.[[Captures]].
-    //       iii. Let input be x.[[Input]].
-    //       iv. Let xe be x.[[EndIndex]].
-    //       v. Let ye be y.[[EndIndex]].
-    //       vi. If direction is forward, then
-    //           1. Assert: xe ≤ ye.
-    //           2. Let r be the CaptureRange { [[StartIndex]]: xe, [[EndIndex]]: ye }.
-    //       vii. Else,
-    //            1. Assert: direction is backward.
-    //            2. Assert: ye ≤ xe.
-    //            3. Let r be the CaptureRange { [[StartIndex]]: ye, [[EndIndex]]: xe }.
-    //       viii. Set cap[parenIndex + 1] to r.
-    //       ix. Let z be the MatchState { [[Input]]: input, [[EndIndex]]: ye, [[Captures]]: cap }.
-    //       x. Return c(z).
-    let mut cap = state.captures.clone();
+    // This runs after the group's body has matched. It records the range covered
+    // by the group, using the original entry position from `outer_state` and the
+    // current position from `state`.
+    //
+    // Forward groups capture [outer_end, inner_end). Backward groups capture
+    // [inner_end, outer_end). After updating the capture slot, continue matching
+    // from the group's current end position.
+    let mut captures = state.captures.clone();
+
     let input = outer_state.input.clone();
     let xe = outer_state.end_index;
     let ye = state.end_index;
-    let r = match direction {
-        Direction::Forward => CaptureRange { start_index: xe, end_index: ye },
-        Direction::Backward => CaptureRange { start_index: ye, end_index: xe },
+
+    let range = match direction {
+        Direction::Forward => {
+            debug_assert!(xe <= ye);
+            CaptureRange { start_index: xe, end_index: ye }
+        }
+        Direction::Backward => {
+            debug_assert!(ye <= xe);
+            CaptureRange { start_index: ye, end_index: xe }
+        }
     };
-    cap[paren_index] = Some(r);
-    let z = MatchState { input, end_index: ye, captures: cap };
-    continuation.as_ref()(z)
+
+    captures[paren_index] = Some(range);
+
+    let next_state = MatchState { input, end_index: ye, captures };
+    Step::CallContinuation { continuation, state: next_state }
 }
 
-fn group_matcher(
-    x: MatchState,
-    c: MatcherContinuation,
-    direction: Direction,
-    m: &Matcher,
-    paren_index: usize,
-) -> Option<MatchState> {
-    // a Matcher with parameters (x, c) that captures direction, m, and parenIndex and
-    //    performs the following steps when called:
+fn group_matcher(x: MatchState, c: MatcherContinuation, direction: Direction, m: Matcher, paren_index: usize) -> Step {
+    // Group matcher.
     //
-    //    a. Assert: x is a MatchState.
-    //    b. Assert: c is a MatcherContinuation.
-    //    c. Let d be a new MatcherContinuation with parameters (y) that captures x, c, direction, and
-    //       parenIndex and performs the following steps when called:
-    //       i. Assert: y is a MatchState.
-    //       ii. Let cap be a copy of y.[[Captures]].
-    //       iii. Let input be x.[[Input]].
-    //       iv. Let xe be x.[[EndIndex]].
-    //       v. Let ye be y.[[EndIndex]].
-    //       vi. If direction is forward, then
-    //           1. Assert: xe ≤ ye.
-    //           2. Let r be the CaptureRange { [[StartIndex]]: xe, [[EndIndex]]: ye }.
-    //       vii. Else,
-    //            1. Assert: direction is backward.
-    //            2. Assert: ye ≤ xe.
-    //            3. Let r be the CaptureRange { [[StartIndex]]: ye, [[EndIndex]]: xe }.
-    //       viii. Set cap[parenIndex + 1] to r.
-    //       ix. Let z be the MatchState { [[Input]]: input, [[EndIndex]]: ye, [[Captures]]: cap }.
-    //       x. Return c(z).
-    //    d. Return m(x, d).
-    let xc = x.clone();
-    let d = Rc::new(move |y| group_continuation(&y, &xc, &c, direction, paren_index));
-    m.as_ref()(x, d.clone())
+    // The group body matcher `m` runs at the current state `x`. If it succeeds,
+    // its continuation records the group's capture range and then resumes the
+    // caller's continuation `c`.
+    //
+    // Since execution is trampolined, this function returns a Step describing the
+    // call to `m` instead of invoking `m` directly.
+    let outer_state = x.clone();
+
+    let d: MatcherContinuation =
+        Rc::new(move |y| group_continuation(&y, &outer_state, c.clone(), direction, paren_index));
+
+    Step::CallMatcher { matcher: m, state: x, continuation: d }
 }
 
 impl Atom {
@@ -852,7 +862,7 @@ impl Atom {
                 //    d. Return m(x, d).
                 let m = disjunction.compile_subpattern(rer, direction, group_specifiers);
                 let paren_index = self.count_left_capturing_parens_before();
-                Rc::new(move |x, c| group_matcher(x, c, direction, &m, paren_index))
+                Rc::new(move |x, c| group_matcher(x, c, direction, m.clone(), paren_index))
             }
             AtomNode::UnGroupedDisjunction((add, remove), disjunction) => {
                 let empty_remove = RegularExpressionModifiers::default();
@@ -1012,17 +1022,17 @@ fn character_set_matcher(rer: &RegExpRecord, set: &CharSet, invert: bool, direct
     let set = set.canonicalized_for_matching(rer);
     let rer = rer.clone();
 
-    Rc::new(move |state, continuation| run_character_set_matcher(state, &continuation, &rer, &set, invert, direction))
+    Rc::new(move |state, continuation| run_character_set_matcher(state, continuation, &rer, &set, invert, direction))
 }
 
 fn run_character_set_matcher(
     state: MatchState,
-    continuation: &MatcherContinuation,
+    continuation: MatcherContinuation,
     rer: &RegExpRecord,
     char_set: &CharSet,
     invert: bool,
     direction: Direction,
-) -> Option<MatchState> {
+) -> Step {
     let MatchState { input, end_index, captures } = state;
 
     // Character set matching consumes exactly one input character. Forward
@@ -1030,10 +1040,12 @@ fn run_character_set_matcher(
     // character before `end_index` and retreats.
     let next_index = match direction {
         Direction::Forward => end_index + 1,
+
         Direction::Backward => {
             if end_index == 0 {
-                return None;
+                return Step::Done(None);
             }
+
             end_index - 1
         }
     };
@@ -1041,7 +1053,7 @@ fn run_character_set_matcher(
     // Forward matching can run off the end of the input. Backward matching was
     // already guarded against moving before the start.
     if next_index > input.len() {
-        return None;
+        return Step::Done(None);
     }
 
     // This is the input position actually tested: `end_index` for forward
@@ -1058,12 +1070,13 @@ fn run_character_set_matcher(
     // Inverted character classes succeed exactly when the character was not in
     // the set.
     if invert == found {
-        return None;
+        return Step::Done(None);
     }
 
     // Character set matching does not modify captures; it only moves the current
-    // input position.
-    continuation(MatchState { input, end_index: next_index, captures })
+    // input position. Since execution is trampolined, success schedules the
+    // continuation instead of calling it directly.
+    Step::CallContinuation { continuation, state: MatchState { input, end_index: next_index, captures } }
 }
 
 fn unicode_match_property(rer: &RegExpRecord, property: &str) -> anyhow::Result<&'static str> {
@@ -1777,110 +1790,61 @@ impl Iterator for CharSetIntoIter {
 
 fn run_backreference_match(
     state: MatchState,
-    continuation: &MatcherContinuation,
+    continuation: MatcherContinuation,
     rer: &RegExpRecord,
     backreferences: &[usize],
     direction: Direction,
-) -> Option<MatchState> {
-    // a Matcher with parameters (x, c) that captures regexpRecord, ns, and direction and performs the following steps when called:
-    //    a. Assert: x is a MatchState.
-    //    b. Assert: c is a MatcherContinuation.
-    //    c. Let input be x.[[Input]].
+) -> Step {
     let input = state.input;
-    //    d. Let cap be x.[[Captures]].
     let captures = state.captures;
-    //    e. Let r be undefined.
-    let mut r = None;
-    //    f. For each integer n of ns, do
-    for &n in backreferences {
-        //       i. If cap[n] is not undefined, then
-        if let Some(cap) = &captures[n - 1] {
-            //          1. Assert: r is undefined.
-            //          2. Set r to cap[n].
-            r = Some(cap);
-            break;
-        }
-    }
-    //    h. Let endIndex be x.[[EndIndex]].
     let end_index = state.end_index;
-    match r {
-        None => {
-            //    g. If r is undefined, return c(x).
-            continuation(MatchState { input, end_index, captures })
+
+    // Find the first referenced capture that participated in the match. If none
+    // did, the backreference matches the empty string and simply continues.
+    let capture_range = backreferences.iter().find_map(|&n| captures[n - 1].as_ref());
+
+    let Some(capture_range) = capture_range else {
+        return Step::CallContinuation { continuation, state: MatchState { input, end_index, captures } };
+    };
+
+    let rs = capture_range.start_index;
+    let re = capture_range.end_index;
+    let len = re - rs;
+
+    // A backreference matches the captured text at the current position. Forward
+    // matching advances by the capture length; backward matching retreats by it.
+    let next_index = if direction == Direction::Forward {
+        end_index + len
+    } else {
+        if end_index < len {
+            return Step::Done(None);
         }
-        Some(r) => {
-            //    i. Let rs be r.[[StartIndex]].
-            let rs = r.start_index;
-            //    j. Let re be r.[[EndIndex]].
-            let re = r.end_index;
-            //    k. Let len be re - rs.
-            let len = re - rs;
-            //    l. If direction is forward, let f be endIndex + len.
-            //    m. Else, let f be endIndex - len.
-            let f = if direction == Direction::Forward {
-                end_index + len
-            } else {
-                if end_index < len {
-                    return None;
-                }
-                end_index - len
-            };
-            //    n. Let inputLength be the number of elements in input.
-            let input_length = input.len();
-            //    o. If f < 0 or f > inputLength, return failure.
-            if f > input_length {
-                return None;
-            }
-            //    p. Let g be min(endIndex, f).
-            let g = end_index.min(f);
-            //    q. If there exists an integer i in the interval from 0 (inclusive) to len (exclusive) such that
-            //    Canonicalize(regexpRecord, input[rs + i]) is not Canonicalize(regexpRecord, input[g + i]), return
-            //    failure.
-            if (0..len).any(|idx| rer.canonicalize(input[rs + idx]) != rer.canonicalize(input[g + idx])) {
-                return None;
-            }
-            //    r. Let y be the MatchState { [[Input]]: input, [[EndIndex]]: f, [[Captures]]: cap }.
-            let y = MatchState { input, end_index: f, captures };
-            //    s. Return c(y).
-            continuation(y)
-        }
+        end_index - len
+    };
+
+    if next_index > input.len() {
+        return Step::Done(None);
     }
+
+    // Compare the captured text with the candidate text, after applying regexp
+    // canonicalization for ignore-case matching.
+    let candidate_start = end_index.min(next_index);
+    let matched =
+        (0..len).all(|idx| rer.canonicalize(input[rs + idx]) == rer.canonicalize(input[candidate_start + idx]));
+    if !matched {
+        return Step::Done(None);
+    }
+    Step::CallContinuation { continuation, state: MatchState { input, end_index: next_index, captures } }
 }
 
 fn backreference_matcher(rer: &RegExpRecord, backreferences: &[usize], direction: Direction) -> Matcher {
-    // BackreferenceMatcher ( regexpRecord, ns, direction )
-    // The abstract operation BackreferenceMatcher takes arguments regexpRecord (a RegExp Record), ns (a List of positive integers), and direction (forward or backward) and returns a Matcher. It performs the following steps when called:
-    //
-    // 1. Return a new Matcher with parameters (x, c) that captures regexpRecord, ns, and direction and performs the following steps when called:
-    //    a. Assert: x is a MatchState.
-    //    b. Assert: c is a MatcherContinuation.
-    //    c. Let input be x.[[Input]].
-    //    d. Let cap be x.[[Captures]].
-    //    e. Let r be undefined.
-    //    f. For each integer n of ns, do
-    //       i. If cap[n] is not undefined, then
-    //          1. Assert: r is undefined.
-    //          2. Set r to cap[n].
-    //    g. If r is undefined, return c(x).
-    //    h. Let endIndex be x.[[EndIndex]].
-    //    i. Let rs be r.[[StartIndex]].
-    //    j. Let re be r.[[EndIndex]].
-    //    k. Let len be re - rs.
-    //    l. If direction is forward, let f be endIndex + len.
-    //    m. Else, let f be endIndex - len.
-    //    n. Let inputLength be the number of elements in input.
-    //    o. If f < 0 or f > inputLength, return failure.
-    //    p. Let g be min(endIndex, f).
-    //    q. If there exists an integer i in the interval from 0 (inclusive) to len (exclusive) such that Canonicalize(regexpRecord, input[rs + i]) is not Canonicalize(regexpRecord, input[g + i]), return failure.
-    //    r. Let y be the MatchState { [[Input]]: input, [[EndIndex]]: f, [[Captures]]: cap }.
-    //    s. Return c(y).
     let rer = rer.clone();
     let backrefs = Vec::from(backreferences);
+
     Rc::new(move |state, continuation| {
-        run_backreference_match(state, &continuation, &rer, backrefs.as_slice(), direction)
+        run_backreference_match(state, continuation, &rer, backrefs.as_slice(), direction)
     })
 }
-
 impl AtomEscape {
     pub(crate) fn compile_atom(
         &self,
