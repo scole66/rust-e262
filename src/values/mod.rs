@@ -1671,6 +1671,13 @@ impl ECMAScriptValue {
             ECMAScriptValue::Object(_) => ValueKind::Object,
         }
     }
+
+    pub(crate) fn into_jsstring(self) -> Option<JSString> {
+        match self {
+            ECMAScriptValue::String(s) => Some(s),
+            _ => None,
+        }
+    }
 }
 
 impl PrimitiveValue {
