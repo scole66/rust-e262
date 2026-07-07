@@ -361,99 +361,91 @@ fn serialize_json_object(state: &mut JSONSerialization, value: &Object) -> Compl
     let vec_holder;
     let rc_holder;
 
-    // SerializeJSONObject ( state, value )
-    //
-    // The abstract operation SerializeJSONObject takes arguments state (a JSON Serialization Record) and value (an
-    // Object) and returns either a normal completion containing a String or a throw completion. It serializes an
-    // object. It performs the following steps when called:
+    // SerializeJSONObject(state, value)
 
     // Reject cyclic structures.
     if state.stack.contains(value) {
         return Err(create_type_error("cyclical structure detected in JSON stringify"));
     }
 
-    // 2. Append value to state.[[Stack]].
+    // Track the current object while serializing its properties.
     state.stack.push(value.clone());
 
-    // Increase indentation for nested output, saving the previous indentation.
+    // Increase indentation for nested output, saving the caller's indentation.
     let new_indent = state.indent.concat(&state.gap);
     let step_back = mem::replace(&mut state.indent, new_indent);
 
-    // 5. If state.[[PropertyList]] is not undefined, then
+    // Use the replacer property list when present; otherwise collect this
+    // object's enumerable own property keys.
     let keys = if let Some(list) = state.property_list.clone() {
-        // a. Let keys be state.[[PropertyList]].
         rc_holder = list;
         rc_holder.as_ref()
-    }
-    // 6. Else,
-    else {
-        // a. Let keys be ? EnumerableOwnProperties(value, key).
+    } else {
         vec_holder = enumerable_own_properties(value, KeyValueKind::Key)?
             .into_iter()
-            .map(|prop_str| prop_str.into_jsstring().expect("enumerable own props are always strings"))
+            .map(|prop_str| {
+                prop_str
+                    .into_jsstring()
+                    .expect("enumerable own props are always strings")
+            })
             .collect::<Vec<_>>();
+
         vec_holder.as_slice()
     };
-    // 7. Let partial be a new empty List.
+
+    // Serialize each selected property. Properties that serialize to undefined
+    // are omitted from the final object.
     let mut partial = vec![];
-    // 8. For each element propertyKey of keys, do
+
     for property_key in keys {
-        // a. Let stringP be ? SerializeJSONProperty(state, propertyKey, value).
         let string_p = serialize_json_property(state, property_key, value)?;
-        // b. If stringP is not undefined, then
+
         if let Some(property_string) = string_p {
-            // i. Let member be QuoteJSONString(propertyKey).
-            let member = quote_json_string(property_key);
-            // ii. Set member to the string-concatenation of member and ":".
-            let member = member.concat(COLON);
-            // iii. If state.[[Gap]] is not the empty String, then
+            // Build `"key":value` or `"key": value`, depending on pretty-printing.
+            let member = quote_json_string(property_key).concat(COLON);
+
             let member = if state.gap.is_empty() {
                 member
             } else {
-                // 1. Set member to the string-concatenation of member and the code unit 0x0020 (SPACE).
                 member.concat(BLANK)
             };
-            // iv. Set member to the string-concatenation of member and stringP.
-            let member = member.concat(property_string);
-            // v. Append member to partial.
-            partial.push(member);
+
+            partial.push(member.concat(property_string));
         }
     }
+
     let result = if partial.is_empty() {
-        // a. Let final be "{}".
+        // Empty objects serialize directly as {}.
         JSString::from("{}")
-    } else {
-        // a. If state.[[Gap]] is the empty String, then
-        if state.gap.is_empty() {
-            // i. Let properties be the String value formed by concatenating all the element Strings of partial with
-            // each adjacent pair of Strings separated with the code unit 0x002C (COMMA). A comma is not inserted either
-            // before the first String or after the last String.
-            // ii. Let final be the string-concatenation of "{", properties, and "}".
-            let comma = JSString::from(",");
+    } else if state.gap.is_empty() {
+        // Compact form: join members with "," and wrap in braces.
+        let comma = JSString::from(",");
 
-            let mut result = JSString::from("{");
-            for property in Itertools::intersperse(partial.iter(), &comma) {
-                result = result.concat(property);
-            }
-            result.concat(utf16_const!("}"))
-        } else {
-            // i. Let separator be the string-concatenation of the code unit 0x002C (COMMA), the code unit 0x000A (LINE FEED), and state.[[Indent]].
-            // ii. Let properties be the String value formed by concatenating all the element Strings of partial with each adjacent pair of Strings separated with separator. The separator String is not inserted either before the first String or after the last String.
-            // iii. Let final be the string-concatenation of "{", the code unit 0x000A (LINE FEED), state.[[Indent]], properties, the code unit 0x000A (LINE FEED), stepBack, and "}".
-            let separator = JSString::from(",").concat(NEWLINE).concat(&state.indent);
-
-            let mut result = JSString::from("{\n").concat(&state.indent);
-            for property in Itertools::intersperse(partial.iter(), &separator) {
-                result = result.concat(property);
-            }
-
-            result.concat(utf16_const!("\n")).concat(&step_back).concat(utf16_const!("}"))
+        let mut result = JSString::from("{");
+        for property in Itertools::intersperse(partial.iter(), &comma) {
+            result = result.concat(property);
         }
+
+        result.concat(utf16_const!("}"))
+    } else {
+        // Pretty-printed form: join members with ",\n{indent}" and wrap with
+        // leading/trailing newlines.
+        let separator = JSString::from(",").concat(NEWLINE).concat(&state.indent);
+
+        let mut result = JSString::from("{\n").concat(&state.indent);
+        for property in Itertools::intersperse(partial.iter(), &separator) {
+            result = result.concat(property);
+        }
+
+        result
+            .concat(utf16_const!("\n"))
+            .concat(&step_back)
+            .concat(utf16_const!("}"))
     };
-    // 11. Remove the last element of state.[[Stack]].
-    // 12. Set state.[[Indent]] to stepBack.
-    // 13. Return final.
+
+    // Leave this object serialization frame and restore the caller's indentation.
     state.stack.pop();
     state.indent = step_back;
+
     Ok(result)
 }
