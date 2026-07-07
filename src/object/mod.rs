@@ -1234,9 +1234,6 @@ pub(crate) trait ObjectInterface: Debug {
     fn to_builtin_function_with_revocable_proxy_slot(&self) -> Option<&BuiltinFunctionWithRevokableProxySlot> {
         None
     }
-    fn is_raw_json(&self) -> bool {
-        false
-    }
 
     fn get_prototype_of(&self) -> Completion<Option<Object>> {
         Ok(ordinary_get_prototype_of(self.as_object_interface()))
@@ -1602,14 +1599,6 @@ impl Object {
 
     pub(crate) fn as_regexp_string_iterator(&self) -> Option<&RegExpStringIterator> {
         self.o.as_regexp_string_iterator()
-    }
-
-    pub(crate) fn is_callable(&self) -> bool {
-        self.o.is_callable_obj()
-    }
-
-    pub(crate) fn is_raw_json(&self) -> bool {
-        self.o.is_raw_json()
     }
 }
 
