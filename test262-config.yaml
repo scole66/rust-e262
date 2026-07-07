@@ -9,15 +9,4 @@
   - resizable-arraybuffer
   - TypedArray
   - Int32Array
-  skipped_tests: # Mostly because they take too long to run -- use '--force' to ignore this list
-  - /built-ins/RegExp/CharacterClassEscapes/character-class-digit-class-escape-negative-cases.js
-  - /built-ins/RegExp/CharacterClassEscapes/character-class-non-digit-class-escape-positive-cases.js
-  - /built-ins/RegExp/CharacterClassEscapes/character-class-non-whitespace-class-escape-positive-cases.js
-  - /built-ins/RegExp/CharacterClassEscapes/character-class-non-word-class-escape-positive-cases.js
-  - /built-ins/RegExp/CharacterClassEscapes/character-class-whitespace-class-escape-negative-cases.js
-  - /built-ins/RegExp/CharacterClassEscapes/character-class-word-class-escape-negative-cases.js
-  - /built-ins/RegExp/property-escapes/generated/Alphabetic.js
-  - /built-ins/RegExp/property-escapes/generated/Any.js
-  - /built-ins/RegExp/property-escapes/generated/ASCII_Hex_Digit.js
-  - /built-ins/RegExp/property-escapes/generated/Assigned.js
-  - /built-ins/RegExp/property-escapes/generated/ASCII.js
+  skipped_tests: [] # Mostly because they take too long to run -- use '--force' to ignore this list

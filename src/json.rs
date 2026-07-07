@@ -395,7 +395,7 @@ fn serialize_json_object(state: &mut JSONSerialization, value: &Object) -> Compl
 
     // Serialize each selected property. Properties that serialize to undefined
     // are omitted from the final object.
-    let mut partial = vec![];
+    let mut partial = Vec::with_capacity(keys.len());
 
     for property_key in keys {
         let string_p = serialize_json_property(state, property_key, value)?;

@@ -54,7 +54,6 @@ fn create_native_error_object(
 
 pub(crate) fn create_type_error_object(message: impl Into<JSString>) -> Object {
     let error_constructor = intrinsic(IntrinsicId::TypeError);
-    println!("Creating Type Error");
     create_native_error_object(message, &error_constructor, IntrinsicId::TypeErrorPrototype, None)
 }
 
