@@ -1146,6 +1146,10 @@ impl UnicodePropertyValueExpression {
                 let assigned = CharSet::difference(&all, &unassigned);
                 return Ok(assigned);
             }
+            if value == "Changes_When_NFKC_Casefolded" {
+                // This is in the spec, but not in our generated datafiles.
+                return Ok(CharSet::from(CHANGES_WHEN_NFKC_CASEFOLDED));
+            }
         } else if (name == "Script" || name == "Script_Extensions") && value == "Unknown" {
             let mut set = CharSet::from((0, 0x10_ffff));
             let table = Self::PROPERTY_TABLE

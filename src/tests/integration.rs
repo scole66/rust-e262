@@ -1421,6 +1421,9 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("(new Number(NaN)).toString(9)" => vok("NaN"); "NaN in another radix is still NaN")]
 #[test_case("(new Number(Infinity)).toString(8)" => vok("Infinity"); "Infinity in another radix is still Infinity")]
 #[test_case("(new Number(-Infinity)).toString(8)" => vok("-Infinity"); "Negative Infinity in another radix is still -Infinity")]
+// 2026/07/08 Changes_When_NFKC_Casefolded
+#[test_case(r"/^\p{CWKCF}$/u.test('\xAD')" => vok(true); "CWKCF: in char set")]
+#[test_case(r"/^\p{CWKCF}$/u.test('a')" => vok(false); "CWKCF: not in char set")]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
