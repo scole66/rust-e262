@@ -853,6 +853,16 @@ pub(crate) fn double_to_radix_string(val: f64, radix: u32) -> String {
     // This code is pretty blatantly grabbed from v8 source, and rewritten in rust.
     // See: https://github.com/v8/v8/blob/3847b33fda814db5c7540501c1646eb3a85198a7/src/numbers/conversions.cc#L1378
 
+    if !val.is_finite() {
+        return String::from(if val.is_nan() {
+            "NaN"
+        } else if val.is_sign_positive() {
+            "Infinity"
+        } else {
+            "-Infinity"
+        });
+    }
+
     // Character array used for conversion.
     let chars = b"0123456789abcdefghijklmnopqrstuvwxyz";
 
