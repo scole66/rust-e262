@@ -1,0 +1,11 @@
+path="$1"
+
+find "$path" -name '*.js' | sort | xargs -n 1 -P 0 -I {} sh -c '
+tmp="$(mktemp)"
+{
+  echo "$1:"
+  ./target/release/test262 "$1"
+} > "$tmp" 2>&1
+cat "$tmp"
+rm -f "$tmp"
+' sh {}
