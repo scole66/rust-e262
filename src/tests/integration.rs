@@ -1417,6 +1417,10 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 // 2026/05/23 regex group counting
 #[test_case("/(z)((a+)?(b+)?(c))*/.exec('zaacbbbcac').join(', ')" => vok("zaacbbbcac, z, ac, a, , c"); "regexp: capturing group counting")]
 #[test_case("/o/i.test('O')" => vok(true); "regexp: case-insignificant; lower to upper")]
+// 2026/07/07 Number.prototype.toString failures with NaN, Infinity, -Infinity
+#[test_case("(new Number(NaN)).toString(9)" => vok("NaN"); "NaN in another radix is still NaN")]
+#[test_case("(new Number(Infinity)).toString(8)" => vok("Infinity"); "Infinity in another radix is still Infinity")]
+#[test_case("(new Number(-Infinity)).toString(8)" => vok("-Infinity"); "Negative Infinity in another radix is still -Infinity")]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
