@@ -3325,7 +3325,7 @@ mod insn_impl {
         //  9. Return closure.
         let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
         let priv_env = current_private_environment();
-        let name = pop_string()?;
+        let name = pop_key()?;
 
         let to_compile: Rc<GeneratorExpression> = info.to_compile.clone().try_into()?;
         let chunk_name = nameify(&info.source_text, 50);
