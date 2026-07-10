@@ -9,7 +9,7 @@ pub(crate) struct ParameterMap {
 impl fmt::Debug for ParameterMap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ParameterMap")
-            .field("env", &format!("{:?}", &self.env)) // turn off "alternate" flag for env
+            .field("env", &format!("{:?}", self.env)) // turn off "alternate" flag for env
             .field("properties", &self.properties)
             .finish()
     }

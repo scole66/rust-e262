@@ -403,7 +403,7 @@ fn class_tail_test_cache_01() {
     let mut parser = newparser("{}");
     let (node, scanner) = check(ClassTail::parse(&mut parser, Scanner::new(), false, false));
     let (node2, scanner2) = check(ClassTail::parse(&mut parser, Scanner::new(), false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]

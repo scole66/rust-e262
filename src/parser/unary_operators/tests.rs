@@ -237,7 +237,7 @@ mod unary_expression {
         let mut parser = newparser("void blue");
         let (node, scanner) = check(UnaryExpression::parse(&mut parser, Scanner::new(), false, false));
         let (node2, scanner2) = check(UnaryExpression::parse(&mut parser, Scanner::new(), false, false));
-        assert!(scanner == scanner2);
+        assert_eq!(scanner, scanner2);
         assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]

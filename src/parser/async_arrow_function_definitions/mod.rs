@@ -89,7 +89,7 @@ impl AsyncArrowFunction {
         let (_cceaaah, after_params) =
             CoverCallExpressionAndAsyncArrowHead::parse(parser, scanner, yield_flag, await_flag)?;
         let (real_params, after_reals) = AsyncArrowHead::parse(parser, scanner)?;
-        assert!(after_params == after_reals);
+        assert_eq!(after_params, after_reals);
         no_line_terminator(after_params, parser.source)?;
         let (_, after_arrow) = scan_for_punct(after_params, parser.source, InputElementGoal::Div, Punctuator::EqGt)?;
         let (body, after_body) = AsyncConciseBody::parse(parser, after_arrow, in_flag)?;

@@ -35,8 +35,8 @@ mod base {
         let base = Base::Environment(env.clone());
         let should_be_equal = Base::Environment(env);
         let shouldnt_be_equal = Base::Environment(other_env);
-        assert!(base == should_be_equal);
-        assert!(base != shouldnt_be_equal);
+        assert_eq!(base, should_be_equal);
+        assert_ne!(base, shouldnt_be_equal);
     }
 
     #[test_case(&Base::Unresolvable, &Base::Unresolvable => true; "unresolvable match")]
@@ -315,8 +315,8 @@ mod reference {
         };
         let r3 = r1.clone();
 
-        assert!(r1 == r3);
-        assert!(r1 != r2);
+        assert_eq!(r1, r3);
+        assert_ne!(r1, r2);
     }
 
     mod new {

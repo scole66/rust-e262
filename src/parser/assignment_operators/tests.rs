@@ -163,7 +163,7 @@ mod assignment_expression {
         let mut parser = newparser("a+=b+c+d+e");
         let (node, scanner) = check(AssignmentExpression::parse(&mut parser, Scanner::new(), true, false, false));
         let (node2, scanner2) = check(AssignmentExpression::parse(&mut parser, Scanner::new(), true, false, false));
-        assert!(scanner == scanner2);
+        assert_eq!(scanner, scanner2);
         assert!(Rc::ptr_eq(&node, &node2));
     }
 

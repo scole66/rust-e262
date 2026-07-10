@@ -364,7 +364,7 @@ fn method_definition_test_cache_01() {
     let mut parser = newparser("a(b){c;}");
     let (node, scanner) = check(MethodDefinition::parse(&mut parser, Scanner::new(), false, false));
     let (node2, scanner2) = check(MethodDefinition::parse(&mut parser, Scanner::new(), false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]

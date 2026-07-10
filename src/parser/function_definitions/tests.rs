@@ -171,7 +171,7 @@ fn function_declaration_test_cache_01() {
     let mut parser = newparser("function f() {}");
     let (node, scanner) = check(FunctionDeclaration::parse(&mut parser, Scanner::new(), false, false, false));
     let (node2, scanner2) = check(FunctionDeclaration::parse(&mut parser, Scanner::new(), false, false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -433,7 +433,7 @@ fn function_body_test_cache_01() {
     let (node, scanner) = FunctionBody::parse(&mut parser, Scanner::new(), false, false, FunctionBodyParent::Function);
     let (node2, scanner2) =
         FunctionBody::parse(&mut parser, Scanner::new(), false, false, FunctionBodyParent::Function);
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
