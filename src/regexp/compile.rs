@@ -1357,6 +1357,13 @@ impl UnicodePropertyValueExpression {
                 // This is in the spec, but not in our generated datafiles.
                 return Ok(CharSet::from(CHANGES_WHEN_NFKC_CASEFOLDED));
             }
+            if value == "Emoji_Keycap_Sequence" {
+                let mut cs = CharSet::default();
+                for s in EMOJI_KEYCAP_SEQUENCE {
+                    cs.insert_string(*s);
+                }
+                return Ok(cs);
+            }
         } else if (name == "Script" || name == "Script_Extensions") && value == "Unknown" {
             let mut set = CharSet::from((0, 0x10_ffff));
             let table = Self::PROPERTY_TABLE
@@ -2223,3 +2230,32 @@ pub(crate) fn legacy_canonicalize_for_table(ch: u32) -> u32 {
 
     u32::from(*cu)
 }
+
+// # Emoji_Keycap_Sequence
+//
+// 0023 FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: \x{23}                                                 # E0.6   [1] (#️⃣)
+// 002A FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: *                                                      # E2.0   [1] (*️⃣)
+// 0030 FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: 0                                                      # E0.6   [1] (0️⃣)
+// 0031 FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: 1                                                      # E0.6   [1] (1️⃣)
+// 0032 FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: 2                                                      # E0.6   [1] (2️⃣)
+// 0033 FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: 3                                                      # E0.6   [1] (3️⃣)
+// 0034 FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: 4                                                      # E0.6   [1] (4️⃣)
+// 0035 FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: 5                                                      # E0.6   [1] (5️⃣)
+// 0036 FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: 6                                                      # E0.6   [1] (6️⃣)
+// 0037 FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: 7                                                      # E0.6   [1] (7️⃣)
+// 0038 FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: 8                                                      # E0.6   [1] (8️⃣)
+// 0039 FE0F 20E3; Emoji_Keycap_Sequence        ; keycap: 9                                                      # E0.6   [1] (9️⃣)
+const EMOJI_KEYCAP_SEQUENCE: &[&[u32; 3]; 12] = &[
+    &[0x0023, 0xFE0F, 0x20E3],
+    &[0x002A, 0xFE0F, 0x20E3],
+    &[0x0030, 0xFE0F, 0x20E3],
+    &[0x0031, 0xFE0F, 0x20E3],
+    &[0x0032, 0xFE0F, 0x20E3],
+    &[0x0033, 0xFE0F, 0x20E3],
+    &[0x0034, 0xFE0F, 0x20E3],
+    &[0x0035, 0xFE0F, 0x20E3],
+    &[0x0036, 0xFE0F, 0x20E3],
+    &[0x0037, 0xFE0F, 0x20E3],
+    &[0x0038, 0xFE0F, 0x20E3],
+    &[0x0039, 0xFE0F, 0x20E3],
+];
