@@ -1329,11 +1329,11 @@ fn thd_count_test_01() {
 }
 #[test]
 fn thd_count_test_02() {
-    assert!(THDCount::try_from(4) == Ok(THDCount(4)));
+    assert_eq!(THDCount::try_from(4), Ok(THDCount(4)));
 }
 #[test]
 fn thd_count_test_03() {
-    assert!(THDCount::try_from(0) == Ok(THDCount(0)));
+    assert_eq!(THDCount::try_from(0), Ok(THDCount(0)));
 }
 #[test]
 fn thd_count_test_04() {

@@ -32,7 +32,7 @@ fn unique_formal_parameters_test_cache_01() {
     let mut parser = newparser("a,b,c,d,e");
     let (node, scanner) = UniqueFormalParameters::parse(&mut parser, Scanner::new(), false, false);
     let (node2, scanner2) = UniqueFormalParameters::parse(&mut parser, Scanner::new(), false, false);
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -216,7 +216,7 @@ fn formal_parameters_test_cache_01() {
     let mut parser = newparser("a, b, c, d, e");
     let (node, scanner) = FormalParameters::parse(&mut parser, Scanner::new(), false, false);
     let (node2, scanner2) = FormalParameters::parse(&mut parser, Scanner::new(), false, false);
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -687,7 +687,7 @@ mod formal_parameter {
         let mut parser = newparser("a");
         let (node, scanner) = check(FormalParameter::parse(&mut parser, Scanner::new(), false, false));
         let (node2, scanner2) = check(FormalParameter::parse(&mut parser, Scanner::new(), false, false));
-        assert!(scanner == scanner2);
+        assert_eq!(scanner, scanner2);
         assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]

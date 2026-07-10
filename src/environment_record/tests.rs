@@ -1357,7 +1357,7 @@ mod global_environment_record {
             // 2. Binding is not yet initialized
             assert!(binding.value.is_none());
             // 3. Binding has correct deletable flag
-            assert!(binding.mutability == Mutability::Mutable(Removability::from(deletable)));
+            assert_eq!(binding.mutability, Mutability::Mutable(Removability::from(deletable)));
             // 4. No additional bindings were added
             assert_eq!(bindings.len(), 1);
         }
@@ -1408,7 +1408,7 @@ mod global_environment_record {
             // 2. Binding is not yet initialized
             assert!(binding.value.is_none());
             // 3. Binding has correct strict flag
-            assert!(binding.mutability == Mutability::Immutable(Strictness::from(strict)));
+            assert_eq!(binding.mutability, Mutability::Immutable(Strictness::from(strict)));
             // 4. No additional bindings were added
             assert_eq!(bindings.len(), 1);
         }

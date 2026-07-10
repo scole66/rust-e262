@@ -212,7 +212,7 @@ impl ArrowParameters {
                 // } else {
                 //     Ok((Box::new(ArrowParameters::Formals(formals)), after_formals))
                 // }
-                debug_assert!(after_formals == after_reparse);
+                debug_assert_eq!(after_formals, after_reparse);
                 Ok((Rc::new(ArrowParameters::Formals(formals)), after_formals))
             })
     }

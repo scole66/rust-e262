@@ -316,7 +316,7 @@ mod identifier {
         let (identifier, scanner) = result;
         chk_scan(&scanner, 3);
         let data = &identifier.name;
-        assert!(data.string_value == "bob");
+        assert_eq!(data.string_value, "bob");
         assert!(data.keyword_id.is_none());
         assert_eq!(
             identifier.location,
@@ -328,9 +328,9 @@ mod identifier {
         let text = "手がける黒田征太郎さんです";
         let (identifier, scanner) =
             check(Identifier::parse(&mut Parser::new(text, false, ParseGoal::Script), Scanner::new()));
-        assert!(scanner == Scanner { line: 1, column: 14, start_idx: 39 });
+        assert_eq!(scanner, Scanner { line: 1, column: 14, start_idx: 39 });
         let data = &identifier.name;
-        assert!(data.string_value == "手がける黒田征太郎さんです");
+        assert_eq!(data.string_value, "手がける黒田征太郎さんです");
         assert!(data.keyword_id.is_none());
         assert_eq!(
             identifier.location,
@@ -342,7 +342,7 @@ mod identifier {
         let mut parser = newparser("bnana");
         let (node, scanner) = Identifier::parse(&mut parser, Scanner::new()).unwrap();
         let (node2, scanner2) = Identifier::parse(&mut parser, Scanner::new()).unwrap();
-        assert!(scanner == scanner2);
+        assert_eq!(scanner, scanner2);
         assert!(Rc::ptr_eq(&node, &node2));
     }
 
@@ -468,7 +468,7 @@ fn identifier_reference_test_cache_01() {
     let mut parser = newparser("bnana");
     let (node, scanner) = IdentifierReference::parse(&mut parser, Scanner::new(), false, false).unwrap();
     let (node2, scanner2) = IdentifierReference::parse(&mut parser, Scanner::new(), false, false).unwrap();
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 mod identifier_reference {
@@ -696,7 +696,7 @@ fn binding_identifier_test_cache_01() {
     let mut parser = newparser("bnana");
     let (node, scanner) = BindingIdentifier::parse(&mut parser, Scanner::new(), false, false).unwrap();
     let (node2, scanner2) = BindingIdentifier::parse(&mut parser, Scanner::new(), false, false).unwrap();
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 mod binding_identifier {
@@ -1022,7 +1022,7 @@ fn label_identifier_test_cache_01() {
     let mut parser = newparser("bob");
     let (node, scanner) = LabelIdentifier::parse(&mut parser, Scanner::new(), false, false).unwrap();
     let (node2, scanner2) = LabelIdentifier::parse(&mut parser, Scanner::new(), false, false).unwrap();
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 mod label_identifier {

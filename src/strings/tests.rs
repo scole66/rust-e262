@@ -17,13 +17,13 @@ mod jsstring {
             let src: &[u16] = &[0x101, 0xDC67, 0xE00D, 0x1111, 0xE00E]; // not valid utf-16.
             let res = JSString::from(src);
             let display = format!("{res}");
-            assert!(display == "\u{0101}\u{FFFD}\u{E00D}\u{1111}\u{E00E}");
-            assert!(res.len() == 5);
-            assert!(res[0] == 0x101);
-            assert!(res[1] == 0xdc67);
-            assert!(res[2] == 0xe00d);
-            assert!(res[3] == 0x1111);
-            assert!(res[4] == 0xe00e);
+            assert_eq!(display, "\u{0101}\u{FFFD}\u{E00D}\u{1111}\u{E00E}");
+            assert_eq!(res.len(), 5);
+            assert_eq!(res[0], 0x101);
+            assert_eq!(res[1], 0xdc67);
+            assert_eq!(res[2], 0xe00d);
+            assert_eq!(res[3], 0x1111);
+            assert_eq!(res[4], 0xe00e);
         }
 
         const BOB_U8: &[u8] = &[66, 111, 98];
@@ -48,7 +48,7 @@ mod jsstring {
     fn debug_repr_test_01() {
         let jsstr = JSString::from("hello");
         let debug_str = format!("{jsstr:?}");
-        assert!(debug_str == "\"hello\"");
+        assert_eq!(debug_str, "\"hello\"");
     }
     #[test]
     fn equality_test_01() {
@@ -56,44 +56,44 @@ mod jsstring {
         let s2 = JSString::from("orange");
         let s3 = JSString::from("blue");
         let s4 = JSString::from("b");
-        assert!(s1 == s3);
-        assert!(s1 != s2);
-        assert!(s2 != s3);
-        assert!(s1 == "blue");
-        assert!(s2 == "orange");
-        assert!(s1 != "elephant");
-        assert!(s1 != "orange");
-        assert!(s1 != s4);
-        assert!(s4 != s1);
-        assert!(s1 != "blueox");
-        assert!(s1 != "blu");
+        assert_eq!(s1, s3);
+        assert_ne!(s1, s2);
+        assert_ne!(s2, s3);
+        assert_eq!(s1, "blue");
+        assert_eq!(s2, "orange");
+        assert_ne!(s1, "elephant");
+        assert_ne!(s1, "orange");
+        assert_ne!(s1, s4);
+        assert_ne!(s4, s1);
+        assert_ne!(s1, "blueox");
+        assert_ne!(s1, "blu");
     }
 
     #[test]
     fn clone_test() {
         let s1 = JSString::from("crocodile");
         let s2 = s1.clone();
-        assert!(s1 == s2);
+        assert_eq!(s1, s2);
     }
 
     #[test]
     fn code_point_at_01() {
         let mystr = JSString::from("test");
         let r1 = code_point_at(&mystr, 0);
-        assert!(r1.code_point == 116);
-        assert!(r1.code_unit_count == 1);
+        assert_eq!(r1.code_point, 116);
+        assert_eq!(r1.code_unit_count, 1);
         assert!(!r1.is_unpaired_surrogate);
         let r2 = code_point_at(&mystr, 1);
-        assert!(r2.code_point == 101);
-        assert!(r2.code_unit_count == 1);
+        assert_eq!(r2.code_point, 101);
+        assert_eq!(r2.code_unit_count, 1);
         assert!(!r2.is_unpaired_surrogate);
         let r3 = code_point_at(&mystr, 2);
-        assert!(r3.code_point == 115);
-        assert!(r3.code_unit_count == 1);
+        assert_eq!(r3.code_point, 115);
+        assert_eq!(r3.code_unit_count, 1);
         assert!(!r3.is_unpaired_surrogate);
         let r4 = code_point_at(&mystr, 0);
-        assert!(r4.code_point == 116);
-        assert!(r4.code_unit_count == 1);
+        assert_eq!(r4.code_point, 116);
+        assert_eq!(r4.code_unit_count, 1);
         assert!(!r4.is_unpaired_surrogate);
     }
 
@@ -112,7 +112,7 @@ mod jsstring {
         let positions = [0, 1, 3, 4, 5, 6];
         for idx in 0..positions.len() {
             let result = code_point_at(&mystr, positions[idx]);
-            assert!(result == expected[idx]);
+            assert_eq!(result, expected[idx]);
         }
     }
 
@@ -123,11 +123,11 @@ mod jsstring {
         let b1 = CodePointAtResult { code_point: 0x100, code_unit_count: 1, is_unpaired_surrogate: false };
         let b2 = CodePointAtResult { code_point: 0x100, code_unit_count: 2, is_unpaired_surrogate: true };
         let b3 = CodePointAtResult { code_point: 0x101, code_unit_count: 2, is_unpaired_surrogate: false };
-        assert!(a != b1);
-        assert!(a != b2);
-        assert!(a != b3);
+        assert_ne!(a, b1);
+        assert_ne!(a, b2);
+        assert_ne!(a, b3);
         let c = CodePointAtResult { code_point: 0x100, code_unit_count: 2, is_unpaired_surrogate: false };
-        assert!(a == c);
+        assert_eq!(a, c);
     }
 
     #[test]
@@ -136,7 +136,7 @@ mod jsstring {
         let mystr = JSString::from(src);
         let result = mystr.to_code_points();
         let expected = vec![0, 0x10000, 0xde00, 0xd900, 0xe2, 0xd902];
-        assert!(result == expected);
+        assert_eq!(result, expected);
     }
 
     #[test]

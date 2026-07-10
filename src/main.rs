@@ -186,7 +186,7 @@ fn run_app() -> Result<(), i32> {
         1 => repl(),
         2 => run_file(&args[1]),
         _ => {
-            eprintln!("Usage: {} [path]", &args[0]);
+            eprintln!("Usage: {} [path]", args[0]);
             return Err(2);
         }
     }

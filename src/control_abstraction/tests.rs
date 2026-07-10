@@ -1418,7 +1418,7 @@ mod iterator_kind {
     fn clone() {
         let a = IteratorKind::Sync;
         let b = a.clone();
-        assert!(a == b);
+        assert_eq!(a, b);
     }
 }
 

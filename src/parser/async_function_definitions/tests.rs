@@ -701,7 +701,7 @@ fn async_function_body_test_cache_01() {
     let mut parser = newparser("blue(67); orange(30);");
     let (node, scanner) = AsyncFunctionBody::parse(&mut parser, Scanner::new());
     let (node2, scanner2) = AsyncFunctionBody::parse(&mut parser, Scanner::new());
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]

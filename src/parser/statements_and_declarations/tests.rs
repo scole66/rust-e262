@@ -298,7 +298,7 @@ fn statement_test_cache_01() {
     let mut parser = newparser("A += 34;");
     let (node, scanner) = check(Statement::parse(&mut parser, Scanner::new(), true, false, false));
     let (node2, scanner2) = check(Statement::parse(&mut parser, Scanner::new(), true, false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 fn statement_vdn_check(src: &str, expected: &[&str]) {

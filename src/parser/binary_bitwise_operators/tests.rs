@@ -387,7 +387,7 @@ fn bitwise_or_expression_test_cache_01() {
     let mut parser = newparser("6|7");
     let (node, scanner) = check(BitwiseORExpression::parse(&mut parser, Scanner::new(), true, false, false));
     let (node2, scanner2) = check(BitwiseORExpression::parse(&mut parser, Scanner::new(), true, false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
