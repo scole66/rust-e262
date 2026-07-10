@@ -4018,7 +4018,7 @@ mod object {
                 match &actual {
                     Err(s) => panic!("Saw an Err({s}) when Ok was expected"),
                     Ok((flag, msg)) => {
-                        assert!(*flag == expected_flag, "Expected success flag to be {expected_flag:?}");
+                        assert_eq!(*flag, expected_flag, "Expected success flag to be {expected_flag:?}");
                         assert!(re.is_match(msg));
                     }
                 }

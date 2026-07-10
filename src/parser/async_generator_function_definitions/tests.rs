@@ -833,7 +833,7 @@ fn async_generator_body_test_cache_01() {
     let mut parser = newparser("blue(67); yield orange(30);");
     let (node, scanner) = AsyncGeneratorBody::parse(&mut parser, Scanner::new());
     let (node2, scanner2) = AsyncGeneratorBody::parse(&mut parser, Scanner::new());
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]

@@ -656,7 +656,7 @@ fn generator_body_test_cache_01() {
     let mut parser = newparser("yield 1;");
     let (node, scanner) = GeneratorBody::parse(&mut parser, Scanner::new());
     let (node2, scanner2) = GeneratorBody::parse(&mut parser, Scanner::new());
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]

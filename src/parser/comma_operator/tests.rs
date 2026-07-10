@@ -29,7 +29,7 @@ fn expression_test_cache_01() {
     let mut parser = newparser("blue(67)+90");
     let (node, scanner) = check(Expression::parse(&mut parser, Scanner::new(), true, false, false));
     let (node2, scanner2) = check(Expression::parse(&mut parser, Scanner::new(), true, false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]

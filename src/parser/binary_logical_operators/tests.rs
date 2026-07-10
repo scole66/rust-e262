@@ -401,7 +401,7 @@ mod coalesce_expression {
         let mut parser = newparser("z??a??b");
         let (node, scanner) = check(CoalesceExpression::parse(&mut parser, Scanner::new(), true, false, false));
         let (node2, scanner2) = check(CoalesceExpression::parse(&mut parser, Scanner::new(), true, false, false));
-        assert!(scanner == scanner2);
+        assert_eq!(scanner, scanner2);
         assert!(Rc::ptr_eq(&node, &node2));
     }
     #[test]

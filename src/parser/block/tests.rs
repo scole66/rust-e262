@@ -158,7 +158,7 @@ fn block_test_cache_01() {
     let mut parser = newparser("{ a=1; b=2; c=3; }");
     let (node, scanner) = check(Block::parse(&mut parser, Scanner::new(), false, false, true));
     let (node2, scanner2) = check(Block::parse(&mut parser, Scanner::new(), false, false, true));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -347,7 +347,7 @@ fn statement_list_test_cache_01() {
     let mut parser = newparser("a=1; b=2; c=3;");
     let (node, scanner) = check(StatementList::parse(&mut parser, Scanner::new(), false, false, true));
     let (node2, scanner2) = check(StatementList::parse(&mut parser, Scanner::new(), false, false, true));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]

@@ -952,7 +952,7 @@ mod elision {
         let mut parser = newparser(",,,");
         let (node1, scan1) = Elisions::parse(&mut parser, Scanner::new()).unwrap();
         let (node2, scan2) = Elisions::parse(&mut parser, Scanner::new()).unwrap();
-        assert!(scan1 == scan2);
+        assert_eq!(scan1, scan2);
         assert!(Rc::ptr_eq(&node1, &node2));
     }
 }
@@ -1460,7 +1460,7 @@ fn array_literal_test_01() {
     ));
     pretty_check(&*al, "ArrayLiteral: [ ]", &[]);
     concise_check(&*al, "ArrayLiteral: [ ]", &["Punctuator: [", "Punctuator: ]"]);
-    assert_ne!(format!("{:?}", &*al), "");
+    assert_ne!(format!("{:?}", *al), "");
 }
 #[test]
 fn array_literal_test_02() {
@@ -1762,7 +1762,7 @@ fn initializer_test_cache_01() {
     let mut parser = newparser("='ble'");
     let (node, scanner) = check(Initializer::parse(&mut parser, Scanner::new(), true, false, false));
     let (node2, scanner2) = check(Initializer::parse(&mut parser, Scanner::new(), true, false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -1934,7 +1934,7 @@ fn computed_property_name_test_01() {
     ));
     pretty_check(&*cpn, "ComputedPropertyName: [ a ]", &["AssignmentExpression: a"]);
     concise_check(&*cpn, "ComputedPropertyName: [ a ]", &["Punctuator: [", "IdentifierName: a", "Punctuator: ]"]);
-    assert_ne!(format!("{:?}", &*cpn), "");
+    assert_ne!(format!("{:?}", *cpn), "");
 }
 #[test]
 fn computed_property_name_test_prettyerrors_1() {
@@ -2231,7 +2231,7 @@ mod property_name {
         let mut parser = newparser("killroy");
         let (node1, scan1) = PropertyName::parse(&mut parser, Scanner::new(), true, true).unwrap();
         let (node2, scan2) = PropertyName::parse(&mut parser, Scanner::new(), true, true).unwrap();
-        assert!(scan1 == scan2);
+        assert_eq!(scan1, scan2);
         assert!(Rc::ptr_eq(&node1, &node2));
     }
 
@@ -3516,7 +3516,7 @@ fn template_literal_test_cache_01() {
     let mut parser = newparser("`Name: ${name}; Phone: ${phone}.`");
     let (node, scanner) = check(TemplateLiteral::parse(&mut parser, Scanner::new(), false, false, false));
     let (node2, scanner2) = check(TemplateLiteral::parse(&mut parser, Scanner::new(), false, false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -4043,7 +4043,7 @@ mod cover_parenthesized_expression_and_arrow_parameter_list {
             check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
         let (node2, scanner2) =
             check(CoverParenthesizedExpressionAndArrowParameterList::parse(&mut parser, Scanner::new(), false, false));
-        assert!(scanner == scanner2);
+        assert_eq!(scanner, scanner2);
         assert!(Rc::ptr_eq(&node, &node2));
     }
 }

@@ -480,7 +480,7 @@ fn expression_body_test_cache_01() {
     let mut parser = newparser("a+b+c+d+e");
     let (node, scanner) = check(ExpressionBody::parse(&mut parser, Scanner::new(), false, false));
     let (node2, scanner2) = check(ExpressionBody::parse(&mut parser, Scanner::new(), false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -575,7 +575,7 @@ fn arrow_formal_parameters_test_cache_01() {
     let mut parser = newparser("(a,b)");
     let (node, scanner) = check(ArrowFormalParameters::parse(&mut parser, Scanner::new(), false, false));
     let (node2, scanner2) = check(ArrowFormalParameters::parse(&mut parser, Scanner::new(), false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]

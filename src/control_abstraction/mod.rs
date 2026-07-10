@@ -861,7 +861,7 @@ pub(crate) enum IteratorKind {
     Async,
 }
 #[cfg(test)]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) enum IteratorKind {
     Sync,
     Async,

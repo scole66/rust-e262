@@ -36,7 +36,7 @@ fn lexical_declaration_test_cache_01() {
     let mut parser = newparser("let i=0;");
     let (node, scanner) = check(LexicalDeclaration::parse(&mut parser, Scanner::new(), true, false, false));
     let (node2, scanner2) = check(LexicalDeclaration::parse(&mut parser, Scanner::new(), true, false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -155,7 +155,7 @@ mod lexical_declaration {
 #[test]
 fn let_or_const_test_01() {
     let item = LetOrConst::Const;
-    assert!(format!("{item}") == "const");
+    assert_eq!(format!("{item}"), "const");
     pretty_check(&item, "LetOrConst: const", &[]);
     concise_check(&item, "Keyword: const", &[]);
     pretty_error_validate(&item);
@@ -164,7 +164,7 @@ fn let_or_const_test_01() {
 #[test]
 fn let_or_const_test_02() {
     let item = LetOrConst::Let;
-    assert!(format!("{item}") == "let");
+    assert_eq!(format!("{item}"), "let");
     pretty_check(&item, "LetOrConst: let", &[]);
     concise_check(&item, "Keyword: let", &[]);
     pretty_error_validate(&item);
@@ -562,7 +562,7 @@ fn variable_declaration_list_test_cache_01() {
     let mut parser = newparser("a,b,c,d,10");
     let (node, scanner) = check(VariableDeclarationList::parse(&mut parser, Scanner::new(), true, false, false));
     let (node2, scanner2) = check(VariableDeclarationList::parse(&mut parser, Scanner::new(), true, false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -857,7 +857,7 @@ fn binding_pattern_test_cache_01() {
     let mut parser = newparser("{one, two, three}");
     let (node, scanner) = check(BindingPattern::parse(&mut parser, Scanner::new(), false, false));
     let (node2, scanner2) = check(BindingPattern::parse(&mut parser, Scanner::new(), false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -1563,7 +1563,7 @@ fn binding_rest_property_test_cache_01() {
     let mut parser = newparser("...xyz");
     let (node, scanner) = check(BindingRestProperty::parse(&mut parser, Scanner::new(), false, false));
     let (node2, scanner2) = check(BindingRestProperty::parse(&mut parser, Scanner::new(), false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -2163,7 +2163,7 @@ fn binding_element_test_cache_01() {
     let mut parser = newparser("{xyz}=test_object");
     let (node, scanner) = check(BindingElement::parse(&mut parser, Scanner::new(), false, false));
     let (node2, scanner2) = check(BindingElement::parse(&mut parser, Scanner::new(), false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -2333,7 +2333,7 @@ fn single_name_binding_test_cache_01() {
     let mut parser = newparser("xyz=green");
     let (node, scanner) = check(SingleNameBinding::parse(&mut parser, Scanner::new(), false, false));
     let (node2, scanner2) = check(SingleNameBinding::parse(&mut parser, Scanner::new(), false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]
@@ -2453,7 +2453,7 @@ fn binding_rest_element_test_cache_01() {
     let mut parser = newparser("...{xyz}");
     let (node, scanner) = check(BindingRestElement::parse(&mut parser, Scanner::new(), false, false));
     let (node2, scanner2) = check(BindingRestElement::parse(&mut parser, Scanner::new(), false, false));
-    assert!(scanner == scanner2);
+    assert_eq!(scanner, scanner2);
     assert!(Rc::ptr_eq(&node, &node2));
 }
 #[test]

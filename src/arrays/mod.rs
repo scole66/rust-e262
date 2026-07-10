@@ -3001,18 +3001,14 @@ where
     while let Some((low, high)) = stack.pop() {
         if low < high {
             // Partition the array and get pivot position
-            match partition(arr, low, high, &compare) {
-                Ok(pivot) => {
-                    // Push right partition if it exists
-                    if pivot + 1 < high {
-                        stack.push((pivot + 1, high));
-                    }
-                    // Push left partition if it exists
-                    if pivot > low {
-                        stack.push((low, pivot - 1));
-                    }
-                }
-                Err(e) => return Err(e), // Early exit on comparison error
+            let pivot = partition(arr, low, high, &compare)?;
+            // Push right partition if it exists
+            if pivot + 1 < high {
+                stack.push((pivot + 1, high));
+            }
+            // Push left partition if it exists
+            if pivot > low {
+                stack.push((low, pivot - 1));
             }
         }
     }
