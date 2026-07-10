@@ -91,6 +91,14 @@ pub(crate) enum Step {
         state: MatchState,
         continuation: MatcherContinuation,
     },
+
+    MatchStringAlternatives {
+        strings: Rc<[Rc<[u32]>]>,
+        index: usize,
+        state: MatchState,
+        continuation: MatcherContinuation,
+        direction: Direction,
+    },
 }
 
 fn run(mut step: Step) -> Option<MatchState> {
@@ -139,8 +147,74 @@ fn run(mut step: Step) -> Option<MatchState> {
                     None => Step::CallContinuation { continuation, state },
                 }
             }
+            Step::MatchStringAlternatives { strings, index, state, continuation, direction } => {
+                match_string_alternatives_step(strings, index, state, continuation, direction)
+            }
         }
     }
+}
+
+fn match_string_alternatives_step(
+    strings: Rc<[Rc<[u32]>]>,
+    index: usize,
+    state: MatchState,
+    continuation: MatcherContinuation,
+    direction: Direction,
+) -> Step {
+    let Some(string) = strings.get(index).cloned() else {
+        return Step::Done(None);
+    };
+
+    let Some(next_state) = match_string_at_state(&state, string.as_ref(), direction) else {
+        return Step::MatchStringAlternatives { strings, index: index + 1, state, continuation, direction };
+    };
+
+    // If this string matches locally, try the caller's continuation.
+    // If the continuation fails, fall back to the next string alternative.
+    Step::PushChoice {
+        then_do: Box::new(Step::CallContinuation { continuation: continuation.clone(), state: next_state }),
+        fallback: Box::new(Step::MatchStringAlternatives { strings, index: index + 1, state, continuation, direction }),
+    }
+}
+
+fn match_string_at_state(state: &MatchState, string: &[u32], direction: Direction) -> Option<MatchState> {
+    let input = state.input.as_ref();
+    let end_index = state.end_index;
+    let len = string.len();
+
+    let next_index = match direction {
+        Direction::Forward => {
+            if end_index + len > input.len() {
+                return None;
+            }
+
+            for i in 0..len {
+                if input[end_index + i] != string[i] {
+                    return None;
+                }
+            }
+
+            end_index + len
+        }
+
+        Direction::Backward => {
+            if end_index < len {
+                return None;
+            }
+
+            let start = end_index - len;
+
+            for i in 0..len {
+                if input[start + i] != string[i] {
+                    return None;
+                }
+            }
+
+            start
+        }
+    };
+
+    Some(MatchState { input: state.input.clone(), end_index: next_index, captures: state.captures.clone() })
 }
 
 fn identity_continuation() -> MatcherContinuation {
@@ -763,6 +837,25 @@ fn group_matcher(x: MatchState, c: MatcherContinuation, direction: Direction, m:
     Step::CallMatcher { matcher: m, state: x, continuation: d }
 }
 
+fn string_alternatives_matcher(strings: impl IntoIterator<Item = Vec<u32>>, direction: Direction) -> Matcher {
+    let mut strings = strings.into_iter().map(|s| Rc::<[u32]>::from(s.into_boxed_slice())).collect::<Vec<_>>();
+
+    // Spec tries multi-character strings in descending length.
+    // Keep whatever ordering rules your caller already applied if it has already
+    // sorted according to the spec.
+    strings.sort_by_key(|s| std::cmp::Reverse(s.len()));
+
+    let strings: Rc<[Rc<[u32]>]> = Rc::from(strings.into_boxed_slice());
+
+    Rc::new(move |state, continuation| Step::MatchStringAlternatives {
+        strings: strings.clone(),
+        index: 0,
+        state,
+        continuation,
+        direction,
+    })
+}
+
 impl Atom {
     pub(crate) fn compile_atom(
         &self,
@@ -812,27 +905,55 @@ impl Atom {
                 if rer.unicode_sets == UnicodeSetsMode::Denied || cs.all_single_or_empty() {
                     return character_set_matcher(rer, &cs, cc.invert, direction);
                 }
-                // 4. Assert: cc.[[Invert]] is false.
-                // 5. Let lm be an empty List of Matchers.
-                // 6. For each CharSetElement s in cs containing more than 1 character, iterating in descending order of
-                //    length, do
-                //    a. Let cs2 be a one-element CharSet containing the last code point of s.
-                //    b. Let m2 be CharacterSetMatcher(rer, cs2, false, direction).
-                //    c. For each code point c1 in s, iterating backwards from its second-to-last code point, do
-                //       i. Let cs1 be a one-element CharSet containing c1.
-                //       ii. Let m1 be CharacterSetMatcher(rer, cs1, false, direction).
-                //       iii. Set m2 to MatchSequence(m1, m2, direction).
-                //    d. Append m2 to lm.
-                // 7. Let singles be the CharSet containing every CharSetElement of cs that consists of a single
-                //    character.
-                // 8. Append CharacterSetMatcher(rer, singles, false, direction) to lm.
-                // 9. If cs contains the empty sequence of characters, append EmptyMatcher() to lm.
-                // 10. Let m2 be the last Matcher in lm.
-                // 11. For each Matcher m1 of lm, iterating backwards from its second-to-last element, do
-                //     a. Set m2 to MatchTwoAlternatives(m1, m2).
-                // 12. Return m2.
 
-                todo!()
+                // UnicodeSets mode allows string-valued CharSetElements from \q{...}. The spec
+                // describes these by building a list of matchers:
+                //
+                //   1. multi-character strings, tried in descending length
+                //   2. all single characters as one CharacterSetMatcher
+                //   3. EmptyMatcher, if the class contains the empty string
+                //
+                // Then it combines that list with MatchTwoAlternatives.
+                //
+                // Our matcher execution is trampolined, so we avoid building nested
+                // MatchSequence chains for each string. Instead, compile the multi-character
+                // elements into one dedicated fixed-string-alternatives matcher, then combine
+                // that with the ordinary single-character matcher and optional empty matcher.
+                debug_assert!(!cc.invert);
+
+                let mut strings = cs
+                    .iter()
+                    .filter_map(|element| {
+                        if let CharSetElement::Multiple(element) = element {
+                            let chars = element.as_slice();
+
+                            if chars.len() > 1 { Some(chars.to_vec()) } else { None }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                strings.sort_by_key(|s| std::cmp::Reverse(s.len()));
+
+                let mut matchers = Vec::new();
+
+                if !strings.is_empty() {
+                    matchers.push(string_alternatives_matcher(strings, direction));
+                }
+
+                let singles = cs
+                    .iter()
+                    .filter_map(|element| if let CharSetElement::Single(ch) = element { Some(ch) } else { None })
+                    .collect::<CharSet>();
+
+                matchers.push(character_set_matcher(rer, &singles, false, direction));
+
+                if cs.contains_string(&[]) {
+                    matchers.push(empty_matcher());
+                }
+
+                match_any_alternatives(matchers)
             }
             AtomNode::GroupedDisjunction { group_specifier: _, disjunction } => {
                 // Atom :: ( GroupSpecifieropt Disjunction )
@@ -938,6 +1059,92 @@ impl NonemptyClassRanges {
 }
 
 impl ClassSetExpression {
+    fn compile_to_char_set(&self, rer: &RegExpRecord) -> CharSet {
+        match self {
+            ClassSetExpression::Union(node) => node.compile_to_char_set(rer),
+            ClassSetExpression::Intersection(node) => node.compile_to_char_set(rer),
+            ClassSetExpression::Subtraction(node) => node.compile_to_char_set(rer),
+        }
+    }
+}
+
+impl ClassUnion {
+    fn compile_to_char_set(&self, rer: &RegExpRecord) -> CharSet {
+        match self {
+            ClassUnion::Range { range, union: None } => range.compile_to_char_set(rer),
+            ClassUnion::Range { range, union: Some(union) } => {
+                let mut char_set = range.compile_to_char_set(rer);
+                let other_set = union.compile_to_char_set(rer);
+                char_set.union_with(&other_set);
+                char_set
+            }
+            ClassUnion::Operand { operand, union: None } => operand.compile_to_char_set(rer),
+            ClassUnion::Operand { operand, union: Some(union) } => {
+                let mut char_set = operand.compile_to_char_set(rer);
+                let other_set = union.compile_to_char_set(rer);
+                char_set.union_with(&other_set);
+                char_set
+            }
+        }
+    }
+}
+
+impl ClassSetOperand {
+    fn compile_to_char_set(&self, rer: &RegExpRecord) -> CharSet {
+        match self {
+            ClassSetOperand::NestedClass(node) => node.compile_to_char_set(rer),
+            ClassSetOperand::ClassStringDisjunction(node) => {
+                let cs = node.compile_to_char_set();
+                maybe_simple_case_folding(rer, cs)
+            }
+            ClassSetOperand::ClassSetCharacter(ch) => {
+                let cs = CharSet::from(*ch);
+                maybe_simple_case_folding(rer, cs)
+            }
+        }
+    }
+}
+
+impl ClassStringDisjunction {
+    fn compile_to_char_set(&self) -> CharSet {
+        self.0.iter().map(ClassString::compile_class_set_string).collect::<CharSet>()
+    }
+}
+
+impl ClassString {
+    fn compile_class_set_string(&self) -> Vec<u32> {
+        self.0.clone()
+    }
+}
+
+impl NestedClass {
+    fn compile_to_char_set(&self, rer: &RegExpRecord) -> CharSet {
+        match self {
+            NestedClass::Class(node) => node.compile_to_char_set(rer),
+            NestedClass::NegatedClass(node) => {
+                let char_set = node.compile_to_char_set(rer);
+                char_set.character_complement(rer)
+            }
+            NestedClass::CharacterClassEscape(node) => node.compile_to_char_set(rer),
+        }
+    }
+}
+
+impl ClassSetRange {
+    fn compile_to_char_set(self, rer: &RegExpRecord) -> CharSet {
+        let cs = CharSet::from((self.first, self.last));
+        maybe_simple_case_folding(rer, cs)
+    }
+}
+
+impl ClassIntersection {
+    #[expect(unused_variables)]
+    fn compile_to_char_set(&self, rer: &RegExpRecord) -> CharSet {
+        todo!()
+    }
+}
+
+impl ClassSubtraction {
     #[expect(unused_variables)]
     fn compile_to_char_set(&self, rer: &RegExpRecord) -> CharSet {
         todo!()
@@ -1447,6 +1654,26 @@ impl From<u32> for CharSet {
     }
 }
 
+impl FromIterator<Vec<u32>> for CharSet {
+    fn from_iter<T: IntoIterator<Item = Vec<u32>>>(iter: T) -> Self {
+        let mut cs = CharSet::default();
+        for s in iter {
+            cs.insert_string(s);
+        }
+        cs
+    }
+}
+
+impl FromIterator<u32> for CharSet {
+    fn from_iter<T: IntoIterator<Item = u32>>(iter: T) -> Self {
+        let mut cs = CharSet::default();
+        for ch in iter {
+            cs.insert(ch);
+        }
+        cs
+    }
+}
+
 impl From<(u32, u32)> for CharSet {
     fn from(value: (u32, u32)) -> Self {
         let mut set = CharSet::default();
@@ -1474,7 +1701,6 @@ impl CharSet {
         self.contains(ch)
     }
 
-    #[expect(dead_code)]
     pub(crate) fn contains_string(&self, s: &[u32]) -> bool {
         match s {
             [ch] => self.contains(*ch),
@@ -1563,6 +1789,9 @@ impl CharSet {
     fn union_with(&mut self, other: &Self) {
         for (&start, &end) in &other.ranges {
             self.insert_range(start, end);
+        }
+        for s in &other.strings {
+            self.insert_string(s.clone());
         }
     }
 
