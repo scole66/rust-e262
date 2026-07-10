@@ -3371,8 +3371,8 @@ impl ClassSubtraction {
 //      ClassSetCharacter - ClassSetCharacter
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub(crate) struct ClassSetRange {
-    first: u32,
-    last: u32,
+    pub(crate) first: u32,
+    pub(crate) last: u32,
 }
 impl fmt::Display for ClassSetRange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -3543,7 +3543,7 @@ impl NestedClass {
 // ClassStringDisjunction ::
 //      \q{ ClassStringDisjunctionContents }
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ClassStringDisjunction(Vec<ClassString>);
+pub(crate) struct ClassStringDisjunction(pub(crate) Vec<ClassString>);
 impl fmt::Display for ClassStringDisjunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "\\q{{{}}}", join_display(&self.0, "|"))
@@ -3593,16 +3593,25 @@ impl ClassStringDisjunctionContents {
     }
 }
 
+pub(crate) fn escaped_for_display(ch: u32) -> String {
+    match char::from_u32(ch) {
+        Some(c) if !c.is_control() => c.to_string(),
+        _ => format!("\\u{{{ch:X}}}"),
+    }
+}
 // ClassString ::
 //      [empty]
 //      NonEmptyClassString
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ClassString(Vec<u32>);
+pub(crate) struct ClassString(pub(crate) Vec<u32>);
 impl fmt::Display for ClassString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", join_display(&self.0, ""))
+        let escaped = self.0.iter().copied().map(escaped_for_display).collect::<String>();
+
+        write!(f, "{escaped}")
     }
 }
+
 impl ClassString {
     fn parse(scanner: &Scanner) -> (Self, ScannerMutation) {
         if let Some((string, amt)) = NonEmptyClassString::parse(scanner) {
