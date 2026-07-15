@@ -1426,6 +1426,16 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case(r"/^\p{CWKCF}$/u.test('a')" => vok(false); "CWKCF: not in char set")]
 // 2026/07/08 The \q stuff.
 #[test_case(r"/^[\p{ASCII_Hex_Digit}\q{0|2|4|9\uFE0F\u20E3}]+$/v.test('9\uFE0F\u20E3')" => vok(true); "regex: slash-q works correctly in disjunctions")]
+// 2026/07/15 private id in optional chain
+#[test_case(
+    "
+    var C = class { #m = 'test262'; static access(obj) { return obj?.#m; } }
+    let c = new C();
+    C.access(c)
+    "
+    => vok("test262");
+    "optional chain; private id"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

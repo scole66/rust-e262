@@ -2472,7 +2472,7 @@ impl MemberExpression {
                 //   <memberexpression>                err/baseReference
                 //   GET_VALUE                         err/baseValue
                 //   JUMP_IF_ABRUPT exit               baseValue
-                //   MAKE_PRIV_REF fieldName           ref
+                //   PRIVATE_REF fieldName             ref
                 // exit:
 
                 let status = me.compile(chunk, strict, source)?;
@@ -3033,7 +3033,19 @@ impl OptionalChain {
                 evaluate_property_access_with_identifier_key(chunk, id, strict, line).map(CompilerStatusFlags::from)
             }
             OptionalChain::Template(_, _) => todo!(),
-            OptionalChain::PrivateId(_, _) => todo!(),
+            OptionalChain::PrivateId(id, _) => {
+                // OptionalChain : ?. PrivateIdentifier
+                // 1. Let fieldNameString be the StringValue of PrivateIdentifier.
+                // 2. Return MakePrivateReference(baseValue, fieldNameString).
+                //
+                // start:                           baseValue baseReference
+                //    UNWIND 1                      baseValue
+                //    PRIVATE_REF field_name        newRef
+                chunk.op_plus_arg(Insn::Unwind, 1, line);
+                let idx = chunk.add_to_string_pool(id.string_value.clone())?;
+                chunk.op_plus_arg(Insn::MakePrivateReference, idx, line);
+                Ok(CompilerStatusFlags::new().abrupt(false).reference(true))
+            }
             OptionalChain::PlusArgs(oc, args) => {
                 // OptionalChain : OptionalChain Arguments
                 //  1. Let optionalChain be OptionalChain.
