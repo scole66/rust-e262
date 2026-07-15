@@ -12793,7 +12793,7 @@ mod optional_chain {
         => Ok((svec(&["00001: ?.a", "UNWIND 1", "STRING 0 (a)", "STRICT_REF"]), false, true));
         "oc: id; success"
     )]
-    #[test_case("?.``", true, &[] => panics "not yet implemented"; "oc: template")]
+    #[test_case("?.``", true, &[] => serr("Template literals are not allowed in optional chains"); "oc: template")]
     #[test_case(
         "?.#a", true, &[]
         => Ok((svec(&["00001: ?.#a", "UNWIND 1", "PRIVATE_REF 0 (#a)"]), false, true));
