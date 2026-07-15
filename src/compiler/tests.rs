@@ -12794,7 +12794,11 @@ mod optional_chain {
         "oc: id; success"
     )]
     #[test_case("?.``", true, &[] => panics "not yet implemented"; "oc: template")]
-    #[test_case("?.#a", true, &[] => panics "not yet implemented"; "oc: privateid")]
+    #[test_case(
+        "?.#a", true, &[]
+        => Ok((svec(&["00001: ?.#a", "UNWIND 1", "PRIVATE_REF 0 (#a)"]), false, true));
+        "oc: privateid"
+    )]
     #[test_case(
         "?.a()", true, &[]
         => Ok((
