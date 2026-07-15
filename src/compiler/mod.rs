@@ -1,6 +1,6 @@
 use super::*;
 use ahash::AHashSet;
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use counter::Counter;
 #[cfg(test)]
 use num::BigInt;
@@ -1046,7 +1046,7 @@ fn compile_debug_lit(chunk: &mut Chunk, ch: &DebugKind, line: usize) -> anyhow::
         }
         DebugKind::Char('~') => {
             // Be a compiler error
-            anyhow::bail!("@@~ token detected. aborting compilation.")
+            bail!("@@~ token detected. aborting compilation.")
         }
         DebugKind::Char(_) => (),
     }
@@ -3032,7 +3032,7 @@ impl OptionalChain {
                 chunk.op_plus_arg(Insn::Unwind, 1, line);
                 evaluate_property_access_with_identifier_key(chunk, id, strict, line).map(CompilerStatusFlags::from)
             }
-            OptionalChain::Template(_, _) => todo!(),
+            OptionalChain::Template(_, _) => bail!("Template literals are not allowed in optional chains"),
             OptionalChain::PrivateId(id, _) => {
                 // OptionalChain : ?. PrivateIdentifier
                 // 1. Let fieldNameString be the StringValue of PrivateIdentifier.
@@ -3709,7 +3709,7 @@ impl RelationalExpression {
             RelationalExpression::GreaterEqual(_, _) => Insn::GreaterEqual,
             RelationalExpression::InstanceOf(_, _) => Insn::InstanceOf,
             RelationalExpression::In(_, _) => Insn::In,
-            _ => anyhow::bail!("RelationalExpression has no binary instruction"),
+            _ => bail!("RelationalExpression has no binary instruction"),
         })
     }
 
