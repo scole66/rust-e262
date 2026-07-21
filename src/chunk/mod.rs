@@ -333,6 +333,7 @@ impl Chunk {
             | Insn::GetParentsFromSuperclass
             | Insn::GeneratorStartFromFunction
             | Insn::Yield
+            | Insn::YieldFrom
             | Insn::CreateDefaultConstructor
             | Insn::MakeClassConstructorAndSetName
             | Insn::MakeConstructor
