@@ -207,6 +207,7 @@ pub(crate) enum Insn {
     UpdateEmpty,
     Void,
     Yield,
+    YieldFrom,
     Zero,
 }
 
@@ -331,6 +332,7 @@ impl fmt::Display for Insn {
             Insn::InstantiateGeneratorMethod => "GEN_METHOD",
             Insn::GeneratorStartFromFunction => "GEN_START",
             Insn::Yield => "YIELD",
+            Insn::YieldFrom => "YIELD_FROM",
             Insn::LeftShift => "LSH",
             Insn::SignedRightShift => "SRSH",
             Insn::UnsignedRightShift => "URSH",
@@ -2776,7 +2778,37 @@ impl CallExpression {
                 }
                 Ok(CompilerStatusFlags::new().abrupt(true))
             }
-            CallExpression::CallThenPrivateId(_, _, _) => todo!(),
+            CallExpression::CallThenPrivateId(call_expression, private_identifier, _) => {
+                // CallExpression : CallExpression . PrivateIdentifier
+                // 1. Let baseRef be ? Evaluation of CallExpression.
+                // 2. Let baseValue be ? GetValue(baseRef).
+                // 3. Let fieldNameString be the StringValue of PrivateIdentifier.
+                // 4. Return MakePrivateReference(baseValue, fieldNameString).
+
+                // start:
+                //    <call_expression>          baseRef/err
+                //    GET_VALUE                  baseValue/err
+                //    JUMP_IF_ABRUPT exit        baseValue
+                //    PRIVATE_REF field_name     ref
+                // exit:
+
+                let status = call_expression.compile(chunk, strict, source)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue, line);
+                }
+                let exit = if status.maybe_ref() || status.maybe_abrupt() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
+                } else {
+                    None
+                };
+                let idx = chunk.add_to_string_pool(private_identifier.string_value.clone())?;
+                chunk.op_plus_arg(Insn::MakePrivateReference, idx, line);
+                if let Some(mark) = exit {
+                    chunk.fixup(mark).expect("jump too short to fail");
+                }
+
+                Ok(CompilerStatusFlags::new().abrupt(true).reference(true))
+            }
         }
     }
 }
@@ -4096,7 +4128,29 @@ impl YieldExpression {
                 }
                 Ok(CompilerStatusFlags::new().abrupt(true))
             }
-            Self::From { .. } => todo!(),
+            Self::From { exp, location: _ } => {
+                // start:
+                //   <exp>                  exprRef/err
+                //   GET_VALUE              value/err
+                //   JUMP_IF_ABRUPT exit    value
+                //   YIELD_FROM             result/err
+                // exit:
+                let status = exp.compile(chunk, strict, source)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue, line);
+                }
+                let exit = if status.maybe_abrupt() || status.maybe_ref() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
+                } else {
+                    None
+                };
+                chunk.op(Insn::YieldFrom, line);
+                if let Some(exit) = exit {
+                    chunk.fixup(exit).expect("jump too short to fail");
+                }
+
+                Ok(CompilerStatusFlags::new().abrupt(true))
+            }
         }
     }
 }

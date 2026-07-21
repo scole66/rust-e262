@@ -3365,6 +3365,7 @@ mod insn_impl {
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
     }
+
     pub(crate) async fn yield_insn(co: &Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> anyhow::Result<()> {
         // Yield ( value )
         // The abstract operation Yield takes argument value (an ECMAScript language value) and returns either a normal
@@ -3380,6 +3381,123 @@ mod insn_impl {
         push_completion(yielded_result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
+
+    async fn yield_from_internal(
+        co: &Co<ECMAScriptValue, Completion<ECMAScriptValue>>,
+        value: ECMAScriptValue,
+    ) -> Completion<ECMAScriptValue> {
+        let iterator_record = get_iterator(&value, IteratorKind::Sync)?;
+        let iterator = &iterator_record.iterator;
+
+        // `yield*` starts by forwarding `undefined` into the delegate iterator's
+        // `next` method. After each outer yield, `received` becomes whatever the
+        // caller sent back into this generator: normal value, throw, or return.
+        let mut received = Ok(ECMAScriptValue::Undefined);
+
+        loop {
+            match &received {
+                Ok(received_value) => {
+                    // Normal resumption is forwarded to the delegate's `next`
+                    // method. The yielded iterator result object is then yielded
+                    // outward from this generator.
+                    let inner_result = super::call(
+                        &iterator_record.next_method,
+                        &ECMAScriptValue::Object(iterator_record.iterator.clone()),
+                        std::slice::from_ref(received_value),
+                    )?;
+
+                    let ECMAScriptValue::Object(inner_result) = inner_result else {
+                        return Err(create_type_error("iterator result should be an object"));
+                    };
+
+                    // A completed delegate ends the `yield*` expression with the
+                    // delegate's final value.
+                    if iterator_complete(&inner_result)? {
+                        return iterator_value(&inner_result);
+                    }
+
+                    received = generator_yield(co, inner_result.into()).await;
+                }
+
+                Err(AbruptCompletion::Throw { value: received_value }) => {
+                    // Throws sent into `yield*` are forwarded to the delegate's
+                    // `throw` method when it has one.
+                    let throw = iterator.get_method(&"throw".into())?;
+
+                    if throw.is_undefined() {
+                        // Without a delegate `throw` method, the protocol requires
+                        // closing the iterator before reporting the missing method as
+                        // a TypeError.
+                        super::iterator_close(&iterator_record, Ok(NormalCompletion::Empty))?;
+
+                        return Err(create_type_error("iterator does not have a throw method"));
+                    }
+
+                    let inner_result = super::call(
+                        &throw,
+                        &ECMAScriptValue::Object(iterator.clone()),
+                        std::slice::from_ref(received_value),
+                    )?;
+
+                    let ECMAScriptValue::Object(inner_result) = inner_result else {
+                        return Err(create_type_error("iterator result should be an object"));
+                    };
+
+                    // A delegate `throw` may either finish the delegation or produce
+                    // another iterator result to yield outward.
+                    if iterator_complete(&inner_result)? {
+                        return iterator_value(&inner_result);
+                    }
+
+                    received = generator_yield(co, inner_result.into()).await;
+                }
+
+                Err(AbruptCompletion::Return { value: received_value }) => {
+                    // Returns sent into `yield*` are offered to the delegate's
+                    // `return` method so it can clean up or intercept completion.
+                    let return_method = iterator.get_method(&"return".into())?;
+
+                    if return_method.is_undefined() {
+                        return Err(AbruptCompletion::Return { value: received_value.clone() });
+                    }
+
+                    let inner_return_result = super::call(
+                        &return_method,
+                        &ECMAScriptValue::Object(iterator.clone()),
+                        std::slice::from_ref(received_value),
+                    )?;
+
+                    let ECMAScriptValue::Object(inner_return_result) = inner_return_result else {
+                        return Err(create_type_error("iterator result should be an object"));
+                    };
+
+                    // If the delegate's `return` completes, the outer generator also
+                    // returns with that value. Otherwise, delegation continues with
+                    // the yielded iterator result.
+                    if iterator_complete(&inner_return_result)? {
+                        let returned_value = iterator_value(&inner_return_result)?;
+
+                        return Err(AbruptCompletion::Return { value: returned_value });
+                    }
+
+                    received = generator_yield(co, inner_return_result.into()).await;
+                }
+
+                Err(_) => unreachable!("generator yield should resume with normal, throw, or return completion"),
+            }
+        }
+    }
+
+    pub(crate) async fn yield_from(co: &Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> anyhow::Result<()> {
+        // Input Stack:       value
+        // Output Stack:      err/result
+
+        let value = pop_value()?;
+        let result = yield_from_internal(co, value).await;
+        push_completion(result.map(NormalCompletion::from))?;
+        Ok(())
+    }
+
     pub(crate) fn reg_exp_create(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let pattern = string_operand(chunk)?;
         let flags = string_operand(chunk)?;
@@ -4147,6 +4265,7 @@ pub(crate) async fn execute(
             Insn::AttachSourceText => insn_impl::attach_source_text(&chunk).expect(GOODCODE),
             Insn::GeneratorStartFromFunction => insn_impl::generator_start_from_function(&source).expect(GOODCODE),
             Insn::Yield => insn_impl::yield_insn(&co).await.expect(GOODCODE),
+            Insn::YieldFrom => insn_impl::yield_from(&co).await.expect(GOODCODE),
             Insn::NameOnlyFieldRecord => insn_impl::name_only_field_record(Static::No).expect(GOODCODE),
             Insn::NameOnlyStaticFieldRecord => insn_impl::name_only_field_record(Static::Yes).expect(GOODCODE),
             Insn::MakePrivateReference => insn_impl::make_private_reference(&chunk).expect(GOODCODE),

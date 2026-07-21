@@ -1841,7 +1841,28 @@ mod call_expression {
         "JUMP 2",
         "UNWIND 1"
     ]), true, false)); "template-on-call")]
-    #[test_case("a().#pid", true, &[] => panics "not yet implemented"; "private-on-call")]
+    #[test_case(
+        "a().#pid", true, &[]
+        => Ok((
+            svec(&[
+                "00001: a().#pid",
+                "STRING 0 (a)",
+                "STRICT_RESOLVE",
+                "DUP",
+                "GET_VALUE",
+                "JUMP_IF_NORMAL 4",
+                "UNWIND 1",
+                "JUMP 3",
+                "FLOAT 0 (0)",
+                "CALL_STRICT",
+                "JUMP_IF_ABRUPT 2",
+                "PRIVATE_REF 1 (#pid)"
+            ]),
+            true,
+            true,
+        ));
+        "private-on-call"
+    )]
     fn compile(src: &str, strict: bool, what: &[(Fillable, usize)]) -> Result<(Vec<String>, bool, bool), String> {
         let (node, ast) = Maker::new(src).call_expression_ast();
         let mut c = complex_filled_chunk("x", what);
