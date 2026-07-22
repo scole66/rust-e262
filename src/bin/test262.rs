@@ -231,7 +231,8 @@ fn main() -> Result<()> {
     let test_name = args.path;
     let info = construct_test(&harness_path, Path::new(&test_name), false)?;
 
-    if (args.force || !ignored_tests.iter().any(|path| test_name.ends_with(path.as_str())))
+    if !info.module
+        && (args.force || !ignored_tests.iter().any(|path| test_name.ends_with(path.as_str())))
         && !ignored_features.iter().any(|f| info.features.contains(f))
     {
         for source in &info.source {
