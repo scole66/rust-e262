@@ -1436,6 +1436,16 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => vok("test262");
     "optional chain; private id"
 )]
+#[test_case(
+    "
+    var C = class { #f = 'Test262'; method(o) { return o?.c.#f; } };
+    let c = new C();
+    let o = {c: c};
+    c.method(o)
+    "
+    => vok("Test262");
+    "optional chain-on-chain; private id"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

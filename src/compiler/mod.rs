@@ -3064,7 +3064,9 @@ impl OptionalChain {
                 chunk.op_plus_arg(Insn::Unwind, 1, line);
                 evaluate_property_access_with_identifier_key(chunk, id, strict, line).map(CompilerStatusFlags::from)
             }
-            OptionalChain::Template(_, _) => bail!("Template literals are not allowed in optional chains"),
+            OptionalChain::Template(_, _) | OptionalChain::PlusTemplate(_, _) => {
+                bail!("Template literals are not allowed in optional chains")
+            }
             OptionalChain::PrivateId(id, _) => {
                 // OptionalChain : ?. PrivateIdentifier
                 // 1. Let fieldNameString be the StringValue of PrivateIdentifier.
@@ -3176,8 +3178,31 @@ impl OptionalChain {
                 chunk.fixup(exit).expect("Jump should be too short to fail");
                 Ok(CompilerStatusFlags::from(AlwaysAbruptRefResult))
             }
-            OptionalChain::PlusTemplate(_, _) => todo!(),
-            OptionalChain::PlusPrivateId(_, _, _) => todo!(),
+            OptionalChain::PlusPrivateId(optional_chain, private_identifier, _) => {
+                // start:                          baseValue baseRef
+                //   <oc.chain_evaluation>         newRef/err
+                //   GET_VALUE                     newValue/err
+                //   JUMP_IF_ABRUPT exit           newValue
+                //   PRIVATE_REF field_name        ref
+                // exit:                           ref/err
+
+                let status = optional_chain.chain_evaluation(chunk, strict, source)?;
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue, line);
+                }
+                let exit = if status.maybe_abrupt() || status.maybe_ref() {
+                    Some(chunk.op_jump(Insn::JumpIfAbrupt, line))
+                } else {
+                    None
+                };
+                let field_name = chunk.add_to_string_pool(private_identifier.string_value.clone())?;
+                chunk.op_plus_arg(Insn::MakePrivateReference, field_name, line);
+
+                if let Some(mark) = exit {
+                    chunk.fixup(mark).expect("jump too short to fail");
+                }
+                Ok(CompilerStatusFlags::new().abrupt(exit.is_some()).reference(true))
+            }
         }
     }
 }

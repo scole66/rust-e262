@@ -12949,8 +12949,24 @@ mod optional_chain {
         => serr("Out of room for strings in this compilation unit");
         "oc: oc id; id compile fails"
     )]
-    #[test_case("?.a``", false, &[] => panics "not yet implemented"; "oc: oc template")]
-    #[test_case("?.a.#b", false, &[] => panics "not yet implemented"; "oc: oc privateid")]
+    #[test_case("?.a``", false, &[] => serr("Template literals are not allowed in optional chains"); "oc: oc template")]
+    #[test_case(
+        "?.a.#b", false, &[]
+        => Ok((
+            svec(&[
+                "00001: ?.a.#b",
+                "UNWIND 1",
+                "STRING 0 (a)",
+                "REF",
+                "GET_VALUE",
+                "JUMP_IF_ABRUPT 2",
+                "PRIVATE_REF 1 (#b)"
+                ]),
+            true,
+            true
+        ));
+        "oc: oc privateid"
+)]
     fn chain_evaluation(
         src: &str,
         strict: bool,
