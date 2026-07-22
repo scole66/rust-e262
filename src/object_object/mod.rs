@@ -211,6 +211,35 @@ pub(crate) fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
     )
     .unwrap();
 
+    // Object.prototoype.__proto__
+    define_property_or_throw(
+        &object_prototype,
+        "__proto__",
+        PotentialPropertyDescriptor::new()
+            .configurable(true)
+            .get(create_builtin_function(
+                Box::new(object_prototype_get_proto),
+                None,
+                0.0,
+                "__proto__".into(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype.clone()),
+                Some("get".into()),
+            ))
+            .set(create_builtin_function(
+                Box::new(object_prototype_set_proto),
+                None,
+                1.0,
+                "__proto__".into(),
+                BUILTIN_FUNCTION_SLOTS,
+                Some(realm.clone()),
+                Some(function_prototype),
+                Some("set".into()),
+            )),
+    )
+    .expect(GOODOBJ);
+
     realm.borrow_mut().intrinsics.object = object_constructor;
 
     let tostring = Object::try_from(object_prototype.get(&"toString".into()).expect("toString should exist"))
@@ -1023,6 +1052,41 @@ fn object_prototype_to_locale_string(
     //  1. Let O be the this value.
     //  2. Return ? Invoke(O, "toString").
     this_value.invoke(&"toString".into(), &[])
+}
+
+fn object_prototype_get_proto(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    _arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    Ok(to_object(this_value.clone())?.o.get_prototype_of()?.map_or(ECMAScriptValue::Null, ECMAScriptValue::Object))
+}
+
+fn object_prototype_set_proto(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    let mut args = FuncArgs::from(arguments);
+    let proto = args.next_arg();
+
+    require_object_coercible(this_value)?;
+
+    let proto = match proto {
+        ECMAScriptValue::Object(proto) => Some(proto),
+        ECMAScriptValue::Null => None,
+        _ => return Ok(ECMAScriptValue::Undefined),
+    };
+
+    let ECMAScriptValue::Object(this_object) = this_value else {
+        return Ok(ECMAScriptValue::Undefined);
+    };
+
+    if !this_object.o.set_prototype_of(proto)? {
+        return Err(create_type_error("unable to set prototype"));
+    }
+
+    Ok(ECMAScriptValue::Undefined)
 }
 
 #[cfg(test)]
