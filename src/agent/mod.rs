@@ -4591,7 +4591,12 @@ fn evaluate_initialized_class_field_definition(
     let prod_text = &source.text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
     let chunk_name = nameify(prod_text, 50);
     let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
-    to_compile.init.as_ref().unwrap().compile(&mut compiled, info.strict, source, CompileMod::AsFunction)?;
+    to_compile.init.as_ref().unwrap().compile(
+        &mut compiled,
+        info.strict,
+        source,
+        CompileMod::AsFunction(name.clone()),
+    )?;
     #[cfg(debug_assertions)]
     for line in compiled.disassemble(&source.text) {
         println!("{line}");

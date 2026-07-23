@@ -1374,10 +1374,6 @@ impl Initializer {
         self.ae.anonymous_function_definition()
     }
 
-    //pub(crate) fn is_anonymous_function_definition(&self) -> bool {
-    //    self.ae.is_anonymous_function_definition()
-    //}
-
     pub(crate) fn body_containing_location(&self, location: &Location) -> Option<ContainingBody> {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         if self.ae.location().contains(location) { self.ae.body_containing_location(location) } else { None }
