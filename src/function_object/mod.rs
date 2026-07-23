@@ -1321,7 +1321,7 @@ pub(crate) fn nameify(src: &str, limit: usize) -> String {
 //              i. Optionally, set F.[[InitialName]] to name.
 //      6. Return ! DefinePropertyOrThrow(F, "name", PropertyDescriptor { [[Value]]: name, [[Writable]]: false,
 //         [[Enumerable]]: false, [[Configurable]]: true }).
-pub(crate) fn set_function_name(func: &Object, name: FunctionName, prefix: Option<JSString>) {
+pub(crate) fn calculate_function_name(name: FunctionName, prefix: Option<JSString>) -> JSString {
     let name_before_prefix = match name {
         FunctionName::String(s) => s,
         FunctionName::PrivateName(pn) => pn.description,
@@ -1335,7 +1335,8 @@ pub(crate) fn set_function_name(func: &Object, name: FunctionName, prefix: Optio
             },
         ),
     };
-    let name_after_prefix = match prefix {
+
+    match prefix {
         None => name_before_prefix,
         Some(pfx) => {
             let mut name: Vec<u16> = Vec::with_capacity(pfx.len() + name_before_prefix.len() + 1);
@@ -1344,7 +1345,11 @@ pub(crate) fn set_function_name(func: &Object, name: FunctionName, prefix: Optio
             name.extend_from_slice(name_before_prefix.as_slice());
             JSString::from(name)
         }
-    };
+    }
+}
+
+pub(crate) fn set_function_name(func: &Object, name: FunctionName, prefix: Option<JSString>) {
+    let name_after_prefix = calculate_function_name(name, prefix);
     if let Some(builtin) = func.o.to_builtin_function_obj() {
         builtin.builtin_function_data().borrow_mut().initial_name = Some(FunctionName::from(name_after_prefix.clone()));
     }

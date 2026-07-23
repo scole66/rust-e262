@@ -1446,6 +1446,45 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => vok("Test262");
     "optional chain-on-chain; private id"
 )]
+// 2026/07/22 naming in classes: seems to be a violation in section 10.2.1.3 Runtime Semantics: EvaluateBody, step 3a.
+// 10 Ordinary and Exotic Objects Behaviours
+// 10.2 ECMAScript Function Objects
+// 10.2.1 [[Call]] ( thisArg, argList )
+// 10.2.1.3 Runtime Semantics: EvaluateBody
+// Initializer :
+//      = AssignmentExpression
+// 1. Assert: argList is empty.
+// 2. Assert: func.[[ClassFieldInitializerName]] is not empty.
+// 3. If IsAnonymousFunctionDefinition(AssignmentExpression) is true, then
+//    a. Let value be ? NamedEvaluation of Initializer with argument func.[[ClassFieldInitializerName]].
+// 4. Else,
+//    a. Let rhs be ? Evaluation of AssignmentExpression.
+//    b. Let value be ? GetValue(rhs).
+// 5. Return ReturnCompletion(value).
+#[test_case(
+    "
+    var C = class { static #field = () => 'Test262'; static accessPrivateField() { return this.#field; } };
+    C.accessPrivateField().name
+    "
+    => vok("#field");
+    "private-id as anonymous name in class"
+)]
+#[test_case(
+    "
+    var C = class { static silly = () => 'Test262'; static accessField() { return this.silly; } };
+    C.accessField().name
+    "
+    => vok("silly");
+    "normal-id as anonymous name in class"
+)]
+#[test_case(
+    "
+    var C = class { static [Symbol.toStringTag] = () => 'Test262'; static accessField() { return this[Symbol.toStringTag]; } };
+    C.accessField().name
+    "
+    => vok("[Symbol.toStringTag]");
+    "computed-id as anonymous name in class"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
