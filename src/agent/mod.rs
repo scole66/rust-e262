@@ -4755,6 +4755,8 @@ impl ECMAScriptValue {
                     Ok(Some(true))
                 } else if nx == f64::INFINITY {
                     Ok(Some(false))
+                } else if let Ok(bx) = number_to_big_int(nx) {
+                    Ok(Some(bx < by))
                 } else {
                     Ok(Some(nx < by.to_f64().unwrap()))
                 }
@@ -4766,6 +4768,8 @@ impl ECMAScriptValue {
                     Ok(Some(false))
                 } else if ny == f64::INFINITY {
                     Ok(Some(true))
+                } else if let Ok(by) = number_to_big_int(ny) {
+                    Ok(Some(bx < by))
                 } else {
                     Ok(Some(bx.to_f64().unwrap() < ny))
                 }

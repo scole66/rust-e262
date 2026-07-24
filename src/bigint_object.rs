@@ -329,7 +329,7 @@ fn this_bigint_value(value: ECMAScriptValue) -> Completion<Rc<BigInt>> {
     }
 }
 
-fn number_to_big_int(number: f64) -> Completion<Rc<BigInt>> {
+pub(crate) fn number_to_big_int(number: f64) -> Completion<Rc<BigInt>> {
     // NumberToBigInt ( number )
     // The abstract operation NumberToBigInt takes argument number (a Number) and returns either a normal completion
     // containing a BigInt or a throw completion. It performs the following steps when called:
