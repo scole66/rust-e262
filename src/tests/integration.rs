@@ -1485,6 +1485,17 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => vok("[Symbol.toStringTag]");
     "computed-id as anonymous name in class"
 )]
+// 2026/07/24: Number.MAX_VALUE vs large bigints and comparison
+#[test_case(
+    "0xfffffffffffff7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffn >= Number.MAX_VALUE"
+    => vok(false);
+    "large bigint comparing to Number.MAX_VALUE (on right)"
+)]
+#[test_case(
+    "Number.MAX_VALUE >= 0xfffffffffffff800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001n"
+    => vok(false);
+    "large bigint comparing to Number.MAX_VALUE (on left)"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
