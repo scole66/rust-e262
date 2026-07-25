@@ -160,6 +160,17 @@ pub(crate) struct Reference {
     pub(crate) this_value: Option<ECMAScriptValue>,
 }
 
+impl TryFrom<NormalCompletion> for Reference {
+    type Error = anyhow::Error;
+
+    fn try_from(value: NormalCompletion) -> Result<Self, Self::Error> {
+        match value {
+            NormalCompletion::Reference(reference) => Ok(*reference),
+            _ => Err(anyhow!("only reference completions may become references")),
+        }
+    }
+}
+
 impl Reference {
     pub(crate) fn new<T>(base: Base, key: T, strict: bool, this_value: Option<ECMAScriptValue>) -> Self
     where

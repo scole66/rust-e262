@@ -213,6 +213,7 @@ impl Chunk {
             }
             Insn::Ref
             | Insn::StrictRef
+            | Insn::NormalizeReference
             | Insn::Resolve
             | Insn::StrictResolve
             | Insn::Nop
