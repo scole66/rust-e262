@@ -131,6 +131,7 @@ pub(crate) enum Insn {
     NameOnlyFieldRecord,
     NameOnlyStaticFieldRecord,
     Nop,
+    NormalizeReference,
     NotEqual,
     Null,
     Object,
@@ -271,6 +272,7 @@ impl fmt::Display for Insn {
             Insn::ListToArray => "LIST_TO_ARRAY",
             Insn::Ref => "REF",
             Insn::StrictRef => "STRICT_REF",
+            Insn::NormalizeReference => "NORMALIZE_REF",
             Insn::MakeSuperPropertyReference => "SUPER_REF",
             Insn::InitializeReferencedBinding => "IRB",
             Insn::PushNewLexEnv => "PNLE",
@@ -3505,6 +3507,8 @@ impl UpdateExpression {
         let status = exp.compile(chunk, strict, source)?;
         assert!(status.maybe_ref()); // Early errors eliminate non-refs
 
+        // Stack: lref/err1 ...
+        chunk.op(Insn::NormalizeReference, line);
         // Stack: lref/err1 ...
         chunk.op(Insn::Dup, line);
         // Stack: lref/err1 lref/err1 ...

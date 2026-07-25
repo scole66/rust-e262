@@ -1392,6 +1392,40 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
+    fn normalize_reference(ref_: Reference) -> Completion<Reference> {
+        match (&ref_.base, &ref_.referenced_name) {
+            // Only property references with non-private names need normalization.
+            (Base::Value(_), ReferencedName::Value(value)) => {
+                let property_key = PropertyKey::try_from(value.clone()).or_else(|_| value.to_property_key())?;
+
+                Ok(Reference {
+                    base: ref_.base,
+                    referenced_name: ReferencedName::Value(property_key.into()),
+                    strict: ref_.strict,
+                    this_value: ref_.this_value,
+                })
+            }
+
+            _ => Ok(ref_),
+        }
+    }
+    pub(crate) fn normalize_ref() -> anyhow::Result<()> {
+        // Stack in:  ref/err
+        // Stack out: ref/err
+
+        let completion = pop_completion()?;
+
+        let completion = match completion {
+            Ok(normal) => {
+                let ref_ = Reference::try_from(normal)?;
+                normalize_reference(ref_).map(|ref_| NormalCompletion::Reference(Box::new(ref_)))
+            }
+            Err(err) => Err(err),
+        };
+
+        push_completion(completion)?;
+        Ok(())
+    }
     pub(crate) fn make_super_property_ref(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: operand: 0 == not-strict; 1 == strict
         // Input: Stack: key this
@@ -4087,6 +4121,7 @@ pub(crate) async fn execute(
             Insn::RotateListUp => insn_impl::rotate_list_up(&chunk).expect(GOODCODE),
             Insn::Ref => insn_impl::make_ref(false).expect(GOODCODE),
             Insn::StrictRef => insn_impl::make_ref(true).expect(GOODCODE),
+            Insn::NormalizeReference => insn_impl::normalize_ref().expect(GOODCODE),
             Insn::MakeSuperPropertyReference => insn_impl::make_super_property_ref(&chunk).expect(GOODCODE),
             Insn::Pop => insn_impl::pop().expect(GOODCODE),
             Insn::PopOrPanic => insn_impl::pop_or_panic().expect(GOODCODE),

@@ -1496,6 +1496,24 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => vok(false);
     "large bigint comparing to Number.MAX_VALUE (on left)"
 )]
+// 2026/07/24: updating decrement only evals its target once
+#[test_case(
+    "
+    let propKeyEvaluated = false;
+    let base = {1: 10};
+    let prop = {
+      toString: function() {
+        if (propKeyEvaluated) { throw 'we already did this once'; }
+        propKeyEvaluated = true;
+        return 1;
+      }
+    };
+    base[prop]--;
+    base[1]
+    "
+    => vok(9);
+    "post-decrement: expr should be evaluated only once"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
