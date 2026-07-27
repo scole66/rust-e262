@@ -1558,6 +1558,15 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => vok(5);
     "ref normalization for compound assignment"
 )]
+#[test_case(
+    "
+    function a() { throw 'a'; }
+    function b() { throw 'b'; }
+    null ?? a() ?? b()
+    "
+    => serr("Thrown: a");
+    "coalesce errorful compilation"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
