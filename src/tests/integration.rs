@@ -1531,6 +1531,16 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => vok(9);
     "pre-decrement: expr should be evaluated only once"
 )]
+#[test_case(
+    "prop = { toString: function() { throw 'should not be evaluated'; } }; undefined[prop]++"
+    => serr("Thrown: TypeError: Undefined and null cannot be converted to objects");
+    "ref normalizaiton on undefined"
+)]
+#[test_case(
+    "prop = { toString: function() { throw 'should not be evaluated'; } }; null[prop]++"
+    => serr("Thrown: TypeError: Undefined and null cannot be converted to objects");
+    "ref normalizaiton on null"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
