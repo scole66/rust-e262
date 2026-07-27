@@ -1395,7 +1395,7 @@ mod insn_impl {
     pub(crate) fn normalize_reference(ref_: Reference) -> Completion<Reference> {
         match (&ref_.base, &ref_.referenced_name) {
             // Only property references with non-private names need normalization.
-            (Base::Value(_), ReferencedName::Value(value)) => {
+            (Base::Value(base), ReferencedName::Value(value)) if base.require_object_coercible().is_ok() => {
                 let property_key = PropertyKey::try_from(value.clone()).or_else(|_| value.to_property_key())?;
 
                 Ok(Reference {
