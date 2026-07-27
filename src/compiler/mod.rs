@@ -3559,6 +3559,7 @@ impl UpdateExpression {
         // Stack: ...
         exp.compile(chunk, strict, source)?;
         // Stack: exp/err
+        chunk.op(Insn::NormalizeReference, line);
         chunk.op(insn, line);
         Ok(AlwaysAbruptResult)
     }

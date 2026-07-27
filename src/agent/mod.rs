@@ -1392,7 +1392,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    fn normalize_reference(ref_: Reference) -> Completion<Reference> {
+    pub(crate) fn normalize_reference(ref_: Reference) -> Completion<Reference> {
         match (&ref_.base, &ref_.referenced_name) {
             // Only property references with non-private names need normalization.
             (Base::Value(_), ReferencedName::Value(value)) => {
@@ -1410,16 +1410,16 @@ mod insn_impl {
         }
     }
     pub(crate) fn normalize_ref() -> anyhow::Result<()> {
-        // Stack in:  ref/err
-        // Stack out: ref/err
+        // Stack in:  ref/val/err
+        // Stack out: ref/val/err
 
         let completion = pop_completion()?;
 
         let completion = match completion {
-            Ok(normal) => {
-                let ref_ = Reference::try_from(normal)?;
-                normalize_reference(ref_).map(|ref_| NormalCompletion::Reference(Box::new(ref_)))
+            Ok(NormalCompletion::Reference(ref_)) => {
+                normalize_reference(*ref_).map(|ref_| NormalCompletion::Reference(Box::new(ref_)))
             }
+            Ok(other) => Ok(other),
             Err(err) => Err(err),
         };
 
