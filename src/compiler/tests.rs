@@ -2311,10 +2311,26 @@ mod update_expression {
         "PUT_VALUE",
         "UPDATE_EMPTY",
     ]), true, false)); "post-decrement, non-strict")]
-    #[test_case("++a", true, None => Ok((svec(&["00001: ++a", "STRING 0 (a)", "STRICT_RESOLVE", "PRE_INCREMENT"]), true, false)); "pre-increment, strict")]
-    #[test_case("++a", false, None => Ok((svec(&["00001: ++a", "STRING 0 (a)", "RESOLVE", "PRE_INCREMENT"]), true, false)); "pre-increment, non-strict")]
-    #[test_case("--a", true, None => Ok((svec(&["00001: --a", "STRING 0 (a)", "STRICT_RESOLVE", "PRE_DECREMENT"]), true, false)); "pre-decrement, strict")]
-    #[test_case("--a", false, None => Ok((svec(&["00001: --a", "STRING 0 (a)", "RESOLVE", "PRE_DECREMENT"]), true, false)); "pre-decrement, non-strict")]
+    #[test_case(
+        "++a", true, None
+        => Ok((svec(&["00001: ++a", "STRING 0 (a)", "STRICT_RESOLVE", "NORMALIZE_REF", "PRE_INCREMENT"]), true, false));
+        "pre-increment, strict"
+    )]
+    #[test_case(
+        "++a", false, None
+        => Ok((svec(&["00001: ++a", "STRING 0 (a)", "RESOLVE", "NORMALIZE_REF", "PRE_INCREMENT"]), true, false));
+        "pre-increment, non-strict"
+    )]
+    #[test_case(
+        "--a", true, None
+        => Ok((svec(&["00001: --a", "STRING 0 (a)", "STRICT_RESOLVE", "NORMALIZE_REF", "PRE_DECREMENT"]), true, false));
+        "pre-decrement, strict"
+    )]
+    #[test_case(
+        "--a", false, None
+        => Ok((svec(&["00001: --a", "STRING 0 (a)", "RESOLVE", "NORMALIZE_REF", "PRE_DECREMENT"]), true, false));
+        "pre-decrement, non-strict"
+    )]
     #[test_case("++a", true, Some(0) => serr("Out of room for strings in this compilation unit"); "pre-op, err in subexpr")]
     #[test_case("a++", true, Some(0) => serr("Out of room for strings in this compilation unit"); "post-op, err in subexpr")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
