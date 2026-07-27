@@ -4030,7 +4030,7 @@ impl CoalesceExpression {
             head_status.maybe_ref()
                 || head_status.maybe_abrupt()
                 || tail_status.maybe_ref()
-                || head_status.maybe_abrupt(),
+                || tail_status.maybe_abrupt(),
         ))
     }
 }
