@@ -4225,6 +4225,7 @@ impl AssignmentExpression {
         // start:
         //   <lhse.evaluation>         err/lref
         //   JUMP_IF_ABRUPT exit       lref
+        //   NORMALIZE_REF             lref
         //   DUP                       lref lref
         //   GET_VALUE                 err/lval lref
         //   JUMP_IF_ABRUPT unwind     lval lref
@@ -4246,6 +4247,7 @@ impl AssignmentExpression {
         let line = lhse.location().starting_line;
         let status = lhse.compile(chunk, strict, source)?;
         let exit_1 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+        chunk.op(Insn::NormalizeReference, line);
         chunk.op(Insn::Dup, line);
         let unwind_1 = if status.maybe_ref() {
             chunk.op(Insn::GetValue, line);
@@ -4373,6 +4375,7 @@ impl AssignmentExpression {
                 } else {
                     None
                 };
+                chunk.op(Insn::NormalizeReference, line);
                 // Stack: lref ...
                 chunk.op(Insn::Dup, line);
                 // Stack: lref lref ...

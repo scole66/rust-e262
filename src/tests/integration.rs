@@ -1541,6 +1541,23 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => serr("Thrown: TypeError: Undefined and null cannot be converted to objects");
     "ref normalizaiton on null"
 )]
+#[test_case(
+    "
+    let propKeyEvaluated = false;
+    let base = {1: 10};
+    let prop = {
+      toString: function() {
+        if (propKeyEvaluated) { throw 'we already did this once'; }
+        propKeyEvaluated = true;
+        return 1;
+      }
+    };
+    base[prop]/=2;
+    base[1]
+    "
+    => vok(5);
+    "ref normalization for compound assignment"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
