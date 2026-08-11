@@ -4822,8 +4822,7 @@ impl ECMAScriptValue {
             return Ok(Some(sx < sy));
         }
         if px.is_string() && py.is_bigint() {
-            let nx =
-                JSString::try_from(px).expect("String values must be strings").to_bigint();
+            let nx = JSString::try_from(px).expect("String values must be strings").to_bigint();
             let ny: Rc<BigInt> = py.try_into().expect("Bigint values must be bigints");
             return match nx {
                 None => Ok(None),
@@ -4832,8 +4831,7 @@ impl ECMAScriptValue {
         }
         if px.is_bigint() && py.is_string() {
             let nx: Rc<BigInt> = px.try_into().expect("Bigint values must be bigints");
-            let ny =
-                JSString::try_from(py).expect("String values must be strings").to_bigint();
+            let ny = JSString::try_from(py).expect("String values must be strings").to_bigint();
             return match ny {
                 None => Ok(None),
                 Some(ny) => Ok(Some(*nx < *ny)),
