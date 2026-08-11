@@ -1567,6 +1567,18 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => serr("Thrown: a");
     "coalesce errorful compilation"
 )]
+#[test_case(
+    "
+    const pi = function *poor_iterator(a) {
+        yield a;
+        if (a > 0)
+            yield *poor_iterator(a-1)
+    }
+    Array.from(pi(3)).join(', ')
+    "
+    => vok("3, 2, 1, 0");
+    "recursive generator function names"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

@@ -4,10 +4,8 @@ use anyhow::{Context, anyhow, bail};
 use counter::Counter;
 #[cfg(test)]
 use num::BigInt;
-use num_enum::IntoPrimitive;
-use num_enum::TryFromPrimitive;
-use std::fmt;
-use std::rc::Rc;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use std::{assert_matches, fmt, rc::Rc};
 
 pub(crate) type Opcode = u16;
 
@@ -91,6 +89,7 @@ pub(crate) enum Insn {
     InstanceOf,
     InstantiateArrowFunctionExpression,
     InstantiateGeneratorFunctionExpression,
+    InstantiateGeneratorExpressionWithId,
     InstantiateGeneratorFunctionObject,
     InstantiateGeneratorMethod,
     InstantiateIdFreeFunctionExpression,
@@ -329,6 +328,7 @@ impl fmt::Display for Insn {
             Insn::InstantiateOrdinaryFunctionExpression => "FUNC_IOFE",
             Insn::InstantiateArrowFunctionExpression => "FUNC_IAE",
             Insn::InstantiateGeneratorFunctionExpression => "FUNC_GENE",
+            Insn::InstantiateGeneratorExpressionWithId => "FUNC_GEWI",
             Insn::InstantiateOrdinaryFunctionObject => "FUNC_OBJ",
             Insn::InstantiateGeneratorFunctionObject => "FUNC_GENO",
             Insn::InstantiateGeneratorMethod => "GEN_METHOD",
@@ -8397,7 +8397,7 @@ impl ScriptBody {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub(crate) enum NameLoc {
     OnStack,
     Index(u16),
@@ -11729,45 +11729,59 @@ impl GeneratorExpression {
         id: Option<NameLoc>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
-        // Runtime Semantics: InstantiateGeneratorFunctionExpression
-        // The syntax-directed operation InstantiateGeneratorFunctionExpression takes optional argument name (a property
-        // key or a Private Name) and returns a function object. It is defined piecewise over the following productions:
-        //
-        // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
-        //  1. If name is not present, set name to "".
-        //  2. Let env be the LexicalEnvironment of the running execution context.
-        //  3. Let privateEnv be the running execution context's PrivateEnvironment.
-        //  4. Let sourceText be the source text matched by GeneratorExpression.
-        //  5. Let closure be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters,
-        //     GeneratorBody, non-lexical-this, env, privateEnv).
-        //  6. Perform SetFunctionName(closure, name).
-        //  7. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
-        //  8. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: prototype,
-        //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
-        //  9. Return closure.
-        if let Some(name_id) = match id {
-            None => Some(chunk.add_to_string_pool(JSString::from(""))?),
-            Some(NameLoc::Index(id)) => Some(id),
-            Some(NameLoc::OnStack) => None,
-        } {
-            chunk.op_plus_arg(Insn::String, name_id, line);
+        let function_data = self.stashed_generator_function_data(strict, source);
+        let func_id = chunk.add_to_func_stash(function_data)?;
+
+        match &self.ident {
+            None => {
+                // Anonymous generator expressions may receive a contextual name from
+                // NamedEvaluation. If the name is already on the stack, leave it
+                // there for the instantiate instruction; otherwise push the explicit
+                // or default empty name now.
+                if let Some(name_id) = match id {
+                    None => Some(chunk.add_to_string_pool(JSString::from(""))?),
+                    Some(NameLoc::Index(id)) => Some(id),
+                    Some(NameLoc::OnStack) => None,
+                } {
+                    chunk.op_plus_arg(Insn::String, name_id, line);
+                }
+
+                // The runtime instruction creates the generator closure using the
+                // current lexical/private environment and the name prepared above.
+                chunk.op_plus_arg(Insn::InstantiateGeneratorFunctionExpression, func_id, line);
+            }
+
+            Some(ident) => {
+                // A named generator expression ignores contextual names. Its own
+                // BindingIdentifier provides both the function name and the
+                // self-reference binding visible inside the generator body.
+                assert_matches!(id, None | Some(NameLoc::Index(_)));
+
+                let name = ident.string_value();
+                let name_idx = chunk.add_to_string_pool(name)?;
+
+                // The runtime instruction creates the extra function-name
+                // environment, instantiates the generator closure in that
+                // environment, and initializes the immutable self-reference binding.
+                chunk.op_plus_two_args(Insn::InstantiateGeneratorExpressionWithId, name_idx, func_id, line);
+            }
         }
 
+        Ok(AlwaysAbruptResult)
+    }
+
+    fn stashed_generator_function_data(self: &Rc<Self>, strict: bool, source: &SourceTree) -> StashedFunctionData {
         let span = self.location().span;
         let source_text = source.text[span.starting_index..(span.starting_index + span.length)].to_string();
-        let params = ParamSource::from(Rc::clone(&self.params));
-        let body = BodySource::from(Rc::clone(&self.body));
-        let function_data = StashedFunctionData {
+
+        StashedFunctionData {
             source_text,
-            params,
-            body,
+            params: ParamSource::from(Rc::clone(&self.params)),
+            body: BodySource::from(Rc::clone(&self.body)),
             strict,
             to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::NonLexicalThis,
-        };
-        let func_id = chunk.add_to_func_stash(function_data)?;
-        chunk.op_plus_arg(Insn::InstantiateGeneratorFunctionExpression, func_id, line);
-        Ok(AlwaysAbruptResult)
+        }
     }
 
     fn named_evaluation(

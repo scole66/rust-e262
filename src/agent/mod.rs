@@ -3336,68 +3336,131 @@ mod insn_impl {
         }
         Ok(())
     }
+    enum RuntimeCompileResult {
+        Compiled(Rc<Chunk>),
+        AbruptCompletionPushed,
+    }
+
     pub(crate) fn instantiate_generator_function_expression(
         chunk: &Rc<Chunk>,
         source: &SourceTree,
     ) -> anyhow::Result<()> {
         let info = sfd_operand(chunk)?;
-        // Runtime Semantics: InstantiateGeneratorFunctionExpression
-        // The syntax-directed operation InstantiateGeneratorFunctionExpression takes optional argument name (a property
-        // key or a Private Name) and returns a function object. It is defined piecewise over the following productions:
-        //
-        // GeneratorExpression : function * ( FormalParameters ) { GeneratorBody }
-        //  1. If name is not present, set name to "".
-        //  2. Let env be the LexicalEnvironment of the running execution context.
-        //  3. Let privateEnv be the running execution context's PrivateEnvironment.
-        //  4. Let sourceText be the source text matched by GeneratorExpression.
-        //  5. Let closure be OrdinaryFunctionCreate(%GeneratorFunction.prototype%, sourceText, FormalParameters,
-        //     GeneratorBody, non-lexical-this, env, privateEnv).
-        //  6. Perform SetFunctionName(closure, name).
-        //  7. Let prototype be OrdinaryObjectCreate(%GeneratorFunction.prototype.prototype%).
-        //  8. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: prototype,
-        //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
-        //  9. Return closure.
-        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
-        let priv_env = current_private_environment();
+
+        // Anonymous generator expressions get their name from the stack. The
+        // compiler pushes either the contextual NamedEvaluation name or the default
+        // empty name before this instruction runs.
         let name = pop_key()?;
 
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let private_env = current_private_environment();
+
+        let compiled = match compile_stashed_generator_body(source, info)? {
+            RuntimeCompileResult::Compiled(compiled) => compiled,
+            RuntimeCompileResult::AbruptCompletionPushed => return Ok(()),
+        };
+
+        let closure = create_generator_function_closure(info, env, private_env, compiled);
+        super::set_function_name(&closure, name.into(), None);
+
+        define_generator_function_prototype(&closure);
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+
+    pub(crate) fn instantiate_generator_expression_with_id(
+        chunk: &Rc<Chunk>,
+        source: &SourceTree,
+    ) -> anyhow::Result<()> {
+        let name = string_operand(chunk)?;
+        let info = sfd_operand(chunk)?;
+
+        // Named generator expressions create a private function-name environment.
+        // The name is visible inside the generator body for recursive self-reference,
+        // but it is not introduced into the surrounding lexical environment.
+        let outer_env = current_lexical_environment().expect("should be running");
+        let func_env: Rc<dyn EnvironmentRecord> =
+            Rc::new(DeclarativeEnvironmentRecord::new(Some(outer_env), name.clone()));
+
+        func_env.create_immutable_binding(name.clone(), false).expect("fresh environment");
+
+        let private_env = current_private_environment();
+
+        let compiled = match compile_stashed_generator_body(source, info)? {
+            RuntimeCompileResult::Compiled(compiled) => compiled,
+            RuntimeCompileResult::AbruptCompletionPushed => return Ok(()),
+        };
+
+        // The closure captures the function-name environment. Initializing the
+        // binding afterward makes the BindingIdentifier resolve to this closure.
+        let closure = create_generator_function_closure(info, Rc::clone(&func_env), private_env, compiled);
+        super::set_function_name(&closure, name.clone().into(), None);
+
+        define_generator_function_prototype(&closure);
+
+        func_env.initialize_binding(name, closure.clone().into()).expect("fresh environment");
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+
+    fn compile_stashed_generator_body(
+        source: &SourceTree,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<RuntimeCompileResult> {
         let to_compile: Rc<GeneratorExpression> = info.to_compile.clone().try_into()?;
+
         let chunk_name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
-        let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, source, info);
-        if let Err(err) = compilation_status {
-            let typeerror = create_type_error(err.to_string());
+
+        if let Err(err) = to_compile.body.evaluate_generator_body(&mut compiled, source, info) {
+            // Generator bodies are compiled lazily when the expression is evaluated.
+            // Convert compilation failure into this instruction's abrupt completion,
+            // replacing the in-progress completion value on the VM stack.
+            let type_error = create_type_error(err.to_string());
             let _ = pop_completion()?;
-            push_completion(Err(typeerror)).expect(PUSHABLE);
-            return Ok(());
+            push_completion(Err(type_error)).expect(PUSHABLE);
+
+            return Ok(RuntimeCompileResult::AbruptCompletionPushed);
         }
+
         #[cfg(debug_assertions)]
         for line in compiled.disassemble(&source.text) {
             println!("{line}");
         }
 
-        let generator_function_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototype);
+        Ok(RuntimeCompileResult::Compiled(Rc::new(compiled)))
+    }
 
-        let closure = ordinary_function_create(
-            generator_function_prototype,
+    fn create_generator_function_closure(
+        info: &StashedFunctionData,
+        env: Rc<dyn EnvironmentRecord>,
+        private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+        compiled: Rc<Chunk>,
+    ) -> Object {
+        ordinary_function_create(
+            intrinsic(IntrinsicId::GeneratorFunctionPrototype),
             info.source_text.as_str(),
             info.params.clone(),
             info.body.clone(),
             ThisLexicality::NonLexicalThis,
             env,
-            priv_env,
+            private_env,
             info.strict,
-            Rc::new(compiled),
-        );
-        super::set_function_name(&closure, name.into(), None);
+            compiled,
+        )
+    }
 
-        let gfpp = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
-        let prototype = ordinary_object_create(Some(gfpp));
-        let desc =
-            PotentialPropertyDescriptor::new().value(prototype).writable(true).enumerable(false).configurable(false);
-        define_property_or_throw(&closure, "prototype", desc).expect("simple property definition works");
-        push_value(closure.into()).expect(PUSHABLE);
-        Ok(())
+    fn define_generator_function_prototype(closure: &Object) {
+        // Each generator function gets its own `.prototype` object. Generator
+        // objects produced by calling the function inherit from this object.
+        let generator_prototype_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototypePrototype);
+        let prototype = ordinary_object_create(Some(generator_prototype_prototype));
+
+        let desc = PotentialPropertyDescriptor::new().value(prototype).writable(true);
+
+        define_property_or_throw(closure, "prototype", desc).expect(GOODOBJ);
     }
 
     pub(crate) async fn yield_insn(co: &Co<ECMAScriptValue, Completion<ECMAScriptValue>>) -> anyhow::Result<()> {
@@ -4223,6 +4286,9 @@ pub(crate) async fn execute(
             }
             Insn::InstantiateGeneratorFunctionExpression => {
                 insn_impl::instantiate_generator_function_expression(&chunk, &source).expect(GOODCODE);
+            }
+            Insn::InstantiateGeneratorExpressionWithId => {
+                insn_impl::instantiate_generator_expression_with_id(&chunk, &source).expect(GOODCODE);
             }
             Insn::InstantiateOrdinaryFunctionObject => {
                 insn_impl::instantiate_ordinary_function_object(&chunk, &source).expect(GOODCODE);
