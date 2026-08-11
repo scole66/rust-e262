@@ -1579,6 +1579,16 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => vok("3, 2, 1, 0");
     "recursive generator function names"
 )]
+#[test_case("0n <= ''" => vok(true); "empty-string-to-bigint in less-equal")]
+#[test_case("'' <= 0n" => vok(true); "empty-string-to-bigint in less-equal alt")]
+#[test_case("0n >= ''" => vok(true); "empty-string-to-bigint in greater-equal")]
+#[test_case("'' >= 0n" => vok(true); "empty-string-to-bigint in greater-equal alt")]
+#[test_case("0n < ''" => vok(false); "empty-string-to-bigint in less")]
+#[test_case("'' < 0n" => vok(false); "empty-string-to-bigint in less alt")]
+#[test_case("0n > ''" => vok(false); "empty-string-to-bigint in greater")]
+#[test_case("'' > 0n" => vok(false); "empty-string-to-bigint in greater alt")]
+#[test_case("0n == ''" => vok(true); "empty-string-to-bigint in equal")]
+#[test_case("'' == 0n" => vok(true); "empty-string-to-bigint in equal alt")]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

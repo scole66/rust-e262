@@ -4823,20 +4823,20 @@ impl ECMAScriptValue {
         }
         if px.is_string() && py.is_bigint() {
             let nx =
-                String::from(JSString::try_from(px).expect("String values must be strings")).parse::<BigInt>().ok();
+                JSString::try_from(px).expect("String values must be strings").to_bigint();
             let ny: Rc<BigInt> = py.try_into().expect("Bigint values must be bigints");
             return match nx {
                 None => Ok(None),
-                Some(nx) => Ok(Some(nx < *ny)),
+                Some(nx) => Ok(Some(*nx < *ny)),
             };
         }
         if px.is_bigint() && py.is_string() {
             let nx: Rc<BigInt> = px.try_into().expect("Bigint values must be bigints");
             let ny =
-                String::from(JSString::try_from(py).expect("String values must be strings")).parse::<BigInt>().ok();
+                JSString::try_from(py).expect("String values must be strings").to_bigint();
             return match ny {
                 None => Ok(None),
-                Some(ny) => Ok(Some(*nx < ny)),
+                Some(ny) => Ok(Some(*nx < *ny)),
             };
         }
         let nx = px.to_numeric()?;

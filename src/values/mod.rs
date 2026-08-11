@@ -1727,10 +1727,10 @@ pub(crate) fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Comp
             is_loosely_equal(&new_x, y)
         }
         (ECMAScriptValue::BigInt(_), ECMAScriptValue::String(y)) => {
-            let n = String::from(y).parse::<BigInt>();
+            let n = y.to_bigint();
             match n {
-                Err(_) => Ok(false),
-                Ok(bi) => is_loosely_equal(x, &bi.into()),
+                None => Ok(false),
+                Some(bi) => is_loosely_equal(x, &bi.into()),
             }
         }
         (ECMAScriptValue::String(_), ECMAScriptValue::BigInt(_)) => is_loosely_equal(y, x),
