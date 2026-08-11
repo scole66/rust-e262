@@ -1764,7 +1764,11 @@ pub(crate) fn is_loosely_equal(x: &ECMAScriptValue, y: &ECMAScriptValue) -> Comp
         }
         (&ECMAScriptValue::Number(n), ECMAScriptValue::BigInt(b))
         | (ECMAScriptValue::BigInt(b), &ECMAScriptValue::Number(n)) => {
-            Ok(n.is_finite() && n == b.to_f64().expect("BigInts always transform to floats ok"))
+            if let Ok(n64) = number_to_big_int(n) {
+                Ok(n64 == *b)
+            } else {
+                Ok(n.is_finite() && n == b.to_f64().expect("BigInts always transform to floats ok"))
+            }
         }
         (ECMAScriptValue::Undefined | ECMAScriptValue::Null | ECMAScriptValue::Symbol(_), _)
         | (_, ECMAScriptValue::Undefined | ECMAScriptValue::Null | ECMAScriptValue::Symbol(_)) => Ok(false),
