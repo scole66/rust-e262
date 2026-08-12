@@ -248,8 +248,9 @@ impl Chunk {
             | Insn::FunctionPrototype
             | Insn::ObjectPrototype
             | Insn::Call
-            | Insn::StrictCall
             | Insn::TailCall
+            | Insn::DirectEvalIfNeededNonStrict
+            | Insn::DirectEvalIfNeededStrict
             | Insn::EndFunction
             | Insn::Return
             | Insn::UpdateEmpty
@@ -444,9 +445,9 @@ impl Chunk {
             idx += inc;
 
             let repr = repr.split_whitespace().next().unwrap();
-            if ["CALL_STRICT", "STRICT_RESOLVE", "STRICT_REF", "TAIL_CALL"].contains(&repr) {
+            if ["STRICT_MAYBE_EVAL", "STRICT_RESOLVE", "STRICT_REF", "TAIL_CALL"].contains(&repr) {
                 saw_strict = true;
-            } else if ["CALL", "RESOLVE", "REF"].contains(&repr) {
+            } else if ["RESOLVE", "REF", "MAYBE_EVAL"].contains(&repr) {
                 saw_non_strict = true;
             }
         }

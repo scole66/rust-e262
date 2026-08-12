@@ -171,7 +171,6 @@ mod insn {
     #[test_case(Insn::SetPrototype => "SET_PROTO"; "SetPrototype instruction")]
     #[test_case(Insn::SignedRightShift => "SRSH"; "SignedRightShift instruction")]
     #[test_case(Insn::StaticClassItem => "STATIC_ITEM"; "StaticClassItem instruction")]
-    #[test_case(Insn::StrictCall => "CALL_STRICT"; "StrictCall instruction")]
     #[test_case(Insn::StrictEqual => "SEQ"; "StrictEqual instruction")]
     #[test_case(Insn::StrictNotEqual => "SNE"; "StrictNotEqual instruction")]
     #[test_case(Insn::StrictRef => "STRICT_REF"; "StrictRef instruction")]
@@ -1561,7 +1560,7 @@ mod member_expression {
         "JUMP_IF_NORMAL 4",
         "UNWIND 2",
         "JUMP 1",
-        "CALL_STRICT",
+        "CALL",
         "JUMP 2",
         "UNWIND 1"
     ]), true, false)); "template")]
@@ -1660,7 +1659,7 @@ mod call_expression {
         "UNWIND 1",
         "JUMP 3",
         "FLOAT 0 (0)",
-        "CALL_STRICT"
+        "CALL"
     ]), true, false)); "call-expression; strict")]
     #[test_case("a()", false, &[] => Ok((svec(&[
         "00001: a()",
@@ -1710,12 +1709,12 @@ mod call_expression {
         "UNWIND 1",
         "JUMP 3",
         "FLOAT 0 (0)",
-        "CALL_STRICT",
+        "CALL",
         "DUP",
         "GET_VALUE",
         "JUMP_IF_ABRUPT 5",
         "FLOAT 0 (0)",
-        "CALL_STRICT",
+        "CALL",
         "JUMP 2",
         "UNWIND 1"
     ]), true, false)); "call-on-call")]
@@ -1738,7 +1737,7 @@ mod call_expression {
         "UNWIND 1",
         "JUMP 3",
         "FLOAT 0 (0)",
-        "CALL_STRICT",
+        "CALL",
         "JUMP_IF_ABRUPT 9",
         "STRING 1 (b)",
         "STRICT_RESOLVE",
@@ -1757,7 +1756,7 @@ mod call_expression {
         "UNWIND 1",
         "JUMP 3",
         "FLOAT 0 (0)",
-        "CALL_STRICT",
+        "CALL",
         "JUMP_IF_ABRUPT 3",
         "STRING 1 (b)",
         "STRICT_REF",
@@ -1782,7 +1781,7 @@ mod call_expression {
         "UNWIND 1",
         "JUMP 3",
         "FLOAT 0 (0)",
-        "CALL_STRICT",
+        "CALL",
         "JUMP_IF_ABRUPT 3",
         "STRING 1 (b)",
         "STRICT_REF"
@@ -1798,7 +1797,7 @@ mod call_expression {
         "UNWIND 1",
         "JUMP 3",
         "FLOAT 0 (0)",
-        "CALL_STRICT",
+        "CALL",
         "JUMP_IF_ABRUPT 3",
         "STRING 1 (b)",
         "STRICT_REF",
@@ -1818,7 +1817,7 @@ mod call_expression {
         "UNWIND 1",
         "JUMP 3",
         "FLOAT 0 (0)",
-        "CALL_STRICT",
+        "CALL",
         "DUP",
         "JUMP_IF_ABRUPT 30",
         "GET_TMPL_OBJ Location{Line: 1; Column: 4; for 6 characters}",
@@ -1837,7 +1836,7 @@ mod call_expression {
         "JUMP_IF_NORMAL 4",
         "UNWIND 2",
         "JUMP 1",
-        "CALL_STRICT",
+        "CALL",
         "JUMP 2",
         "UNWIND 1"
     ]), true, false)); "template-on-call")]
@@ -1854,7 +1853,7 @@ mod call_expression {
                 "UNWIND 1",
                 "JUMP 3",
                 "FLOAT 0 (0)",
-                "CALL_STRICT",
+                "CALL",
                 "JUMP_IF_ABRUPT 2",
                 "PRIVATE_REF 1 (#pid)"
             ]),
@@ -1882,12 +1881,12 @@ mod call_member_expression {
     use super::*;
     use test_case::test_case;
 
-    #[test_case("a()", true, None => Ok((svec(&["00001: a()", "STRING 0 (a)", "STRICT_RESOLVE", "DUP", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FLOAT 0 (0)", "CALL_STRICT"]), true, false)); "no args; strict")]
+    #[test_case("a()", true, None => Ok((svec(&["00001: a()", "STRING 0 (a)", "STRICT_RESOLVE", "DUP", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FLOAT 0 (0)", "CALL"]), true, false)); "no args; strict")]
     #[test_case("a()", false, None => Ok((svec(&["00001: a()", "STRING 0 (a)", "RESOLVE", "DUP", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 3", "FLOAT 0 (0)", "CALL"]), true, false)); "no args; non-strict")]
     #[test_case("a()", true, Some(0) => serr("Out of room for strings in this compilation unit"); "no space for ME")]
-    #[test_case("(1)()", true, None => Ok((svec(&["00001: (1)()", "FLOAT 0 (1)", "DUP", "FLOAT 1 (0)", "CALL_STRICT"]), true, false)); "me not reference")]
+    #[test_case("(1)()", true, None => Ok((svec(&["00001: (1)()", "FLOAT 0 (1)", "DUP", "FLOAT 1 (0)", "CALL"]), true, false)); "me not reference")]
     #[test_case("a(b)", true, Some(1) => serr("Out of room for strings in this compilation unit"); "no space for args")]
-    #[test_case("a(c)", true, None => Ok((svec(&["00001: a(c)", "STRING 0 (a)", "STRICT_RESOLVE", "DUP", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 15", "STRING 1 (c)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CALL_STRICT"]), true, false)); "args can error; strict")]
+    #[test_case("a(c)", true, None => Ok((svec(&["00001: a(c)", "STRING 0 (a)", "STRICT_RESOLVE", "DUP", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 15", "STRING 1 (c)", "STRICT_RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CALL"]), true, false)); "args can error; strict")]
     #[test_case("a(c)", false, None => Ok((svec(&["00001: a(c)", "STRING 0 (a)", "RESOLVE", "DUP", "GET_VALUE", "JUMP_IF_NORMAL 4", "UNWIND 1", "JUMP 15", "STRING 1 (c)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 2", "FLOAT 0 (1)", "JUMP_IF_NORMAL 4", "UNWIND 2", "JUMP 1", "CALL"]), true, false)); "args can error; non-strict")]
     #[test_case("a(@@@)", true, None => serr("out of range integral type conversion attempted"); "bad jump (args too complex)")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool, bool), String> {
@@ -1922,7 +1921,7 @@ mod left_hand_side_expression {
         "UNWIND 1",
         "JUMP 3",
         "FLOAT 0 (0)",
-        "CALL_STRICT"
+        "CALL"
     ]); "call strict")]
     #[test_case("a()", false => svec(&[
         "00001: a()",
@@ -12839,7 +12838,7 @@ mod optional_chain {
 
     #[test_case(
         "?.()", true, &[]
-        => Ok((svec(&["00001: ?.()", "FLOAT 0 (0)", "CALL_STRICT"]), true, false));
+        => Ok((svec(&["00001: ?.()", "FLOAT 0 (0)", "CALL"]), true, false));
         "oc: args; success"
     )]
     #[test_case(
@@ -12870,7 +12869,7 @@ mod optional_chain {
                 "GET_VALUE",
                 "JUMP_IF_ABRUPT 5",
                 "FLOAT 0 (0)",
-                "CALL_STRICT",
+                "CALL",
                 "JUMP 2",
                 "UNWIND 1"
             ]),
@@ -13059,7 +13058,7 @@ mod case_clause {
                 "UNWIND 1",
                 "JUMP 3",
                 "FLOAT 0 (0)",
-                "CALL_STRICT",
+                "CALL",
                 "JUMP_IF_ABRUPT 2",
                 "BREAK",
                 "UPDATE_EMPTY"

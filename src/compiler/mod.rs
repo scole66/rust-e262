@@ -49,6 +49,8 @@ pub(crate) enum Insn {
     DefineMethodProperty,
     DefineSetter,
     Delete,
+    DirectEvalIfNeededNonStrict,
+    DirectEvalIfNeededStrict,
     Divide,
     Dup,
     DupAfterList,
@@ -172,7 +174,6 @@ pub(crate) enum Insn {
     SetPrototype,
     SignedRightShift,
     StaticClassItem,
-    StrictCall,
     StrictEqual,
     StrictNotEqual,
     StrictRef,
@@ -246,8 +247,9 @@ impl fmt::Display for Insn {
             Insn::JumpIfNotUndef => "JUMP_NOT_UNDEF",
             Insn::JumpNotThrow => "JUMP_NOT_THROW",
             Insn::Call => "CALL",
-            Insn::StrictCall => "CALL_STRICT",
             Insn::TailCall => "TAIL_CALL",
+            Insn::DirectEvalIfNeededNonStrict => "MAYBE_EVAL",
+            Insn::DirectEvalIfNeededStrict => "STRICT_MAYBE_EVAL",
             Insn::EndFunction => "END_FUNCTION",
             Insn::Return => "RETURN",
             Insn::UpdateEmpty => "UPDATE_EMPTY",
@@ -2451,7 +2453,7 @@ impl MemberExpression {
                     None
                 };
                 let tail_position = self.is_in_tail_position(&source.ast, strict);
-                compile_call(chunk, strict, source, &ArgsFrom::Template(tmpl), tail_position)?;
+                compile_call(chunk, strict, source, Some(&ArgsFrom::Template(tmpl)), tail_position)?;
                 if let Some(mark) = mark {
                     let exit = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(mark)?;
@@ -2688,7 +2690,7 @@ impl CallExpression {
                 chunk.op(Insn::GetValue, line);
                 let unwind = chunk.op_jump(Insn::JumpIfAbrupt, line);
                 let tail_call = self.is_in_tail_position(&source.ast, strict);
-                compile_call(chunk, strict, source, &ArgsFrom::Arguments(args), tail_call)?;
+                compile_call(chunk, strict, source, Some(&ArgsFrom::Arguments(args)), tail_call)?;
                 let exit = chunk.op_jump(Insn::Jump, line);
                 chunk.fixup(unwind)?;
                 chunk.op_plus_arg(Insn::Unwind, 1, line);
@@ -2771,7 +2773,7 @@ impl CallExpression {
                     None
                 };
                 let tail_position = self.is_in_tail_position(&source.ast, strict);
-                compile_call(chunk, strict, source, &ArgsFrom::Template(tl), tail_position)?;
+                compile_call(chunk, strict, source, Some(&ArgsFrom::Template(tl)), tail_position)?;
                 if let Some(mark) = mark {
                     let exit = chunk.op_jump(Insn::Jump, line);
                     chunk.fixup(mark)?;
@@ -2845,10 +2847,9 @@ pub(crate) fn compile_call(
     chunk: &mut Chunk,
     strict: bool,
     source: &SourceTree,
-    arguments: &ArgsFrom<'_>,
+    arguments: Option<&ArgsFrom<'_>>,
     tail_position: bool,
 ) -> anyhow::Result<AlwaysAbruptResult> {
-    let line = arguments.location().starting_line;
     // EvaluateCall ( func, ref, arguments, tailPosition )
     // The abstract operation EvaluateCall takes arguments func (an ECMAScript language value), ref (an
     // ECMAScript language value or a Reference Record), arguments (a Parse Node), and tailPosition (a
@@ -2882,22 +2883,22 @@ pub(crate) fn compile_call(
     //    CALL                      val/err
     // exit:                        val/err
 
-    let status = arguments.argument_list_evaluation(chunk, strict, source)?;
     let mut exit = None;
-    if status.maybe_abrupt() {
-        let call = chunk.op_jump(Insn::JumpIfNormal, line);
-        chunk.op_plus_arg(Insn::Unwind, 2, line);
-        exit = Some(chunk.op_jump(Insn::Jump, line));
-        chunk.fixup(call).expect("jump too short to fail");
+    if let Some(arguments) = arguments {
+        let line = arguments.location().starting_line;
+        let status = arguments.argument_list_evaluation(chunk, strict, source)?;
+        if status.maybe_abrupt() {
+            let call = chunk.op_jump(Insn::JumpIfNormal, line);
+            chunk.op_plus_arg(Insn::Unwind, 2, line);
+            exit = Some(chunk.op_jump(Insn::Jump, line));
+            chunk.fixup(call).expect("jump too short to fail");
+        }
     }
+    let line = 0; // somewhat of a hack; the printer won't backtrack, so this is ok.
     chunk.op(
-        match (strict, tail_position) {
-            // Note: Tail Position calls are only defined in strict mode code because of a common non-standard language
-            // extension (see 10.2.4) that enables observation of the chain of caller contexts.
-            (false, _) => Insn::Call,
-            (true, false) => Insn::StrictCall,
-            (true, true) => Insn::TailCall,
-        },
+        // Note: Tail Position calls are only defined in strict mode code because of a common non-standard language
+        // extension (see 10.2.4) that enables observation of the chain of caller contexts.
+        if strict && tail_position { Insn::TailCall } else { Insn::Call },
         line,
     );
     if let Some(mark) = exit {
@@ -2913,6 +2914,28 @@ impl CallMemberExpression {
         strict: bool,
         source: &SourceTree,
     ) -> anyhow::Result<AlwaysAbruptResult> {
+        // start:
+        //  <member_expression>         func/ref/err
+        //  DUP                         func/ref/err func/ref/err
+        //  GET_VALUE                   func/err func/ref/err
+        //  JUMP_IF_NORMAL do_call      err func/ref/err
+        //  UNWIND 1                    err
+        //  JUMP exit                   err
+        // do_call:                     func func/ref
+        // ------ normal call -------
+        // |  <call(arguments)>         rval/err
+        // ------ potential eval call -------
+        // |  <arguments>               arg_count arg[n-1] ... arg[0] func func/ref --or-- err func func/ref
+        // |  JUMP_IF_ABRUPT unwind2    arg_count arg[n-1] ... arg[0] func func/ref
+        // |  MAYBE_DIRECT              true rval/err  --or-- false arg_count arg[n-1] ... arg[0] func func/ref
+        // |  JUMPPOP_TRUE exit         arg_count arg[n-1] ... arg[0] func func/ref
+        // |  <call(none)>              rval/err
+        // |  JUMP exit
+        // | unwind2:                   err func func/ref
+        // |  UNWIND 2                  err
+        // ------
+        // exit:                        rval/err
+
         let line = self.location().starting_line;
         // On return: top of stack might be an abrupt completion, but will never be a reference.
         let mut exit = None;
@@ -2933,9 +2956,51 @@ impl CallMemberExpression {
         }
         // Stack: func ref ...
         let tail_call = self.is_in_tail_position(&source.ast, strict);
-        compile_call(chunk, strict, source, &ArgsFrom::Arguments(&self.arguments), tail_call)?;
+
+        let me_location = self.member_expression.location();
+        if source.text.len() < me_location.span.starting_index + me_location.span.length {
+            println!(
+                "source text is supposed to run from {} to {}, but it's actually\n{}",
+                me_location.span.starting_index,
+                me_location.span.starting_index + me_location.span.length,
+                source.text
+            );
+        }
+
+        // TODO: the length check here is because evaluating `eval("foo()")` results in a source text of "foo()". But
+        // the definition of foo is not present in that source text, and so if a member expression call is in foo, the
+        // matched source for it is incorrect. While waiting for that to be fixed, just assume the member expression is
+        // "eval". I'm still not sure why that turns up at compile time.
+        let (exit2, exit3) = if source.text.len() < me_location.span.starting_index + me_location.span.length
+            || &source.text[me_location.span.starting_index..me_location.span.starting_index + me_location.span.length]
+                == "eval"
+        {
+            let status = self.arguments.argument_list_evaluation(chunk, strict, source)?;
+            let unwind2 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+
+            chunk.op(if strict { Insn::DirectEvalIfNeededStrict } else { Insn::DirectEvalIfNeededNonStrict }, line);
+            let exit2 = chunk.op_jump(Insn::JumpPopIfTrue, line);
+            compile_call(chunk, strict, source, None, tail_call)?;
+            let exit3 = chunk.op_jump(Insn::Jump, line);
+            if let Some(mark) = unwind2 {
+                chunk.fixup(mark).expect("Jump too short");
+            }
+            chunk.op_plus_arg(Insn::Unwind, 2, line);
+
+            (Some(exit2), Some(exit3))
+        } else {
+            compile_call(chunk, strict, source, Some(&ArgsFrom::Arguments(&self.arguments)), tail_call)?;
+            (None, None)
+        };
+
         if let Some(mark) = exit {
             chunk.fixup(mark)?;
+        }
+        if let Some(mark) = exit2 {
+            chunk.fixup(mark).expect("jump too short");
+        }
+        if let Some(mark) = exit3 {
+            chunk.fixup(mark).expect("jump too short");
         }
         Ok(AlwaysAbruptResult)
     }
@@ -3047,7 +3112,7 @@ impl OptionalChain {
                 //  2. Let tailCall be IsInTailPosition(thisChain).
                 //  3. Return ? EvaluateCall(baseValue, baseReference, Arguments, tailCall).
                 let tail_call = self.is_in_tail_position(&source.ast, strict);
-                compile_call(chunk, strict, source, &ArgsFrom::Arguments(args), tail_call)
+                compile_call(chunk, strict, source, Some(&ArgsFrom::Arguments(args)), tail_call)
                     .map(CompilerStatusFlags::from)
             }
             OptionalChain::Exp(ex, _) => {
@@ -3114,7 +3179,7 @@ impl OptionalChain {
                 };
 
                 let tail_call = self.is_in_tail_position(&source.ast, strict);
-                compile_call(chunk, strict, source, &ArgsFrom::Arguments(args), tail_call)?;
+                compile_call(chunk, strict, source, Some(&ArgsFrom::Arguments(args)), tail_call)?;
 
                 if let Some(unwind) = unwind {
                     let exit2 = chunk.op_jump(Insn::Jump, line);
