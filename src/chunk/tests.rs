@@ -465,9 +465,10 @@ mod chunk {
     #[test_case(|c| { c.op(Insn::Null, 1); c.op(Insn::StrictRef, 1); c.op(Insn::Resolve, 1); c.op(Insn::True, 1); } => Strictness::Mixed; "mixed")]
     #[test_case(|c| { c.op(Insn::Null, 1); c.op(Insn::Resolve, 1); c.op(Insn::True, 1); } => Strictness::NonStrict; "non-strict")]
     #[test_case(|c| { c.op(Insn::Null, 1); c.op(Insn::StrictRef, 1); c.op(Insn::True, 1); } => Strictness::Strict; "strict")]
-    #[test_case(|c| { c.op(Insn::StrictCall, 1); } => Strictness::Strict; "strict call")]
+    #[test_case(|c| { c.op(Insn::DirectEvalIfNeededStrict, 1); } => Strictness::Strict; "strict eval")]
+    #[test_case(|c| { c.op(Insn::DirectEvalIfNeededNonStrict, 1); } => Strictness::NonStrict; "nonstrict eval")]
     #[test_case(|c| { c.op(Insn::StrictResolve, 1); } => Strictness::Strict; "strict resolve")]
-    #[test_case(|c| { c.op(Insn::Call, 1); } => Strictness::NonStrict; "nonstrict call")]
+    #[test_case(|c| { c.op(Insn::Call, 1); } => Strictness::Indeterminate; "nonstrict call")]
     #[test_case(|c| { c.op(Insn::Ref, 1); } => Strictness::NonStrict; "nonstrict ref")]
     fn analyze_strictness(make_chunk: impl Fn(&mut Chunk)) -> Strictness {
         let mut c = Chunk::new("analysis test", 1);

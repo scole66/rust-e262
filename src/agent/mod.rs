@@ -1980,18 +1980,17 @@ mod insn_impl {
         .expect(PUSHABLE);
         Ok(())
     }
-    pub(crate) fn call(strict: bool, tailcall: bool) -> anyhow::Result<()> {
-        let arg_count = pop_usize()?;
-        let mut arguments = Vec::with_capacity(arg_count);
-        for _ in 1..=arg_count {
-            let val = pop_value()?;
-            arguments.push(val);
-        }
-        arguments.reverse();
-        let func_val = pop_value()?;
-        let ref_nc = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
+    pub(crate) fn direct_eval_if_needed(strict: bool) -> anyhow::Result<()> {
+        // in stack: arg_count argN-1 ... arg0 func_val   reference
+        // out stack: one of:
+        //         true   returned_value
+        //         false  arg_count   argN-1 ... arg0   func_val   reference
 
-        let mut was_direct_eval = false;
+        let arg_count = peek_usize(0)?;
+
+        let func_val = peek_value(arg_count + 1)?;
+        let ref_nc = peek_completion(arg_count + 2)?.or(Err(InternalRuntimeError::NonErrorExpected))?;
+
         if let NormalCompletion::Reference(evalref) = &ref_nc
             && !evalref.is_property_reference()
             && let ReferencedName::Value(ECMAScriptValue::String(name)) = &evalref.referenced_name
@@ -1999,6 +1998,17 @@ mod insn_impl {
             && super::to_object(func_val.clone()).unwrap() == intrinsic(IntrinsicId::Eval)
         {
             // A direct eval
+            // (we already got all the things from the stack we needed; so pop them off)
+            pop_usize().expect("we know enough stack items are there");
+            let mut arguments = Vec::with_capacity(arg_count);
+            for _ in 1..=arg_count {
+                let val = pop_value().expect("we know enough stack items are there");
+                arguments.push(val);
+            }
+            arguments.reverse();
+            let _ = pop_completion().expect("we know enough stack items are there");
+            let _ = pop_completion().expect("we know enough stack items are there");
+
             if arg_count == 0 {
                 push_value(ECMAScriptValue::Undefined).expect(PUSHABLE);
             } else {
@@ -2012,12 +2022,25 @@ mod insn_impl {
                 );
                 push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
             }
-            was_direct_eval = true;
+            push_value(ECMAScriptValue::Boolean(true)).expect(PUSHABLE);
+        } else {
+            push_value(false.into()).expect(PUSHABLE);
         }
+        Ok(())
+    }
+    pub(crate) fn call(tailcall: bool) -> anyhow::Result<()> {
+        // TODO! Not all callers of call can be direct evals. ... which should actually be handled earlier than the rest of this function
+        let arg_count = pop_usize()?;
+        let mut arguments = Vec::with_capacity(arg_count);
+        for _ in 1..=arg_count {
+            let val = pop_value()?;
+            arguments.push(val);
+        }
+        arguments.reverse();
+        let func_val = pop_value()?;
+        let ref_nc = pop_completion()?.or(Err(InternalRuntimeError::NonErrorExpected))?;
 
-        if !was_direct_eval {
-            begin_call_evaluation(&func_val, &ref_nc, &arguments, tailcall)?;
-        }
+        begin_call_evaluation(&func_val, &ref_nc, &arguments, tailcall)?;
 
         Ok(())
     }
@@ -4258,9 +4281,10 @@ pub(crate) async fn execute(
             Insn::UnwindIfAbrupt => insn_impl::unwind_if_abrupt(&chunk).expect(GOODCODE),
             Insn::UnwindList => insn_impl::unwind_list().expect(GOODCODE),
             Insn::AppendList => insn_impl::append_list().expect(GOODCODE),
-            Insn::Call => insn_impl::call(false, false).expect(GOODCODE),
-            Insn::StrictCall => insn_impl::call(true, false).expect(GOODCODE),
-            Insn::TailCall => insn_impl::call(false, true).expect(GOODCODE),
+            Insn::DirectEvalIfNeededStrict => insn_impl::direct_eval_if_needed(true).expect(GOODCODE),
+            Insn::DirectEvalIfNeededNonStrict => insn_impl::direct_eval_if_needed(false).expect(GOODCODE),
+            Insn::Call => insn_impl::call(false).expect(GOODCODE),
+            Insn::TailCall => insn_impl::call(true).expect(GOODCODE),
             Insn::EndFunction => insn_impl::end_function().expect(GOODCODE),
             Insn::Construct => insn_impl::construct().expect(GOODCODE),
             Insn::RequireConstructor => insn_impl::require_constructor().expect(GOODCODE),
