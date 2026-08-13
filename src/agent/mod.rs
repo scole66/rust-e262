@@ -684,7 +684,7 @@ impl Agent {
     }
 }
 
-pub(crate) fn evaluate(chunk: Rc<Chunk>, source: &SourceTree) -> Completion<ECMAScriptValue> {
+pub(crate) fn evaluate(chunk: Rc<Chunk>, source: &Rc<SourceTree>) -> Completion<ECMAScriptValue> {
     AGENT.with(|agent| {
         if agent.execution_context_stack.borrow().is_empty() {
             return Err(create_type_error("No active execution context"));
@@ -2129,10 +2129,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub(crate) fn instantiate_id_free_function_expression(
-        chunk: &Rc<Chunk>,
-        source: &SourceTree,
-    ) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_id_free_function_expression(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name and
         // returns a function object. It is defined piecewise over the following productions:
         //
@@ -2150,7 +2147,7 @@ mod insn_impl {
         let to_compile: Rc<FunctionExpression> = info.to_compile.clone().try_into()?;
         let name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(name, to_compile.location().starting_line);
-        let compilation_status = to_compile.body.compile_body(&mut compiled, source, info);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, &info.parent_tree, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
             let _ = pop_completion()?;
@@ -2158,7 +2155,7 @@ mod insn_impl {
             return Ok(());
         }
         #[cfg(debug_assertions)]
-        for line in compiled.disassemble(&source.text) {
+        for line in compiled.disassemble(&info.parent_tree.text) {
             println!("{line}");
         }
 
@@ -2192,10 +2189,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub(crate) fn instantiate_ordinary_function_expression(
-        chunk: &Rc<Chunk>,
-        source: &SourceTree,
-    ) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_ordinary_function_expression(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name
         // and returns a function object. It is defined piecewise over the following productions:
         //
@@ -2225,7 +2219,7 @@ mod insn_impl {
         let to_compile: Rc<FunctionExpression> = info.to_compile.clone().try_into()?;
         let chunk_name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
-        let compilation_status = to_compile.body.compile_body(&mut compiled, source, info);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, &info.parent_tree, info);
         if let Err(err) = compilation_status {
             let _ = pop_completion()?;
             let typeerror = create_type_error(err.to_string());
@@ -2233,7 +2227,7 @@ mod insn_impl {
             return Ok(());
         }
         #[cfg(debug_assertions)]
-        for line in compiled.disassemble(&source.text) {
+        for line in compiled.disassemble(&info.parent_tree.text) {
             println!("{line}");
         }
 
@@ -2266,7 +2260,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub(crate) fn instantiate_arrow_function_expression(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_arrow_function_expression(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let info = sfd_operand(chunk)?;
         let env = current_lexical_environment().unwrap();
         let priv_env = current_private_environment();
@@ -2277,7 +2271,7 @@ mod insn_impl {
         let to_compile: Rc<ArrowFunction> = info.to_compile.clone().try_into()?;
         let chunk_name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
-        let compilation_status = to_compile.body.compile_body(&mut compiled, source, info);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, &info.parent_tree, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
             let _ = pop_completion()?;
@@ -2285,7 +2279,7 @@ mod insn_impl {
             return Ok(());
         }
         #[cfg(debug_assertions)]
-        for line in compiled.disassemble(&source.text) {
+        for line in compiled.disassemble(&info.parent_tree.text) {
             println!("{line}");
         }
 
@@ -2307,7 +2301,7 @@ mod insn_impl {
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
     }
-    pub(crate) fn instantiate_ordinary_function_object(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_ordinary_function_object(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let name = string_operand(chunk)?;
         let info = sfd_operand(chunk)?;
 
@@ -2315,7 +2309,7 @@ mod insn_impl {
             info.to_compile.clone().try_into().context("finding function compilation source")?;
         let chunk_name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
-        let compilation_status = to_compile.body.compile_body(&mut compiled, source, info);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, &info.parent_tree, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
             let _ = pop_completion()?;
@@ -2323,7 +2317,7 @@ mod insn_impl {
             return Ok(());
         }
         #[cfg(debug_assertions)]
-        for line in compiled.disassemble(&source.text) {
+        for line in compiled.disassemble(&info.parent_tree.text) {
             println!("{line}");
         }
 
@@ -2348,7 +2342,7 @@ mod insn_impl {
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
     }
-    pub(crate) fn instantiate_generator_function_object(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_generator_function_object(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // GeneratorDeclaration : function * BindingIdentifier ( FormalParameters ) { GeneratorBody }
         //  1. Let name be the StringValue of BindingIdentifier.
         //  2. Let sourceText be the source text matched by GeneratorDeclaration.
@@ -2366,7 +2360,7 @@ mod insn_impl {
             info.to_compile.clone().try_into().context("finding function compilation source")?;
         let chunk_name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
-        let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, source, info);
+        let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, &info.parent_tree, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
             let _ = pop_completion()?;
@@ -2374,7 +2368,7 @@ mod insn_impl {
             return Ok(());
         }
         #[cfg(debug_assertions)]
-        for line in compiled.disassemble(&source.text) {
+        for line in compiled.disassemble(&info.parent_tree.text) {
             println!("{line}");
         }
 
@@ -2405,7 +2399,7 @@ mod insn_impl {
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
     }
-    pub(crate) fn instantiate_generator_method(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_generator_method(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: Operand: function chunk id
         // Input: Operand: enumerable boolean
         // Input: Stack: propKey object
@@ -2433,14 +2427,14 @@ mod insn_impl {
             info.to_compile.clone().try_into().context("finding generator method compilation source")?;
         let chunk_name = nameify(&info.source_text, 50);
         let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
-        let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, source, info);
+        let compilation_status = to_compile.body.evaluate_generator_body(&mut compiled, &info.parent_tree, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
             push_completion(Err(typeerror)).expect(PUSHABLE);
             return Ok(());
         }
         #[cfg(debug_assertions)]
-        for line in compiled.disassemble(&source.text) {
+        for line in compiled.disassemble(&info.parent_tree.text) {
             println!("{line}");
         }
 
@@ -3085,19 +3079,19 @@ mod insn_impl {
             .clone();
         push_completion(Ok(NormalCompletion::from(private_name)))
     }
-    pub(crate) fn evaluate_initialized_class_field_def(
-        chunk: &Rc<Chunk>,
-        source: &SourceTree,
-        staticness: Static,
-    ) -> anyhow::Result<()> {
+    pub(crate) fn evaluate_initialized_class_field_def(chunk: &Rc<Chunk>, staticness: Static) -> anyhow::Result<()> {
         // Input: Operand: function stash
         // Input: Stack: name homeObject
         // Output: FieldRecord homeObject
         let info = sfd_operand(chunk)?;
         let name = pop_classname()?.ok_or(InternalRuntimeError::StringExpected)?;
         let home_object = pop_obj()?;
-        let initializer =
-            evaluate_initialized_class_field_definition(info, home_object.clone(), Some(name.clone()), source)?;
+        let initializer = evaluate_initialized_class_field_definition(
+            info,
+            home_object.clone(),
+            Some(name.clone()),
+            &info.parent_tree,
+        )?;
         let cstr = if staticness == Static::Yes {
             ClassItem::StaticClassFieldDefinition
         } else {
@@ -3110,14 +3104,14 @@ mod insn_impl {
         push_completion(Ok(completion)).expect(PUSHABLE);
         Ok(())
     }
-    pub(crate) fn evaluate_class_static_block_def(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn evaluate_class_static_block_def(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // This does the runtime parts of ClassStaticBlockDefinitionEvaluation
         // Input Operand: sfd_index
         // Input Stack: homeObject
         // Output Stack: block homeObject
         let info = sfd_operand(chunk)?;
         let home_object = pop_obj()?;
-        let block_body = evaluate_class_static_block_definition(info, home_object.clone(), source)?;
+        let block_body = evaluate_class_static_block_definition(info, home_object.clone(), &info.parent_tree)?;
         let block = Box::new(ClassItem::ClassStaticBlockDefinition(ClassStaticBlockDefinitionRecord {
             body_function: block_body,
         }));
@@ -3126,7 +3120,7 @@ mod insn_impl {
         push_completion(Ok(NormalCompletion::ClassItem(block))).expect(PUSHABLE);
         Ok(())
     }
-    pub(crate) fn define_method(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn define_method(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // on the stack: object prototype
         let info = sfd_operand(chunk)?;
         let obj = pop_obj()?;
@@ -3136,14 +3130,14 @@ mod insn_impl {
         if let MethodDefinition::NamedFunction(_, _, body, _) = to_compile.as_ref() {
             let name = nameify(&info.source_text, 50);
             let mut compiled = Chunk::new(name, to_compile.location().starting_line);
-            let compilation_status = body.compile_body(&mut compiled, source, info);
+            let compilation_status = body.compile_body(&mut compiled, &info.parent_tree, info);
             if let Err(err) = compilation_status {
                 let typeerror = create_type_error(err.to_string());
                 push_completion(Err(typeerror)).expect(PUSHABLE);
                 return Ok(());
             }
             #[cfg(debug_assertions)]
-            for line in compiled.disassemble(&source.text) {
+            for line in compiled.disassemble(&info.parent_tree.text) {
                 println!("{line}");
             }
 
@@ -3193,7 +3187,7 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
-    pub(crate) fn define_getter(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn define_getter(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Takes two args: idx into function stash and enumerable flag
         // stack input: propkey object
         // output: err/empty/PrivateElement
@@ -3221,10 +3215,11 @@ mod insn_impl {
             Err(InternalRuntimeError::GetterMethodExpected)?
         };
         let prod_text_loc = to_compile.location().span;
-        let prod_text = &source.text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+        let prod_text =
+            &info.parent_tree.text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
         let chunk_name = nameify(prod_text, 50);
         let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
-        let compilation_status = fb.compile_body(&mut compiled, source, info);
+        let compilation_status = fb.compile_body(&mut compiled, &info.parent_tree, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
             push_completion(Err(typeerror)).expect(PUSHABLE);
@@ -3232,7 +3227,7 @@ mod insn_impl {
         }
 
         #[cfg(debug_assertions)]
-        for line in compiled.disassemble(&source.text) {
+        for line in compiled.disassemble(&info.parent_tree.text) {
             println!("{line}");
         }
 
@@ -3267,7 +3262,7 @@ mod insn_impl {
         push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
-    pub(crate) fn define_setter(chunk: &Rc<Chunk>, source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn define_setter(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Takes two args: idx into function stash and enumerable flag
         // stack input: propkey object
         // output: err/empty/PrivateElement
@@ -3295,10 +3290,11 @@ mod insn_impl {
             Err(InternalRuntimeError::SetterMethodExpected)?
         };
         let prod_text_loc = to_compile.location().span;
-        let prod_text = &source.text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+        let prod_text =
+            &info.parent_tree.text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
         let chunk_name = nameify(prod_text, 50);
         let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
-        let compilation_status = fb.compile_body(&mut compiled, source, info);
+        let compilation_status = fb.compile_body(&mut compiled, &info.parent_tree, info);
         if let Err(err) = compilation_status {
             let typeerror = create_type_error(err.to_string());
             push_completion(Err(typeerror)).expect(PUSHABLE);
@@ -3306,7 +3302,7 @@ mod insn_impl {
         }
 
         #[cfg(debug_assertions)]
-        for line in compiled.disassemble(&source.text) {
+        for line in compiled.disassemble(&info.parent_tree.text) {
             println!("{line}");
         }
 
@@ -3341,7 +3337,7 @@ mod insn_impl {
         push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
-    pub(crate) fn generator_start_from_function(source: &SourceTree) -> anyhow::Result<()> {
+    pub(crate) fn generator_start_from_function(source: &Rc<SourceTree>) -> anyhow::Result<()> {
         //  2. Let G be ? OrdinaryCreateFromConstructor(functionObject,
         //     "%GeneratorFunction.prototype.prototype%", « [[GeneratorState]], [[GeneratorContext]],
         //     [[GeneratorBrand]] »).
@@ -3364,10 +3360,7 @@ mod insn_impl {
         AbruptCompletionPushed,
     }
 
-    pub(crate) fn instantiate_generator_function_expression(
-        chunk: &Rc<Chunk>,
-        source: &SourceTree,
-    ) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_generator_function_expression(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let info = sfd_operand(chunk)?;
 
         // Anonymous generator expressions get their name from the stack. The
@@ -3378,7 +3371,7 @@ mod insn_impl {
         let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
         let private_env = current_private_environment();
 
-        let compiled = match compile_stashed_generator_body(source, info)? {
+        let compiled = match compile_stashed_generator_body(&info.parent_tree, info)? {
             RuntimeCompileResult::Compiled(compiled) => compiled,
             RuntimeCompileResult::AbruptCompletionPushed => return Ok(()),
         };
@@ -3392,10 +3385,7 @@ mod insn_impl {
         Ok(())
     }
 
-    pub(crate) fn instantiate_generator_expression_with_id(
-        chunk: &Rc<Chunk>,
-        source: &SourceTree,
-    ) -> anyhow::Result<()> {
+    pub(crate) fn instantiate_generator_expression_with_id(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let name = string_operand(chunk)?;
         let info = sfd_operand(chunk)?;
 
@@ -3410,7 +3400,7 @@ mod insn_impl {
 
         let private_env = current_private_environment();
 
-        let compiled = match compile_stashed_generator_body(source, info)? {
+        let compiled = match compile_stashed_generator_body(&info.parent_tree, info)? {
             RuntimeCompileResult::Compiled(compiled) => compiled,
             RuntimeCompileResult::AbruptCompletionPushed => return Ok(()),
         };
@@ -3429,7 +3419,7 @@ mod insn_impl {
     }
 
     fn compile_stashed_generator_body(
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         info: &StashedFunctionData,
     ) -> anyhow::Result<RuntimeCompileResult> {
         let to_compile: Rc<GeneratorExpression> = info.to_compile.clone().try_into()?;
@@ -4102,8 +4092,9 @@ mod insn_impl {
     }
 }
 
-pub(crate) fn execute_synchronously(source: &SourceTree) -> Completion<ECMAScriptValue> {
-    match Gen::new(|co| execute(co, source.clone())).resume_with(Ok(ECMAScriptValue::Undefined)) {
+pub(crate) fn execute_synchronously(source: &Rc<SourceTree>) -> Completion<ECMAScriptValue> {
+    let st = (**source).clone();
+    match Gen::new(|co| execute(co, st)).resume_with(Ok(ECMAScriptValue::Undefined)) {
         genawaiter::GeneratorState::Yielded(val) => panic!("Yielded from synchronous context with value {val}"),
         genawaiter::GeneratorState::Complete(val) => val,
     }
@@ -4114,6 +4105,7 @@ pub(crate) async fn execute(
     source: SourceTree,
 ) -> Completion<ECMAScriptValue> {
     const GOODCODE: &str = "code should have been properly compiled";
+    let source = Rc::new(source);
 
     // If our ec index drops below this, we exit.
     let initial_context_index = AGENT.with(|agent| agent.execution_context_stack.borrow().len() - 1);
@@ -4300,28 +4292,28 @@ pub(crate) async fn execute(
             Insn::Add => insn_impl::binary_operation(BinOp::Add).expect(GOODCODE),
             Insn::Subtract => insn_impl::binary_operation(BinOp::Subtract).expect(GOODCODE),
             Insn::InstantiateIdFreeFunctionExpression => {
-                insn_impl::instantiate_id_free_function_expression(&chunk, &source).expect(GOODCODE);
+                insn_impl::instantiate_id_free_function_expression(&chunk).expect(GOODCODE);
             }
             Insn::InstantiateOrdinaryFunctionExpression => {
-                insn_impl::instantiate_ordinary_function_expression(&chunk, &source).expect(GOODCODE);
+                insn_impl::instantiate_ordinary_function_expression(&chunk).expect(GOODCODE);
             }
             Insn::InstantiateArrowFunctionExpression => {
-                insn_impl::instantiate_arrow_function_expression(&chunk, &source).expect(GOODCODE);
+                insn_impl::instantiate_arrow_function_expression(&chunk).expect(GOODCODE);
             }
             Insn::InstantiateGeneratorFunctionExpression => {
-                insn_impl::instantiate_generator_function_expression(&chunk, &source).expect(GOODCODE);
+                insn_impl::instantiate_generator_function_expression(&chunk).expect(GOODCODE);
             }
             Insn::InstantiateGeneratorExpressionWithId => {
-                insn_impl::instantiate_generator_expression_with_id(&chunk, &source).expect(GOODCODE);
+                insn_impl::instantiate_generator_expression_with_id(&chunk).expect(GOODCODE);
             }
             Insn::InstantiateOrdinaryFunctionObject => {
-                insn_impl::instantiate_ordinary_function_object(&chunk, &source).expect(GOODCODE);
+                insn_impl::instantiate_ordinary_function_object(&chunk).expect(GOODCODE);
             }
             Insn::InstantiateGeneratorFunctionObject => {
-                insn_impl::instantiate_generator_function_object(&chunk, &source).expect(GOODCODE);
+                insn_impl::instantiate_generator_function_object(&chunk).expect(GOODCODE);
             }
             Insn::InstantiateGeneratorMethod => {
-                insn_impl::instantiate_generator_method(&chunk, &source).expect(GOODCODE);
+                insn_impl::instantiate_generator_method(&chunk).expect(GOODCODE);
             }
             Insn::LeftShift => insn_impl::binary_operation(BinOp::LeftShift).expect(GOODCODE),
             Insn::SignedRightShift => insn_impl::binary_operation(BinOp::SignedRightShift).expect(GOODCODE),
@@ -4367,19 +4359,19 @@ pub(crate) async fn execute(
             Insn::EnumerateObjectProperties => insn_impl::enumerate_object_properties().expect(GOODCODE),
             Insn::PrivateIdLookup => insn_impl::private_id_lookup(&chunk).expect(GOODCODE),
             Insn::EvaluateInitializedClassFieldDefinition => {
-                insn_impl::evaluate_initialized_class_field_def(&chunk, &source, Static::No).expect(GOODCODE);
+                insn_impl::evaluate_initialized_class_field_def(&chunk, Static::No).expect(GOODCODE);
             }
             Insn::EvaluateInitializedClassStaticFieldDefinition => {
-                insn_impl::evaluate_initialized_class_field_def(&chunk, &source, Static::Yes).expect(GOODCODE);
+                insn_impl::evaluate_initialized_class_field_def(&chunk, Static::Yes).expect(GOODCODE);
             }
             Insn::EvaluateClassStaticBlockDefinition => {
-                insn_impl::evaluate_class_static_block_def(&chunk, &source).expect(GOODCODE);
+                insn_impl::evaluate_class_static_block_def(&chunk).expect(GOODCODE);
             }
-            Insn::DefineMethod => insn_impl::define_method(&chunk, &source).expect(GOODCODE),
+            Insn::DefineMethod => insn_impl::define_method(&chunk).expect(GOODCODE),
             Insn::SetFunctionName => insn_impl::set_function_name().expect(GOODCODE),
             Insn::DefineMethodProperty => insn_impl::define_method_property(&chunk).expect(GOODCODE),
-            Insn::DefineGetter => insn_impl::define_getter(&chunk, &source).expect(GOODCODE),
-            Insn::DefineSetter => insn_impl::define_setter(&chunk, &source).expect(GOODCODE),
+            Insn::DefineGetter => insn_impl::define_getter(&chunk).expect(GOODCODE),
+            Insn::DefineSetter => insn_impl::define_setter(&chunk).expect(GOODCODE),
             Insn::GetParentsFromSuperclass => insn_impl::get_parents_from_superclass().expect(GOODCODE),
             Insn::CreateDefaultConstructor => insn_impl::create_default_constructor().expect(GOODCODE),
             Insn::MakeClassConstructorAndSetName => insn_impl::make_class_constructor_and_set_name().expect(GOODCODE),
@@ -4699,7 +4691,7 @@ fn evaluate_initialized_class_field_definition(
     info: &StashedFunctionData,
     home_object: Object,
     name: Option<ClassName>,
-    source: &SourceTree,
+    source: &Rc<SourceTree>,
 ) -> anyhow::Result<Object> {
     // Pieces from ClassFieldDefinitionEvaluation
     //  1. Let env be the LexicalEnvironment of the running execution context.
@@ -4751,7 +4743,7 @@ fn evaluate_initialized_class_field_definition(
 fn evaluate_class_static_block_definition(
     info: &StashedFunctionData,
     home_object: Object,
-    source: &SourceTree,
+    source: &Rc<SourceTree>,
 ) -> anyhow::Result<Object> {
     // Pieces from ClassStaticBlockDefinitionEvaluation
     //  1. Let lex be the running execution context's LexicalEnvironment.
@@ -5016,7 +5008,7 @@ pub(crate) fn parse_script(source_text: &str, realm: Rc<RefCell<Realm>>) -> Resu
         Err(errs) => Err(errs),
         Ok(script) => {
             let mut chunk = Chunk::new("top level script", 1);
-            let source = SourceTree { ast, text: source_text.to_string() };
+            let source = Rc::new(SourceTree { ast, text: source_text.to_string() });
             script
                 .compile(&mut chunk, false, &source)
                 .map_err(|err| vec![create_syntax_error_object(format!("{err}"), None)])?;
@@ -5089,7 +5081,7 @@ impl FcnDef {
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> Completion<ECMAScriptValue> {
         match self {
             FcnDef::Function(x) => x.instantiate_function_object(env, private_env, strict, source),
@@ -5130,7 +5122,7 @@ pub(crate) fn global_declaration_instantiation(
     script: &Rc<Script>,
     env: &Rc<GlobalEnvironmentRecord>,
     strict: bool,
-    source: &SourceTree,
+    source: &Rc<SourceTree>,
 ) -> Completion<()> {
     #[cfg(debug_assertions)]
     println!("Creating Globals...");
@@ -5242,7 +5234,7 @@ pub(crate) fn script_evaluation(sr: ScriptRecord) -> Completion<ECMAScriptValue>
 
     let strict = script.body.as_ref().is_some_and(|b| b.contains_use_strict());
     let top = ParsedText::Script(script.clone());
-    let source = SourceTree { ast: top.clone(), text: sr.text.clone() };
+    let source = Rc::new(SourceTree { ast: top.clone(), text: sr.text.clone() });
 
     let result = global_declaration_instantiation(&script, &global_env.unwrap(), strict, &source)
         .and_then(|()| evaluate(sr.compiled, &source));

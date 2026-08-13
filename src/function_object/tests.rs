@@ -60,6 +60,7 @@ mod function_declaration {
         fn typical(name: &str) -> String {
             let src = format!("function {name}(){{}}");
             let (fd, ast) = Maker::new(&src).function_declaration_ast();
+            let ast = Rc::new(ast);
             setup_test_agent();
             let realm_rc = current_realm_record().unwrap();
             let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
@@ -96,6 +97,7 @@ mod function_declaration {
         fn compile_error() {
             let src = "function a(){ if (true) { @@@; } return 3; }";
             let (fd, ast) = Maker::new(src).function_declaration_ast();
+            let ast = Rc::new(ast);
             setup_test_agent();
             let realm_rc = current_realm_record().unwrap();
             let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
@@ -126,6 +128,7 @@ mod async_function_declaration {
     fn instantiate_function_object() {
         let src = "async function a(){}";
         let (fd, ast) = Maker::new(src).async_function_declaration_ast();
+        let ast = Rc::new(ast);
         setup_test_agent();
         let global_env = {
             let realm_rc = current_realm_record().unwrap();
@@ -144,6 +147,7 @@ mod async_generator_declaration {
     fn instantiate_function_object() {
         let src = "async function *a(){}";
         let (fd, ast) = Maker::new(src).async_generator_declaration_ast();
+        let ast = Rc::new(ast);
         setup_test_agent();
         let global_env = {
             let realm_rc = current_realm_record().unwrap();
@@ -458,6 +462,7 @@ mod function_object_data {
         setup_test_agent();
         let src = "function test_sample(){{}}";
         let (fd, ast) = Maker::new(src).function_declaration_ast();
+        let ast = Rc::new(ast);
         setup_test_agent();
         let realm_rc = current_realm_record().unwrap();
         let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
@@ -485,6 +490,7 @@ mod make_method {
         setup_test_agent();
         let src = "function a(){}";
         let (fd, ast) = Maker::new(src).function_declaration_ast();
+        let ast = Rc::new(ast);
         let realm_rc = current_realm_record().unwrap();
         let global_env = realm_rc.borrow().global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>;
 
@@ -1001,6 +1007,7 @@ fn make_working_function_object() -> Object {
     let source_text = format!("function {function_name}{params_src}{body_src}");
     let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
     let (function_declaration, ast) = Maker::new(&source_text).function_declaration_ast();
+    let ast = Rc::new(ast);
     let params = ParamSource::from(Rc::clone(&function_declaration.params));
     let body = BodySource::from(Rc::clone(&function_declaration.body));
     let realm = current_realm_record().unwrap();
@@ -1014,6 +1021,7 @@ fn make_working_function_object() -> Object {
         strict: false,
         to_compile: FunctionSource::from(function_declaration.clone()),
         this_mode: ThisLexicality::NonLexicalThis,
+        parent_tree: ast.clone(),
     };
     function_declaration.body.compile_body(&mut compiled, &ast, &function_data).unwrap();
     for line in compiled.disassemble(&ast.text) {
@@ -1055,6 +1063,7 @@ fn make_strict_function_object() -> Object {
     let source_text = format!("function {function_name}{params_src}{body_src}");
     let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
     let (function_declaration, ast) = Maker::new(&source_text).function_declaration_ast();
+    let ast = Rc::new(ast);
     let params = ParamSource::from(Rc::clone(&function_declaration.params));
     let body = BodySource::from(Rc::clone(&function_declaration.body));
     let realm = current_realm_record().unwrap();
@@ -1068,6 +1077,7 @@ fn make_strict_function_object() -> Object {
         strict: true,
         to_compile: FunctionSource::from(function_declaration.clone()),
         this_mode: ThisLexicality::NonLexicalThis,
+        parent_tree: ast.clone(),
     };
     function_declaration.body.compile_body(&mut compiled, &ast, &function_data).unwrap();
     for line in compiled.disassemble(&ast.text) {
@@ -1104,6 +1114,7 @@ fn make_arrow_function_object() -> Object {
     let source_text = "x => x * 2".to_string();
     let env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
     let (function_declaration, ast) = Maker::new(&source_text).arrow_function_ast();
+    let ast = Rc::new(ast);
     let params = ParamSource::from(Rc::clone(&function_declaration.parameters));
     let body = BodySource::from(Rc::clone(&function_declaration.body));
     let realm = current_realm_record().unwrap();
@@ -1117,6 +1128,7 @@ fn make_arrow_function_object() -> Object {
         strict: true,
         to_compile: FunctionSource::from(function_declaration.clone()),
         this_mode: ThisLexicality::LexicalThis,
+        parent_tree: ast.clone(),
     };
     function_declaration.body.compile_body(&mut compiled, &ast, &function_data).unwrap();
     for line in compiled.disassemble(&ast.text) {

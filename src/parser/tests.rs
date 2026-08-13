@@ -1439,7 +1439,7 @@ mod parsed_text {
             ParsedText::ClassElementName(node) => format!("ClassElementName({node})"),
             //ParsedText::ClassExpression(node) => format!("ClassExpression({node})"),
             //ParsedText::ClassHeritage(node) => format!("ClassHeritage({node})"),
-            //ParsedText::ClassStaticBlock(node) => format!("ClassStaticBlock({node})"),
+            ParsedText::ClassStaticBlock(node) => format!("ClassStaticBlock({node})"),
             ParsedText::ClassStaticBlockBody(node) => format!("ClassStaticBlockBody({node})"),
             ParsedText::ClassStaticBlockStatementList(node) => format!("ClassStaticBlockStatementList({node})"),
             //ParsedText::ClassTail(node) => format!("ClassTail({node})"),

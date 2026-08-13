@@ -6,7 +6,7 @@ use num::bigint::BigInt;
 use std::fmt;
 use std::rc::Rc;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone /*, PartialEq*/)]
 pub(crate) struct StashedFunctionData {
     pub(crate) source_text: String,
     pub(crate) params: ParamSource,
@@ -14,6 +14,18 @@ pub(crate) struct StashedFunctionData {
     pub(crate) to_compile: FunctionSource,
     pub(crate) strict: bool,
     pub(crate) this_mode: ThisLexicality,
+    pub(crate) parent_tree: Rc<SourceTree>,
+}
+impl PartialEq for StashedFunctionData {
+    fn eq(&self, other: &Self) -> bool {
+        self.source_text == other.source_text
+            && self.params == other.params
+            && self.body == other.body
+            && self.to_compile == other.to_compile
+            && self.strict == other.strict
+            && self.this_mode == other.this_mode
+            && Rc::ptr_eq(&self.parent_tree, &other.parent_tree)
+    }
 }
 
 pub(crate) struct ConciseChunk<'a>(pub(crate) &'a Chunk);

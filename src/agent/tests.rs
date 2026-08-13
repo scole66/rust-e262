@@ -1105,7 +1105,7 @@ mod fcn_def {
         let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         let env = global_env as Rc<dyn EnvironmentRecord>;
 
-        part.instantiate_function_object(env, None, true, &src)
+        part.instantiate_function_object(env, None, true, &Rc::new(src))
             .map_err(|err| err.to_string())
             .map(|value| value.get(&"name".into()).unwrap().to_string())
     }
@@ -1178,6 +1178,7 @@ mod global_declaration_instantiation {
     fn global_declaration_instantiation(src: &str) -> Result<(AHashSet<String>, AHashSet<String>), String> {
         setup_test_agent();
         let (script, ast) = Maker::new(src).script_ast();
+        let ast = Rc::new(ast);
         let global_env = current_realm_record().unwrap().borrow().global_env.clone().unwrap();
         global_env.create_global_var_binding("already_var_declared".into(), false).unwrap();
         global_env.create_mutable_binding("existing_mutable".into(), false).unwrap();
@@ -1774,6 +1775,7 @@ mod evaluate_initialized_class_field_definition {
 
         let src = "sum = 10+20";
         let (fd, ast) = Maker::new(src).field_definition_ast();
+        let ast = Rc::new(ast);
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
         let home = ordinary_object_create(Some(proto));
         let name = Some(ClassName::from("class_name"));
@@ -1784,6 +1786,7 @@ mod evaluate_initialized_class_field_definition {
             to_compile: fd.into(),
             strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: ast.clone(),
         };
 
         let obj = evaluate_initialized_class_field_definition(&info, home.clone(), name, &ast).unwrap();
@@ -1802,6 +1805,7 @@ mod evaluate_initialized_class_field_definition {
 
         let src = "sum = @@# + 10+20";
         let (fd, ast) = Maker::new(src).field_definition_ast();
+        let ast = Rc::new(ast);
         let proto = intrinsic(IntrinsicId::ObjectPrototype);
         let home = ordinary_object_create(Some(proto));
         let name = Some(ClassName::from("class_name"));
@@ -1812,6 +1816,7 @@ mod evaluate_initialized_class_field_definition {
             to_compile: fd.into(),
             strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: ast.clone(),
         };
 
         let res = evaluate_initialized_class_field_definition(&info, home.clone(), name, &ast);

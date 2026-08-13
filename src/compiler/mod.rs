@@ -829,7 +829,7 @@ impl NameableProduction {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         id: Option<NameLoc>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         // Runtime Semantics: NamedEvaluation
@@ -957,7 +957,7 @@ impl PrimaryExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         match self {
@@ -1118,7 +1118,7 @@ impl ParenthesizedExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         // Runtime Semantics: Evaluation
         //  ParenthesizedExpression : ( Expression )
@@ -1238,7 +1238,7 @@ impl ElementList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         match self {
@@ -1439,7 +1439,7 @@ impl SpreadElement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // start:               next_index array
@@ -1480,7 +1480,12 @@ impl SpreadElement {
 }
 
 impl ArrayLiteral {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         match self {
             ArrayLiteral::Empty { elision, .. } => {
@@ -1572,7 +1577,12 @@ impl ArrayLiteral {
 }
 
 impl TemplateLiteral {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         match self {
             TemplateLiteral::NoSubstitutionTemplate { data, .. } => {
@@ -1592,7 +1602,7 @@ impl TemplateLiteral {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         match self {
@@ -1657,7 +1667,7 @@ impl SubstitutionTemplate {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // SubstitutionTemplate : TemplateHead Expression TemplateSpans
@@ -1719,7 +1729,7 @@ impl SubstitutionTemplate {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: ArgumentListEvaluation
@@ -1776,7 +1786,12 @@ impl SubstitutionTemplate {
 }
 
 impl TemplateSpans {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         match self {
             TemplateSpans::Tail { data, .. } => {
@@ -1817,7 +1832,7 @@ impl TemplateSpans {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: SubstitutionEvaluation
@@ -1848,7 +1863,7 @@ impl TemplateMiddleList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         match self {
@@ -1958,7 +1973,7 @@ impl TemplateMiddleList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: SubstitutionEvaluation
@@ -2056,7 +2071,12 @@ impl TemplateMiddleList {
 }
 
 impl ObjectLiteral {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         match self {
             ObjectLiteral::Empty { .. } => {
@@ -2078,7 +2098,7 @@ impl PropertyDefinitionList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         match self {
             PropertyDefinitionList::OneDef(pd) => pd.property_definition_evaluation(chunk, strict, source),
@@ -2104,7 +2124,7 @@ impl PropertyDefinition {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         match self {
@@ -2238,7 +2258,12 @@ impl PropertyDefinition {
 }
 
 impl PropertyName {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         match self {
             PropertyName::LiteralPropertyName(lpn) => lpn.compile(chunk).map(AbruptResult::from),
             PropertyName::ComputedPropertyName(cpn) => cpn.compile(chunk, strict, source).map(AbruptResult::from),
@@ -2290,7 +2315,7 @@ impl ComputedPropertyName {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         let mut exits = vec![];
@@ -2320,7 +2345,7 @@ fn evaluate_property_access_with_expression_key(
     chunk: &mut Chunk,
     expression: &Rc<Expression>,
     strict: bool,
-    source: &SourceTree,
+    source: &Rc<SourceTree>,
 ) -> anyhow::Result<CompilerStatusFlags> {
     let line = expression.location().starting_line;
     // EvaluatePropertyAccessWithExpressionKey ( baseValue, expression, strict )
@@ -2380,7 +2405,7 @@ impl MemberExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         match self {
@@ -2510,7 +2535,7 @@ impl MetaProperty {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         match self {
@@ -2531,7 +2556,7 @@ impl NewExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             NewExpression::MemberExpression(me) => me.compile(chunk, strict, source),
@@ -2549,7 +2574,7 @@ enum ConstructExpr {
 }
 
 impl ConstructExpr {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ConstructExpr::Member(member) => member.compile(chunk, strict, source),
             ConstructExpr::New(newexp) => newexp.compile(chunk, strict, source),
@@ -2566,7 +2591,7 @@ impl ConstructExpr {
 fn compile_new_evaluator(
     chunk: &mut Chunk,
     strict: bool,
-    source: &SourceTree,
+    source: &Rc<SourceTree>,
     expr: &ConstructExpr,
     args: Option<Rc<Arguments>>,
 ) -> anyhow::Result<CompilerStatusFlags> {
@@ -2658,7 +2683,7 @@ impl CallExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         match self {
@@ -2834,7 +2859,7 @@ impl ArgsFrom<'_> {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         match self {
             ArgsFrom::Arguments(arguments) => arguments.argument_list_evaluation(chunk, strict, source),
@@ -2846,7 +2871,7 @@ impl ArgsFrom<'_> {
 pub(crate) fn compile_call(
     chunk: &mut Chunk,
     strict: bool,
-    source: &SourceTree,
+    source: &Rc<SourceTree>,
     arguments: Option<&ArgsFrom<'_>>,
     tail_position: bool,
 ) -> anyhow::Result<AlwaysAbruptResult> {
@@ -2912,7 +2937,7 @@ impl CallMemberExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // start:
         //  <member_expression>         func/ref/err
@@ -2958,22 +2983,9 @@ impl CallMemberExpression {
         let tail_call = self.is_in_tail_position(&source.ast, strict);
 
         let me_location = self.member_expression.location();
-        if source.text.len() < me_location.span.starting_index + me_location.span.length {
-            println!(
-                "source text is supposed to run from {} to {}, but it's actually\n{}",
-                me_location.span.starting_index,
-                me_location.span.starting_index + me_location.span.length,
-                source.text
-            );
-        }
-
-        // TODO: the length check here is because evaluating `eval("foo()")` results in a source text of "foo()". But
-        // the definition of foo is not present in that source text, and so if a member expression call is in foo, the
-        // matched source for it is incorrect. While waiting for that to be fixed, just assume the member expression is
-        // "eval". I'm still not sure why that turns up at compile time.
-        let (exit2, exit3) = if source.text.len() < me_location.span.starting_index + me_location.span.length
-            || &source.text[me_location.span.starting_index..me_location.span.starting_index + me_location.span.length]
-                == "eval"
+        let (exit2, exit3) = if &source.text
+            [me_location.span.starting_index..me_location.span.starting_index + me_location.span.length]
+            == "eval"
         {
             let status = self.arguments.argument_list_evaluation(chunk, strict, source)?;
             let unwind2 = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
@@ -3012,7 +3024,7 @@ impl OptionalExpression {
         oc: &Rc<OptionalChain>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = oc.location().starting_line;
         let exit_a = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
@@ -3050,7 +3062,7 @@ impl OptionalExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             OptionalExpression::Member(me, oc) => {
@@ -3098,7 +3110,7 @@ impl OptionalChain {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         // The syntax-directed operation ChainEvaluation takes arguments baseValue (an ECMAScript language
@@ -3279,7 +3291,7 @@ impl LeftHandSideExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             LeftHandSideExpression::New(ne) => ne.compile(chunk, strict, source),
@@ -3300,7 +3312,7 @@ impl Arguments {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         match self {
@@ -3378,7 +3390,7 @@ impl ArgumentList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<(ArgListSizeHint, AbruptResult)> {
         let line = self.location().starting_line;
         match self {
@@ -3563,7 +3575,7 @@ impl UpdateExpression {
     fn post_op(
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         exp: &Rc<LeftHandSideExpression>,
         insn: Insn,
     ) -> anyhow::Result<AlwaysAbruptResult> {
@@ -3616,7 +3628,7 @@ impl UpdateExpression {
     fn pre_op(
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         exp: &Rc<UnaryExpression>,
         insn: Insn,
         line: usize,
@@ -3633,7 +3645,7 @@ impl UpdateExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         match self {
@@ -3659,13 +3671,13 @@ impl UnaryExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         fn unary_op(
             exp: &Rc<UnaryExpression>,
             chunk: &mut Chunk,
             strict: bool,
-            source: &SourceTree,
+            source: &Rc<SourceTree>,
             insn: Insn,
         ) -> anyhow::Result<AlwaysAbruptResult> {
             let line = exp.location().starting_line;
@@ -3754,7 +3766,7 @@ impl ExponentiationExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ExponentiationExpression::UnaryExpression(ue) => ue.compile(chunk, strict, source),
@@ -3771,7 +3783,7 @@ impl MultiplicativeExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             MultiplicativeExpression::ExponentiationExpression(ee) => ee.compile(chunk, strict, source),
@@ -3799,7 +3811,7 @@ impl AdditiveExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let (insn, left, right) = match self {
             AdditiveExpression::MultiplicativeExpression(me) => return me.compile(chunk, strict, source),
@@ -3815,7 +3827,7 @@ impl ShiftExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let (insn, left, right) = match self {
             ShiftExpression::AdditiveExpression(ae) => return ae.compile(chunk, strict, source),
@@ -3844,7 +3856,7 @@ impl RelationalExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             RelationalExpression::ShiftExpression(se) => se.compile(chunk, strict, source),
@@ -3867,12 +3879,12 @@ impl EqualityExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         fn equality_binary(
             chunk: &mut Chunk,
             strict: bool,
-            source: &SourceTree,
+            source: &Rc<SourceTree>,
             left: &Rc<EqualityExpression>,
             right: &Rc<RelationalExpression>,
             insn: Insn,
@@ -3900,7 +3912,7 @@ impl BitwiseANDExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseANDExpression::EqualityExpression(ee) => ee.compile(chunk, strict, source),
@@ -3917,7 +3929,7 @@ impl BitwiseXORExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseXORExpression::BitwiseANDExpression(bae) => bae.compile(chunk, strict, source),
@@ -3934,7 +3946,7 @@ impl BitwiseORExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             BitwiseORExpression::BitwiseXORExpression(bxe) => bxe.compile(chunk, strict, source),
@@ -3951,7 +3963,7 @@ impl LogicalANDExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         match self {
@@ -4000,7 +4012,7 @@ impl LogicalORExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         match self {
@@ -4049,7 +4061,7 @@ impl CoalesceExpressionHead {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             CoalesceExpressionHead::CoalesceExpression(coal) => coal.compile(chunk, strict, source),
@@ -4063,7 +4075,7 @@ impl CoalesceExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         let mut first_exit = None;
@@ -4105,7 +4117,7 @@ impl ShortCircuitExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ShortCircuitExpression::LogicalORExpression(loe) => loe.compile(chunk, strict, source),
@@ -4119,7 +4131,7 @@ impl ConditionalExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         match self {
@@ -4180,7 +4192,7 @@ impl YieldExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         match self {
@@ -4256,7 +4268,7 @@ impl AssignmentExpression {
         ae: &Rc<AssignmentExpression>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         jump_insn: Insn,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // AssignmentExpression : LeftHandSideExpression &&= AssignmentExpression
@@ -4363,7 +4375,7 @@ impl AssignmentExpression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         match self {
@@ -4580,7 +4592,7 @@ impl AssignmentPattern {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: DestructuringAssignmentEvaluation
         // The syntax-directed operation DestructuringAssignmentEvaluation takes argument value (an ECMAScript language
@@ -4600,7 +4612,7 @@ impl ObjectAssignmentPattern {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: DestructuringAssignmentEvaluation
@@ -4718,7 +4730,7 @@ impl AssignmentPropertyList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: PropertyDestructuringAssignmentEvaluation
@@ -4779,7 +4791,7 @@ impl AssignmentProperty {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: PropertyDestructuringAssignmentEvaluation The syntax-directed operation
@@ -4936,7 +4948,7 @@ impl AssignmentRestProperty {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: RestDestructuringAssignmentEvaluation
@@ -5007,7 +5019,7 @@ impl ArrayAssignmentPattern {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: DestructuringAssignmentEvaluation
@@ -5282,7 +5294,7 @@ impl AssignmentRestElement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: IteratorDestructuringAssignmentEvaluation The syntax-directed operation
@@ -5379,7 +5391,7 @@ impl AssignmentElementList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: IteratorDestructuringAssignmentEvaluation The syntax-directed operation
         // IteratorDestructuringAssignmentEvaluation takes argument iteratorRecord (an Iterator Record) and returns
@@ -5423,7 +5435,7 @@ impl AssignmentElisionElement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: IteratorDestructuringAssignmentEvaluation The syntax-directed operation
         // IteratorDestructuringAssignmentEvaluation takes argument iteratorRecord (an Iterator Record) and returns
@@ -5465,7 +5477,7 @@ impl AssignmentElement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: IteratorDestructuringAssignmentEvaluation The syntax-directed operation
@@ -5637,7 +5649,7 @@ impl AssignmentElement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: KeyedDestructuringAssignmentEvaluation
@@ -5819,7 +5831,7 @@ impl DestructuringAssignmentTarget {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             DestructuringAssignmentTarget::LeftHandSideExpression(lhse) => lhse.compile(chunk, strict, source),
@@ -5830,7 +5842,7 @@ impl DestructuringAssignmentTarget {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let pattern: &Rc<AssignmentPattern> = self.try_into()?;
         pattern.destructuring_assignment_evaluation(chunk, strict, source)
@@ -5842,7 +5854,7 @@ impl Expression {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
         match self {
@@ -5882,7 +5894,12 @@ impl Expression {
 }
 
 impl ExpressionStatement {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let status = self.exp.compile(chunk, strict, source)?;
         if status.maybe_ref() {
             chunk.op(Insn::GetValue, self.location().starting_line);
@@ -5892,7 +5909,12 @@ impl ExpressionStatement {
 }
 
 impl StatementList {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         let mut status = self.list[0].compile(chunk, strict, source)?;
         let mut exits = vec![];
@@ -5912,7 +5934,12 @@ impl StatementList {
 }
 
 impl StatementListItem {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         match self {
             StatementListItem::Statement(stmt) => stmt.compile(chunk, strict, source),
             StatementListItem::Declaration(decl) => decl.compile(chunk, strict, source),
@@ -5921,7 +5948,12 @@ impl StatementListItem {
 }
 
 impl Statement {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         match self {
             Statement::Expression(exp) => exp.compile(chunk, strict, source),
             Statement::Block(bs) => bs.compile(chunk, strict, source),
@@ -5944,7 +5976,7 @@ impl Statement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         match self {
@@ -5968,7 +6000,12 @@ impl Statement {
 }
 
 impl Declaration {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         match self {
             Declaration::Class(cls) => cls.compile(chunk, source),
             Declaration::Hoistable(_) => {
@@ -5981,7 +6018,7 @@ impl Declaration {
 }
 
 impl BreakableStatement {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         self.labelled_compile(chunk, strict, source, &[])
     }
 
@@ -5989,7 +6026,7 @@ impl BreakableStatement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         let state = match self {
@@ -6004,7 +6041,12 @@ impl BreakableStatement {
 }
 
 impl BlockStatement {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let BlockStatement::Block(block) = self;
         block.compile(chunk, strict, source)
     }
@@ -6015,7 +6057,7 @@ impl FcnDef {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         match self {
             FcnDef::Function(f) => f.compile_fo_instantiation(chunk, strict, source).map(AbruptResult::from),
@@ -6028,7 +6070,7 @@ impl FcnDef {
 fn block_declaration_instantiation(
     chunk: &mut Chunk,
     strict: bool,
-    source: &SourceTree,
+    source: &Rc<SourceTree>,
     declarations: &[DeclPart],
 ) -> anyhow::Result<()> {
     for d in declarations {
@@ -6054,7 +6096,12 @@ fn block_declaration_instantiation(
 }
 
 impl Block {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let block_location = self.location();
         let end_of_block_line = last_line_of(&source.text, &block_location);
 
@@ -6091,7 +6138,7 @@ impl LexicalDeclaration {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         self.list.compile(chunk, strict, source)?;
@@ -6108,7 +6155,7 @@ impl BindingList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         match self {
@@ -6130,7 +6177,7 @@ impl LexicalBinding {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         match self {
@@ -6221,7 +6268,7 @@ impl Initializer {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         modifier: CompileMod,
     ) -> anyhow::Result<CompilerStatusFlags> {
         let line = self.location().starting_line;
@@ -6260,7 +6307,12 @@ impl Initializer {
 }
 
 impl VariableStatement {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: Evaluation
         //      VariableStatement : var VariableDeclarationList ;
         //  1. Let next be the result of evaluating VariableDeclarationList.
@@ -6274,7 +6326,12 @@ impl VariableStatement {
 }
 
 impl VariableDeclarationList {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         // Stack: ...
         let mut status = self.list[0].compile(chunk, strict, source)?;
@@ -6301,7 +6358,12 @@ impl VariableDeclarationList {
 }
 
 impl VariableDeclaration {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: Evaluation
         match self {
@@ -6393,7 +6455,7 @@ impl EmptyStatement {
 }
 
 impl IfStatement {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         let expression = self.expression();
         let first_statement = self.first_statement();
 
@@ -6469,7 +6531,7 @@ impl IterationStatement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         match self {
@@ -6488,7 +6550,7 @@ impl WhileStatement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
@@ -6560,7 +6622,7 @@ impl DoWhileStatement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
@@ -6629,7 +6691,7 @@ impl ForStatement {
     fn compile_for_body(
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         test: Option<Rc<Expression>>,
         increment: Option<Rc<Expression>>,
         stmt: &Rc<Statement>,
@@ -6774,7 +6836,7 @@ impl ForStatement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
@@ -6975,7 +7037,7 @@ impl<'a> From<&'a Rc<AssignmentExpression>> for ForInOfExpr<'a> {
 }
 
 impl ForInOfExpr<'_> {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<CompilerStatusFlags> {
         match self {
             ForInOfExpr::Expression(exp) => exp.compile(chunk, strict, source),
             ForInOfExpr::AssignmentExpression(ae) => ae.compile(chunk, strict, source),
@@ -7039,7 +7101,7 @@ impl ForInOfStatement {
     fn for_in_of_head_evaluation(
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         uninitialized_bound_names: &[JSString],
         exp: ForInOfExpr,
         kind: IterationKind,
@@ -7153,7 +7215,7 @@ impl ForInOfStatement {
     fn for_in_of_body_evaluation(
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         lhs: ForInOfLHSExpr,
         stmt: &Rc<Statement>,
         i_kind: IterationKind,
@@ -7469,7 +7531,7 @@ impl ForInOfStatement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         label_set: &[JSString],
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -7564,7 +7626,7 @@ impl ForBinding {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: BindingInitialization
@@ -7620,7 +7682,7 @@ impl ForDeclaration {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: ForDeclarationBindingInitialization
@@ -7671,7 +7733,7 @@ impl BreakStatement {
 }
 
 impl ReturnStatement {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         match self {
             ReturnStatement::Bare { .. } => {
@@ -7699,7 +7761,7 @@ impl ReturnStatement {
 }
 
 impl SwitchStatement {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         // SwitchStatement : switch ( Expression ) CaseBlock
         //  1. Let exprRef be ? Evaluation of Expression.
@@ -7750,7 +7812,7 @@ impl CaseBlock {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         // The syntax-directed operation CaseBlockEvaluation takes argument input (an ECMAScript language
         // value) and returns either a normal completion containing an ECMAScript language value or an abrupt
@@ -8030,7 +8092,7 @@ impl CaseBlock {
 }
 
 impl DefaultClause {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         match &self.list {
             Some(sl) => {
                 // DefaultClause : default : StatementList
@@ -8048,7 +8110,7 @@ impl DefaultClause {
 }
 
 impl CaseClause {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         match &self.statements {
             Some(sl) => {
                 // CaseClause : case Expression : StatementList
@@ -8068,7 +8130,7 @@ impl CaseClause {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         // The abstract operation CaseClauseIsSelected takes arguments C (a CaseClause Parse Node) and input
@@ -8118,7 +8180,7 @@ impl CaseClause {
 }
 
 impl LabelledStatement {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         self.labelled_compile(chunk, strict, source, &[])
     }
 
@@ -8126,7 +8188,7 @@ impl LabelledStatement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         let label = self.identifier.string_value();
@@ -8146,7 +8208,7 @@ impl LabelledItem {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         label_set: &[JSString],
     ) -> anyhow::Result<AbruptResult> {
         match self {
@@ -8166,7 +8228,7 @@ impl ThrowStatement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: Evaluation
@@ -8195,7 +8257,12 @@ impl TryStatement {
     /// Compile the TryStatement production
     ///
     /// See [TryStatement evaluation](https://tc39.es/ecma262/#sec-try-statement-runtime-semantics-evaluation)
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         match self {
             TryStatement::Catch { block, catch, .. } => {
@@ -8298,7 +8365,7 @@ impl Catch {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         // Stack: Throw(value) ...
@@ -8351,7 +8418,12 @@ impl Catch {
 }
 
 impl Finally {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         self.block.compile(chunk, strict, source)
     }
 }
@@ -8361,7 +8433,7 @@ impl CatchParameter {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         // Input Stack:  value
         // Output Stack: [empty]/err
@@ -8391,7 +8463,7 @@ impl FunctionDeclaration {
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: InstantiateOrdinaryFunctionObject
         //
@@ -8434,6 +8506,7 @@ impl FunctionDeclaration {
             strict,
             to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: source.clone(),
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_two_args(
@@ -8447,7 +8520,12 @@ impl FunctionDeclaration {
 }
 
 impl Script {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         match &self.body {
             None => Ok(AbruptResult::Never),
             Some(sb) => sb.compile(chunk, strict, source),
@@ -8456,7 +8534,12 @@ impl Script {
 }
 
 impl ScriptBody {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         let strict = strict || self.contains_use_strict();
         self.statement_list.compile(chunk, strict, source)
     }
@@ -8477,7 +8560,7 @@ impl FunctionExpression {
         chunk: &mut Chunk,
         strict: bool,
         name: Option<NameLoc>,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: InstantiateOrdinaryFunctionExpression
         let line = self.location().starting_line;
@@ -8515,6 +8598,7 @@ impl FunctionExpression {
                     strict: strict || strict_body,
                     to_compile: FunctionSource::from(self.clone()),
                     this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
                 chunk.op_plus_arg(Insn::InstantiateIdFreeFunctionExpression, func_id, line);
@@ -8536,6 +8620,7 @@ impl FunctionExpression {
                     strict: strict || strict_body,
                     to_compile: FunctionSource::from(self.clone()),
                     this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
                 };
                 let func_id = chunk.add_to_func_stash(function_data)?;
                 chunk.op_plus_arg(Insn::InstantiateOrdinaryFunctionExpression, func_id, line);
@@ -8551,7 +8636,7 @@ impl FunctionExpression {
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: Evaluation
         //  FunctionExpression : function BindingIdentifier[opt] ( FormalParameters ) { FunctionBody }
@@ -8568,7 +8653,7 @@ impl FunctionExpression {
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         id: Option<NameLoc>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         self.instantiate_ordinary_function_expression(chunk, strict, id, source)
@@ -8578,7 +8663,7 @@ impl FunctionExpression {
 /// Generates the code necessary to set up function execution
 pub(crate) fn compile_fdi(
     chunk: &mut Chunk,
-    source: &SourceTree,
+    source: &Rc<SourceTree>,
     info: &StashedFunctionData,
 ) -> anyhow::Result<AbruptResult> {
     // FunctionDeclarationInstantiation ( func, argumentsList )
@@ -8904,7 +8989,7 @@ impl ArrowFunction {
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         name: Option<NameLoc>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -8927,6 +9012,7 @@ impl ArrowFunction {
             strict,
             to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::LexicalThis,
+            parent_tree: source.clone(),
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_arg(Insn::InstantiateArrowFunctionExpression, func_id, line);
@@ -8937,7 +9023,7 @@ impl ArrowFunction {
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         self.instantiate_arrow_function_expression(chunk, strict, source, None)
     }
@@ -8946,7 +9032,7 @@ impl ArrowFunction {
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         id: Option<NameLoc>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         self.instantiate_arrow_function_expression(chunk, strict, source, id)
@@ -8957,7 +9043,7 @@ impl ConciseBody {
     pub(crate) fn compile_body(
         &self,
         chunk: &mut Chunk,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         info: &StashedFunctionData,
     ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: EvaluateBody
@@ -8999,7 +9085,7 @@ impl ConciseBody {
 }
 
 impl ExpressionBody {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<AlwaysAbruptResult> {
         // ExpressionBody : AssignmentExpression
         //  1. Let exprRef be the result of evaluating AssignmentExpression.
         //  2. Let exprValue be ? GetValue(exprRef).
@@ -9027,7 +9113,7 @@ impl ParamSource {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         match self {
@@ -9050,7 +9136,7 @@ impl PropertySetParameterList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         self.node.compile_binding_initialization(chunk, strict, source, env)
@@ -9062,7 +9148,7 @@ impl FormalParameters {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         match self {
@@ -9098,7 +9184,7 @@ impl ArrowParameters {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         // Stack: N arg[n-1] ... arg[0]
@@ -9118,7 +9204,7 @@ impl ArrowFormalParameters {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         self.params.compile_binding_initialization(chunk, strict, source, env)
@@ -9130,7 +9216,7 @@ impl UniqueFormalParameters {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         self.formals.compile_binding_initialization(chunk, strict, source, env)
@@ -9217,7 +9303,7 @@ impl FormalParameterList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         match self {
@@ -9247,7 +9333,7 @@ impl FormalParameter {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         self.element.compile_binding_initialization(chunk, strict, source, env)
@@ -9259,7 +9345,7 @@ impl BindingElement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         // Stack: N arg[n-1] ... arg[0]
@@ -9334,7 +9420,7 @@ impl BindingElement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -9406,7 +9492,7 @@ impl BindingElement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -9505,7 +9591,7 @@ impl SingleNameBinding {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
@@ -9571,7 +9657,7 @@ impl SingleNameBinding {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -9685,7 +9771,7 @@ impl SingleNameBinding {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -9822,7 +9908,7 @@ impl BindingPattern {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -9884,7 +9970,7 @@ impl ObjectBindingPattern {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
@@ -9981,7 +10067,7 @@ impl BindingPropertyList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -10049,7 +10135,7 @@ impl BindingProperty {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -10201,7 +10287,7 @@ impl ArrayBindingPattern {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
@@ -10336,7 +10422,7 @@ impl BindingElementList {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -10391,7 +10477,7 @@ impl BindingElisionElement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: IteratorBindingInitialization
@@ -10445,7 +10531,7 @@ impl BindingRestElement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -10580,7 +10666,7 @@ impl BindingRestElement {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -10692,7 +10778,7 @@ impl FunctionRestParameter {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         env: EnvUsage,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // This is like iterator_binding_initialization, except that the list is on the stack, rather than sitting in an
@@ -10705,7 +10791,7 @@ impl FunctionBody {
     pub(crate) fn compile_body(
         &self,
         chunk: &mut Chunk,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         info: &StashedFunctionData,
     ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: EvaluateBody
@@ -10750,7 +10836,12 @@ impl FunctionBody {
 }
 
 impl FunctionStatementList {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(
+        &self,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AbruptResult> {
         match self {
             FunctionStatementList::Statements(s) => s.compile(chunk, strict, source),
             FunctionStatementList::Empty(_) => {
@@ -10762,7 +10853,7 @@ impl FunctionStatementList {
 }
 
 impl ClassDeclaration {
-    fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: Evaluation
         // ClassDeclaration : class BindingIdentifier ClassTail
         //  1. Perform ? BindingClassDeclarationEvaluation of this ClassDeclaration.
@@ -10782,7 +10873,7 @@ impl ClassDeclaration {
     fn binding_class_declaration_evaluation(
         &self,
         chunk: &mut Chunk,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: BindingClassDeclarationEvaluation
         // The syntax-directed operation BindingClassDeclarationEvaluation takes no arguments and returns either a
@@ -10843,7 +10934,12 @@ impl ClassDeclaration {
 }
 
 impl ClassExpression {
-    fn named_evaluation(&self, chunk: &mut Chunk, source: &SourceTree, name: NameLoc) -> anyhow::Result<AbruptResult> {
+    fn named_evaluation(
+        &self,
+        chunk: &mut Chunk,
+        source: &Rc<SourceTree>,
+        name: NameLoc,
+    ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: NamedEvaluation
         // The syntax-directed operation NamedEvaluation takes argument name (a property key or a Private Name) and
         // returns either a normal completion containing a function object or an abrupt completion.
@@ -10871,7 +10967,7 @@ impl ClassExpression {
         Ok(status)
     }
 
-    fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         match &self.ident {
             Some(binding_id) => {
@@ -10937,7 +11033,7 @@ impl ClassTail {
     fn class_definition_evaluation(
         &self,
         chunk: &mut Chunk,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         class_binding: Option<u16>,
         class_name: NameLoc,
     ) -> anyhow::Result<AbruptResult> {
@@ -11287,13 +11383,13 @@ impl ClassTail {
 }
 
 impl ClassHeritage {
-    fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<CompilerStatusFlags> {
+    fn compile(&self, chunk: &mut Chunk, source: &Rc<SourceTree>) -> anyhow::Result<CompilerStatusFlags> {
         self.exp.compile(chunk, true, source)
     }
 }
 
 impl ClassElement {
-    fn define_method(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    fn define_method(&self, chunk: &mut Chunk, source: &Rc<SourceTree>) -> anyhow::Result<AlwaysAbruptResult> {
         match self {
             ClassElement::Standard { method } => method.define_method(chunk, true, source),
             ClassElement::Static { .. }
@@ -11304,7 +11400,7 @@ impl ClassElement {
         }
     }
 
-    fn class_element_evaluation(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    fn class_element_evaluation(&self, chunk: &mut Chunk, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: ClassElementEvaluation
         // The syntax-directed operation ClassElementEvaluation takes argument object (an Object) and returns either a
         // normal completion containing either a ClassFieldDefinition Record, a ClassStaticBlockDefinition Record, a
@@ -11350,7 +11446,7 @@ impl ClassElement {
                 //  1. Return the ClassStaticBlockDefinitionEvaluation of ClassStaticBlock with argument object.
                 // start:                                               obj
                 //   <block.class_static_block_definition_evaluation>   elem/err obj
-                block.class_static_block_definition_evaluation(chunk).map(AbruptResult::from)
+                block.class_static_block_definition_evaluation(chunk, source).map(AbruptResult::from)
             }
             ClassElement::Empty { .. } => {
                 // ClassElement : ;
@@ -11363,7 +11459,7 @@ impl ClassElement {
 }
 
 impl ClassElementName {
-    fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         match self {
             ClassElementName::PropertyName(pn) => pn.compile(chunk, true, source),
             ClassElementName::PrivateIdentifier { data, .. } => {
@@ -11394,7 +11490,7 @@ impl FieldDefinition {
     fn class_field_definition_evaluation(
         self: &Rc<Self>,
         chunk: &mut Chunk,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         staticness: Static,
     ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: ClassFieldDefinitionEvaluation
@@ -11445,6 +11541,7 @@ impl FieldDefinition {
                     to_compile: self.clone().into(),
                     strict: true,
                     this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
                 };
                 let func_id = chunk.add_to_func_stash(info)?;
                 let opcode = if staticness == Static::Yes {
@@ -11472,6 +11569,7 @@ impl ClassStaticBlock {
     pub(crate) fn class_static_block_definition_evaluation(
         self: &Rc<Self>,
         chunk: &mut Chunk,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<NeverAbruptRefResult> {
         // Runtime Semantics: ClassStaticBlockDefinitionEvaluation
         // The syntax-directed operation ClassStaticBlockDefinitionEvaluation takes argument homeObject (an Object) and
@@ -11499,6 +11597,7 @@ impl ClassStaticBlock {
             to_compile: self.clone().into(),
             strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: source.clone(),
         };
         let func_id = chunk.add_to_func_stash(info)?;
         chunk.op_plus_arg(Insn::EvaluateClassStaticBlockDefinition, func_id, line);
@@ -11507,7 +11606,7 @@ impl ClassStaticBlock {
 }
 
 impl ClassStaticBlockBody {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
         chunk.op(Insn::FinishArgs, line);
         self.0.compile(chunk, source)?;
@@ -11517,7 +11616,7 @@ impl ClassStaticBlockBody {
 }
 
 impl ClassStaticBlockStatementList {
-    pub(crate) fn compile(&self, chunk: &mut Chunk, source: &SourceTree) -> anyhow::Result<AbruptResult> {
+    pub(crate) fn compile(&self, chunk: &mut Chunk, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
         match self {
             ClassStaticBlockStatementList::Statements(sl) => sl.compile(chunk, true, source),
             ClassStaticBlockStatementList::Empty(_) => {
@@ -11535,7 +11634,7 @@ impl MethodDefinition {
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Stack at input:
         //    object prototype
@@ -11590,6 +11689,7 @@ impl MethodDefinition {
                     to_compile: self.clone().into(),
                     strict,
                     this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
                 };
                 let idx = chunk.add_to_func_stash(info)?;
                 chunk.op_plus_arg(Insn::DefineMethod, idx, line);
@@ -11618,7 +11718,7 @@ impl MethodDefinition {
         enumerable: bool,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: MethodDefinitionEvaluation
@@ -11704,6 +11804,7 @@ impl MethodDefinition {
                     to_compile: self.clone().into(),
                     strict,
                     this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
                 };
                 let idx = chunk.add_to_func_stash(info)?;
                 chunk.op_plus_two_args(Insn::DefineGetter, idx, u16::from(enumerable), line);
@@ -11755,6 +11856,7 @@ impl MethodDefinition {
                     to_compile: self.clone().into(),
                     strict,
                     this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
                 };
                 let idx = chunk.add_to_func_stash(info)?;
                 chunk.op_plus_two_args(Insn::DefineSetter, idx, u16::from(enumerable), line);
@@ -11777,7 +11879,7 @@ impl GeneratorExpression {
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let id = match &self.ident {
             Some(ident) => Some(NameLoc::Index(chunk.add_to_string_pool(ident.string_value())?)),
@@ -11790,7 +11892,7 @@ impl GeneratorExpression {
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         id: Option<NameLoc>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         let line = self.location().starting_line;
@@ -11835,7 +11937,7 @@ impl GeneratorExpression {
         Ok(AlwaysAbruptResult)
     }
 
-    fn stashed_generator_function_data(self: &Rc<Self>, strict: bool, source: &SourceTree) -> StashedFunctionData {
+    fn stashed_generator_function_data(self: &Rc<Self>, strict: bool, source: &Rc<SourceTree>) -> StashedFunctionData {
         let span = self.location().span;
         let source_text = source.text[span.starting_index..(span.starting_index + span.length)].to_string();
 
@@ -11846,6 +11948,7 @@ impl GeneratorExpression {
             strict,
             to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: source.clone(),
         }
     }
 
@@ -11853,7 +11956,7 @@ impl GeneratorExpression {
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         id: Option<NameLoc>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: NamedEvaluation
@@ -11872,7 +11975,7 @@ impl GeneratorDeclaration {
         self: &Rc<Self>,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: InstantiateGeneratorFunctionObject
         // The syntax-directed operation InstantiateGeneratorFunctionObject takes arguments env (an Environment Record)
@@ -11916,6 +12019,7 @@ impl GeneratorDeclaration {
             strict,
             to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: source.clone(),
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_two_args(Insn::InstantiateGeneratorFunctionObject, name_id, func_id, line);
@@ -11929,7 +12033,7 @@ impl GeneratorMethod {
         enumerable: bool,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: MethodDefinitionEvaluation
         // The syntax-directed operation MethodDefinitionEvaluation takes arguments object (an Object) and enumerable (a
@@ -11972,6 +12076,7 @@ impl GeneratorMethod {
             strict,
             to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: source.clone(),
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_two_args(Insn::InstantiateGeneratorMethod, func_id, u16::from(enumerable), line);
@@ -11989,7 +12094,7 @@ impl GeneratorBody {
     pub(crate) fn evaluate_generator_body(
         &self,
         chunk: &mut Chunk,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
         info: &StashedFunctionData,
     ) -> anyhow::Result<AbruptResult> {
         // Runtime Semantics: EvaluateGeneratorBody
@@ -12066,7 +12171,7 @@ impl SuperProperty {
         &self,
         chunk: &mut Chunk,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> anyhow::Result<AlwaysAbruptRefResult> {
         let line = self.location().starting_line;
         // Runtime Semantics: Evaluation
@@ -12141,7 +12246,7 @@ impl SuperProperty {
 }
 
 impl SuperCall {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<AlwaysAbruptResult> {
         // SuperCall : super Arguments
         //  1. Let newTarget be GetNewTarget().
         //  2. Assert: newTarget is an Object.
@@ -12208,7 +12313,7 @@ impl SuperCall {
 }
 
 impl WithStatement {
-    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &SourceTree) -> anyhow::Result<AlwaysAbruptResult> {
+    fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<AlwaysAbruptResult> {
         // Runtime Semantics: Evaluation
         // WithStatement : with ( Expression ) Statement
         //  1. Let val be ? Evaluation of Expression.
