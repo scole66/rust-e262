@@ -3058,6 +3058,32 @@ mod insn_impl {
         push_completion(Ok(NormalCompletion::from(ir))).expect(PUSHABLE);
         Ok(())
     }
+    pub(crate) fn private_in(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let id = string_operand(chunk)?;
+        let right = pop_value()?;
+
+        let ECMAScriptValue::Object(right_obj) = right else {
+            // Private-brand checks require an object target. Unlike ordinary `in`,
+            // primitives are not coerced to objects here.
+            let err = create_type_error("Cannot use 'in' operator to search in non-object");
+            push_completion(Err(err)).expect(PUSHABLE);
+            return Ok(());
+        };
+
+        // The private identifier was resolved at parse/compile time to this string
+        // operand, but the actual Private Name lives in the current private
+        // environment.
+        let private_env =
+            current_private_environment().expect("private brand check should run inside a private environment");
+        let private_name = private_env.borrow().resolve_private_identifier(id);
+
+        // `#x in obj` is a brand check: it succeeds when the object has a private
+        // element associated with the resolved Private Name.
+        let is_present = private_element_find(&right_obj, &private_name).is_some();
+
+        push_value(is_present.into()).expect(PUSHABLE);
+        Ok(())
+    }
     pub(crate) fn private_id_lookup(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Expect string id in the opcode; it refers to "privateIdentifier" in the following steps:
         // Input on the stack: nothing
@@ -4358,6 +4384,7 @@ pub(crate) async fn execute(
             Insn::GetV => insn_impl::getv().expect(GOODCODE),
             Insn::EnumerateObjectProperties => insn_impl::enumerate_object_properties().expect(GOODCODE),
             Insn::PrivateIdLookup => insn_impl::private_id_lookup(&chunk).expect(GOODCODE),
+            Insn::PrivateIn => insn_impl::private_in(&chunk).expect(GOODCODE),
             Insn::EvaluateInitializedClassFieldDefinition => {
                 insn_impl::evaluate_initialized_class_field_def(&chunk, Static::No).expect(GOODCODE);
             }

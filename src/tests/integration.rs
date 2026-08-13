@@ -1589,6 +1589,21 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 #[test_case("'' > 0n" => vok(false); "empty-string-to-bigint in greater alt")]
 #[test_case("0n == ''" => vok(true); "empty-string-to-bigint in equal")]
 #[test_case("'' == 0n" => vok(true); "empty-string-to-bigint in equal alt")]
+#[test_case(
+    "class D { #thing; has(item) { return #thing in item; } }; const d = new D(); d.has(100)"
+    => serr("Thrown: TypeError: Cannot use 'in' operator to search in non-object");
+    "private-in typeerror"
+)]
+#[test_case(
+    "class D { #thing; has(item) { return #thing in item; } }; const d = new D(); d.has(d)"
+    => vok(true);
+    "private-in has field"
+)]
+#[test_case(
+    "class D { #thing; has(item) { return #thing in item; } }; const d = new D(); d.has(Object)"
+    => vok(false);
+    "private-in lacks field"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
