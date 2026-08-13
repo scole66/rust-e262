@@ -10,6 +10,7 @@ mod proxy_object {
         let po = ProxyObject {
             common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
             proxy_items: RefCell::new(None),
+            is_callable: false,
         };
         assert_ne!(format!("{po:?}"), "");
     }
@@ -17,6 +18,7 @@ mod proxy_object {
     #[test_case(|| ProxyObject {
         common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
         proxy_items: RefCell::new(None),
+        is_callable: false,
     } => serr("TypeError: Proxy has been revoked"); "revoked proxy")]
     #[test_case(|| {
         let proxy_target = ordinary_object_create(None);
@@ -25,7 +27,8 @@ mod proxy_object {
         proxy_handler.set("marker", "testcase proxy handler", true).unwrap();
         ProxyObject {
             common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
-            proxy_items: RefCell::new(Some(ProxyItems { proxy_handler, proxy_target }))
+            proxy_items: RefCell::new(Some(ProxyItems { proxy_handler, proxy_target })),
+            is_callable: false,
         }
     } => Ok(("marker:testcase proxy target".to_string(), "marker:testcase proxy handler".to_string())); "valid")]
     fn validate_non_revoked(make_po: impl FnOnce() -> ProxyObject) -> Result<(String, String), String> {
