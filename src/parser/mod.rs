@@ -839,8 +839,8 @@ pub(crate) enum ParsedText {
     //    ClassExpression(Rc<ClassExpression>),
     //    #[cfg(test)]
     //    ClassHeritage(Rc<ClassHeritage>),
-    //    #[cfg(test)]
-    //    ClassStaticBlock(Rc<ClassStaticBlock>),
+    #[cfg(test)]
+    ClassStaticBlock(Rc<ClassStaticBlock>),
     #[cfg(test)]
     ClassStaticBlockBody(Rc<ClassStaticBlockBody>),
     #[cfg(test)]

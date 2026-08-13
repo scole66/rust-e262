@@ -1221,7 +1221,7 @@ pub(crate) fn perform_eval(x: ECMAScriptValue, call_state: EvalCallStatus) -> Co
                 call_state == EvalCallStatus::DirectWithStrictCaller,
                 call_state != EvalCallStatus::NotDirect,
             );
-            let source_tree = SourceTree { ast: script.clone(), text: source_text.clone() };
+            let source_tree = Rc::new(SourceTree { ast: script.clone(), text: source_text.clone() });
             match script {
                 ParsedText::Errors(errs) => {
                     Err(create_syntax_error(errs.iter().map(unwind_any_error_object).join("; "), None))
@@ -1309,7 +1309,7 @@ fn eval_declaration_instantiation(
     lex_env: &Rc<dyn EnvironmentRecord>,
     private_env: Option<&Rc<RefCell<PrivateEnvironmentRecord>>>,
     strict: bool,
-    source_tree: &SourceTree,
+    source_tree: &Rc<SourceTree>,
 ) -> Completion<()> {
     let var_names = body.var_declared_names();
     let var_declarations = body.var_scoped_declarations();

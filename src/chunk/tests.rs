@@ -142,7 +142,8 @@ mod chunk {
         fn typical() {
             let mut c = Chunk::new("too much", 1);
             let src = "function bob() {}";
-            let parse_node = Maker::new(src).function_declaration();
+            let (parse_node, ast) = Maker::new(src).function_declaration_ast();
+            let ast = Rc::new(ast);
             let data = StashedFunctionData {
                 source_text: String::from(src),
                 params: parse_node.params.clone().into(),
@@ -150,6 +151,7 @@ mod chunk {
                 to_compile: parse_node.clone().into(),
                 strict: true,
                 this_mode: ThisLexicality::NonLexicalThis,
+                parent_tree: ast,
             };
             let res = c.add_to_func_stash(data).unwrap();
             assert_eq!(res, 0);
@@ -170,7 +172,8 @@ mod chunk {
             let mut c = Chunk::new("too much", 1);
             c.function_object_data = Vec::<StashedFunctionData>::with_capacity(65536);
             let src = "function bob() {}";
-            let parse_node = Maker::new(src).function_declaration();
+            let (parse_node, ast) = Maker::new(src).function_declaration_ast();
+            let ast = Rc::new(ast);
             for _ in 0..65536 {
                 c.function_object_data.push(StashedFunctionData {
                     source_text: String::from(src),
@@ -179,6 +182,7 @@ mod chunk {
                     to_compile: parse_node.clone().into(),
                     strict: true,
                     this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: ast.clone(),
                 });
             }
             let res = c
@@ -189,6 +193,7 @@ mod chunk {
                     to_compile: parse_node.clone().into(),
                     strict: true,
                     this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: ast,
                 })
                 .unwrap_err();
             assert_eq!(res.to_string(), "Out of room for more functions!");
@@ -502,7 +507,8 @@ mod chunk {
         c1.add_to_string_set_pool(&[JSString::from("first"), JSString::from("second")]).unwrap();
 
         let src = "function bob() {}";
-        let parse_node = Maker::new(src).function_declaration();
+        let (parse_node, ast) = Maker::new(src).function_declaration_ast();
+        let ast = Rc::new(ast);
         let data = StashedFunctionData {
             source_text: String::from(src),
             params: parse_node.params.clone().into(),
@@ -510,6 +516,7 @@ mod chunk {
             to_compile: parse_node.clone().into(),
             strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: ast,
         };
 
         c1.add_to_func_stash(data).unwrap();
@@ -535,7 +542,8 @@ mod stashed_function_data {
     #[test]
     fn debug() {
         let src = "function func_name(param1, param2, param3) { let a = thing1(param1); return a + param2 + param3; }";
-        let fd = Maker::new(src).function_declaration();
+        let (fd, ast) = Maker::new(src).function_declaration_ast();
+        let ast = Rc::new(ast);
         let sfd = StashedFunctionData {
             source_text: src.into(),
             params: fd.params.clone().into(),
@@ -543,6 +551,7 @@ mod stashed_function_data {
             to_compile: fd.clone().into(),
             strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: ast,
         };
         assert_ne!(format!("{sfd:?}"), "");
     }
@@ -550,7 +559,8 @@ mod stashed_function_data {
     #[test]
     fn clone() {
         let src = "function func_name(param1, param2, param3) { let a = thing1(param1); return a + param2 + param3; }";
-        let fd = Maker::new(src).function_declaration();
+        let (fd, ast) = Maker::new(src).function_declaration_ast();
+        let ast = Rc::new(ast);
         let sfd = StashedFunctionData {
             source_text: src.into(),
             params: fd.params.clone().into(),
@@ -558,6 +568,7 @@ mod stashed_function_data {
             to_compile: fd.clone().into(),
             strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: ast,
         };
         let number2 = sfd.clone();
 
@@ -567,7 +578,8 @@ mod stashed_function_data {
     #[test]
     fn eq() {
         let src = "function func_name(param1, param2, param3) { let a = thing1(param1); return a + param2 + param3; }";
-        let fd = Maker::new(src).function_declaration();
+        let (fd, ast) = Maker::new(src).function_declaration_ast();
+        let ast = Rc::new(ast);
         let stash = StashedFunctionData {
             source_text: src.into(),
             params: fd.params.clone().into(),
@@ -575,10 +587,12 @@ mod stashed_function_data {
             to_compile: fd.clone().into(),
             strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: ast,
         };
         let number2 = stash.clone();
         let src_other = "function a() { return 3; }";
-        let fd_other = Maker::new(src_other).function_declaration();
+        let (fd_other, ast_other) = Maker::new(src_other).function_declaration_ast();
+        let ast_other = Rc::new(ast_other);
         let stash_other = StashedFunctionData {
             source_text: src.into(),
             params: fd_other.params.clone().into(),
@@ -586,6 +600,7 @@ mod stashed_function_data {
             to_compile: fd_other.clone().into(),
             strict: true,
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: ast_other,
         };
 
         assert_eq!(stash == number2, true);

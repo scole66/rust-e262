@@ -1147,11 +1147,11 @@ impl<'a> Maker<'a> {
     pub(crate) fn class_static_block(self) -> Rc<ClassStaticBlock> {
         ClassStaticBlock::parse(&mut newparser(self.source), Scanner::new()).unwrap().0
     }
-    //pub(crate) fn class_static_block_ast(self) -> (Rc<ClassStaticBlock>, SourceTree) {
-    //    let source = self.source.to_string();
-    //    let node = ClassStaticBlock::parse(&mut newparser(self.source), Scanner::new()).unwrap().0;
-    //    (node.clone(), SourceTree { text: source, ast: ParsedText::ClassStaticBlock(node) })
-    //}
+    pub(crate) fn class_static_block_ast(self) -> (Rc<ClassStaticBlock>, SourceTree) {
+        let source = self.source.to_string();
+        let node = ClassStaticBlock::parse(&mut newparser(self.source), Scanner::new()).unwrap().0;
+        (node.clone(), SourceTree { text: source, ast: ParsedText::ClassStaticBlock(node) })
+    }
     /// Use the configs in the [`Maker`] object to make a [`ClassStaticBlockBody`] parse node.
     pub(crate) fn class_static_block_body(self) -> Rc<ClassStaticBlockBody> {
         ClassStaticBlockBody::parse(&mut newparser(self.source), Scanner::new()).0
@@ -2979,6 +2979,7 @@ impl ParsedText {
             Self::CatchParameter(catch_parameter) => catch_parameter.find_call_expression_at(loc),
             Self::ClassDeclaration(class_declaration) => class_declaration.find_call_expression_at(loc),
             Self::ClassElementName(class_element_name) => class_element_name.find_call_expression_at(loc),
+            Self::ClassStaticBlock(csb) => csb.find_call_expression_at(loc),
             Self::ClassStaticBlockBody(class_static_block_body) => class_static_block_body.find_call_expression_at(loc),
             Self::ClassStaticBlockStatementList(class_static_block_statement_list) => {
                 class_static_block_statement_list.find_call_expression_at(loc)
@@ -3183,6 +3184,7 @@ impl ParsedText {
             Self::CatchParameter(catch_parameter) => catch_parameter.find_call_member_expression_at(loc),
             Self::ClassDeclaration(class_declaration) => class_declaration.find_call_member_expression_at(loc),
             Self::ClassElementName(class_element_name) => class_element_name.find_call_member_expression_at(loc),
+            Self::ClassStaticBlock(csb) => csb.find_call_member_expression_at(loc),
             Self::ClassStaticBlockBody(class_static_block_body) => {
                 class_static_block_body.find_call_member_expression_at(loc)
             }
@@ -3387,6 +3389,7 @@ impl ParsedText {
             Self::ClassDeclaration(class_declaration) => todo!(),
             Self::ClassElementName(class_element_name) => todo!(),
             Self::ClassStaticBlockBody(class_static_block_body) => todo!(),
+            Self::ClassStaticBlock(node) => todo!(),
             Self::ClassStaticBlockStatementList(class_static_block_statement_list) => {
                 todo!()
             }
@@ -3614,6 +3617,8 @@ impl ParsedText {
             ParsedText::ClassDeclaration(node) => node.body_containing_location(location),
             #[cfg(test)]
             ParsedText::ClassElementName(node) => node.body_containing_location(location),
+            #[cfg(test)]
+            ParsedText::ClassStaticBlock(node) => node.body_containing_location(location),
             #[cfg(test)]
             ParsedText::ClassStaticBlockBody(node) => node.body_containing_location(location),
             #[cfg(test)]
@@ -4215,6 +4220,18 @@ impl ClassDeclaration {
 }
 
 impl ClassElementName {
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
+        todo!()
+    }
+
+    #[expect(unused_variables)]
+    pub(crate) fn find_call_member_expression_at(&self, loc: &Location) -> Option<Rc<CallMemberExpression>> {
+        todo!()
+    }
+}
+
+impl ClassStaticBlock {
     #[expect(unused_variables)]
     pub(crate) fn find_call_expression_at(&self, loc: &Location) -> Option<Rc<CallExpression>> {
         todo!()

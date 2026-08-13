@@ -1001,7 +1001,7 @@ impl CallableObject for FunctionObject {
 
     fn complete_call(&self) -> Completion<ECMAScriptValue> {
         let fod = self.function_data.borrow();
-        let source = fod.script_or_module.as_ref().map_or_else(SourceTree::empty, ScriptOrModule::source_tree);
+        let source = Rc::new(fod.script_or_module.as_ref().map_or_else(SourceTree::empty, ScriptOrModule::source_tree));
         execute_synchronously(&source)
     }
 }
@@ -1768,7 +1768,7 @@ impl FunctionDeclaration {
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> Completion<ECMAScriptValue> {
         // Runtime Semantics: InstantiateOrdinaryFunctionObject
         //
@@ -1813,6 +1813,7 @@ impl FunctionDeclaration {
             strict,
             to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: source.clone(),
         };
         let compilation_status = self.body.compile_body(&mut compiled, source, &function_data);
         if let Err(err) = compilation_status {
@@ -1850,7 +1851,7 @@ impl GeneratorDeclaration {
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> Completion<ECMAScriptValue> {
         // Runtime Semantics: InstantiateGeneratorFunctionObject
         // The syntax-directed operation InstantiateGeneratorFunctionObject takes arguments env (an Environment Record)
@@ -1900,6 +1901,7 @@ impl GeneratorDeclaration {
             strict,
             to_compile: FunctionSource::from(self.clone()),
             this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: source.clone(),
         };
         let compilation_status = self.body.evaluate_generator_body(&mut compiled, source, &function_data);
         if let Err(err) = compilation_status {
@@ -2382,6 +2384,7 @@ pub(crate) fn create_dynamic_function(
         body_contains_use_strict,
         false,
     );
+    let source = Rc::new(SourceTree { ast: function_expression.clone(), text: source_text.clone() });
     let function_expression: Result<ParsedFunctionExpression, Vec<Object>> =
         function_expression.try_into().expect("function expressions are expected");
     let function_source = match function_expression {
@@ -2407,12 +2410,12 @@ pub(crate) fn create_dynamic_function(
         strict: body_contains_use_strict,
         to_compile: function_source,
         this_mode: ThisLexicality::NonLexicalThis,
+        parent_tree: source.clone(),
     };
     let body = ParsedBody::try_from(body).expect("body should be a function body");
-    let source_tree = SourceTree { text: source_text.clone(), ast: parsed_body };
     let compilation_status = match &body {
-        ParsedBody::Function(fb) => fb.compile_body(&mut compiled, &source_tree, &function_data),
-        ParsedBody::Generator(gb) => gb.evaluate_generator_body(&mut compiled, &source_tree, &function_data),
+        ParsedBody::Function(fb) => fb.compile_body(&mut compiled, &source, &function_data),
+        ParsedBody::Generator(gb) => gb.evaluate_generator_body(&mut compiled, &source, &function_data),
         ParsedBody::AsyncFunction(_) | ParsedBody::AsyncGenerator(_) => {
             compiled.op(Insn::ToDo, 1);
             Ok(AbruptResult::Never)
@@ -2423,7 +2426,7 @@ pub(crate) fn create_dynamic_function(
         return Err(typeerror);
     }
     #[cfg(debug_assertions)]
-    for line in compiled.disassemble(&source_tree.text) {
+    for line in compiled.disassemble(&source.text) {
         println!("{line}");
     }
 
