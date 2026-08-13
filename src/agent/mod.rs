@@ -4039,7 +4039,7 @@ mod insn_impl {
 
     pub(crate) fn get_template_object(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         let info = template_operand(chunk)?;
-        let site = info.location;
+        let id = info.id;
         // GetTemplateObject ( templateLiteral )
         //
         // The abstract operation GetTemplateObject takes argument templateLiteral (a Parse Node) and returns an Array.
@@ -4054,7 +4054,7 @@ mod insn_impl {
             // 3. For each element e of templateRegistry, do
             //    a. If e.[[Site]] is the same Parse Node as templateLiteral, then
             //       i. Return e.[[Array]].
-            if let Some(record) = template_registry.iter().find(|r| r.site == site) {
+            if let Some(record) = template_registry.iter().find(|r| r.id == id) {
                 let obj_copy = record.array.clone();
                 let array_value = ECMAScriptValue::Object(obj_copy);
                 let completion = NormalCompletion::Value(array_value);
@@ -4111,7 +4111,7 @@ mod insn_impl {
         set_integrity_level(&template, IntegrityLevel::Frozen).expect(GOODOBJ);
         // 16. Append the Record { [[Site]]: templateLiteral, [[Array]]: template } to realm.[[TemplateMap]].
         let mut realm = realm_outer.borrow_mut();
-        realm.template_map.push(TemplateRecord { site, array: template.clone() });
+        realm.template_map.push(TemplateRecord { id, array: template.clone() });
         // 17. Return template.
         push_completion(Ok(NormalCompletion::Value(ECMAScriptValue::Object(template)))).expect(PUSHABLE);
         Ok(())

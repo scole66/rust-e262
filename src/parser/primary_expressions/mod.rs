@@ -2,6 +2,7 @@ use super::*;
 use std::fmt;
 use std::io::Result as IoResult;
 use std::io::Write;
+use uid::Id as IdT;
 
 //////// 12.2 Primary Expression
 // PrimaryExpression[Yield, Await] :
@@ -2643,17 +2644,21 @@ impl Literal {
 // TemplateLiteral[Yield, Await, Tagged] :
 //      NoSubstitutionTemplate
 //      SubstitutionTemplate[?Yield, ?Await, ?Tagged]
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd, Hash)]
+pub(crate) struct TL(());
+pub(crate) type TLId = IdT<TL>;
+
 #[derive(Debug)]
 pub(crate) enum TemplateLiteral {
-    NoSubstitutionTemplate { data: TemplateData, tagged: bool, location: Location },
-    SubstitutionTemplate(Rc<SubstitutionTemplate>),
+    NoSubstitutionTemplate { data: TemplateData, tagged: bool, location: Location, uid: TLId },
+    SubstitutionTemplate { core: Rc<SubstitutionTemplate>, uid: TLId },
 }
 
 impl fmt::Display for TemplateLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TemplateLiteral::NoSubstitutionTemplate { data: td, .. } => write!(f, "`{td}`"),
-            TemplateLiteral::SubstitutionTemplate(boxed) => write!(f, "{boxed}"),
+            TemplateLiteral::SubstitutionTemplate { core: boxed, uid: _ } => write!(f, "{boxed}"),
         }
     }
 }
@@ -2667,7 +2672,9 @@ impl PrettyPrint for TemplateLiteral {
         writeln!(writer, "{first}TemplateLiteral: {self}")?;
         match self {
             TemplateLiteral::NoSubstitutionTemplate { .. } => Ok(()),
-            TemplateLiteral::SubstitutionTemplate(st) => st.pprint_with_leftpad(writer, &successive, Spot::Final),
+            TemplateLiteral::SubstitutionTemplate { core: st, .. } => {
+                st.pprint_with_leftpad(writer, &successive, Spot::Final)
+            }
         }
     }
 
@@ -2679,7 +2686,7 @@ impl PrettyPrint for TemplateLiteral {
             TemplateLiteral::NoSubstitutionTemplate { .. } => {
                 pprint_token(writer, self, TokenType::NoSubTemplate, pad, state)
             }
-            TemplateLiteral::SubstitutionTemplate(st) => st.concise_with_leftpad(writer, pad, state),
+            TemplateLiteral::SubstitutionTemplate { core: st, .. } => st.concise_with_leftpad(writer, pad, state),
         }
     }
 }
@@ -2689,7 +2696,12 @@ impl TemplateLiteral {
         let (tok, tok_loc, after_nst) = scan_token(&scanner, parser.source, InputElementGoal::RegExp);
         if let Token::NoSubstitutionTemplate(td) = tok {
             Ok((
-                Rc::new(TemplateLiteral::NoSubstitutionTemplate { data: td, tagged: tagged_flag, location: tok_loc }),
+                Rc::new(TemplateLiteral::NoSubstitutionTemplate {
+                    data: td,
+                    tagged: tagged_flag,
+                    location: tok_loc,
+                    uid: TLId::new(),
+                }),
                 after_nst,
             ))
         } else {
@@ -2705,7 +2717,7 @@ impl TemplateLiteral {
         tagged_flag: bool,
     ) -> ParseResult<Self> {
         let (node, after) = SubstitutionTemplate::parse(parser, scanner, yield_flag, await_flag, tagged_flag)?;
-        Ok((Rc::new(TemplateLiteral::SubstitutionTemplate(node)), after))
+        Ok((Rc::new(TemplateLiteral::SubstitutionTemplate { core: node, uid: TLId::new() }), after))
     }
 
     fn parse_core(
@@ -2741,13 +2753,13 @@ impl TemplateLiteral {
     pub(crate) fn location(&self) -> Location {
         match self {
             TemplateLiteral::NoSubstitutionTemplate { location, .. } => *location,
-            TemplateLiteral::SubstitutionTemplate(st) => st.location(),
+            TemplateLiteral::SubstitutionTemplate { core: st, .. } => st.location(),
         }
     }
 
     pub(crate) fn contains(&self, kind: ParseNodeKind) -> bool {
         match self {
-            TemplateLiteral::SubstitutionTemplate(boxed) => boxed.contains(kind),
+            TemplateLiteral::SubstitutionTemplate { core: boxed, .. } => boxed.contains(kind),
             TemplateLiteral::NoSubstitutionTemplate { .. } => false,
         }
     }
@@ -2761,7 +2773,7 @@ impl TemplateLiteral {
         //  2. Return true.
         match self {
             TemplateLiteral::NoSubstitutionTemplate { .. } => true,
-            TemplateLiteral::SubstitutionTemplate(boxed) => boxed.all_private_identifiers_valid(names),
+            TemplateLiteral::SubstitutionTemplate { core: boxed, .. } => boxed.all_private_identifiers_valid(names),
         }
     }
 
@@ -2778,14 +2790,14 @@ impl TemplateLiteral {
         //  2. Return false.
         match self {
             TemplateLiteral::NoSubstitutionTemplate { .. } => false,
-            TemplateLiteral::SubstitutionTemplate(st) => st.contains_arguments(),
+            TemplateLiteral::SubstitutionTemplate { core: st, .. } => st.contains_arguments(),
         }
     }
 
     pub(crate) fn early_errors(&self, errs: &mut Vec<Object>, strict: bool, ts_limit: usize) {
         // Static Semantics: Early Errors
         match self {
-            TemplateLiteral::NoSubstitutionTemplate { data: td, tagged, location } => {
+            TemplateLiteral::NoSubstitutionTemplate { data: td, tagged, location, uid: _ } => {
                 // TemplateLiteral : NoSubstitutionTemplate
                 //  * It is a Syntax Error if the [Tagged] parameter was not set and
                 //    NoSubstitutionTemplate Contains NotEscapeSequence.
@@ -2796,7 +2808,7 @@ impl TemplateLiteral {
                     ));
                 }
             }
-            TemplateLiteral::SubstitutionTemplate(st) => {
+            TemplateLiteral::SubstitutionTemplate { core: st, .. } => {
                 // TemplateLiteral : SubstitutionTemplate
                 //  * It is a Syntax Error if the number of elements in the result of
                 //    TemplateStrings of TemplateLiteral with argument false is greater
@@ -2824,7 +2836,7 @@ impl TemplateLiteral {
                 //  3. Return « string ».
                 if raw { vec![Some(nst.trv.clone())] } else { vec![nst.tv.clone()] }
             }
-            TemplateLiteral::SubstitutionTemplate(st) => {
+            TemplateLiteral::SubstitutionTemplate { core: st, .. } => {
                 // TemplateLiteral : SubstitutionTemplate
                 //  1. Return TemplateStrings of SubstitutionTemplate with argument raw.
                 st.template_strings(raw)
@@ -2836,7 +2848,14 @@ impl TemplateLiteral {
         // Finds the FunctionBody, ConciseBody, or AsyncConciseBody that contains location most closely.
         match self {
             TemplateLiteral::NoSubstitutionTemplate { .. } => None,
-            TemplateLiteral::SubstitutionTemplate(st) => st.body_containing_location(location),
+            TemplateLiteral::SubstitutionTemplate { core: st, .. } => st.body_containing_location(location),
+        }
+    }
+
+    pub(crate) fn id(&self) -> TLId {
+        match self {
+            TemplateLiteral::NoSubstitutionTemplate { data: _, tagged: _, location: _, uid }
+            | TemplateLiteral::SubstitutionTemplate { core: _, uid } => *uid,
         }
     }
 }

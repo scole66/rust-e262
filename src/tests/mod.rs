@@ -613,7 +613,11 @@ pub(crate) fn disasm_filt(s: &str) -> Option<String> {
     if s.starts_with('=') {
         return None;
     }
-    Some(s.split_whitespace().join(" "))
+    Some(
+        s.split_whitespace()
+            .map(|word| if word.starts_with("Id{") && word.ends_with('}') { "Id{*}" } else { word })
+            .join(" "),
+    )
 }
 
 pub(crate) fn disasm_filter2(val: (&str, usize)) -> Option<(String, usize)> {
