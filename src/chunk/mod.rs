@@ -189,6 +189,7 @@ impl Chunk {
             | Insn::TargetedBreak
             | Insn::HandleTargetedBreak
             | Insn::PrivateIdLookup
+            | Insn::PrivateIn
             | Insn::AttachSourceText
             | Insn::MakePrivateReference => {
                 let arg = self.opcodes[idx] as usize;

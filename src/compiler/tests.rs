@@ -2760,7 +2760,22 @@ mod relational_expression {
         "JUMP 1",
         "INSTANCEOF"
     ]), true, false)); "instanceof/strict")]
-    #[test_case("#blue in gray", true, &[] => panics "not yet implemented"; "privateid in")]
+    #[test_case(
+        "#blue in gray", true, &[]
+        => Ok((
+            svec(&[
+                "00001: #blue in gray",
+                "STRING 1 (gray)",
+                "STRICT_RESOLVE",
+                "GET_VALUE",
+                "JUMP_IF_ABRUPT 2",
+                "PRIVATE_IN 0 (#blue)"
+            ]),
+            true,
+            false
+        ));
+        "privateid in"
+    )]
     #[test_case("a<10", false, &[] => Ok((svec(&["00001: a<10", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LT"]), true, false)); "less than/non-strict")]
     #[test_case("a>10", false, &[] => Ok((svec(&["00001: a>10", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "GT"]), true, false)); "greater than/non-strict")]
     #[test_case("a<=10", false, &[] => Ok((svec(&["00001: a<=10", "STRING 0 (a)", "RESOLVE", "GET_VALUE", "JUMP_IF_ABRUPT 3", "FLOAT 0 (10)", "LE"]), true, false)); "less equal/non-strict")]

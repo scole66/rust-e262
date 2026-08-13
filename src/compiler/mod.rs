@@ -148,6 +148,7 @@ pub(crate) enum Insn {
     PreDecrement,
     PreIncrement,
     PrivateIdLookup,
+    PrivateIn,
     PushNewLexEnv,
     PushNewLexEnvFromVar,
     PushNewPrivateEnv,
@@ -387,6 +388,7 @@ impl fmt::Display for Insn {
             Insn::IteratorRest => "ITER_REST",
             Insn::EnumerateObjectProperties => "ENUM_PROPS",
             Insn::PrivateIdLookup => "PRIV_ID_LOOKUP",
+            Insn::PrivateIn => "PRIVATE_IN",
             Insn::EvaluateInitializedClassFieldDefinition => "EVAL_CLASS_FIELD_DEF",
             Insn::EvaluateInitializedClassStaticFieldDefinition => "EVAL_CLS_STC_FLD_DEF",
             Insn::EvaluateClassStaticBlockDefinition => "EVAL_CLASS_SBLK_DEF",
@@ -3869,7 +3871,37 @@ impl RelationalExpression {
                 let insn = self.insn().expect("relational exp should be binary");
                 compile_binary_expression!(chunk, strict, source, left, right, insn).map(CompilerStatusFlags::from)
             }
-            RelationalExpression::PrivateIn(_, _, _) => todo!(),
+            RelationalExpression::PrivateIn(pid, shift_exp, _) => {
+                // `#name in expr` evaluates the right-hand expression, then lets the
+                // runtime instruction resolve the private identifier and perform the brand
+                // check. `PrivateIn` also owns the non-object TypeError.
+                //
+                //      <shift_expression>          val/ref/err
+                //      GET_VALUE                   val/err
+                //      JUMP_IF_ABRUPT exit         val
+                //      PRIVATE_IN <private_id>     rval
+                // exit:
+
+                let private_id = chunk.add_to_string_pool(pid.string_value.clone())?;
+                let line = self.location().starting_line;
+
+                let status = shift_exp.compile(chunk, strict, source)?;
+
+                if status.maybe_ref() {
+                    chunk.op(Insn::GetValue, line);
+                }
+
+                let rhs_can_be_abrupt = status.maybe_abrupt() || status.maybe_ref();
+                let exit = if rhs_can_be_abrupt { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+
+                chunk.op_plus_arg(Insn::PrivateIn, private_id, line);
+
+                if let Some(mark) = exit {
+                    chunk.fixup(mark).expect("jump too short to fail");
+                }
+
+                Ok(CompilerStatusFlags::new().abrupt(rhs_can_be_abrupt))
+            }
         }
     }
 }
