@@ -427,7 +427,7 @@ impl fmt::Debug for Intrinsics {
 
 #[derive(Debug)]
 pub(crate) struct TemplateRecord {
-    pub(crate) site: Location,
+    pub(crate) id: TLId,
     pub(crate) array: Object,
 }
 

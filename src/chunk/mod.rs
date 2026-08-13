@@ -405,7 +405,7 @@ impl Chunk {
             }
             Insn::GetTemplateObject => {
                 let info_idx = self.opcodes[idx] as usize;
-                (2, format!("    {insn:<24}Location{{{}}}", self.template_info[info_idx].location))
+                (2, format!("    {insn:<24}Id{{{}}}", self.template_info[info_idx].id))
             }
         }
     }
@@ -475,20 +475,20 @@ impl Chunk {
 
 #[derive(Debug, Clone)]
 pub(crate) struct TemplateInfo {
-    pub(crate) location: Location,
+    pub(crate) id: TLId,
     pub(crate) raw_strings: Vec<Option<JSString>>,
     pub(crate) cooked_strings: Vec<Option<JSString>>,
 }
 
 impl TemplateInfo {
-    pub(crate) fn new(location: Location, raw: Vec<Option<JSString>>, cooked: Vec<Option<JSString>>) -> Self {
-        Self { location, raw_strings: raw, cooked_strings: cooked }
+    pub(crate) fn new(id: TLId, raw: Vec<Option<JSString>>, cooked: Vec<Option<JSString>>) -> Self {
+        Self { id, raw_strings: raw, cooked_strings: cooked }
     }
 }
 
 impl PartialEq for TemplateInfo {
     fn eq(&self, other: &Self) -> bool {
-        self.location == other.location
+        self.id == other.id
     }
 }
 

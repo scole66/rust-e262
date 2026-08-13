@@ -3467,7 +3467,7 @@ fn template_literal_test_01() {
 fn template_literal_test_02() {
     let (tl, scanner) = check(TemplateLiteral::parse(&mut newparser("`${a}`"), Scanner::new(), false, false, false));
     chk_scan(&scanner, 6);
-    assert!(matches!(&*tl, TemplateLiteral::SubstitutionTemplate(_)));
+    assert!(matches!(&*tl, TemplateLiteral::SubstitutionTemplate { .. }));
     pretty_check(&*tl, "TemplateLiteral: `${ a }`", &["SubstitutionTemplate: `${ a }`"]);
     concise_check(
         &*tl,

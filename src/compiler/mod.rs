@@ -1596,7 +1596,9 @@ impl TemplateLiteral {
                 chunk.op_plus_arg(Insn::String, idx, line);
                 Ok(AbruptResult::Never)
             }
-            TemplateLiteral::SubstitutionTemplate(st) => st.compile(chunk, strict, source).map(AbruptResult::from),
+            TemplateLiteral::SubstitutionTemplate { core: st, uid: _ } => {
+                st.compile(chunk, strict, source).map(AbruptResult::from)
+            }
         }
     }
 
@@ -1622,7 +1624,7 @@ impl TemplateLiteral {
                 chunk.op_plus_arg(Insn::Float, index, line);
                 Ok(AbruptResult::Never)
             }
-            TemplateLiteral::SubstitutionTemplate(substitution_template) => {
+            TemplateLiteral::SubstitutionTemplate { core: substitution_template, .. } => {
                 // TemplateLiteral : SubstitutionTemplate
                 // 1. Let templateLiteral be this TemplateLiteral.
                 // 2. Let siteObj be GetTemplateObject(templateLiteral).
@@ -1657,7 +1659,8 @@ impl TemplateLiteral {
 
     fn get_template_object(&self, chunk: &mut Chunk) -> anyhow::Result<NeverAbruptRefResult> {
         let line = self.location().starting_line;
-        let info = TemplateInfo::new(self.location(), self.template_strings(true), self.template_strings(false));
+        let id = self.id();
+        let info = TemplateInfo::new(id, self.template_strings(true), self.template_strings(false));
         let index = chunk.add_to_template_pool(info)?;
         chunk.op_plus_arg(Insn::GetTemplateObject, index, line);
         Ok(NeverAbruptRefResult)
