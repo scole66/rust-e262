@@ -10,6 +10,7 @@ pub(crate) struct ProxyItems {
 pub(crate) struct ProxyObject {
     common: RefCell<CommonObjectData>,
     pub(crate) proxy_items: RefCell<Option<ProxyItems>>,
+    is_callable: bool, // revokable proxy objects remember if they were callable or not after revokation
 }
 
 impl ObjectInterface for ProxyObject {
@@ -31,15 +32,11 @@ impl ObjectInterface for ProxyObject {
     }
 
     fn to_callable_obj(&self) -> Option<&dyn CallableObject> {
-        let proxy_items = self.proxy_items.borrow();
-
-        if proxy_items.as_ref().is_some_and(|items| items.proxy_target.o.is_callable_obj()) { Some(self) } else { None }
+        if self.is_callable { Some(self) } else { None }
     }
 
     fn is_callable_obj(&self) -> bool {
-        let proxy_items = self.proxy_items.borrow();
-
-        proxy_items.as_ref().is_some_and(|items| items.proxy_target.o.is_callable_obj())
+        self.is_callable
     }
     fn kind(&self) -> ObjectTag {
         let proxy_items = self.proxy_items.borrow();
@@ -879,11 +876,17 @@ impl CallableObject for ProxyObject {
 
 impl ProxyObject {
     pub(crate) fn new(target_and_handler: Option<(Object, Object)>) -> Self {
-        Self {
-            common: RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS)),
-            proxy_items: RefCell::new(
-                target_and_handler.map(|(t, h)| ProxyItems { proxy_handler: h, proxy_target: t }),
-            ),
+        let common = RefCell::new(CommonObjectData::new(None, false, PROXY_OBJECT_SLOTS));
+        match target_and_handler {
+            None => Self { common, proxy_items: RefCell::new(None), is_callable: false },
+            Some((target, handler)) => {
+                let is_callable = target.is_callable();
+                Self {
+                    common,
+                    proxy_items: RefCell::new(Some(ProxyItems { proxy_handler: handler, proxy_target: target })),
+                    is_callable,
+                }
+            }
         }
     }
 

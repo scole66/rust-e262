@@ -1604,6 +1604,11 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => vok(false);
     "private-in lacks field"
 )]
+#[test_case(
+    "const rp2 = Proxy.revocable(function() {}, {}); rp2.revoke(); typeof rp2.proxy"
+    => vok("function");
+    "revoked proxies keep their 'is-callable' status"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
