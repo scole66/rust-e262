@@ -503,7 +503,6 @@ pub(crate) enum FunctionSource {
     GeneratorExpression(Rc<GeneratorExpression>),
     #[cfg(test)]
     AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
-    #[cfg(test)]
     AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
     ArrowFunction(Rc<ArrowFunction>),
     //AsyncArrowFunction(Rc<AsyncArrowFunction>),
@@ -523,7 +522,6 @@ impl fmt::Display for FunctionSource {
             FunctionSource::GeneratorExpression(node) => node.fmt(f),
             #[cfg(test)]
             FunctionSource::AsyncGeneratorExpression(node) => node.fmt(f),
-            #[cfg(test)]
             FunctionSource::AsyncFunctionExpression(node) => node.fmt(f),
             FunctionSource::ArrowFunction(node) => node.fmt(f),
             //FunctionSource::AsyncArrowFunction(node) => node.fmt(f),
@@ -545,7 +543,6 @@ impl PartialEq for FunctionSource {
             (Self::GeneratorExpression(l0), Self::GeneratorExpression(r0)) => Rc::ptr_eq(l0, r0),
             #[cfg(test)]
             (Self::AsyncGeneratorExpression(l0), Self::AsyncGeneratorExpression(r0)) => Rc::ptr_eq(l0, r0),
-            #[cfg(test)]
             (Self::AsyncFunctionExpression(l0), Self::AsyncFunctionExpression(r0)) => Rc::ptr_eq(l0, r0),
             (Self::ArrowFunction(l0), Self::ArrowFunction(r0)) => Rc::ptr_eq(l0, r0),
             //(Self::AsyncArrowFunction(l0), Self::AsyncArrowFunction(r0)) => Rc::ptr_eq(l0, r0),
@@ -557,9 +554,7 @@ impl PartialEq for FunctionSource {
             (Self::GeneratorDeclaration(l0), Self::GeneratorDeclaration(r0)) => Rc::ptr_eq(l0, r0),
             (Self::GeneratorMethod(l0), Self::GeneratorMethod(r0)) => Rc::ptr_eq(l0, r0),
             #[cfg(test)]
-            (   Self::AsyncGeneratorExpression(_)
-                | Self::AsyncFunctionExpression(_), _
-            ) => false,
+            (Self::AsyncGeneratorExpression (_), _) => false,
             (
                 Self::FunctionExpression(_)
                 | Self::GeneratorExpression(_)
@@ -571,7 +566,8 @@ impl PartialEq for FunctionSource {
                 | Self::ClassStaticBlock(_)
                 | Self::FunctionDeclaration(_)
                 | Self::GeneratorDeclaration(_)
-                | Self::GeneratorMethod(_),
+                | Self::GeneratorMethod(_)
+                | Self::AsyncFunctionExpression(_),
                 _,
             ) => false,
         }
@@ -620,6 +616,11 @@ impl From<Rc<GeneratorDeclaration>> for FunctionSource {
 impl From<Rc<GeneratorMethod>> for FunctionSource {
     fn from(value: Rc<GeneratorMethod>) -> Self {
         Self::GeneratorMethod(value)
+    }
+}
+impl From<Rc<AsyncFunctionExpression>> for FunctionSource {
+    fn from(value: Rc<AsyncFunctionExpression>) -> Self {
+        Self::AsyncFunctionExpression(value)
     }
 }
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
@@ -712,6 +713,16 @@ impl TryFrom<FunctionSource> for Rc<MethodDefinition> {
         }
     }
 }
+impl TryFrom<FunctionSource> for Rc<AsyncFunctionExpression> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::AsyncFunctionExpression(node) => Ok(node),
+            _ => bail!("AsyncFunctionExpression expected"),
+        }
+    }
+}
 
 impl FunctionSource {
     pub(crate) fn location(&self) -> Location {
@@ -720,7 +731,6 @@ impl FunctionSource {
             FunctionSource::GeneratorExpression(node) => node.location(),
             #[cfg(test)]
             FunctionSource::AsyncGeneratorExpression(node) => node.location(),
-            #[cfg(test)]
             FunctionSource::AsyncFunctionExpression(node) => node.location(),
             FunctionSource::ArrowFunction(node) => node.location(),
             FunctionSource::MethodDefinition(node) => node.location(),

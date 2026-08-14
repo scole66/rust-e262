@@ -212,6 +212,7 @@ impl Chunk {
             | Insn::RotateListUp
             | Insn::PopOutList
             | Insn::InstantiateIdFreeFunctionExpression
+            | Insn::InstantiateIdFreeAsyncFunctionExpression
             | Insn::InstantiateArrowFunctionExpression
             | Insn::InstantiateGeneratorFunctionExpression
             | Insn::InstantiateOrdinaryFunctionExpression

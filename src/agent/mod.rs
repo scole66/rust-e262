@@ -2139,6 +2139,56 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
+
+    pub(crate) fn instantiate_id_free_async_function_expression(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // AsyncFunctionExpression : async function ( FormalParameters ) { AsyncFunctionBody }
+        // 1. If name is not present, set name to the empty String.
+        // 2. Let envRecord be the LexicalEnvironment of the running execution context.
+        // 3. Let privateEnv be the running execution context's PrivateEnvironment.
+        // 4. Let sourceText be the source text matched by AsyncFunctionExpression.
+        // 5. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, FormalParameters, AsyncFunctionBody, non-lexical-this, envRecord, privateEnv).
+        // 6. Perform SetFunctionName(closure, name).
+        // 7. Return closure.
+        let info = sfd_operand(chunk)?;
+        let to_compile: Rc<AsyncFunctionExpression> = info.to_compile.clone().try_into()?;
+        let name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(name, to_compile.location().starting_line);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, &info.parent_tree, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        #[cfg(debug_assertions)]
+        for line in compiled.disassemble(&info.parent_tree.text) {
+            println!("{line}");
+        }
+
+        let outer_env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let priv_env = current_private_environment();
+
+        let name = pop_key()?;
+        let function_prototype = intrinsic(IntrinsicId::AsyncFunctionPrototype);
+
+        let closure = ordinary_function_create(
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            outer_env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+
+        super::set_function_name(&closure, name.into(), None);
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+
     pub(crate) fn instantiate_id_free_function_expression(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name and
         // returns a function object. It is defined piecewise over the following productions:
@@ -4329,6 +4379,9 @@ pub(crate) async fn execute(
             Insn::Subtract => insn_impl::binary_operation(BinOp::Subtract).expect(GOODCODE),
             Insn::InstantiateIdFreeFunctionExpression => {
                 insn_impl::instantiate_id_free_function_expression(&chunk).expect(GOODCODE);
+            }
+            Insn::InstantiateIdFreeAsyncFunctionExpression => {
+                insn_impl::instantiate_id_free_async_function_expression(&chunk).expect(GOODCODE);
             }
             Insn::InstantiateOrdinaryFunctionExpression => {
                 insn_impl::instantiate_ordinary_function_expression(&chunk).expect(GOODCODE);
