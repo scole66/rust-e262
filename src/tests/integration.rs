@@ -1609,6 +1609,11 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => vok("function");
     "revoked proxies keep their 'is-callable' status"
 )]
+#[test_case(
+    "(new Function(\"a\", \"'use strict'; eval('public = 1;');\"))()"
+    => serr("Thrown: SyntaxError: SyntaxError: ‘public’ not allowed as an identifier in strict mode");
+    "function-constructor direct eval"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

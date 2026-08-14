@@ -2344,12 +2344,10 @@ pub(crate) fn create_dynamic_function(
     );
     let parameters: Result<Rc<FormalParameters>, Vec<Object>> =
         parameters.try_into().expect("only fp should come back");
-    let parameters = match parameters {
-        Err(mut errs) => {
-            return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
-        }
-        Ok(fp) => fp,
-    };
+    if let Err(mut errs) = parameters {
+        return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
+    }
+
     let body_parse_string = String::from(body_parse_string);
     let parsed_body = parse_text(
         &body_parse_string,
@@ -2387,16 +2385,32 @@ pub(crate) fn create_dynamic_function(
     let source = Rc::new(SourceTree { ast: function_expression.clone(), text: source_text.clone() });
     let function_expression: Result<ParsedFunctionExpression, Vec<Object>> =
         function_expression.try_into().expect("function expressions are expected");
-    let function_source = match function_expression {
+    let (function_source, body, parameters) = match function_expression {
         Err(mut errs) => {
             return Err(AbruptCompletion::Throw { value: ECMAScriptValue::Object(errs.swap_remove(0)) });
         }
-        Ok(ParsedFunctionExpression::Function(fe)) => FunctionSource::FunctionExpression(fe),
-        Ok(ParsedFunctionExpression::Generator(ge)) => FunctionSource::GeneratorExpression(ge),
+        Ok(ParsedFunctionExpression::Function(fe)) => (
+            FunctionSource::FunctionExpression(fe.clone()),
+            BodySource::from(fe.body.clone()),
+            ParamSource::from(fe.params.clone()),
+        ),
+        Ok(ParsedFunctionExpression::Generator(ge)) => (
+            FunctionSource::GeneratorExpression(ge.clone()),
+            BodySource::from(ge.body.clone()),
+            ParamSource::from(ge.params.clone()),
+        ),
         #[cfg(test)]
-        Ok(ParsedFunctionExpression::AsyncFunction(afe)) => FunctionSource::AsyncFunctionExpression(afe),
+        Ok(ParsedFunctionExpression::AsyncFunction(afe)) => (
+            FunctionSource::AsyncFunctionExpression(afe.clone()),
+            BodySource::from(afe.body.clone()),
+            ParamSource::from(afe.params.clone()),
+        ),
         #[cfg(test)]
-        Ok(ParsedFunctionExpression::AsyncGenerator(age)) => FunctionSource::AsyncGeneratorExpression(age),
+        Ok(ParsedFunctionExpression::AsyncGenerator(age)) => (
+            FunctionSource::AsyncGeneratorExpression(age.clone()),
+            BodySource::from(age.body.clone()),
+            ParamSource::from(age.params.clone()),
+        ),
     };
     let proto = new_target.get_prototype_from_constructor(fallback_proto)?;
     let env = current_realm.borrow().global_env.clone().expect("There should be a global environment");
@@ -2405,7 +2419,7 @@ pub(crate) fn create_dynamic_function(
     let mut compiled = Chunk::new(chunk_name, function_source.location().starting_line);
     let function_data = StashedFunctionData {
         source_text: source_text.clone(),
-        params: ParamSource::from(parameters.clone()),
+        params: parameters.clone(),
         body: body.clone(),
         strict: body_contains_use_strict,
         to_compile: function_source,
@@ -2434,7 +2448,7 @@ pub(crate) fn create_dynamic_function(
     let f = ordinary_function_create(
         proto,
         &source_text,
-        ParamSource::from(parameters),
+        parameters,
         body,
         ThisLexicality::NonLexicalThis,
         env,
