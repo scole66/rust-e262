@@ -107,8 +107,16 @@ impl Agent {
                     id: 13,
                     description: Some(JSString::from("Symbol.unscopables")),
                 })),
+                dispose: Symbol(Rc::new(SymbolInternals {
+                    id: 14,
+                    description: Some(JSString::from("Symbol.dispose")),
+                })),
+                async_dispose: Symbol(Rc::new(SymbolInternals {
+                    id: 15,
+                    description: Some(JSString::from("Symbol.asyncDispose")),
+                })),
             },
-            symbol_id: Cell::new(14),
+            symbol_id: Cell::new(16),
             gsr: RefCell::new(None),
         }
     }
@@ -272,7 +280,9 @@ pub(crate) fn ec_stack_len() -> usize {
 pub(crate) fn wks(sym_id: WksId) -> Symbol {
     AGENT.with(|agent| {
         match sym_id {
+            WksId::AsyncDispose => &agent.symbols.async_dispose,
             WksId::AsyncIterator => &agent.symbols.async_iterator,
+            WksId::Dispose => &agent.symbols.dispose,
             WksId::HasInstance => &agent.symbols.has_instance,
             WksId::IsConcatSpreadable => &agent.symbols.is_concat_spreadable,
             WksId::Iterator => &agent.symbols.iterator,
@@ -4981,7 +4991,9 @@ enum BinOp {
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub(crate) enum WksId {
+    AsyncDispose,
     AsyncIterator,
+    Dispose,
     HasInstance,
     IsConcatSpreadable,
     Iterator,
@@ -4998,7 +5010,9 @@ pub(crate) enum WksId {
 
 #[derive(Debug)]
 pub(crate) struct WellKnownSymbols {
+    pub(crate) async_dispose: Symbol,
     pub(crate) async_iterator: Symbol,
+    pub(crate) dispose: Symbol,
     pub(crate) has_instance: Symbol,
     pub(crate) is_concat_spreadable: Symbol,
     pub(crate) iterator: Symbol,

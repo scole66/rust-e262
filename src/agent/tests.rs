@@ -34,7 +34,9 @@ mod agent {
 
         // All well-known symbols initialized, and different from one another.
         let symbols = [
+            agent.symbols.async_dispose,
             agent.symbols.async_iterator,
+            agent.symbols.dispose,
             agent.symbols.has_instance,
             agent.symbols.is_concat_spreadable,
             agent.symbols.iterator,
@@ -66,7 +68,9 @@ mod agent {
 
         // All well-known symbols initialized, and different from one another.
         let symbols = [
+            agent.symbols.async_dispose,
             agent.symbols.async_iterator,
+            agent.symbols.dispose,
             agent.symbols.has_instance,
             agent.symbols.is_concat_spreadable,
             agent.symbols.iterator,
