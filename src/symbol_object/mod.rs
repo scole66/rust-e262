@@ -144,7 +144,9 @@ pub(crate) fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
             .unwrap();
         };
     }
+    constructor_data!("asyncDispose", wks(WksId::AsyncDispose), false, false, false);
     constructor_data!("asyncIterator", wks(WksId::AsyncIterator), false, false, false);
+    constructor_data!("dispose", wks(WksId::Dispose), false, false, false);
     constructor_data!("hasInstance", wks(WksId::HasInstance), false, false, false);
     constructor_data!("isConcatSpreadable", wks(WksId::IsConcatSpreadable), false, false, false);
     constructor_data!("iterator", wks(WksId::Iterator), false, false, false);
@@ -243,14 +245,18 @@ pub(crate) fn provision_symbol_intrinsic(realm: &Rc<RefCell<Realm>>) {
     define_property_or_throw(
         &symbol_prototype,
         to_prop_sym,
-        PotentialPropertyDescriptor::new().value(to_primitive_func).writable(true).enumerable(false).configurable(true),
+        PotentialPropertyDescriptor::new()
+            .value(to_primitive_func)
+            .writable(false)
+            .enumerable(false)
+            .configurable(true),
     )
     .unwrap();
     let to_tag_sym = wks(WksId::ToStringTag);
     define_property_or_throw(
         &symbol_prototype,
         to_tag_sym,
-        PotentialPropertyDescriptor::new().value("Symbol").writable(false).enumerable(false).configurable(false),
+        PotentialPropertyDescriptor::new().value("Symbol").writable(false).enumerable(false).configurable(true),
     )
     .unwrap();
 
