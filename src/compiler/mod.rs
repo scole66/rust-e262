@@ -7530,7 +7530,7 @@ impl ForInOfStatement {
         exp: ForInOfExpr,
         kind: IterationKind,
         starting_line: usize,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         // ForIn/OfHeadEvaluation ( uninitializedBoundNames, expr, iterationKind )
         // The abstract operation ForIn/OfHeadEvaluation takes arguments uninitializedBoundNames (a List of
         // Strings), expr (an Expression Parse Node or an AssignmentExpression Parse Node), and iterationKind
@@ -7609,7 +7609,7 @@ impl ForInOfStatement {
         if exp_status.maybe_abrupt() || exp_status.maybe_ref() {
             exits.push(chunk.op_jump(Insn::JumpIfAbrupt, starting_line));
         }
-        let status = match kind {
+        match kind {
             IterationKind::Enumerate => {
                 let break_tgt = chunk.op_jump(Insn::JumpIfNullish, starting_line);
                 chunk.op(Insn::ToObject, starting_line);
@@ -7618,21 +7618,18 @@ impl ForInOfStatement {
                 chunk.fixup(break_tgt).expect("jump too short to fail");
                 chunk.op(Insn::Pop, starting_line);
                 chunk.op(Insn::Break, starting_line);
-                AbruptResult::from(exp_status.maybe_abrupt() || exp_status.maybe_ref())
             }
             IterationKind::Iterate => {
                 chunk.op(Insn::GetSyncIterator, starting_line);
-                AbruptResult::Maybe
             }
             IterationKind::AsyncIterate => {
                 chunk.op(Insn::ToDo, starting_line);
-                AbruptResult::Maybe
             }
-        };
+        }
         for exit in exits {
             chunk.fixup(exit).expect("Jumps too short to fail");
         }
-        Ok(status)
+        Ok(AlwaysAbruptResult)
     }
 
     #[expect(clippy::too_many_arguments)]
