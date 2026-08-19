@@ -207,9 +207,9 @@ impl AsyncGeneratorMethod {
 //      [+Default] async [no LineTerminator here] function * ( FormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
 pub(crate) struct AsyncGeneratorDeclaration {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<AsyncGeneratorBody>,
+    pub(crate) ident: Option<Rc<BindingIdentifier>>,
+    pub(crate) params: Rc<FormalParameters>,
+    pub(crate) body: Rc<AsyncGeneratorBody>,
     location: Location,
 }
 

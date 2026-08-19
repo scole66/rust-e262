@@ -1097,12 +1097,12 @@ mod fcn_def {
         {
             let (node, tree) = Maker::new("async function green(){}").async_function_declaration_ast();
             (FcnDef::AsyncFun(node), tree)
-        } => panics "not yet implemented"; "async function decl")]
+        } => sok("green"); "async function decl")]
     #[test_case(
         {
             let (node, tree) = Maker::new("async function *orange(){}").async_generator_declaration_ast();
             (FcnDef::AsyncGen(node), tree)
-        } => panics "not yet implemented"; "async generator decl")]
+        } => sok("orange"); "async generator decl")]
     fn instantiate_function_object(part: (FcnDef, SourceTree)) -> Result<String, String> {
         let (part, src) = part;
         setup_test_agent();
@@ -1177,8 +1177,8 @@ mod global_declaration_instantiation {
     #[test_case("class bob{}" => Ok((sset(&[]), sset(&["bob"]))); "a class")]
     #[test_case("function f(){}" => Ok((sset(&["f"]), sset(&[]))); "functions")]
     #[test_case("function *g(){}" => Ok((sset(&["g"]), sset(&[]))); "generators")]
-    #[test_case("async function af(){}" => panics "not yet implemented"; "async functions")]
-    #[test_case("async function *ag(){}" => panics "not yet implemented"; "async generators")]
+    #[test_case("async function af(){}" => Ok((sset(&["af"]), sset(&[]))); "async functions")]
+    #[test_case("async function *ag(){}" => Ok((sset(&["ag"]), sset(&[]))); "async generators")]
     fn global_declaration_instantiation(src: &str) -> Result<(AHashSet<String>, AHashSet<String>), String> {
         setup_test_agent();
         let (script, ast) = Maker::new(src).script_ast();

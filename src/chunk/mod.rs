@@ -211,10 +211,13 @@ impl Chunk {
             | Insn::RotateListDown
             | Insn::RotateListUp
             | Insn::PopOutList
-            | Insn::InstantiateIdFreeFunctionExpression
-            | Insn::InstantiateIdFreeAsyncFunctionExpression
             | Insn::InstantiateArrowFunctionExpression
+            | Insn::InstantiateAsyncFunctionExpression
+            | Insn::InstantiateAsyncGeneratorExpression
             | Insn::InstantiateGeneratorFunctionExpression
+            | Insn::InstantiateIdFreeAsyncFunctionExpression
+            | Insn::InstantiateIdFreeAsyncGeneratorExpression
+            | Insn::InstantiateIdFreeFunctionExpression
             | Insn::InstantiateOrdinaryFunctionExpression
             | Insn::EvaluateInitializedClassFieldDefinition
             | Insn::EvaluateInitializedClassStaticFieldDefinition

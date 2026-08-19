@@ -17,8 +17,8 @@ pub(crate) enum IntrinsicId {
     ArrayPrototypeValues,
     ArrayIteratorPrototype,
     AsyncFunctionPrototype,
-    //AsyncGeneratorFunctionPrototype,
-    //AsyncGeneratorFunctionPrototypePrototype,
+    AsyncGeneratorFunctionPrototype,
+    AsyncGeneratorFunctionPrototypePrototype,
     BigInt,
     BigIntPrototype,
     Boolean,
@@ -90,9 +90,9 @@ pub(crate) struct Intrinsics {
     //pub(crate) async_from_sync_iterator_prototype: Object, // The prototype of async-from-sync iterator objects (27.1.4)
     pub(crate) async_function: Object, // The constructor of async function objects (27.7.1)
     pub(crate) async_function_prototype: Object,
-    //pub(crate) async_generator_function: Object, // The constructor of async iterator objects (27.4.1)
-    //pub(crate) async_generator_function_prototype: Object,
-    //pub(crate) async_generator_function_prototype_prototype: Object,
+    pub(crate) async_generator_function: Object, // The constructor of async iterator objects (27.4.1)
+    pub(crate) async_generator_function_prototype: Object,
+    pub(crate) async_generator_function_prototype_prototype: Object,
     //pub(crate) async_iterator_prototype: Object, // An object that all standard built-in async iterator objects indirectly inherit from
     //pub(crate) atomics: Object,                  // Atomics	The Atomics object (25.4)
     pub(crate) big_int: Object,           // BigInt	The BigInt constructor (21.2.1)
@@ -195,9 +195,9 @@ impl Intrinsics {
             //async_from_sync_iterator_prototype: dead.clone(),
             async_function: dead.clone(),
             async_function_prototype: dead.clone(),
-            //async_generator_function: dead.clone(),
-            //async_generator_function_prototype: dead.clone(),
-            //async_generator_function_prototype_prototype: dead.clone(),
+            async_generator_function: dead.clone(),
+            async_generator_function_prototype: dead.clone(),
+            async_generator_function_prototype_prototype: dead.clone(),
             //async_iterator_prototype: dead.clone(),
             //atomics: dead.clone(),
             big_int: dead.clone(),
@@ -288,8 +288,8 @@ impl Intrinsics {
             IntrinsicId::ArrayPrototypeValues => &self.array_prototype_values,
             IntrinsicId::ArrayIteratorPrototype => &self.array_iterator_prototype,
             IntrinsicId::AsyncFunctionPrototype => &self.async_function_prototype,
-            //IntrinsicId::AsyncGeneratorFunctionPrototype => &self.async_generator_function_prototype,
-            //IntrinsicId::AsyncGeneratorFunctionPrototypePrototype => &self.async_generator_function_prototype_prototype,
+            IntrinsicId::AsyncGeneratorFunctionPrototype => &self.async_generator_function_prototype,
+            IntrinsicId::AsyncGeneratorFunctionPrototypePrototype => &self.async_generator_function_prototype_prototype,
             IntrinsicId::BigInt => &self.big_int,
             IntrinsicId::BigIntPrototype => &self.big_int_prototype,
             IntrinsicId::Boolean => &self.boolean,

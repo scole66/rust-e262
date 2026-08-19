@@ -9,9 +9,9 @@ use std::io::Write;
 //      [+Default] async [no LineTerminator here] function ( FormalParameters[~Yield, +Await] ) { AsyncFunctionBody }
 #[derive(Debug)]
 pub(crate) struct AsyncFunctionDeclaration {
-    ident: Option<Rc<BindingIdentifier>>,
-    params: Rc<FormalParameters>,
-    body: Rc<AsyncFunctionBody>,
+    pub(crate) ident: Option<Rc<BindingIdentifier>>,
+    pub(crate) params: Rc<FormalParameters>,
+    pub(crate) body: Rc<AsyncFunctionBody>,
     location: Location,
 }
 
