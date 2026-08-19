@@ -90,10 +90,14 @@ pub(crate) enum Insn {
     InitializeVarBinding,
     InstanceOf,
     InstantiateArrowFunctionExpression,
+    InstantiateAsyncFunctionExpression,
+    InstantiateAsyncGeneratorExpression,
     InstantiateGeneratorFunctionExpression,
     InstantiateGeneratorExpressionWithId,
     InstantiateGeneratorFunctionObject,
     InstantiateGeneratorMethod,
+    InstantiateIdFreeAsyncFunctionExpression,
+    InstantiateIdFreeAsyncGeneratorExpression,
     InstantiateIdFreeFunctionExpression,
     InstantiateOrdinaryFunctionExpression,
     InstantiateOrdinaryFunctionObject,
@@ -335,6 +339,10 @@ impl fmt::Display for Insn {
             Insn::InstantiateOrdinaryFunctionObject => "FUNC_OBJ",
             Insn::InstantiateGeneratorFunctionObject => "FUNC_GENO",
             Insn::InstantiateGeneratorMethod => "GEN_METHOD",
+            Insn::InstantiateIdFreeAsyncFunctionExpression => "AFUN_IIFE",
+            Insn::InstantiateAsyncFunctionExpression => "IAFE",
+            Insn::InstantiateIdFreeAsyncGeneratorExpression => "IIFAGE",
+            Insn::InstantiateAsyncGeneratorExpression => "IAGE",
             Insn::GeneratorStartFromFunction => "GEN_START",
             Insn::Yield => "YIELD",
             Insn::YieldFrom => "YIELD_FROM",
@@ -844,8 +852,12 @@ impl NameableProduction {
             NameableProduction::Generator(generator) => {
                 generator.named_evaluation(chunk, strict, source, id).map(CompilerStatusFlags::from)
             }
-            NameableProduction::AsyncFunction(_) => todo!(),
-            NameableProduction::AsyncGenerator(_) => todo!(),
+            NameableProduction::AsyncFunction(af) => {
+                af.named_evaluation(chunk, strict, source, id).map(CompilerStatusFlags::from)
+            }
+            NameableProduction::AsyncGenerator(node) => {
+                node.named_evaluation(chunk, strict, source, id).map(CompilerStatusFlags::from)
+            }
             NameableProduction::Class(class_expression) => {
                 let name = id.expect("named class expressions should have a name");
                 class_expression.named_evaluation(chunk, source, name).map(CompilerStatusFlags::from)
@@ -853,7 +865,9 @@ impl NameableProduction {
             NameableProduction::Arrow(child) => {
                 child.compile_named_evaluation(chunk, strict, source, id).map(CompilerStatusFlags::from)
             }
-            NameableProduction::AsyncArrow(_) => todo!(),
+            NameableProduction::AsyncArrow(af) => {
+                af.named_evaluation(chunk, strict, source, id).map(CompilerStatusFlags::from)
+            }
         }
     }
 
@@ -895,6 +909,259 @@ impl NameableProduction {
     }
 }
 
+impl AsyncGeneratorExpression {
+    pub(crate) fn named_evaluation(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+        id: Option<NameLoc>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: NamedEvaluation
+        // The syntax-directed operation NamedEvaluation takes argument name (a property key or a Private Name) and
+        // returns either a normal completion containing a function object or an abrupt completion. It is defined
+        // piecewise over the following productions:
+
+        // AsyncGeneratorExpression : async function * ( FormalParameters ) { AsyncGeneratorBody }
+        // 1. Return InstantiateAsyncGeneratorFunctionExpression of AsyncGeneratorExpression with argument name.
+        self.instantiate_async_generator_function_expression(chunk, strict, source, id)
+    }
+
+    pub(crate) fn compile(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: Evaluation
+        // AsyncGeneratorExpression : async function * BindingIdentifier[opt] ( FormalParameters ) { AsyncGeneratorBody }
+        // 1. Return InstantiateAsyncGeneratorFunctionExpression of AsyncGeneratorExpression.
+        self.instantiate_async_generator_function_expression(chunk, strict, source, None)
+    }
+
+    pub(crate) fn instantiate_async_generator_function_expression(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+        name: Option<NameLoc>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: InstantiateAsyncGeneratorFunctionExpression
+        //
+        // The syntax-directed operation InstantiateAsyncGeneratorFunctionExpression takes optional argument name (a
+        // property key or a Private Name) and returns an ECMAScript function object. It is defined piecewise over the
+        // following productions:
+        //
+        let line = self.location().starting_line;
+        match &self.ident {
+            None => {
+                // AsyncGeneratorExpression : async function * ( FormalParameters ) { AsyncGeneratorBody }
+                // 1. If name is not present, set name to the empty String.
+                // 2. Let envRecord be the LexicalEnvironment of the running execution context.
+                // 3. Let privateEnv be the running execution context's PrivateEnvironment.
+                // 4. Let sourceText be the source text matched by AsyncGeneratorExpression.
+                // 5. Let closure be OrdinaryFunctionCreate(%AsyncGeneratorFunction.prototype%, sourceText,
+                //    FormalParameters, AsyncGeneratorBody, non-lexical-this, envRecord, privateEnv).
+                // 6. Perform SetFunctionName(closure, name).
+                // 7. Let proto be OrdinaryObjectCreate(%AsyncGeneratorPrototype%).
+                // 8. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: proto,
+                //    [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+                // 9. Return closure.
+                if let Some(name_id) = match name {
+                    None => Some(chunk.add_to_string_pool(JSString::from(""))?),
+                    Some(NameLoc::Index(id)) => Some(id),
+                    Some(NameLoc::OnStack) => None,
+                } {
+                    chunk.op_plus_arg(Insn::String, name_id, line);
+                }
+                let span = self.location().span;
+                let params = ParamSource::from(Rc::clone(&self.params));
+                let body = BodySource::from(Rc::clone(&self.body));
+                let strict_body = body.contains_use_strict();
+                let function_data = StashedFunctionData {
+                    source_text: source.text[span.starting_index..(span.starting_index + span.length)].to_string(),
+                    params,
+                    body,
+                    strict: strict || strict_body,
+                    to_compile: FunctionSource::from(self.clone()),
+                    this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
+                };
+                let func_id = chunk.add_to_func_stash(function_data)?;
+                chunk.op_plus_arg(Insn::InstantiateIdFreeAsyncGeneratorExpression, func_id, line);
+                Ok(AlwaysAbruptResult)
+            }
+            Some(binding_identifier) => {
+                // AsyncGeneratorExpression : async function * BindingIdentifier ( FormalParameters ) { AsyncGeneratorBody }
+                // 1. Assert: name is not present.
+                // 2. Set name to the StringValue of BindingIdentifier.
+                // 3. Let outerEnv be the running execution context's LexicalEnvironment.
+                // 4. Let funcEnv be NewDeclarativeEnvironment(outerEnv).
+                // 5. Perform ! funcEnv.CreateImmutableBinding(name, false).
+                // 6. Let privateEnv be the running execution context's PrivateEnvironment.
+                // 7. Let sourceText be the source text matched by AsyncGeneratorExpression.
+                // 8. Let closure be OrdinaryFunctionCreate(%AsyncGeneratorFunction.prototype%, sourceText,
+                //    FormalParameters, AsyncGeneratorBody, non-lexical-this, funcEnv, privateEnv).
+                // 9. Perform SetFunctionName(closure, name).
+                // 10. Let proto be OrdinaryObjectCreate(%AsyncGeneratorPrototype%).
+                // 11. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: proto,
+                //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+                // 12. Perform ! funcEnv.InitializeBinding(name, closure).
+                // 13. Return closure.
+                //
+                // Note: The BindingIdentifier in an AsyncGeneratorExpression can be referenced from inside the
+                // AsyncGeneratorExpression's AsyncGeneratorBody to allow the generator code to call itself recursively.
+                // However, unlike in an AsyncGeneratorDeclaration, the BindingIdentifier in an AsyncGeneratorExpression
+                // cannot be referenced from and does not affect the scope enclosing the AsyncGeneratorExpression.
+                let name = binding_identifier.string_value();
+                let name_id = chunk.add_to_string_pool(name)?;
+                chunk.op_plus_arg(Insn::String, name_id, line);
+
+                let span = self.location().span;
+                let params = ParamSource::from(Rc::clone(&self.params));
+                let body = BodySource::from(Rc::clone(&self.body));
+                let strict_body = body.contains_use_strict();
+                let function_data = StashedFunctionData {
+                    source_text: source.text[span.starting_index..(span.starting_index + span.length)].to_string(),
+                    params,
+                    body,
+                    strict: strict || strict_body,
+                    to_compile: FunctionSource::from(self.clone()),
+                    this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
+                };
+                let func_id = chunk.add_to_func_stash(function_data)?;
+                chunk.op_plus_arg(Insn::InstantiateAsyncGeneratorExpression, func_id, line);
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+}
+
+impl AsyncFunctionExpression {
+    pub(crate) fn named_evaluation(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+        id: Option<NameLoc>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: NamedEvaluation
+        // The syntax-directed operation NamedEvaluation takes argument name (a property key or a Private Name) and
+        // returns either a normal completion containing a function object or an abrupt completion. It is defined
+        // piecewise over the following productions:
+
+        // AsyncFunctionExpression : async function ( FormalParameters ) { AsyncFunctionBody }
+        //  1. Return InstantiateAsyncFunctionExpression of AsyncFunctionExpression with argument name.
+        self.instantiate_async_function_expression(chunk, strict, source, id)
+    }
+
+    pub(crate) fn compile(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: Evaluation
+        // AsyncFunctionExpression :
+        //      async function BindingIdentifier[opt] ( FormalParameters ) { AsyncFunctionBody }
+        // 1. Return InstantiateAsyncFunctionExpression of AsyncFunctionExpression.
+        self.instantiate_async_function_expression(chunk, strict, source, None)
+    }
+
+    fn instantiate_async_function_expression(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+        name: Option<NameLoc>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
+        // Runtime Semantics: InstantiateAsyncFunctionExpression
+        //
+        // The syntax-directed operation InstantiateAsyncFunctionExpression takes optional argument name (a property key
+        // or a Private Name) and returns an ECMAScript function object. It is defined piecewise over the following
+        // productions:
+        match &self.ident {
+            None => {
+                // AsyncFunctionExpression : async function ( FormalParameters ) { AsyncFunctionBody }
+                //  1. If name is not present, set name to the empty String.
+                //  2. Let envRecord be the LexicalEnvironment of the running execution context.
+                //  3. Let privateEnv be the running execution context's PrivateEnvironment.
+                //  4. Let sourceText be the source text matched by AsyncFunctionExpression.
+                //  5. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, FormalParameters,
+                //     AsyncFunctionBody, non-lexical-this, envRecord, privateEnv).
+                //  6. Perform SetFunctionName(closure, name).
+                //  7. Return closure.
+                if let Some(name_id) = match name {
+                    None => Some(chunk.add_to_string_pool(JSString::from(""))?),
+                    Some(NameLoc::Index(id)) => Some(id),
+                    Some(NameLoc::OnStack) => None,
+                } {
+                    chunk.op_plus_arg(Insn::String, name_id, line);
+                }
+
+                let span = self.location().span;
+                let params = ParamSource::from(Rc::clone(&self.params));
+                let body = BodySource::from(Rc::clone(&self.body));
+                let strict_body = body.contains_use_strict();
+                let function_data = StashedFunctionData {
+                    source_text: source.text[span.starting_index..(span.starting_index + span.length)].to_string(),
+                    params,
+                    body,
+                    strict: strict || strict_body,
+                    to_compile: FunctionSource::from(self.clone()),
+                    this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
+                };
+                let func_id = chunk.add_to_func_stash(function_data)?;
+                chunk.op_plus_arg(Insn::InstantiateIdFreeAsyncFunctionExpression, func_id, line);
+                Ok(AlwaysAbruptResult)
+            }
+            Some(binding_identifier) => {
+                // AsyncFunctionExpression : async function BindingIdentifier ( FormalParameters ) { AsyncFunctionBody }
+                //  1. Assert: name is not present.
+                //  2. Set name to the StringValue of BindingIdentifier.
+                //  3. Let outerEnv be the LexicalEnvironment of the running execution context.
+                //  4. Let funcEnv be NewDeclarativeEnvironment(outerEnv).
+                //  5. Perform ! funcEnv.CreateImmutableBinding(name, false).
+                //  6. Let privateEnv be the running execution context's PrivateEnvironment.
+                //  7. Let sourceText be the source text matched by AsyncFunctionExpression.
+                //  8. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, FormalParameters,
+                //     AsyncFunctionBody, non-lexical-this, funcEnv, privateEnv).
+                //  9. Perform SetFunctionName(closure, name).
+                //  10. Perform ! funcEnv.InitializeBinding(name, closure).
+                //  11. Return closure.
+
+                // Note: The BindingIdentifier in an AsyncFunctionExpression can be referenced from inside the
+                // AsyncFunctionExpression's AsyncFunctionBody to allow the function to call itself recursively.
+                // However, unlike in a FunctionDeclaration, the BindingIdentifier in a AsyncFunctionExpression cannot
+                // be referenced from and does not affect the scope enclosing the AsyncFunctionExpression.
+                let name = binding_identifier.string_value();
+                let name_id = chunk.add_to_string_pool(name)?;
+                chunk.op_plus_arg(Insn::String, name_id, line);
+
+                let span = self.location().span;
+                let params = ParamSource::from(Rc::clone(&self.params));
+                let body = BodySource::from(Rc::clone(&self.body));
+                let strict_body = body.contains_use_strict();
+                let function_data = StashedFunctionData {
+                    source_text: source.text[span.starting_index..(span.starting_index + span.length)].to_string(),
+                    params,
+                    body,
+                    strict: strict || strict_body,
+                    to_compile: FunctionSource::from(self.clone()),
+                    this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
+                };
+                let func_id = chunk.add_to_func_stash(function_data)?;
+                chunk.op_plus_arg(Insn::InstantiateAsyncFunctionExpression, func_id, line);
+                Ok(AlwaysAbruptResult)
+            }
+        }
+    }
+}
+
 impl AsyncArrowFunction {
     #[cfg(test)]
     pub(crate) fn params(&self) -> ParamSource {
@@ -909,6 +1176,124 @@ impl AsyncArrowFunction {
         match self {
             AsyncArrowFunction::IdentOnly(_, body, _) | AsyncArrowFunction::Formals(_, body) => body.clone().into(),
         }
+    }
+
+    pub(crate) fn named_evaluation(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+        id: Option<NameLoc>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: NamedEvaluation
+        //
+        // The syntax-directed operation NamedEvaluation takes argument name (a property key or a Private Name) and
+        // returns either a normal completion containing a function object or an abrupt completion. It is defined
+        // piecewise over the following productions:
+        //
+        // AsyncArrowFunction :
+        //      async AsyncArrowBindingIdentifier => AsyncConciseBody
+        //      CoverCallExpressionAndAsyncArrowHead => AsyncConciseBody
+        // 1. Return InstantiateAsyncArrowFunctionExpression of AsyncArrowFunction with argument name.
+        self.instantiate_async_arrow_function_expression(chunk, strict, source, id)
+    }
+
+    pub(crate) fn instantiate_async_arrow_function_expression(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+        id: Option<NameLoc>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: InstantiateAsyncArrowFunctionExpression
+        //
+        // The syntax-directed operation InstantiateAsyncArrowFunctionExpression takes optional argument name (a
+        // property key or a Private Name) and returns an ECMAScript function object. It is defined piecewise over the
+        // following productions:
+        //
+        let line = self.location().starting_line;
+        let (params, body) = match self.as_ref() {
+            Self::IdentOnly(identifier, body, _) => {
+                (ParamSource::from(identifier.clone()), BodySource::from(body.clone()))
+            }
+            Self::Formals(head, body) => (ParamSource::from(head.params.clone()), BodySource::from(body.clone())),
+        };
+        // AsyncArrowFunction : async AsyncArrowBindingIdentifier => AsyncConciseBody
+        // 1. If name is not present, set name to the empty String.
+        // 2. Let envRecord be the LexicalEnvironment of the running execution context.
+        // 3. Let privateEnv be the running execution context's PrivateEnvironment.
+        // 4. Let sourceText be the source text matched by AsyncArrowFunction.
+        // 5. Let params be AsyncArrowBindingIdentifier.
+        // 6. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, params,
+        //    AsyncConciseBody, lexical-this, envRecord, privateEnv).
+        // 7. Perform SetFunctionName(closure, name).
+        // 8. Return closure.
+        if let Some(name_id) = match id {
+            None => Some(chunk.add_to_string_pool(JSString::from(""))?),
+            Some(NameLoc::Index(id)) => Some(id),
+            Some(NameLoc::OnStack) => None,
+        } {
+            chunk.op_plus_arg(Insn::String, name_id, line);
+        }
+
+        let span = self.location().span;
+        let strict_body = body.contains_use_strict();
+        let function_data = StashedFunctionData {
+            source_text: source.text[span.starting_index..(span.starting_index + span.length)].to_string(),
+            params,
+            body,
+            strict: strict || strict_body,
+            to_compile: FunctionSource::from(self.clone()),
+            this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: source.clone(),
+        };
+        let func_id = chunk.add_to_func_stash(function_data)?;
+        chunk.op_plus_arg(Insn::InstantiateIdFreeAsyncFunctionExpression, func_id, line);
+        Ok(AlwaysAbruptResult)
+    }
+}
+
+impl AsyncConciseBody {
+    pub(crate) fn evaluate_body(
+        &self,
+        chunk: &mut Chunk,
+        source: &Rc<SourceTree>,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: EvaluateBody
+        //
+        // The syntax-directed operation EvaluateBody takes arguments func (an ECMAScript function object) and argList
+        // (a List of ECMAScript language values) and returns a return completion or a throw completion. It is defined
+        // piecewise over the following productions:
+
+        // AsyncConciseBody : ExpressionBody
+        // 1. Return ? EvaluateAsyncConciseBody of AsyncConciseBody with arguments func and argList.
+        self.evaluate_async_concise_body(chunk, source, info)
+    }
+
+    #[expect(unused_variables, clippy::unnecessary_wraps)]
+    pub(crate) fn evaluate_async_concise_body(
+        &self,
+        chunk: &mut Chunk,
+        source: &Rc<SourceTree>,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // EvaluateAsyncConciseBody
+        //
+        // The syntax-directed operation EvaluateAsyncConciseBody takes arguments funcObj (an ECMAScript function
+        // object) and argList (a List of ECMAScript language values) and returns a return completion. It is defined
+        // piecewise over the following productions:
+        //
+        // AsyncConciseBody : ExpressionBody
+        // 1. Let promiseCapability be ! NewPromiseCapability(%Promise%).
+        // 2. Let completion be Completion(FunctionDeclarationInstantiation(funcObj, argList)).
+        // 3. If completion is an abrupt completion, then
+        //    a. Perform ! Call(promiseCapability.[[Reject]], undefined, « completion.[[Value]] »).
+        // 4. Else,
+        //    a. Perform AsyncFunctionStart(promiseCapability, ExpressionBody).
+        // 5. Return ReturnCompletion(promiseCapability.[[Promise]]).
+        chunk.op(Insn::ToDo, self.location().starting_line);
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -987,8 +1372,12 @@ impl PrimaryExpression {
             PrimaryExpression::Function { node } => node.compile(chunk, strict, source).map(CompilerStatusFlags::from),
             PrimaryExpression::Class { node } => node.compile(chunk, source).map(CompilerStatusFlags::from),
             PrimaryExpression::Generator { node } => node.compile(chunk, strict, source).map(CompilerStatusFlags::from),
-            PrimaryExpression::AsyncFunction { node } => todo!(),
-            PrimaryExpression::AsyncGenerator { node } => todo!(),
+            PrimaryExpression::AsyncFunction { node } => {
+                node.compile(chunk, strict, source).map(CompilerStatusFlags::from)
+            }
+            PrimaryExpression::AsyncGenerator { node } => {
+                node.compile(chunk, strict, source).map(CompilerStatusFlags::from)
+            }
             PrimaryExpression::RegularExpression { regex, location } => {
                 let pattern_idx = chunk.add_to_string_pool(regex.body.clone().into())?;
                 let flags_idx = chunk.add_to_string_pool(regex.flags.clone().into())?;
@@ -10819,6 +11208,64 @@ impl FunctionRestParameter {
         // This is like iterator_binding_initialization, except that the list is on the stack, rather than sitting in an
         // iterator object somewhere in the heap.
         self.element.compile_binding_initialization(chunk, strict, source, env)
+    }
+}
+
+impl AsyncFunctionBody {
+    pub(crate) fn compile_body(
+        &self,
+        chunk: &mut Chunk,
+        source: &Rc<SourceTree>,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: EvaluateBody
+        //
+        // The syntax-directed operation EvaluateBody takes arguments func (an ECMAScript function object) and argList
+        // (a List of ECMAScript language values) and returns a return completion or a throw completion. It is defined
+        // piecewise over the following productions:
+
+        // AsyncFunctionBody : FunctionBody
+        //  1. Return ? EvaluateAsyncFunctionBody of AsyncFunctionBody with arguments func and argList.
+
+        self.evaluate_async_function_body(chunk, source, info)
+    }
+
+    #[expect(unused_variables, clippy::unused_self, clippy::unnecessary_wraps)]
+    pub(crate) fn evaluate_async_function_body(
+        &self,
+        chunk: &mut Chunk,
+        source: &Rc<SourceTree>,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<AbruptResult> {
+        // Runtime Semantics: EvaluateAsyncFunctionBody
+        //
+        // The syntax-directed operation EvaluateAsyncFunctionBody takes arguments funcObj (an ECMAScript function
+        // object) and argList (a List of ECMAScript language values) and returns a return completion. It is defined
+        // piecewise over the following productions:
+        //
+        // AsyncFunctionBody : FunctionBody
+        // 1. Let promiseCapability be ! NewPromiseCapability(%Promise%).
+        // 2. Let completion be Completion(FunctionDeclarationInstantiation(funcObj, argList)).
+        // 3. If completion is an abrupt completion, then
+        //    a. Perform ! Call(promiseCapability.[[Reject]], undefined, « completion.[[Value]] »).
+        // 4. Else,
+        //    a. Perform AsyncFunctionStart(promiseCapability, FunctionBody).
+        // 5. Return ReturnCompletion(promiseCapability.[[Promise]]).
+        chunk.op(Insn::ToDo, 0);
+        Ok(AbruptResult::Maybe)
+    }
+}
+
+impl AsyncGeneratorBody {
+    #[expect(unused_variables, clippy::unnecessary_wraps, clippy::unused_self)]
+    pub(crate) fn evaluate_async_generator_body(
+        &self,
+        chunk: &mut Chunk,
+        source: &Rc<SourceTree>,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<AbruptResult> {
+        chunk.op(Insn::ToDo, 0);
+        Ok(AbruptResult::Maybe)
     }
 }
 

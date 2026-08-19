@@ -123,10 +123,10 @@ mod generator_declaration {
 
 mod async_function_declaration {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn instantiate_function_object() {
-        let src = "async function a(){}";
+    use test_case::test_case;
+
+    #[test_case("async function foo() {}" => sok("foo"); "vanilla")]
+    fn instantiate_function_object(src: &str) -> Result<String, String> {
         let (fd, ast) = Maker::new(src).async_function_declaration_ast();
         let ast = Rc::new(ast);
         setup_test_agent();
@@ -136,16 +136,16 @@ mod async_function_declaration {
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(global_env, None, false, &ast).unwrap();
+        let obj = fd.instantiate_function_object(global_env, None, false, &ast).unwrap();
+        obj.get(&"name".into()).map(|val| val.test_result_string()).map_err(unwind_any_error)
     }
 }
 
 mod async_generator_declaration {
     use super::*;
-    #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn instantiate_function_object() {
-        let src = "async function *a(){}";
+    use test_case::test_case;
+    #[test_case("async function *a(){}" => sok("a"); "vanilla")]
+    fn instantiate_function_object(src: &str) -> Result<String, String> {
         let (fd, ast) = Maker::new(src).async_generator_declaration_ast();
         let ast = Rc::new(ast);
         setup_test_agent();
@@ -155,7 +155,8 @@ mod async_generator_declaration {
             realm.global_env.as_ref().unwrap().clone() as Rc<dyn EnvironmentRecord>
         };
 
-        fd.instantiate_function_object(global_env, None, false, &ast).unwrap();
+        let obj = fd.instantiate_function_object(global_env, None, false, &ast).map_err(unwind_any_error)?;
+        obj.get(&"name".into()).map(|val| val.test_result_string()).map_err(unwind_any_error)
     }
 }
 

@@ -501,12 +501,10 @@ impl ParamSource {
 pub(crate) enum FunctionSource {
     FunctionExpression(Rc<FunctionExpression>),
     GeneratorExpression(Rc<GeneratorExpression>),
-    #[cfg(test)]
     AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
-    #[cfg(test)]
     AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
     ArrowFunction(Rc<ArrowFunction>),
-    //AsyncArrowFunction(Rc<AsyncArrowFunction>),
+    AsyncArrowFunction(Rc<AsyncArrowFunction>),
     MethodDefinition(Rc<MethodDefinition>),
     //HoistableDeclaration(Rc<HoistableDeclaration>),
     FieldDefinition(Rc<FieldDefinition>),
@@ -514,6 +512,8 @@ pub(crate) enum FunctionSource {
     FunctionDeclaration(Rc<FunctionDeclaration>),
     GeneratorDeclaration(Rc<GeneratorDeclaration>),
     GeneratorMethod(Rc<GeneratorMethod>),
+    AsyncFunctionDeclaration(Rc<AsyncFunctionDeclaration>),
+    AsyncGeneratorDeclaration(Rc<AsyncGeneratorDeclaration>),
 }
 
 impl fmt::Display for FunctionSource {
@@ -521,12 +521,10 @@ impl fmt::Display for FunctionSource {
         match self {
             FunctionSource::FunctionExpression(node) => node.fmt(f),
             FunctionSource::GeneratorExpression(node) => node.fmt(f),
-            #[cfg(test)]
             FunctionSource::AsyncGeneratorExpression(node) => node.fmt(f),
-            #[cfg(test)]
             FunctionSource::AsyncFunctionExpression(node) => node.fmt(f),
             FunctionSource::ArrowFunction(node) => node.fmt(f),
-            //FunctionSource::AsyncArrowFunction(node) => node.fmt(f),
+            FunctionSource::AsyncArrowFunction(node) => node.fmt(f),
             FunctionSource::MethodDefinition(node) => node.fmt(f),
             //FunctionSource::HoistableDeclaration(node) => node.fmt(f),
             FunctionSource::FieldDefinition(node) => node.fmt(f),
@@ -534,6 +532,8 @@ impl fmt::Display for FunctionSource {
             FunctionSource::FunctionDeclaration(node) => node.fmt(f),
             FunctionSource::GeneratorDeclaration(node) => node.fmt(f),
             FunctionSource::GeneratorMethod(node) => node.fmt(f),
+            FunctionSource::AsyncFunctionDeclaration(node) => node.fmt(f),
+            FunctionSource::AsyncGeneratorDeclaration(node) => node.fmt(f),
         }
     }
 }
@@ -543,12 +543,10 @@ impl PartialEq for FunctionSource {
         match (self, other) {
             (Self::FunctionExpression(l0), Self::FunctionExpression(r0)) => Rc::ptr_eq(l0, r0),
             (Self::GeneratorExpression(l0), Self::GeneratorExpression(r0)) => Rc::ptr_eq(l0, r0),
-            #[cfg(test)]
             (Self::AsyncGeneratorExpression(l0), Self::AsyncGeneratorExpression(r0)) => Rc::ptr_eq(l0, r0),
-            #[cfg(test)]
             (Self::AsyncFunctionExpression(l0), Self::AsyncFunctionExpression(r0)) => Rc::ptr_eq(l0, r0),
             (Self::ArrowFunction(l0), Self::ArrowFunction(r0)) => Rc::ptr_eq(l0, r0),
-            //(Self::AsyncArrowFunction(l0), Self::AsyncArrowFunction(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncArrowFunction(l0), Self::AsyncArrowFunction(r0)) => Rc::ptr_eq(l0, r0),
             (Self::MethodDefinition(l0), Self::MethodDefinition(r0)) => Rc::ptr_eq(l0, r0),
             //(Self::HoistableDeclaration(l0), Self::HoistableDeclaration(r0)) => Rc::ptr_eq(l0, r0),
             (Self::FieldDefinition(l0), Self::FieldDefinition(r0)) => Rc::ptr_eq(l0, r0),
@@ -556,22 +554,24 @@ impl PartialEq for FunctionSource {
             (Self::FunctionDeclaration(l0), Self::FunctionDeclaration(r0)) => Rc::ptr_eq(l0, r0),
             (Self::GeneratorDeclaration(l0), Self::GeneratorDeclaration(r0)) => Rc::ptr_eq(l0, r0),
             (Self::GeneratorMethod(l0), Self::GeneratorMethod(r0)) => Rc::ptr_eq(l0, r0),
-            #[cfg(test)]
-            (   Self::AsyncGeneratorExpression(_)
-                | Self::AsyncFunctionExpression(_), _
-            ) => false,
+            (Self::AsyncFunctionDeclaration(l0), Self::AsyncFunctionDeclaration(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncGeneratorDeclaration(l0), Self::AsyncGeneratorDeclaration(r0)) => Rc::ptr_eq(l0, r0),
             (
                 Self::FunctionExpression(_)
                 | Self::GeneratorExpression(_)
                 | Self::ArrowFunction(_)
-                //| Self::AsyncArrowFunction(_)
+                | Self::AsyncArrowFunction(_)
                 | Self::MethodDefinition(_)
                 //| Self::HoistableDeclaration(_)
                 | Self::FieldDefinition(_)
                 | Self::ClassStaticBlock(_)
                 | Self::FunctionDeclaration(_)
                 | Self::GeneratorDeclaration(_)
-                | Self::GeneratorMethod(_),
+                | Self::GeneratorMethod(_)
+                | Self::AsyncFunctionExpression(_)
+                | Self::AsyncFunctionDeclaration(_)
+                | Self::AsyncGeneratorExpression(_)
+                | Self::AsyncGeneratorDeclaration(_),
                 _,
             ) => false,
         }
@@ -620,6 +620,31 @@ impl From<Rc<GeneratorDeclaration>> for FunctionSource {
 impl From<Rc<GeneratorMethod>> for FunctionSource {
     fn from(value: Rc<GeneratorMethod>) -> Self {
         Self::GeneratorMethod(value)
+    }
+}
+impl From<Rc<AsyncFunctionExpression>> for FunctionSource {
+    fn from(value: Rc<AsyncFunctionExpression>) -> Self {
+        Self::AsyncFunctionExpression(value)
+    }
+}
+impl From<Rc<AsyncFunctionDeclaration>> for FunctionSource {
+    fn from(value: Rc<AsyncFunctionDeclaration>) -> Self {
+        Self::AsyncFunctionDeclaration(value)
+    }
+}
+impl From<Rc<AsyncArrowFunction>> for FunctionSource {
+    fn from(value: Rc<AsyncArrowFunction>) -> Self {
+        Self::AsyncArrowFunction(value)
+    }
+}
+impl From<Rc<AsyncGeneratorExpression>> for FunctionSource {
+    fn from(value: Rc<AsyncGeneratorExpression>) -> Self {
+        Self::AsyncGeneratorExpression(value)
+    }
+}
+impl From<Rc<AsyncGeneratorDeclaration>> for FunctionSource {
+    fn from(value: Rc<AsyncGeneratorDeclaration>) -> Self {
+        Self::AsyncGeneratorDeclaration(value)
     }
 }
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
@@ -712,15 +737,33 @@ impl TryFrom<FunctionSource> for Rc<MethodDefinition> {
         }
     }
 }
+impl TryFrom<FunctionSource> for Rc<AsyncFunctionExpression> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::AsyncFunctionExpression(node) => Ok(node),
+            _ => bail!("AsyncFunctionExpression expected"),
+        }
+    }
+}
+impl TryFrom<FunctionSource> for Rc<AsyncGeneratorExpression> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::AsyncGeneratorExpression(node) => Ok(node),
+            _ => bail!("AsyncGeneratorExpression expected"),
+        }
+    }
+}
 
 impl FunctionSource {
     pub(crate) fn location(&self) -> Location {
         match self {
             FunctionSource::FunctionExpression(node) => node.location(),
             FunctionSource::GeneratorExpression(node) => node.location(),
-            #[cfg(test)]
             FunctionSource::AsyncGeneratorExpression(node) => node.location(),
-            #[cfg(test)]
             FunctionSource::AsyncFunctionExpression(node) => node.location(),
             FunctionSource::ArrowFunction(node) => node.location(),
             FunctionSource::MethodDefinition(node) => node.location(),
@@ -729,6 +772,9 @@ impl FunctionSource {
             FunctionSource::FunctionDeclaration(node) => node.location(),
             FunctionSource::GeneratorDeclaration(node) => node.location(),
             FunctionSource::GeneratorMethod(node) => node.location(),
+            FunctionSource::AsyncFunctionDeclaration(node) => node.location(),
+            FunctionSource::AsyncArrowFunction(node) => node.location(),
+            FunctionSource::AsyncGeneratorDeclaration(node) => node.location(),
         }
     }
 }
@@ -1942,28 +1988,213 @@ impl GeneratorDeclaration {
 }
 
 impl AsyncFunctionDeclaration {
-    #[expect(unused_variables, clippy::needless_pass_by_value)]
     pub(crate) fn instantiate_function_object(
         self: &Rc<Self>,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> Completion<ECMAScriptValue> {
-        todo!()
+        // Runtime Semantics: InstantiateFunctionObject
+        //
+        // The syntax-directed operation InstantiateFunctionObject takes arguments envRecord (an Environment Record) and
+        // privateEnv (a PrivateEnvironment Record or null) and returns an ECMAScript function object. It is defined
+        // piecewise over the following productions:
+        //
+        // AsyncFunctionDeclaration :
+        //      async function BindingIdentifier ( FormalParameters ) { AsyncFunctionBody }
+        //      async function ( FormalParameters ) { AsyncFunctionBody }
+        // 1. Return InstantiateAsyncFunctionObject of AsyncFunctionDeclaration with arguments envRecord and privateEnv.
+        self.instantiate_async_function_object(env, private_env, strict, source)
+    }
+
+    pub(crate) fn instantiate_async_function_object(
+        self: &Rc<Self>,
+        env: Rc<dyn EnvironmentRecord>,
+        private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> Completion<ECMAScriptValue> {
+        // Runtime Semantics: InstantiateAsyncFunctionObject
+        //
+        // The syntax-directed operation InstantiateAsyncFunctionObject takes arguments envRecord (an Environment
+        // Record) and privateEnv (a PrivateEnvironment Record or null) and returns an ECMAScript function object. It is
+        // defined piecewise over the following productions:
+        //
+        // AsyncFunctionDeclaration : async function BindingIdentifier ( FormalParameters ) { AsyncFunctionBody }
+        // 1. Let name be the StringValue of BindingIdentifier.
+        // 2. Let sourceText be the source text matched by AsyncFunctionDeclaration.
+        // 3. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, FormalParameters,
+        //    AsyncFunctionBody, non-lexical-this, envRecord, privateEnv).
+        // 4. Perform SetFunctionName(closure, name).
+        // 5. Return closure.
+        //
+        // AsyncFunctionDeclaration : async function ( FormalParameters ) { AsyncFunctionBody }
+        // 1. Let sourceText be the source text matched by AsyncFunctionDeclaration.
+        // 2. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, FormalParameters,
+        //    AsyncFunctionBody, non-lexical-this, envRecord, privateEnv).
+        // 3. Perform SetFunctionName(closure, "default").
+        // 4. Return closure.
+        let name = self.ident.as_ref().expect("export decls should not yet work").string_value();
+        let strict = strict || self.body.function_body_contains_use_strict();
+        let span = self.location().span;
+        let source_text = source.text[span.starting_index..(span.starting_index + span.length)].to_string();
+        let params = ParamSource::from(Rc::clone(&self.params));
+        let body = BodySource::from(Rc::clone(&self.body));
+        let chunk_name = nameify(&source_text, 50);
+        let mut compiled = Chunk::new(chunk_name, self.location().starting_line);
+        let function_data = StashedFunctionData {
+            source_text,
+            params,
+            body,
+            strict,
+            to_compile: FunctionSource::from(self.clone()),
+            this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: source.clone(),
+        };
+        let compilation_status = self.body.evaluate_async_function_body(&mut compiled, source, &function_data);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            return Err(typeerror);
+        }
+        #[cfg(debug_assertions)]
+        for line in compiled.disassemble(&source.text) {
+            println!("{line}");
+        }
+
+        let function_prototype = intrinsic(IntrinsicId::GeneratorFunctionPrototype);
+
+        let closure = ordinary_function_create(
+            function_prototype,
+            function_data.source_text.as_str(),
+            function_data.params.clone(),
+            function_data.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            env,
+            private_env,
+            function_data.strict,
+            Rc::new(compiled),
+        );
+        set_function_name(&closure, name.into(), None);
+        Ok(closure.into())
     }
 }
 
 impl AsyncGeneratorDeclaration {
-    #[expect(unused_variables, clippy::needless_pass_by_value)]
     pub(crate) fn instantiate_function_object(
         self: &Rc<Self>,
         env: Rc<dyn EnvironmentRecord>,
         private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
         strict: bool,
-        source: &SourceTree,
+        source: &Rc<SourceTree>,
     ) -> Completion<ECMAScriptValue> {
-        todo!()
+        // Runtime Semantics: InstantiateFunctionObject
+        //
+        // The syntax-directed operation InstantiateFunctionObject takes arguments envRecord (an Environment Record) and
+        // privateEnv (a PrivateEnvironment Record or null) and returns an ECMAScript function object. It is defined
+        // piecewise over the following productions:
+
+        // AsyncGeneratorDeclaration :
+        //      async function * BindingIdentifier ( FormalParameters ) { AsyncGeneratorBody }
+        //      async function * ( FormalParameters ) { AsyncGeneratorBody }
+        // 1. Return InstantiateAsyncGeneratorFunctionObject of AsyncGeneratorDeclaration with arguments envRecord and privateEnv.
+        self.instantiate_async_generator_function_object(env, private_env, strict, source)
+    }
+
+    pub(crate) fn instantiate_async_generator_function_object(
+        self: &Rc<Self>,
+        env: Rc<dyn EnvironmentRecord>,
+        private_env: Option<Rc<RefCell<PrivateEnvironmentRecord>>>,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> Completion<ECMAScriptValue> {
+        // Runtime Semantics: InstantiateAsyncGeneratorFunctionObject
+        //
+        // The syntax-directed operation InstantiateAsyncGeneratorFunctionObject takes arguments envRecord (an
+        // Environment Record) and privateEnv (a PrivateEnvironment Record or null) and returns an ECMAScript
+        // function object. It is defined piecewise over the following productions:
+        match &self.ident {
+            None => {
+                // AsyncGeneratorDeclaration : async function * ( FormalParameters ) { AsyncGeneratorBody }
+                //
+                // 1. Let sourceText be the source text matched by AsyncGeneratorDeclaration.
+                // 2. Let closure be OrdinaryFunctionCreate(%AsyncGeneratorFunction.prototype%, sourceText,
+                //    FormalParameters, AsyncGeneratorBody, non-lexical-this, envRecord, privateEnv).
+                // 3. Perform SetFunctionName(closure, "default").
+                // 4. Let proto be OrdinaryObjectCreate(%AsyncGeneratorPrototype%).
+                // 5. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: proto,
+                //    [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+                // 6. Return closure.
+                //
+                // Note: An anonymous AsyncGeneratorDeclaration can only occur as part of an export default
+                // declaration.
+                todo!()
+            }
+            Some(binding_identifier) => {
+                // AsyncGeneratorDeclaration : async function * BindingIdentifier ( FormalParameters ) { AsyncGeneratorBody }
+                //
+                // 1. Let name be the StringValue of BindingIdentifier.
+                // 2. Let sourceText be the source text matched by AsyncGeneratorDeclaration.
+                // 3. Let closure be OrdinaryFunctionCreate(%AsyncGeneratorFunction.prototype%, sourceText,
+                //    FormalParameters, AsyncGeneratorBody, non-lexical-this, envRecord, privateEnv).
+                // 4. Perform SetFunctionName(closure, name).
+                // 5. Let proto be OrdinaryObjectCreate(%AsyncGeneratorPrototype%).
+                // 6. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: proto,
+                //    [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+                // 7. Return closure.
+                let name = binding_identifier.string_value();
+                let strict = strict || self.body.function_body_contains_use_strict();
+                let span = self.location().span;
+                let source_text = source.text[span.starting_index..(span.starting_index + span.length)].to_string();
+                let params = ParamSource::from(Rc::clone(&self.params));
+                let body = BodySource::from(Rc::clone(&self.body));
+                let chunk_name = nameify(&source_text, 50);
+                let mut compiled = Chunk::new(chunk_name, self.location().starting_line);
+                let function_data = StashedFunctionData {
+                    source_text,
+                    params,
+                    body,
+                    strict,
+                    to_compile: FunctionSource::from(self.clone()),
+                    this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
+                };
+                let compilation_status = self.body.evaluate_async_generator_body(&mut compiled, source, &function_data);
+                if let Err(err) = compilation_status {
+                    let typeerror = create_type_error(err.to_string());
+                    return Err(typeerror);
+                }
+                #[cfg(debug_assertions)]
+                for line in compiled.disassemble(&source.text) {
+                    println!("{line}");
+                }
+
+                let function_prototype = intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototype);
+
+                let closure = ordinary_function_create(
+                    function_prototype,
+                    function_data.source_text.as_str(),
+                    function_data.params.clone(),
+                    function_data.body.clone(),
+                    ThisLexicality::NonLexicalThis,
+                    env,
+                    private_env,
+                    function_data.strict,
+                    Rc::new(compiled),
+                );
+                set_function_name(&closure, name.into(), None);
+
+                let proto_proto = intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype);
+                let proto = ordinary_object_create(Some(proto_proto));
+                define_property_or_throw(
+                    &closure,
+                    "prototype",
+                    PotentialPropertyDescriptor::new().value(proto).writable(true),
+                )
+                .expect(GOODOBJ);
+                Ok(closure.into())
+            }
+        }
     }
 }
 

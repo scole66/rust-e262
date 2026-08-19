@@ -607,11 +607,11 @@ mod nameable_production {
 
     #[test_case("function(){}", true => Ok((svec(&["<Function Instructions 1>"]), true, false)); "function expression")]
     #[test_case("function *(){}", true => Ok((svec(&["<Generator Instructions 1>"]), true, false)); "generator expression")]
-    #[test_case("async function(){}", true => panics "not yet implemented"; "async function expression")]
-    #[test_case("async function*(){}", true => panics "not yet implemented"; "async generator expression")]
+    #[test_case("async function(){}", true => Ok((svec(&["<AsyncFunction Instructions 1>"]), true, false)); "async function expression")]
+    #[test_case("async function*(){}", true => Ok((svec(&["<AsyncGenerator Instructions 1>"]), true, false)); "async generator expression")]
     #[test_case("class {}", true => Ok((svec(&["<Class Instructions 1>"]), false, false)); "class expression")]
     #[test_case("(x => x)", true => Ok((svec(&["<Arrow Instructions 1>"]), true, false)); "arrow function")]
-    #[test_case("(async x => x)", true => panics "not yet implemented"; "async arrow function")]
+    #[test_case("(async x => x)", true => Ok((svec(&["<AsyncArrowFunction Instructions 1>"]), true, false)); "async arrow function")]
     fn compile_named_evaluation(src: &str, strict: bool) -> Result<(Vec<String>, bool, bool), String> {
         let (node, ast) = Maker::new(src).primary_expression_ast();
         let ast = Rc::new(ast);
@@ -633,10 +633,17 @@ mod nameable_production {
                 fe.named_evaluation(&mut inner, strict, &ast, Some(NameLoc::Index(innerid))).unwrap();
                 inner.set_name("Generator");
             }
-            NameableProduction::AsyncFunction(_)
-            | NameableProduction::AsyncGenerator(_)
-            | NameableProduction::AsyncArrow(_) => {
-                unreachable!();
+            NameableProduction::AsyncFunction(af) => {
+                af.named_evaluation(&mut inner, strict, &ast, Some(NameLoc::Index(innerid))).unwrap();
+                inner.set_name("AsyncFunction");
+            }
+            NameableProduction::AsyncArrow(node) => {
+                node.named_evaluation(&mut inner, strict, &ast, Some(NameLoc::Index(innerid))).unwrap();
+                inner.set_name("AsyncArrowFunction");
+            }
+            NameableProduction::AsyncGenerator(node) => {
+                node.named_evaluation(&mut inner, strict, &ast, Some(NameLoc::Index(innerid))).unwrap();
+                inner.set_name("AsyncGenerator");
             }
             NameableProduction::Class(ce) => {
                 ce.named_evaluation(&mut inner, &ast, NameLoc::Index(innerid)).unwrap();
@@ -852,8 +859,8 @@ mod primary_expression {
         #[test_case("``", true => Ok(svec(&["<TemplateLiteral Instructions 1>"])); "template literal")]
         #[test_case("function a(){}", true => Ok(svec(&["<Function Instructions 1>"])); "function expression")]
         #[test_case("function *(){}", true => Ok(svec(&["<Generator Instructions 1>"])); "generator expression")]
-        #[test_case("async function (){}", true => panics "not yet implemented"; "async function expression")]
-        #[test_case("async function *(){}", true => panics "not yet implemented"; "async generator expression")]
+        #[test_case("async function (){}", true => Ok(svec(&["<AsyncFunction Instructions 1>"])); "async function expression")]
+        #[test_case("async function *(){}", true => Ok(svec(&["<AsyncGenerator Instructions 1>"])); "async generator expression")]
         #[test_case("/abcd/", true => Ok(svec(&["REGEXP /abcd/"])); "regular expression")]
         fn normal(src: &str, strict: bool) -> Result<Vec<String>, String> {
             let (node, ast) = Maker::new(src).primary_expression_ast();
@@ -900,8 +907,13 @@ mod primary_expression {
                     gener.compile(&mut inner, strict, &ast).unwrap();
                     inner.set_name("Generator");
                 }
-                PrimaryExpression::AsyncFunction { .. } | PrimaryExpression::AsyncGenerator { .. } => {
-                    unreachable!();
+                PrimaryExpression::AsyncFunction { node } => {
+                    node.compile(&mut inner, strict, &ast).unwrap();
+                    inner.set_name("AsyncFunction");
+                }
+                PrimaryExpression::AsyncGenerator { node } => {
+                    node.compile(&mut inner, strict, &ast).unwrap();
+                    inner.set_name("AsyncGenerator");
                 }
             }
             Ok(if inner.pos() == 0 { chunk_dump(&c, &[]) } else { chunk_dump(&c, &[&inner]) })

@@ -1,6 +1,6 @@
 use super::*;
 use ahash::AHashSet;
-use anyhow::{Context, anyhow};
+use anyhow::{Context, anyhow, bail};
 use genawaiter::rc::{Co, Gen};
 use num::pow::Pow;
 use num::{BigInt, BigUint, ToPrimitive, Zero};
@@ -2139,6 +2139,302 @@ mod insn_impl {
         push_completion(result).expect(PUSHABLE);
         Ok(())
     }
+
+    pub(crate) fn instantiate_async_function_expression(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // AsyncFunctionExpression : async function BindingIdentifier ( FormalParameters ) { AsyncFunctionBody }
+        //  1. Assert: name is not present.
+        //  2. Set name to the StringValue of BindingIdentifier.
+        //  3. Let outerEnv be the LexicalEnvironment of the running execution context.
+        //  4. Let funcEnv be NewDeclarativeEnvironment(outerEnv).
+        //  5. Perform ! funcEnv.CreateImmutableBinding(name, false).
+        //  6. Let privateEnv be the running execution context's PrivateEnvironment.
+        //  7. Let sourceText be the source text matched by AsyncFunctionExpression.
+        //  8. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, FormalParameters,
+        //     AsyncFunctionBody, non-lexical-this, funcEnv, privateEnv).
+        //  9. Perform SetFunctionName(closure, name).
+        //  10. Perform ! funcEnv.InitializeBinding(name, closure).
+        //  11. Return closure.
+
+        // Note: The BindingIdentifier in an AsyncFunctionExpression can be referenced from inside the
+        // AsyncFunctionExpression's AsyncFunctionBody to allow the function to call itself recursively.
+        // However, unlike in a FunctionDeclaration, the BindingIdentifier in a AsyncFunctionExpression cannot
+        // be referenced from and does not affect the scope enclosing the AsyncFunctionExpression.
+        let info = sfd_operand(chunk)?;
+        let name = pop_string()?;
+
+        let outer_env = current_lexical_environment().expect("code is running");
+        let func_env: Rc<dyn EnvironmentRecord> =
+            Rc::new(DeclarativeEnvironmentRecord::new(Some(outer_env), name.clone()));
+        func_env.create_immutable_binding(name.clone(), false).expect("fresh environment plus good name");
+
+        let to_compile: Rc<AsyncFunctionExpression> = info.to_compile.clone().try_into()?;
+        let mut compiled = Chunk::new(name.clone(), to_compile.location().starting_line);
+        let compilation_status = to_compile.body.compile_body(&mut compiled, &info.parent_tree, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        #[cfg(debug_assertions)]
+        for line in compiled.disassemble(&info.parent_tree.text) {
+            println!("{line}");
+        }
+
+        let priv_env = current_private_environment();
+        let function_prototype = intrinsic(IntrinsicId::AsyncFunctionPrototype);
+        let closure = ordinary_function_create(
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            func_env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+
+        super::set_function_name(&closure, name.into(), None);
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+
+    enum AsyncFnType {
+        AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
+        AsyncArrowFunction(Rc<AsyncArrowFunction>),
+    }
+    impl TryFrom<FunctionSource> for AsyncFnType {
+        type Error = anyhow::Error;
+
+        fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+            Ok(match value {
+                FunctionSource::AsyncFunctionExpression(node) => Self::AsyncFunctionExpression(node),
+                FunctionSource::AsyncArrowFunction(node) => Self::AsyncArrowFunction(node),
+                _ => {
+                    bail!("AsyncFunctionExpression or AsyncArrowFunction expected");
+                }
+            })
+        }
+    }
+    impl AsyncFnType {
+        fn location(&self) -> Location {
+            match self {
+                AsyncFnType::AsyncFunctionExpression(node) => node.location(),
+                AsyncFnType::AsyncArrowFunction(node) => node.location(),
+            }
+        }
+        fn compile_body(
+            &self,
+            chunk: &mut Chunk,
+            source: &Rc<SourceTree>,
+            info: &StashedFunctionData,
+        ) -> Result<AbruptResult, anyhow::Error> {
+            match self {
+                AsyncFnType::AsyncFunctionExpression(node) => node.body.compile_body(chunk, source, info),
+                AsyncFnType::AsyncArrowFunction(node) => {
+                    let (AsyncArrowFunction::IdentOnly(_, body, _) | AsyncArrowFunction::Formals(_, body)) =
+                        node.as_ref();
+                    body.evaluate_body(chunk, source, info).map(AbruptResult::from)
+                }
+            }
+        }
+    }
+
+    pub(crate) fn instantiate_id_free_async_function_expression(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // AsyncFunctionExpression : async function ( FormalParameters ) { AsyncFunctionBody }
+        // 1. If name is not present, set name to the empty String.
+        // 2. Let envRecord be the LexicalEnvironment of the running execution context.
+        // 3. Let privateEnv be the running execution context's PrivateEnvironment.
+        // 4. Let sourceText be the source text matched by AsyncFunctionExpression.
+        // 5. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, FormalParameters, AsyncFunctionBody, non-lexical-this, envRecord, privateEnv).
+        // 6. Perform SetFunctionName(closure, name).
+        // 7. Return closure.
+        let info = sfd_operand(chunk)?;
+        let to_compile: AsyncFnType = info.to_compile.clone().try_into()?;
+        let name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(name, to_compile.location().starting_line);
+        let compilation_status = to_compile.compile_body(&mut compiled, &info.parent_tree, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        #[cfg(debug_assertions)]
+        for line in compiled.disassemble(&info.parent_tree.text) {
+            println!("{line}");
+        }
+
+        let outer_env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let priv_env = current_private_environment();
+
+        let name = pop_key()?;
+        let function_prototype = intrinsic(IntrinsicId::AsyncFunctionPrototype);
+
+        let closure = ordinary_function_create(
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            outer_env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+
+        super::set_function_name(&closure, name.into(), None);
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+
+    pub(crate) fn instantiate_id_free_async_generator_expression(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Runtime Semantics: InstantiateAsyncGeneratorFunctionExpression
+        //
+        // The syntax-directed operation InstantiateAsyncGeneratorFunctionExpression takes optional argument name (a
+        // property key or a Private Name) and returns an ECMAScript function object. It is defined piecewise over the
+        // following productions:
+        //
+        // AsyncGeneratorExpression : async function * ( FormalParameters ) { AsyncGeneratorBody }
+        //
+        // 1. If name is not present, set name to the empty String.
+        // 2. Let envRecord be the LexicalEnvironment of the running execution context.
+        // 3. Let privateEnv be the running execution context's PrivateEnvironment.
+        // 4. Let sourceText be the source text matched by AsyncGeneratorExpression.
+        // 5. Let closure be OrdinaryFunctionCreate(%AsyncGeneratorFunction.prototype%, sourceText, FormalParameters,
+        //    AsyncGeneratorBody, non-lexical-this, envRecord, privateEnv).
+        // 6. Perform SetFunctionName(closure, name).
+        // 7. Let proto be OrdinaryObjectCreate(%AsyncGeneratorPrototype%).
+        // 8. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: proto, [[Writable]]:
+        //    true, [[Enumerable]]: false, [[Configurable]]: false }).
+        // 9. Return closure.
+        let info = sfd_operand(chunk)?;
+        let to_compile: Rc<AsyncGeneratorExpression> = info.to_compile.clone().try_into()?;
+        let name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(name, to_compile.location().starting_line);
+        let compilation_status = to_compile.body.evaluate_async_generator_body(&mut compiled, &info.parent_tree, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        #[cfg(debug_assertions)]
+        for line in compiled.disassemble(&info.parent_tree.text) {
+            println!("{line}");
+        }
+
+        // Name is on the stack.
+        let outer_env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let priv_env = current_private_environment();
+
+        let name = pop_key()?;
+        let function_prototype = intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototype);
+
+        let closure = ordinary_function_create(
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            outer_env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+
+        super::set_function_name(&closure, name.into(), None);
+
+        let proto_proto = intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype);
+        let proto = ordinary_object_create(Some(proto_proto));
+        define_property_or_throw(&closure, "prototype", PotentialPropertyDescriptor::new().value(proto).writable(true))
+            .expect(GOODOBJ);
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+
+    pub(crate) fn instantiate_async_generator_expression(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Runtime Semantics: InstantiateAsyncGeneratorFunctionExpression
+        //
+        // The syntax-directed operation InstantiateAsyncGeneratorFunctionExpression takes optional argument name (a
+        // property key or a Private Name) and returns an ECMAScript function object. It is defined piecewise over the
+        // following productions:
+        //
+        // AsyncGeneratorExpression : async function * BindingIdentifier ( FormalParameters ) { AsyncGeneratorBody }
+        // 1. Assert: name is not present.
+        // 2. Set name to the StringValue of BindingIdentifier.
+        // 3. Let outerEnv be the running execution context's LexicalEnvironment.
+        // 4. Let funcEnv be NewDeclarativeEnvironment(outerEnv).
+        // 5. Perform ! funcEnv.CreateImmutableBinding(name, false).
+        // 6. Let privateEnv be the running execution context's PrivateEnvironment.
+        // 7. Let sourceText be the source text matched by AsyncGeneratorExpression.
+        // 8. Let closure be OrdinaryFunctionCreate(%AsyncGeneratorFunction.prototype%, sourceText, FormalParameters,
+        //    AsyncGeneratorBody, non-lexical-this, funcEnv, privateEnv).
+        // 9. Perform SetFunctionName(closure, name).
+        // 10. Let proto be OrdinaryObjectCreate(%AsyncGeneratorPrototype%).
+        // 11. Perform ! DefinePropertyOrThrow(closure, "prototype", PropertyDescriptor { [[Value]]: proto,
+        //     [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: false }).
+        // 12. Perform ! funcEnv.InitializeBinding(name, closure).
+        // 13. Return closure.
+        //
+        // Note: The BindingIdentifier in an AsyncGeneratorExpression can be referenced from inside the
+        // AsyncGeneratorExpression's AsyncGeneratorBody to allow the generator code to call itself recursively.
+        // However, unlike in an AsyncGeneratorDeclaration, the BindingIdentifier in an AsyncGeneratorExpression cannot
+        // be referenced from and does not affect the scope enclosing the AsyncGeneratorExpression.
+        let info = sfd_operand(chunk)?;
+        let to_compile: Rc<AsyncGeneratorExpression> = info.to_compile.clone().try_into()?;
+        let name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(name, to_compile.location().starting_line);
+        let compilation_status = to_compile.body.evaluate_async_generator_body(&mut compiled, &info.parent_tree, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        #[cfg(debug_assertions)]
+        for line in compiled.disassemble(&info.parent_tree.text) {
+            println!("{line}");
+        }
+
+        // Name is on the stack.
+        let outer_env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let priv_env = current_private_environment();
+
+        let name = pop_string()?;
+        let func_env: Rc<dyn EnvironmentRecord> =
+            Rc::new(DeclarativeEnvironmentRecord::new(Some(outer_env), name.clone()));
+        func_env.create_immutable_binding(name.clone(), false).expect(GOODOBJ);
+
+        let function_prototype = intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototype);
+
+        let closure = ordinary_function_create(
+            function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            func_env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+
+        super::set_function_name(&closure, name.into(), None);
+
+        let proto_proto = intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype);
+        let proto = ordinary_object_create(Some(proto_proto));
+        define_property_or_throw(&closure, "prototype", PotentialPropertyDescriptor::new().value(proto).writable(true))
+            .expect(GOODOBJ);
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+
     pub(crate) fn instantiate_id_free_function_expression(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // The syntax-directed operation InstantiateOrdinaryFunctionExpression takes optional argument name and
         // returns a function object. It is defined piecewise over the following productions:
@@ -4327,6 +4623,12 @@ pub(crate) async fn execute(
             Insn::Modulo => insn_impl::binary_operation(BinOp::Remainder).expect(GOODCODE),
             Insn::Add => insn_impl::binary_operation(BinOp::Add).expect(GOODCODE),
             Insn::Subtract => insn_impl::binary_operation(BinOp::Subtract).expect(GOODCODE),
+            Insn::InstantiateIdFreeAsyncFunctionExpression => {
+                insn_impl::instantiate_id_free_async_function_expression(&chunk).expect(GOODCODE);
+            }
+            Insn::InstantiateAsyncFunctionExpression => {
+                insn_impl::instantiate_async_function_expression(&chunk).expect(GOODCODE);
+            }
             Insn::InstantiateIdFreeFunctionExpression => {
                 insn_impl::instantiate_id_free_function_expression(&chunk).expect(GOODCODE);
             }
@@ -4350,6 +4652,12 @@ pub(crate) async fn execute(
             }
             Insn::InstantiateGeneratorMethod => {
                 insn_impl::instantiate_generator_method(&chunk).expect(GOODCODE);
+            }
+            Insn::InstantiateIdFreeAsyncGeneratorExpression => {
+                insn_impl::instantiate_id_free_async_generator_expression(&chunk).expect(GOODCODE);
+            }
+            Insn::InstantiateAsyncGeneratorExpression => {
+                insn_impl::instantiate_async_generator_expression(&chunk).expect(GOODCODE);
             }
             Insn::LeftShift => insn_impl::binary_operation(BinOp::LeftShift).expect(GOODCODE),
             Insn::SignedRightShift => insn_impl::binary_operation(BinOp::SignedRightShift).expect(GOODCODE),

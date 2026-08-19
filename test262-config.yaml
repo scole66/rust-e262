@@ -9,4 +9,5 @@
   - resizable-arraybuffer
   - TypedArray
   - Int32Array
+  - dynamic-import
   skipped_tests: [] # Mostly because they take too long to run -- use '--force' to ignore this list
