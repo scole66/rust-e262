@@ -1614,6 +1614,15 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => serr("Thrown: SyntaxError: SyntaxError: ‘public’ not allowed as an identifier in strict mode");
     "function-constructor direct eval"
 )]
+#[test_case(
+    "
+    let body_executed = false; 
+    for (key in null) { body_executed = true; }
+    body_executed
+    "
+    => vok(false);
+    "for-in vs null"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())

@@ -11529,7 +11529,7 @@ mod for_in_of_statement {
     #[test_case("9n", false, &["item"], ForInOfExprKind::Expression, IterationKind::Enumerate, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "has_ids + compile fails")]
     #[test_case("9n", false, &[], ForInOfExprKind::Expression, IterationKind::Enumerate, &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "no ids + compile fails")]
     #[test_case("{}", false, &[], ForInOfExprKind::Expression, IterationKind::Iterate, &[] => Ok((svec(&["00001: {}", "OBJECT", "GET_SYNC_ITER"]), true)); "infallible object/iterate")]
-    #[test_case("{}", false, &[], ForInOfExprKind::Expression, IterationKind::Enumerate, &[] => Ok((svec(&["00001: {}", "OBJECT", "JUMP_NULLISH 4", "TO_OBJECT", "ENUM_PROPS", "JUMP 2", "POP", "BREAK"]), false)); "infallible object/enumerate")]
+    #[test_case("{}", false, &[], ForInOfExprKind::Expression, IterationKind::Enumerate, &[] => Ok((svec(&["00001: {}", "OBJECT", "JUMP_NULLISH 4", "TO_OBJECT", "ENUM_PROPS", "JUMP 2", "POP", "BREAK"]), true)); "object/enumerate")]
     #[test_case("{}", false, &[], ForInOfExprKind::Expression, IterationKind::AsyncIterate, &[] => Ok((svec(&["00001: {}", "OBJECT", "TODO"]), true)); "infallible object/async iterate")]
     fn for_in_of_head_evaluation(
         src: &str,
@@ -12006,53 +12006,6 @@ mod for_in_of_statement {
     #[test_case("for (x in 8n);", false, &[], &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "head compile fails")]
     #[test_case("for (x in thing) 8n;", false, &[], &[(Fillable::BigInt, 0)] => serr("Out of room for big ints in this compilation unit"); "body compile fails")]
     #[test_case("for (x in thing) @@(51);", false, &[], &[] => serr("out of range integral type conversion attempted"); "body too large")]
-    #[test_case("for (let x in {});", false, &[], &[] => Ok(svec(&[
-        "00001: for (let x in {});",
-        "PNLE",
-        "CPMLB 0 (x)",
-        "OBJECT",
-        "PLE",
-        "JUMP_NULLISH 4",
-        "TO_OBJECT",
-        "ENUM_PROPS",
-        "JUMP 2",
-        "POP",
-        "BREAK",
-        "UNDEFINED",
-        "SWAP",
-        "ITER_NEXT",
-        "JUMP_IF_ABRUPT 43",
-        "IRES_COMPLETE",
-        "JUMP_IF_ABRUPT 38",
-        "JUMPPOP_TRUE 32",
-        "IRES_TOVAL",
-        "JUMP_IF_ABRUPT 35",
-        "PNLE",
-        "CPMLB 0 (x)",
-        "STRING 0 (x)",
-        "RESOLVE",
-        "SWAP",
-        "IRB",
-        "JUMP_IF_NORMAL 3",
-        "PLE",
-        "JUMP 22",
-        "POP",
-        "SWAP",
-        "EMPTY",
-        "PLE",
-        "LOOP_CONT []",
-        "JUMPPOP_FALSE 3",
-        "COALESCE",
-        "JUMP -36",
-        "UPDATE_EMPTY",
-        "UNWIND 1",
-        "JUMP 8",
-        "POP",
-        "POP",
-        "JUMP 4",
-        "UNWIND 1",
-        "UNWIND 2"
-    ])); "all infallible")]
     fn for_in_of_evaluation(
         src: &str,
         strict: bool,
