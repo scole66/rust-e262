@@ -4491,7 +4491,7 @@ pub(crate) async fn execute(
             agent.execution_context_stack.borrow_mut()[index].pc += 1;
         });
         match instruction {
-            Insn::Nop => insn_impl::nop(),
+            Insn::Nop | Insn::Debugger => insn_impl::nop(),
             Insn::ToDo => insn_impl::todo(),
             Insn::String => insn_impl::string(&chunk).expect(GOODCODE),
             Insn::Null => insn_impl::null().expect(GOODCODE),

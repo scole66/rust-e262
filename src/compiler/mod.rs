@@ -43,6 +43,7 @@ pub(crate) enum Insn {
     CreatePrivateNameIfMissing,
     CreateStrictImmutableLexBinding,
     CreateUnmappedArguments,
+    Debugger,
     Decrement,
     DefineGetter,
     DefineMethod,
@@ -221,6 +222,7 @@ impl fmt::Display for Insn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.pad(match self {
             Insn::Nop => "NOP",
+            Insn::Debugger => "DEBUGGER",
             Insn::ToDo => "TODO",
             Insn::String => "STRING",
             Insn::Resolve => "RESOLVE",
@@ -6392,7 +6394,7 @@ impl Statement {
             Statement::Labelled(lbl) => lbl.compile(chunk, strict, source),
             Statement::Throw(throw_statement) => throw_statement.compile(chunk, strict, source).map(AbruptResult::from),
             Statement::Try(try_statement) => try_statement.compile(chunk, strict, source),
-            Statement::Debugger(_) => todo!(),
+            Statement::Debugger(node) => Ok(node.compile(chunk).into()),
         }
     }
 
@@ -6420,6 +6422,14 @@ impl Statement {
             Statement::Breakable(bs) => bs.labelled_compile(chunk, strict, source, label_set),
             Statement::Labelled(lbl) => lbl.labelled_compile(chunk, strict, source, label_set),
         }
+    }
+}
+
+impl DebuggerStatement {
+    pub(crate) fn compile(&self, chunk: &mut Chunk) -> AlwaysAbruptResult {
+        let line = self.location().starting_line;
+        chunk.op(Insn::Debugger, line);
+        AlwaysAbruptResult
     }
 }
 
