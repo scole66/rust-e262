@@ -603,7 +603,7 @@ impl fmt::Display for AsciiLetter {
 impl AsciiLetter {
     fn parse(scanner: &Scanner) -> Option<(Self, ScannerMutation)> {
         scanner.peek().and_then(|ch| {
-            if char::try_from(ch).ok().is_some_and(|as_char| as_char.is_ascii_alphabetic()) {
+            if char::try_from(ch).is_ok_and(|as_char| as_char.is_ascii_alphabetic()) {
                 Some((Self(ch), ScannerMutation::add(scanner, 1)))
             } else {
                 None
