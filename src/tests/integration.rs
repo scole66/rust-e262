@@ -1616,12 +1616,32 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
 )]
 #[test_case(
     "
-    let body_executed = false; 
+    let body_executed = false;
     for (key in null) { body_executed = true; }
     body_executed
     "
     => vok(false);
     "for-in vs null"
+)]
+#[test_case(
+    r"
+    eval('                \n\
+        99;               \n\
+        do {              \n\
+            -99;          \n\
+            try {         \n\
+                39        \n\
+            } catch (e) { \n\
+                -1        \n\
+            } finally {   \n\
+                break;    \n\
+                -2        \n\
+            };            \n\
+        } while (false);  \n\
+    ')
+    "
+    => vok(ECMAScriptValue::Undefined);
+    "try-statement; update-empty with break in finally"
 )]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
