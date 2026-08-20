@@ -8619,11 +8619,11 @@ mod try_statement {
         "STRICT_RESOLVE",
         "GET_VALUE",
         "PLE",
-        "JUMP_IF_ABRUPT 4",
+        "JUMP_IF_ABRUPT 3",
         "POP",
-        "UPDATE_EMPTY",
         "JUMP 2",
-        "UNWIND 2"
+        "UNWIND 1",
+        "UPDATE_EMPTY"
     ]), true)); "try-finally; finally is fallible")]
     #[test_case("try {a;} finally {b;}", false, &[] => Ok((svec(&[
         "00001: try {a;} finally {b;}",
@@ -8638,11 +8638,11 @@ mod try_statement {
         "RESOLVE",
         "GET_VALUE",
         "PLE",
-        "JUMP_IF_ABRUPT 4",
+        "JUMP_IF_ABRUPT 3",
         "POP",
-        "UPDATE_EMPTY",
         "JUMP 2",
-        "UNWIND 2"
+        "UNWIND 1",
+        "UPDATE_EMPTY"
     ]), true)); "try-finally; finally is fallible; non-strict")]
     #[test_case("try{}catch{}finally{}", true, &[] => Ok((svec(&["00001: try{}catch{}finally{}", "UNDEFINED", "EMPTY", "EMPTY", "POP", "UPDATE_EMPTY"]), false)); "try-full/minimal")]
     #[test_case("try{a;}catch{b;}finally{c;}", true, &[] => Ok((svec(&[
@@ -8665,11 +8665,11 @@ mod try_statement {
         "STRICT_RESOLVE",
         "GET_VALUE",
         "PLE",
-        "JUMP_IF_ABRUPT 4",
+        "JUMP_IF_ABRUPT 3",
         "POP",
-        "UPDATE_EMPTY",
         "JUMP 2",
-        "UNWIND 2"
+        "UNWIND 1",
+        "UPDATE_EMPTY"
     ]), true)); "try-full all fallible/strict")]
     #[test_case("try{a;}catch{b;}finally{c;}", false, &[] => Ok((svec(&[
         "00001: try{a;}catch{b;}finally{c;}",
@@ -8691,11 +8691,11 @@ mod try_statement {
         "RESOLVE",
         "GET_VALUE",
         "PLE",
-        "JUMP_IF_ABRUPT 4",
+        "JUMP_IF_ABRUPT 3",
         "POP",
-        "UPDATE_EMPTY",
         "JUMP 2",
-        "UNWIND 2"
+        "UNWIND 1",
+        "UPDATE_EMPTY"
     ]), true)); "try-full all fallible/non-strict")]
     #[test_case("try{a;}catch{}finally{}", true, &[(Fillable::String, 0)] => serr("Out of room for strings in this compilation unit"); "try-full block fails")]
     #[test_case("try{a;}catch{0;}finally{}", true, &[(Fillable::Float, 0)] => serr("Out of room for floats in this compilation unit"); "try-full catch fails")]

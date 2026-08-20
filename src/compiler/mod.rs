@@ -8675,9 +8675,10 @@ impl ThrowStatement {
 }
 
 impl TryStatement {
-    /// Compile the TryStatement production
+    /// Compile a `try` statement.
     ///
-    /// See [TryStatement evaluation](https://tc39.es/ecma262/#sec-try-statement-runtime-semantics-evaluation)
+    /// Each form keeps an initial `undefined` below the active completion so the final `UpdateEmpty` can supply the
+    /// spec's default completion value without special-casing empty block/catch/finally completions.
     pub(crate) fn compile(
         &self,
         chunk: &mut Chunk,
@@ -8685,96 +8686,139 @@ impl TryStatement {
         source: &Rc<SourceTree>,
     ) -> anyhow::Result<AbruptResult> {
         let line = self.location().starting_line;
+
         match self {
             TryStatement::Catch { block, catch, .. } => {
-                // TryStatement : try Block Catch
-                //  1. Let B be the result of evaluating Block.
-                //  2. If B.[[Type]] is throw, let C be Completion(CatchClauseEvaluation of Catch with argument B.[[Value]]).
-                //  3. Else, let C be B.
-                //  4. Return ? UpdateEmpty(C, undefined).
+                // `try Block Catch` replaces only thrown block completions. Normal, return, break, and continue
+                // completions from the block skip the catch clause and flow directly to the shared `UpdateEmpty`.
+                //
+                // start:
+                //   UNDEFINED                    undefined
+                //   <block.evaluate>             b-val/empty/b-err undefined
+                //   JUMP_NOT_THROW done          b-err undefined
+                //   <catch.cce>                  c-val/empty/c-err undefined
+                // done:                          b-val/c-val/empty/c-err undefined
+                //   UPDATE_EMPTY                 b-val/c-val/undefined/c-err
+
                 chunk.op(Insn::Undefined, line);
+
                 let status = block.compile(chunk, strict, source)?;
-                // Stack: val/empty/err undefined ...
+
                 if status.maybe_abrupt() {
-                    let exit = chunk.op_jump(Insn::JumpNotThrow, line);
-                    // Stack: err undefined ...
+                    // If the block did not throw, preserve its completion. If it did throw, the catch clause consumes
+                    // that throw value and produces the replacement completion.
+                    //
+                    // The catch clause is emitted only when the try block might produce an abrupt completion. In that
+                    // case the whole try/catch is already maybe-abrupt, so the catch compiler does not need to
+                    // contribute separate status here.
+                    let done = chunk.op_jump(Insn::JumpNotThrow, line);
                     catch.compile_catch_clause_evaluation(chunk, strict, source)?;
-                    // Stack: catch: val/empty/err undefined ...
-                    chunk.fixup(exit)?;
+                    chunk.fixup(done)?;
                 }
-                // Stack: (block: val/empty/abrupt -or- catch: val/empty/err) undefined ...
+
                 chunk.op(Insn::UpdateEmpty, line);
-                // Stack: val/err ...
+
                 Ok(AbruptResult::from(status.maybe_abrupt()))
             }
+
             TryStatement::Finally { block, finally, .. } => {
-                // TryStatement : try Block Finally
-                //  1. Let B be the result of evaluating Block.
-                //  2. Let F be the result of evaluating Finally.
-                //  3. If F.[[Type]] is normal, set F to B.
-                //  4. Return ? UpdateEmpty(F, undefined).
+                // `try Block Finally` always evaluates the finally block. A normal finally completion is discarded so
+                // the block completion survives; an abrupt finally completion replaces the block completion.
+                //
+                // start:
+                //   UNDEFINED                   undefined
+                //   <block.evaluate>            b-val/empty/b-err undefined
+                //   <finally.evaluate>          f-val/empty/f-err b-val/empty/b-err undefined
+                //   JUMP_IF_ABRUPT f-err        f-val/empty b-val/empty/b-err undefined
+                //   POP                         b-val/empty/b-err undefined
+                //   JUMP exit
+                // f-err:                        f-err b-val/empty/b-err undefined
+                //   UNWIND 1                    f-err undefined
+                // exit:                         b-val/empty/b-err/f-err undefined
+                //   UPDATE_EMPTY                b-val/undefined/b-err/f-err
+
                 chunk.op(Insn::Undefined, line);
-                // Stack: undefined ...
+
                 let status = block.compile(chunk, strict, source)?;
-                // Stack: block:val/empty/err undefined ...
                 let finally_status = finally.compile(chunk, strict, source)?;
-                // Stack: finally:val/empty/err block:val/empty/err undefined ...
+
+                // Only a maybe-abrupt finally needs the replacement path. Otherwise the finally completion is known to
+                // be normal/empty and can simply be popped.
                 let short_jump =
                     if finally_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
-                // Stack: finally:val/empty block:val/empty/err undefined ...
+
+                // Normal finally completion: discard it and keep the original block completion underneath.
                 chunk.op(Insn::Pop, line);
-                // Stack: block: val/empty/err undefined ...
-                chunk.op(Insn::UpdateEmpty, line);
-                // Stack: block: val/err ...
-                if finally_status.maybe_abrupt() {
-                    let short_exit = chunk.op_jump(Insn::Jump, line);
-                    chunk.fixup(short_jump.expect("properly set")).expect("Jump too short to fail");
-                    // Stack: finally:err block: val/empty/err undefined ...
-                    chunk.op_plus_arg(Insn::Unwind, 2, line);
-                    // Stack: finally:err ...
-                    chunk.fixup(short_exit).expect("Jump too short to fail");
+
+                if let Some(f_err) = short_jump {
+                    // Abrupt finally completion: discard the saved block completion and keep the finally completion as
+                    // the result of the whole try-finally statement.
+                    let exit = chunk.op_jump(Insn::Jump, line);
+                    chunk.fixup(f_err).expect("jump too short to fail");
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
+                    chunk.fixup(exit).expect("jump too short to fail");
                 }
-                // Stack: finally:err or block:val/err ...
+
+                chunk.op(Insn::UpdateEmpty, line);
+
                 Ok(AbruptResult::from(status.maybe_abrupt() || finally_status.maybe_abrupt()))
             }
+
             TryStatement::Full { block, catch, finally, .. } => {
-                // TryStatement : try Block Catch Finally
-                //  1. Let B be the result of evaluating Block.
-                //  2. If B.[[Type]] is throw, let C be Completion(CatchClauseEvaluation of Catch with argument B.[[Value]]).
-                //  3. Else, let C be B.
-                //  4. Let F be the result of evaluating Finally.
-                //  5. If F.[[Type]] is normal, set F to C.
-                //  6. Return ? UpdateEmpty(F, undefined).
+                // `try Block Catch Finally` first turns a thrown block completion into the catch clause completion,
+                // then applies the same finally replacement rule: normal finally is discarded; abrupt finally wins.
+                //
+                // start:
+                //   UNDEFINED                    undefined
+                //   <block.evaluate>             b-val/empty/b-err undefined
+                //   JUMP_NOT_THROW finally       b-err undefined
+                //   <catch.cce>                  c-val/empty/c-err undefined
+                // finally:                       b-val/c-val/empty/c-err undefined
+                //   <finally.evaluate>           f-val/empty/f-err b-val/c-val/empty/c-err undefined
+                //   JUMP_IF_ABRUPT f-err         f-val/empty b-val/c-val/empty/c-err undefined
+                //   POP                          b-val/c-val/empty/c-err undefined
+                //   JUMP exit
+                // f-err:                         f-err b-val/c-val/empty/c-err undefined
+                //   UNWIND 1                     f-err undefined
+                // exit:                          b-val/c-val/empty/c-err/f-err undefined
+                //   UPDATE_EMPTY                 b-val/c-val/c-err/f-err
+
                 chunk.op(Insn::Undefined, line);
-                // Stack: undefined ...
+
                 let block_status = block.compile(chunk, strict, source)?;
-                // Stack: val/empty/err undefined ...
+
                 if block_status.maybe_abrupt() {
-                    let after_catch = chunk.op_jump(Insn::JumpNotThrow, line);
-                    // Stack: err undefined ...
+                    // Non-throw abrupt completions skip the catch clause. Only a thrown block completion is replaced by
+                    // catch evaluation.
+                    //
+                    // Catch code is emitted only when the block might be abrupt. That condition already makes the
+                    // block/catch portion maybe-abrupt for status purposes; the final status only needs to add the
+                    // finally block's possible abruptness.
+                    let finally_target = chunk.op_jump(Insn::JumpNotThrow, line);
                     catch.compile_catch_clause_evaluation(chunk, strict, source)?;
-                    // Stack: catch: val/empty/err undefined ...
-                    chunk.fixup(after_catch)?;
+                    chunk.fixup(finally_target)?;
                 }
-                // Stack: (block: val/empty/abt -or- catch: val/empty/err) undefined
+
                 let finally_status = finally.compile(chunk, strict, source)?;
-                // Stack: finally: val/empty/err (block: val/empty/abt -or- catch: val/empty/err) undefined
-                let short_jump =
+
+                // If finally may be abrupt, emit the path where its completion replaces the already-selected
+                // block-or-catch completion.
+                let f_err =
                     if finally_status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
-                // Stack: finally:val/empty (block: val/empty/abt -or- catch: val/empty/err) undefined ...
+
+                // Normal finally completion is discarded; the block/catch completion underneath remains the statement
+                // result.
                 chunk.op(Insn::Pop, line);
-                // Stack: (block: val/empty/abt -or- catch: val/empty/err) undefined ...
-                chunk.op(Insn::UpdateEmpty, line);
-                // Stack: (block: val/abt -or- catch: val/err) ...
-                if finally_status.maybe_abrupt() {
-                    let short_exit = chunk.op_jump(Insn::Jump, line);
-                    chunk.fixup(short_jump.expect("properly set")).expect("Jump too short to fail");
-                    // Stack: finally:err (block: val/empty/abt -or- catch: val/empty/err) undefined ...
-                    chunk.op_plus_arg(Insn::Unwind, 2, line);
-                    // Stack: finally:err ...
-                    chunk.fixup(short_exit).expect("Jump too short to fail");
+
+                if let Some(f_err) = f_err {
+                    let exit = chunk.op_jump(Insn::Jump, line);
+                    chunk.fixup(f_err).expect("jump too short to fail");
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
+                    chunk.fixup(exit).expect("jump too short to fail");
                 }
-                // Stack: (finally:err -or- block: val/abt -or- catch: val/err) ...
+
+                chunk.op(Insn::UpdateEmpty, line);
+
                 Ok(AbruptResult::from(block_status.maybe_abrupt() || finally_status.maybe_abrupt()))
             }
         }
