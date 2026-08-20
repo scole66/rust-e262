@@ -234,6 +234,7 @@ impl Chunk {
             | Insn::Resolve
             | Insn::StrictResolve
             | Insn::Nop
+            | Insn::Debugger
             | Insn::ToDo
             | Insn::InitializeReferencedBinding
             | Insn::PopLexEnv

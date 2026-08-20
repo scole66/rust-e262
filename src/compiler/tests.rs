@@ -4351,7 +4351,7 @@ mod statement {
         "THROW"
     ]); "non-strict throw")]
     #[test_case("try {} catch {}", true => svec(&["00001: try {} catch {}", "UNDEFINED", "EMPTY", "UPDATE_EMPTY"]); "try statement")]
-    #[test_case("debugger;", true => panics "not yet implemented"; "debugger")]
+    #[test_case("debugger;", true => svec(&["00001: debugger;", "DEBUGGER"]); "debugger")]
     fn compile(src: &str, strict: bool) -> Vec<String> {
         let (node, ast) = Maker::new(src).statement_ast();
         let ast = Rc::new(ast);
