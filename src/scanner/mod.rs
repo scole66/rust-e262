@@ -852,8 +852,7 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
             // to detect coding errors.
             iter.next().unwrap(); // The 'u' character
             let digit_or_brace = iter.next().unwrap(); // Either a hex char or an open curly brace
-            let cp;
-            if digit_or_brace == '{' {
+            let cp = if digit_or_brace == '{' {
                 let mut val = 0;
                 loop {
                     let ch = iter.next().unwrap();
@@ -862,19 +861,19 @@ fn identifier_name_string_value(id_text: &str) -> JSString {
                     }
                     val = (val << 4) | mv_of_hex_digit(HexChar::try_from(ch).unwrap());
                 }
-                cp = char::from_u32(val).unwrap();
+                char::from_u32(val).unwrap()
             } else {
                 let second = HexChar::try_from(iter.next().unwrap()).unwrap();
                 let third = HexChar::try_from(iter.next().unwrap()).unwrap();
                 let fourth = HexChar::try_from(iter.next().unwrap()).unwrap();
-                cp = char::from_u32(
+                char::from_u32(
                     (mv_of_hex_digit(HexChar::try_from(digit_or_brace).unwrap()) << 12)
                         | (mv_of_hex_digit(second) << 8)
                         | (mv_of_hex_digit(third) << 4)
                         | mv_of_hex_digit(fourth),
                 )
-                .unwrap();
-            }
+                .unwrap()
+            };
             result.append(&mut code_point_to_utf16_code_units(cp));
         } else {
             result.append(&mut code_point_to_utf16_code_units(ch));

@@ -502,8 +502,7 @@ fn number_prototype_to_exponential(
 
     let info;
     let mut workbuf: [u8; 101] = [0; 101];
-    let digits;
-    if fraction_digits.is_undefined() {
+    let digits = if fraction_digits.is_undefined() {
         info = dtoa(value);
         let strbuf = info.chars.as_bytes();
         // Find the first null
@@ -514,7 +513,7 @@ fn number_prototype_to_exponential(
                 break;
             }
         }
-        digits = &strbuf[0..null_idx.unwrap()];
+        &strbuf[0..null_idx.unwrap()]
     } else {
         info = dtoa_precise(value, fraction + 1);
         let ufract = usize::try_from(fraction).expect("fraction should be >= 0");
@@ -535,8 +534,8 @@ fn number_prototype_to_exponential(
                 }
             };
         }
-        digits = &workbuf[0..=ufract];
-    }
+        &workbuf[0..=ufract]
+    };
     let exp = info.decpt - 1;
     let sign = if value < 0.0 { "-" } else { "" };
 
