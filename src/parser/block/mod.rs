@@ -692,13 +692,13 @@ impl StatementListItem {
     ) -> ParseResult<Self> {
         Err(ParseError::new(PECode::DeclarationOrStatementExpected, scanner))
             .otherwise(|| {
+                Declaration::parse(parser, scanner, yield_flag, await_flag)
+                    .map(|(decl, after_decl)| (Rc::new(StatementListItem::Declaration(decl)), after_decl))
+            })
+            .otherwise(|| {
                 Statement::parse(parser, scanner, yield_flag, await_flag, return_flag).map(
                     |(statement, after_statement)| (Rc::new(StatementListItem::Statement(statement)), after_statement),
                 )
-            })
-            .otherwise(|| {
-                Declaration::parse(parser, scanner, yield_flag, await_flag)
-                    .map(|(decl, after_decl)| (Rc::new(StatementListItem::Declaration(decl)), after_decl))
             })
     }
 

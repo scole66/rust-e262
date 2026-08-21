@@ -1643,6 +1643,12 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => vok(ECMAScriptValue::Undefined);
     "try-statement; update-empty with break in finally"
 )]
+// 20 Aug 2026: let <newline> something; should be a LexicalDeclaration, since the first "let" isn't an ASI opportunity
+#[test_case(
+    r"eval('let\nanything=10;\nanything;');"
+    => vok(10);
+    "asi: let-newline-anything"
+)]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
