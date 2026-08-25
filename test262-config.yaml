@@ -10,4 +10,5 @@
   - TypedArray
   - Int32Array
   - dynamic-import
+  - explicit-resource-management
   skipped_tests: [] # Mostly because they take too long to run -- use '--force' to ignore this list

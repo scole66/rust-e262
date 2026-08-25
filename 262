@@ -1,6 +1,13 @@
 path="$1"
 
-find "$path" -name '*.js' | sort | xargs -n 1 -P 0 -I {} sh -c '
+case "$(uname -s)" in
+  Darwin) default_jobs=60 ;;
+  *)      default_jobs=0 ;;
+esac
+
+JOBS="${JOBS:-$default_jobs}"
+
+find "$path" -name '*.js' | grep -v "FIXTURE" | sort | xargs -n 1 -P "$JOBS" -I {} sh -c '
 tmp="$(mktemp)"
 {
   echo "$1:"
