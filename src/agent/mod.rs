@@ -2705,6 +2705,47 @@ mod insn_impl {
         push_value(closure.into()).expect(PUSHABLE);
         Ok(())
     }
+
+    pub(crate) fn instantiate_async_function_object(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let name = string_operand(chunk)?;
+        let info = sfd_operand(chunk)?;
+
+        let to_compile: Rc<AsyncFunctionDeclaration> =
+            info.to_compile.clone().try_into().context("finding function compilation source")?;
+        let chunk_name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
+        let compilation_status = to_compile.body.evaluate_async_function_body(&mut compiled, &info.parent_tree, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        #[cfg(debug_assertions)]
+        for line in compiled.disassemble(&info.parent_tree.text) {
+            println!("{line}");
+        }
+
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let priv_env = current_private_environment();
+        let async_function_prototype = intrinsic(IntrinsicId::AsyncFunctionPrototype);
+
+        let closure = ordinary_function_create(
+            async_function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        super::set_function_name(&closure, name.clone().into(), None);
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+
     pub(crate) fn instantiate_generator_method(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: Operand: function chunk id
         // Input: Operand: enumerable boolean
@@ -4658,6 +4699,9 @@ pub(crate) async fn execute(
             }
             Insn::InstantiateAsyncGeneratorExpression => {
                 insn_impl::instantiate_async_generator_expression(&chunk).expect(GOODCODE);
+            }
+            Insn::InstantiateAsyncFunctionObject => {
+                insn_impl::instantiate_async_function_object(&chunk).expect(GOODCODE);
             }
             Insn::LeftShift => insn_impl::binary_operation(BinOp::LeftShift).expect(GOODCODE),
             Insn::SignedRightShift => insn_impl::binary_operation(BinOp::SignedRightShift).expect(GOODCODE),

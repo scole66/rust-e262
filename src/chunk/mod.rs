@@ -383,7 +383,8 @@ impl Chunk {
             Insn::AddMappedArgument
             | Insn::InstantiateOrdinaryFunctionObject
             | Insn::InstantiateGeneratorFunctionObject
-            | Insn::InstantiateGeneratorExpressionWithId => {
+            | Insn::InstantiateGeneratorExpressionWithId
+            | Insn::InstantiateAsyncFunctionObject => {
                 let string_arg = self.opcodes[idx] as usize;
                 let index_arg = self.opcodes[idx + 1] as usize;
                 (3, format!("    {:<24}{} {}", insn, index_arg, self.strings[string_arg]))
