@@ -92,6 +92,7 @@ pub(crate) enum Insn {
     InstanceOf,
     InstantiateArrowFunctionExpression,
     InstantiateAsyncFunctionExpression,
+    InstantiateAsyncFunctionObject,
     InstantiateAsyncGeneratorExpression,
     InstantiateGeneratorFunctionExpression,
     InstantiateGeneratorExpressionWithId,
@@ -345,6 +346,7 @@ impl fmt::Display for Insn {
             Insn::InstantiateAsyncFunctionExpression => "IAFE",
             Insn::InstantiateIdFreeAsyncGeneratorExpression => "IIFAGE",
             Insn::InstantiateAsyncGeneratorExpression => "IAGE",
+            Insn::InstantiateAsyncFunctionObject => "IAFO",
             Insn::GeneratorStartFromFunction => "GEN_START",
             Insn::Yield => "YIELD",
             Insn::YieldFrom => "YIELD_FROM",
@@ -1037,6 +1039,55 @@ impl AsyncGeneratorExpression {
                 Ok(AlwaysAbruptResult)
             }
         }
+    }
+}
+
+impl AsyncFunctionDeclaration {
+    pub(crate) fn compile_afo_instantiation(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: InstantiateAsyncFunctionObject
+        //
+        // The syntax-directed operation InstantiateAsyncFunctionObject takes arguments envRecord (an Environment
+        // Record) and privateEnv (a PrivateEnvironment Record or null) and returns an ECMAScript function object. It is
+        // defined piecewise over the following productions:
+        //
+        // AsyncFunctionDeclaration : async function BindingIdentifier ( FormalParameters ) { AsyncFunctionBody }
+        // 1. Let name be the StringValue of BindingIdentifier.
+        // 2. Let sourceText be the source text matched by AsyncFunctionDeclaration.
+        // 3. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, FormalParameters,
+        //    AsyncFunctionBody, non-lexical-this, envRecord, privateEnv).
+        // 4. Perform SetFunctionName(closure, name).
+        // 5. Return closure.
+        //
+        // AsyncFunctionDeclaration : async function ( FormalParameters ) { AsyncFunctionBody }
+        // 1. Let sourceText be the source text matched by AsyncFunctionDeclaration.
+        // 2. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, FormalParameters,
+        //    AsyncFunctionBody, non-lexical-this, envRecord, privateEnv).
+        // 3. Perform SetFunctionName(closure, "default").
+        // 4. Return closure.
+        let line = self.location().starting_line;
+        let name = if let Some(id) = &self.ident { id.string_value() } else { JSString::from("default") };
+        let name_id = chunk.add_to_string_pool(name)?;
+        let span = self.location().span;
+        let source_text = source.text[span.starting_index..(span.starting_index + span.length)].to_string();
+        let params = ParamSource::from(Rc::clone(&self.params));
+        let body = BodySource::from(Rc::clone(&self.body));
+        let function_data = StashedFunctionData {
+            source_text,
+            params,
+            body,
+            strict,
+            to_compile: FunctionSource::from(self.clone()),
+            this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: source.clone(),
+        };
+        let func_id = chunk.add_to_func_stash(function_data)?;
+        chunk.op_plus_two_args(Insn::InstantiateAsyncFunctionObject, name_id, func_id, line);
+        Ok(AlwaysAbruptResult)
     }
 }
 
@@ -6492,11 +6543,12 @@ impl FcnDef {
         chunk: &mut Chunk,
         strict: bool,
         source: &Rc<SourceTree>,
-    ) -> anyhow::Result<AbruptResult> {
+    ) -> anyhow::Result<AlwaysAbruptResult> {
         match self {
-            FcnDef::Function(f) => f.compile_fo_instantiation(chunk, strict, source).map(AbruptResult::from),
-            FcnDef::Generator(r#gen) => r#gen.compile_go_instantiation(chunk, strict, source).map(AbruptResult::from),
-            FcnDef::AsyncFun(_) | FcnDef::AsyncGen(_) => todo!(),
+            FcnDef::Function(node) => node.compile_fo_instantiation(chunk, strict, source),
+            FcnDef::Generator(node) => node.compile_go_instantiation(chunk, strict, source),
+            FcnDef::AsyncFun(node) => node.compile_afo_instantiation(chunk, strict, source),
+            FcnDef::AsyncGen(_) => todo!(),
         }
     }
 }
