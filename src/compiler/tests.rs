@@ -5229,7 +5229,7 @@ mod fcn_def {
     #[test_case(fcndecl, true => Ok((svec(&["00001: function a() {}", "FUNC_OBJ 0 a"]), true, false)); "function decl")]
     #[test_case(gendecl, true => Ok((svec(&["00001: function *a() {}", "FUNC_GENO 0 a"]), true, false)); "generator decl")]
     #[test_case(afcndecl, true => Ok((svec(&["00001: async function a() {}", "IAFO 0 a"]), true, false)); "async function decl")]
-    #[test_case(agendecl, true => panics "not yet implemented"; "async generator decl")]
+    #[test_case(agendecl, true => Ok((svec(&["00001: async function *a() {}", "IAGO 0 a"]), true, false)); "async generator decl")]
     fn compile_fo_instantiation(
         maker: fn() -> (FcnDef, SourceTree),
         strict: bool,

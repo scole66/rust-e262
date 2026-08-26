@@ -94,6 +94,7 @@ pub(crate) enum Insn {
     InstantiateAsyncFunctionExpression,
     InstantiateAsyncFunctionObject,
     InstantiateAsyncGeneratorExpression,
+    InstantiateAsyncGeneratorObject,
     InstantiateGeneratorFunctionExpression,
     InstantiateGeneratorExpressionWithId,
     InstantiateGeneratorFunctionObject,
@@ -347,6 +348,7 @@ impl fmt::Display for Insn {
             Insn::InstantiateIdFreeAsyncGeneratorExpression => "IIFAGE",
             Insn::InstantiateAsyncGeneratorExpression => "IAGE",
             Insn::InstantiateAsyncFunctionObject => "IAFO",
+            Insn::InstantiateAsyncGeneratorObject => "IAGO",
             Insn::GeneratorStartFromFunction => "GEN_START",
             Insn::Yield => "YIELD",
             Insn::YieldFrom => "YIELD_FROM",
@@ -1087,6 +1089,35 @@ impl AsyncFunctionDeclaration {
         };
         let func_id = chunk.add_to_func_stash(function_data)?;
         chunk.op_plus_two_args(Insn::InstantiateAsyncFunctionObject, name_id, func_id, line);
+        Ok(AlwaysAbruptResult)
+    }
+}
+
+impl AsyncGeneratorDeclaration {
+    pub(crate) fn compile_ago_instantiation(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        let line = self.location().starting_line;
+        let name = if let Some(id) = &self.ident { id.string_value() } else { JSString::from("default") };
+        let name_id = chunk.add_to_string_pool(name)?;
+        let span = self.location().span;
+        let source_text = source.text[span.starting_index..(span.starting_index + span.length)].to_string();
+        let params = ParamSource::from(Rc::clone(&self.params));
+        let body = BodySource::from(Rc::clone(&self.body));
+        let function_data = StashedFunctionData {
+            source_text,
+            params,
+            body,
+            strict,
+            to_compile: FunctionSource::from(self.clone()),
+            this_mode: ThisLexicality::NonLexicalThis,
+            parent_tree: source.clone(),
+        };
+        let func_id = chunk.add_to_func_stash(function_data)?;
+        chunk.op_plus_two_args(Insn::InstantiateAsyncGeneratorObject, name_id, func_id, line);
         Ok(AlwaysAbruptResult)
     }
 }
@@ -6548,7 +6579,7 @@ impl FcnDef {
             FcnDef::Function(node) => node.compile_fo_instantiation(chunk, strict, source),
             FcnDef::Generator(node) => node.compile_go_instantiation(chunk, strict, source),
             FcnDef::AsyncFun(node) => node.compile_afo_instantiation(chunk, strict, source),
-            FcnDef::AsyncGen(_) => todo!(),
+            FcnDef::AsyncGen(node) => node.compile_ago_instantiation(chunk, strict, source),
         }
     }
 }

@@ -2746,6 +2746,52 @@ mod insn_impl {
         Ok(())
     }
 
+    pub(crate) fn instantiate_async_generator_object(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        let name = string_operand(chunk)?;
+        let info = sfd_operand(chunk)?;
+
+        let to_compile: Rc<AsyncGeneratorDeclaration> =
+            info.to_compile.clone().try_into().context("finding function compilation source")?;
+        let chunk_name = nameify(&info.source_text, 50);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
+        let compilation_status = to_compile.body.evaluate_async_generator_body(&mut compiled, &info.parent_tree, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            let _ = pop_completion()?;
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+        #[cfg(debug_assertions)]
+        for line in compiled.disassemble(&info.parent_tree.text) {
+            println!("{line}");
+        }
+
+        let env = current_lexical_environment().ok_or(InternalRuntimeError::NoLexicalEnvironment)?;
+        let priv_env = current_private_environment();
+        let async_generator_function_prototype = intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototype);
+
+        let closure = ordinary_function_create(
+            async_generator_function_prototype,
+            info.source_text.as_str(),
+            info.params.clone(),
+            info.body.clone(),
+            ThisLexicality::NonLexicalThis,
+            env,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        super::set_function_name(&closure, name.clone().into(), None);
+
+        let proto_proto = intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype);
+        let proto = ordinary_object_create(Some(proto_proto));
+        define_property_or_throw(&closure, "prototype", PotentialPropertyDescriptor::new().value(proto).writable(true))
+            .expect(GOODOBJ);
+
+        push_value(closure.into()).expect(PUSHABLE);
+        Ok(())
+    }
+
     pub(crate) fn instantiate_generator_method(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
         // Input: Operand: function chunk id
         // Input: Operand: enumerable boolean
@@ -4702,6 +4748,9 @@ pub(crate) async fn execute(
             }
             Insn::InstantiateAsyncFunctionObject => {
                 insn_impl::instantiate_async_function_object(&chunk).expect(GOODCODE);
+            }
+            Insn::InstantiateAsyncGeneratorObject => {
+                insn_impl::instantiate_async_generator_object(&chunk).expect(GOODCODE);
             }
             Insn::LeftShift => insn_impl::binary_operation(BinOp::LeftShift).expect(GOODCODE),
             Insn::SignedRightShift => insn_impl::binary_operation(BinOp::SignedRightShift).expect(GOODCODE),
