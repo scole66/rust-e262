@@ -7,12 +7,6 @@ esac
 
 JOBS="${JOBS:-$default_jobs}"
 
-find "$path" -name '*.js' | grep -v "FIXTURE" | sort | xargs -n 1 -P "$JOBS" -I {} sh -c '
-tmp="$(mktemp)"
-{
-  echo "$1:"
-  ./target/release/test262 "$1"
-} > "$tmp" 2>&1
-cat "$tmp"
-rm -f "$tmp"
-' sh {}
+find "$path" -name '*.js' ! -name '*_FIXTURE.js' -print0 |
+    sort -z |
+    xargs -0 ./target/release/test262 --jobs 100
