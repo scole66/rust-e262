@@ -767,6 +767,16 @@ impl TryFrom<FunctionSource> for Rc<AsyncFunctionDeclaration> {
         }
     }
 }
+impl TryFrom<FunctionSource> for Rc<AsyncGeneratorDeclaration> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::AsyncGeneratorDeclaration(node) => Ok(node),
+            _ => bail!("AsyncGeneratorDeclaration expected"),
+        }
+    }
+}
 
 impl FunctionSource {
     pub(crate) fn location(&self) -> Location {
