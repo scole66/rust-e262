@@ -309,30 +309,21 @@ pub(crate) fn intrinsic(id: IntrinsicId) -> Object {
 pub(crate) fn current_realm_record() -> Option<Rc<RefCell<Realm>>> {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
-        match execution_context_stack.len() {
-            0 => None,
-            n => Some(execution_context_stack[n - 1].realm.clone()),
-        }
+        execution_context_stack.last().map(|ec| ec.realm.clone())
     })
 }
 
 pub(crate) fn current_lexical_environment() -> Option<Rc<dyn EnvironmentRecord>> {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
-        match execution_context_stack.len() {
-            0 => None,
-            n => execution_context_stack[n - 1].lexical_environment.clone(),
-        }
+        execution_context_stack.last().and_then(|ec| ec.lexical_environment.clone())
     })
 }
 
 pub(crate) fn current_variable_environment() -> Option<Rc<dyn EnvironmentRecord>> {
     AGENT.with(|agent| {
         let execution_context_stack = agent.execution_context_stack.borrow();
-        match execution_context_stack.len() {
-            0 => None,
-            n => execution_context_stack[n - 1].variable_environment.clone(),
-        }
+        execution_context_stack.last().and_then(|ec| ec.variable_environment.clone())
     })
 }
 
@@ -642,6 +633,7 @@ fn print_262(_this: &ECMAScriptValue, _nt: Option<&Object>, args: &[ECMAScriptVa
 fn testrunner_helper() -> Object {
     let two62 = ordinary_object_create(Some(intrinsic(IntrinsicId::ObjectPrototype)));
     let global = get_global_object().unwrap();
+    let function_prototype = intrinsic(IntrinsicId::FunctionPrototype);
     macro_rules! data {
         ( $name:expr_2021, $value:expr_2021, $writable:expr_2021, $enumerable:expr_2021, $configurable:expr_2021 ) => {
             define_property_or_throw(
@@ -664,10 +656,22 @@ fn testrunner_helper() -> Object {
         PropertyKey::from("createRealm"),
         BUILTIN_FUNCTION_SLOTS,
         Some(current_realm_record().expect("realm should exist by now")),
-        Some(intrinsic(IntrinsicId::FunctionPrototype)),
+        Some(function_prototype.clone()),
         None,
     );
     data!("createRealm", createrealm, true, false, true);
+
+    let eval_script = create_builtin_function(
+        Box::new(testrunner_eval_script),
+        None,
+        1.0,
+        PropertyKey::from("evalScript"),
+        BUILTIN_FUNCTION_SLOTS,
+        Some(current_realm_record().expect("realm should exist by now")),
+        Some(function_prototype),
+        None,
+    );
+    data!("evalScript", eval_script, true, false, true);
 
     two62
 }
@@ -682,6 +686,39 @@ fn testrunner_createrealm(
     let twosixtytwo = global.get(&PropertyKey::from("$262"))?;
     pop_execution_context();
     Ok(twosixtytwo)
+}
+
+fn testrunner_eval_script(
+    _this: &ECMAScriptValue,
+    _nt: Option<&Object>,
+    args: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    let mut args = FuncArgs::from(args);
+
+    // Convert the ECMAScript string into Rust source text for the parser. This
+    // is the UTF-16-to-String boundary; malformed UTF-16 is handled by the
+    // engine's JSString conversion policy.
+    let source_text = String::from(to_string(args.next_arg())?);
+
+    // Test262 exposes `evalScript` as a host hook: parse the provided source as
+    // a Script in the current realm, then evaluate it as a fresh script job.
+    let realm = current_realm_record().expect("evalScript should run inside an active VM realm");
+
+    match parse_script(&source_text, realm) {
+        Err(errors) => {
+            // Parse failures are reported as a thrown completion. Test262 only
+            // observes the first parse error value here.
+            let error = errors.first().map_or(ECMAScriptValue::Undefined, ECMAScriptValue::from);
+
+            Err(AbruptCompletion::Throw { value: error })
+        }
+        Ok(script) => {
+            // Successful parses run through normal ScriptEvaluation, so the
+            // result, thrown completion, and realm-visible side effects match a
+            // top-level script evaluation.
+            script_evaluation(script)
+        }
+    }
 }
 
 pub(crate) fn global_symbol_registry() -> Rc<RefCell<SymbolRegistry>> {

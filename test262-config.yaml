@@ -11,4 +11,5 @@
   - Int32Array
   - dynamic-import
   - explicit-resource-management
+  - source-phase-imports
   skipped_tests: [] # Mostly because they take too long to run -- use '--force' to ignore this list
