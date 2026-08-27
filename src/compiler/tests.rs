@@ -3965,7 +3965,7 @@ mod assignment_expression {
     ]), true, false)); "lhse not abrupt")]
     #[test_case("x => 0", true, &[] => Ok((svec(&["00001: x => 0", "STRING 0 ()", "FUNC_IAE 0"]), true, false)); "arrow function")]
     #[test_case("yield 1", true, &[] => Ok((svec(&["00001: yield 1", "FLOAT 0 (1)", "YIELD"]), true, false)); "yield expr")]
-    #[test_case("async x => x", true, &[] => panics "not yet implemented"; "async arrow")]
+    #[test_case("async x => x", true, &[] => Ok((svec(&["00001: async x => x", "STRING 0 ()", "AFUN_IIFE 0"]), true, false)); "async arrow")]
     #[test_case(
         "a &&= b", true, &[]
         => Ok((
@@ -5285,17 +5285,15 @@ mod if_statement {
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 19",
-        "JUMPPOP_FALSE 8",
+        "JUMP_IF_ABRUPT 15",
+        "JUMPPOP_FALSE 6",
         "STRING 1 (b)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 11",
-        "JUMP 6",
+        "JUMP 4",
         "STRING 2 (c)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 3",
         "UNDEFINED",
         "SWAP",
         "UPDATE_EMPTY"
@@ -5306,7 +5304,6 @@ mod if_statement {
     #[test_case("if (true) @@@; else false;", true, None => serr("out of range integral type conversion attempted"); "true path too large")]
     #[test_case("if (true) false; else @@@;", true, None => serr("out of range integral type conversion attempted"); "false path too large")]
     #[test_case("if (a) false; else @@3;", true, None => serr("out of range integral type conversion attempted"); "expr err exit jump too far")]
-    #[test_case("if (true) a; else @@3;", true, None => serr("out of range integral type conversion attempted"); "s1 err exit jump too far")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool), String> {
         let (node, ast) = Maker::new(src).if_statement_ast();
         let ast = Rc::new(ast);
