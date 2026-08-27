@@ -1262,6 +1262,24 @@ impl AsyncArrowFunction {
         }
     }
 
+    pub(crate) fn compile(
+        self: &Rc<Self>,
+        chunk: &mut Chunk,
+        strict: bool,
+        source: &Rc<SourceTree>,
+    ) -> anyhow::Result<AlwaysAbruptResult> {
+        // Runtime Semantics: Evaluation
+        //
+        // The syntax-directed operation Evaluation takes argument env (an Environment Record) and returns either a
+        // normal completion containing a value or an abrupt completion. It is defined piecewise over the following
+        // productions:
+        //
+        // AsyncArrowFunction : async AsyncArrowBindingIdentifier => AsyncConciseBody
+        //      CoverCallExpressionAndAsyncArrowHead => AsyncConciseBody
+        // 1. Return InstantiateAsyncArrowFunctionExpression of AsyncArrowFunction.
+        self.instantiate_async_arrow_function_expression(chunk, strict, source, None)
+    }
+
     pub(crate) fn named_evaluation(
         self: &Rc<Self>,
         chunk: &mut Chunk,
@@ -4950,7 +4968,9 @@ impl AssignmentExpression {
             AssignmentExpression::Arrow(arrow_function) => {
                 arrow_function.compile(chunk, strict, source).map(CompilerStatusFlags::from)
             }
-            AssignmentExpression::AsyncArrow(_) => todo!(),
+            AssignmentExpression::AsyncArrow(node) => {
+                node.compile(chunk, strict, source).map(CompilerStatusFlags::from)
+            }
             AssignmentExpression::OpAssignment(lhse, op, rhs) => {
                 // Stack: ...
                 let lhs_status = lhse.compile(chunk, strict, source)?;
