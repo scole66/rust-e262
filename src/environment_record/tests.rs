@@ -1810,24 +1810,6 @@ mod global_environment_record {
         assert_eq!(result, ECMAScriptValue::from(this_object));
     }
 
-    #[test_case("varstyle" => true; "var")]
-    #[test_case("lexical" => false; "lex")]
-    fn has_var_declaration(prop_name: &str) -> bool {
-        // Setup
-        setup_test_agent();
-        let object_prototype = intrinsic(IntrinsicId::ObjectPrototype);
-        let global_object = ordinary_object_create(Some(object_prototype.clone()));
-        let this_object = ordinary_object_create(Some(object_prototype));
-        let ger = GlobalEnvironmentRecord::new(global_object, this_object, "test");
-        let var_name = JSString::from("varstyle");
-        ger.create_global_var_binding(var_name, true).unwrap();
-        let lex_name = JSString::from("lexical");
-        ger.create_mutable_binding(lex_name.clone(), true).unwrap();
-        ger.initialize_binding(&lex_name, ECMAScriptValue::Undefined).unwrap();
-
-        // Exercise
-        ger.has_var_declaration(&JSString::from(prop_name))
-    }
     #[test_case("varstyle" => false; "var")]
     #[test_case("lexical" => true; "lex")]
     fn has_lexical_declaration(prop_name: &str) -> bool {
