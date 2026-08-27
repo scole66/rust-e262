@@ -3965,7 +3965,7 @@ mod assignment_expression {
     ]), true, false)); "lhse not abrupt")]
     #[test_case("x => 0", true, &[] => Ok((svec(&["00001: x => 0", "STRING 0 ()", "FUNC_IAE 0"]), true, false)); "arrow function")]
     #[test_case("yield 1", true, &[] => Ok((svec(&["00001: yield 1", "FLOAT 0 (1)", "YIELD"]), true, false)); "yield expr")]
-    #[test_case("async x => x", true, &[] => panics "not yet implemented"; "async arrow")]
+    #[test_case("async x => x", true, &[] => Ok((svec(&["00001: async x => x", "STRING 0 ()", "AFUN_IIFE 0"]), true, false)); "async arrow")]
     #[test_case(
         "a &&= b", true, &[]
         => Ok((
