@@ -196,6 +196,10 @@ pub(crate) fn provision_object_intrinsic(realm: &Rc<RefCell<Realm>>) {
     prototype_function!(object_prototype_is_prototype_of, "isPrototypeOf", 1.0);
     prototype_function!(object_prototype_property_is_enumerable, "propertyIsEnumerable", 1.0);
     prototype_function!(object_prototype_to_locale_string, "toLocaleString", 0.0);
+    prototype_function!(object_prototype_define_setter, "__defineSetter__", 2.0);
+    prototype_function!(object_prototype_define_getter, "__defineGetter__", 2.0);
+    prototype_function!(object_prototype_lookup_getter, "__lookupGetter__", 1.0);
+    prototype_function!(object_prototype_lookup_setter, "__lookupSetter__", 1.0);
 
     // Object.prototype.constructor
     //
@@ -1089,5 +1093,119 @@ fn object_prototype_set_proto(
     Ok(ECMAScriptValue::Undefined)
 }
 
+#[derive(Copy, Clone, PartialEq)]
+enum AccessorSide {
+    Get,
+    Set,
+}
+
+fn define_accessor(
+    this_value: &ECMAScriptValue,
+    arguments: &[ECMAScriptValue],
+    side: AccessorSide,
+) -> Completion<ECMAScriptValue> {
+    let mut args = FuncArgs::from(arguments);
+    let key = args.next_arg();
+    let accessor = args.next_arg();
+
+    // Legacy accessor-definition methods coerce the receiver to an object, then
+    // define an enumerable, configurable accessor property on that object.
+    let obj = to_object(this_value.clone())?;
+
+    if !accessor.is_callable() {
+        let name = match side {
+            AccessorSide::Get => "__defineGetter__",
+            AccessorSide::Set => "__defineSetter__",
+        };
+
+        return Err(create_type_error(format!("{name} called with uncallable value")));
+    }
+
+    // Convert the property key after validating the accessor. This preserves the
+    // observable ordering: an uncallable accessor throws before key coercion can
+    // run user code.
+    let property_desc = match side {
+        AccessorSide::Get => PotentialPropertyDescriptor::new().get(accessor).enumerable(true).configurable(true),
+        AccessorSide::Set => PotentialPropertyDescriptor::new().set(accessor).enumerable(true).configurable(true),
+    };
+
+    let property_key = key.to_property_key()?;
+    define_property_or_throw(&obj, property_key, property_desc)?;
+
+    Ok(ECMAScriptValue::Undefined)
+}
+
+fn object_prototype_define_getter(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    define_accessor(this_value, arguments, AccessorSide::Get)
+}
+
+fn object_prototype_define_setter(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    define_accessor(this_value, arguments, AccessorSide::Set)
+}
+
+fn lookup_accessor(
+    this_value: &ECMAScriptValue,
+    arguments: &[ECMAScriptValue],
+    side: AccessorSide,
+) -> Completion<ECMAScriptValue> {
+    let mut args = FuncArgs::from(arguments);
+    let key = args.next_arg();
+
+    // Legacy accessor lookup walks the prototype chain manually. It does not
+    // call ordinary [[Get]]: data properties stop the search and return
+    // undefined rather than continuing to prototypes.
+    let mut obj = to_object(this_value.clone())?;
+
+    // Key coercion happens once, before the prototype walk. Any side effects
+    // from ToPropertyKey therefore occur before observing the receiver's
+    // property descriptors or prototype chain.
+    let property_key = key.to_property_key()?;
+
+    loop {
+        let Some(property_desc) = obj.o.get_own_property(&property_key)? else {
+            let Some(proto) = obj.o.get_prototype_of()? else {
+                return Ok(ECMAScriptValue::Undefined);
+            };
+
+            obj = proto;
+            continue;
+        };
+
+        // Only accessor descriptors expose a getter/setter. A data descriptor
+        // with the same key shadows prototypes and produces undefined.
+        let PropertyKind::Accessor(accessor) = &property_desc.property else {
+            return Ok(ECMAScriptValue::Undefined);
+        };
+
+        return Ok(match side {
+            AccessorSide::Get => accessor.get.clone(),
+            AccessorSide::Set => accessor.set.clone(),
+        });
+    }
+}
+
+fn object_prototype_lookup_getter(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    lookup_accessor(this_value, arguments, AccessorSide::Get)
+}
+
+fn object_prototype_lookup_setter(
+    this_value: &ECMAScriptValue,
+    _new_target: Option<&Object>,
+    arguments: &[ECMAScriptValue],
+) -> Completion<ECMAScriptValue> {
+    lookup_accessor(this_value, arguments, AccessorSide::Set)
+}
 #[cfg(test)]
 mod tests;
