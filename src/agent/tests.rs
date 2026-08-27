@@ -1168,10 +1168,10 @@ mod global_declaration_instantiation {
     use test_case::test_case;
 
     #[test_case("var a" => Ok((sset(&["a"]), sset(&[]))); "one simple var-declared variable")]
-    #[test_case("let already_var_declared;" => serr("SyntaxError: already_var_declared: already defined"); "existing var decl")]
-    #[test_case("let existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "existing lex decl")]
-    #[test_case("let undefined;" => serr("SyntaxError: undefined is restricted and may not be used"); "restricted global")]
-    #[test_case("var existing_mutable;" => serr("SyntaxError: existing_mutable: already defined"); "var dups lex")]
+    #[test_case("let already_var_declared;" => serr("SyntaxError: already_var_declared is a restricted global property and may not be used as a lexical declaration"); "existing var decl")]
+    #[test_case("let existing_mutable;" => serr("SyntaxError: lexical existing_mutable: already defined in existing lexical declarations"); "existing lex decl")]
+    #[test_case("let undefined;" => serr("SyntaxError: undefined is a restricted global property and may not be used as a lexical declaration"); "restricted global")]
+    #[test_case("var existing_mutable;" => serr("SyntaxError: var existing_mutable: already defined in existing lexical declarations"); "var dups lex")]
     #[test_case("function undefined(){}" => serr("TypeError: Cannot create global function undefined"); "function named undefined")]
     #[test_case("var a; let b; const c=0; for (var item in object) {}" => Ok((sset(&["a", "item"]), sset(&["b", "c"]))); "many")]
     #[test_case("class bob{}" => Ok((sset(&[]), sset(&["bob"]))); "a class")]

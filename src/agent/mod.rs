@@ -5608,20 +5608,26 @@ pub(crate) fn global_declaration_instantiation(
     let lex_names = script.lexically_declared_names();
     let var_names = script.var_declared_names();
     for name in lex_names {
-        if env.has_var_declaration(&name) {
-            return Err(create_syntax_error(format!("{name}: already defined"), None));
-        }
         if env.has_lexical_declaration(&name) {
-            return Err(create_syntax_error(format!("{name}: already defined"), None));
+            return Err(create_syntax_error(
+                format!("lexical {name}: already defined in existing lexical declarations"),
+                None,
+            ));
         }
         let has_restricted_global = env.has_restricted_global_property(&name)?;
         if has_restricted_global {
-            return Err(create_syntax_error(format!("{name} is restricted and may not be used"), None));
+            return Err(create_syntax_error(
+                format!("{name} is a restricted global property and may not be used as a lexical declaration"),
+                None,
+            ));
         }
     }
     for name in var_names {
         if env.has_lexical_declaration(&name) {
-            return Err(create_syntax_error(format!("{name}: already defined"), None));
+            return Err(create_syntax_error(
+                format!("var {name}: already defined in existing lexical declarations"),
+                None,
+            ));
         }
     }
     let var_declarations = script.var_scoped_declarations();

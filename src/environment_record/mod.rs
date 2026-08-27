@@ -1360,19 +1360,6 @@ impl EnvironmentRecord for GlobalEnvironmentRecord {
 }
 
 impl GlobalEnvironmentRecord {
-    // HasVarDeclaration ( N )
-    //
-    // The HasVarDeclaration concrete method of a global Environment Record envRec takes argument N (a String). It
-    // determines if the argument identifier has a binding in this record that was created using a VariableStatement or
-    // a FunctionDeclaration. It performs the following steps when called:
-    //
-    //  1. Let varDeclaredNames be envRec.[[VarNames]].
-    //  2. If varDeclaredNames contains N, return true.
-    //  3. Return false.
-    pub(crate) fn has_var_declaration(&self, name: &JSString) -> bool {
-        self.var_names.borrow().contains(name)
-    }
-
     // HasLexicalDeclaration ( N )
     //
     // The HasLexicalDeclaration concrete method of a global Environment Record envRec takes argument N (a String). It
