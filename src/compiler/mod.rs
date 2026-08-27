@@ -6973,6 +6973,21 @@ impl EmptyStatement {
 
 impl IfStatement {
     fn compile(&self, chunk: &mut Chunk, strict: bool, source: &Rc<SourceTree>) -> anyhow::Result<AbruptResult> {
+        // start:
+        //   <expression>             ref/val/err
+        //   GET_VALUE                val/err
+        //   JUMP_IF_ABRUPT exit      val
+        //   JUMPPOP_IF_FALSE false
+        //   <true_statement>         result
+        //   JUMP after_statements    result
+        // false:
+        //   <false_statement>        result
+        // after_statements:          result
+        //   UNDEFINED                undefined result
+        //   SWAP                     result undefined
+        //   UPDATE_EMPTY             result
+        // exit:                      result
+
         let expression = self.expression();
         let first_statement = self.first_statement();
 
@@ -6987,8 +7002,6 @@ impl IfStatement {
             }
         };
 
-        let mut abrupt_exits = Vec::new();
-
         let expr_status = expression.compile(chunk, strict, source)?;
 
         // The condition may produce a reference; condition testing needs its value.
@@ -6997,17 +7010,16 @@ impl IfStatement {
         }
 
         // Preserve abrupt condition evaluation until the common exit.
-        if expr_status.maybe_abrupt() {
-            abrupt_exits.push(chunk.op_jump(Insn::JumpIfAbrupt, condition_line));
-        }
+        let exit = if expr_status.maybe_abrupt() || expr_status.maybe_ref() {
+            Some(chunk.op_jump(Insn::JumpIfAbrupt, condition_line))
+        } else {
+            None
+        };
 
         let condition_false = chunk.op_jump(Insn::JumpPopIfFalse, condition_line);
 
         // True path.
         let true_path_status = first_statement.compile(chunk, strict, source)?;
-        if true_path_status.maybe_abrupt() {
-            abrupt_exits.push(chunk.op_jump(Insn::JumpIfAbrupt, else_line));
-        }
 
         let true_path_complete = chunk.op_jump(Insn::Jump, else_line);
 
@@ -7022,19 +7034,14 @@ impl IfStatement {
             }
         };
 
-        if false_path_status.maybe_abrupt() {
-            abrupt_exits.push(chunk.op_jump(Insn::JumpIfAbrupt, end_of_if));
-        }
-
-        // Join the normal true/false completions. `UpdateEmpty` gives an
-        // if-without-else its `undefined` completion value when needed.
+        // Replace any empty completion with undefined, so that the if-statement always produces a value.
         chunk.fixup(true_path_complete)?;
         chunk.op(Insn::Undefined, end_of_if);
         chunk.op(Insn::Swap, end_of_if);
         chunk.op(Insn::UpdateEmpty, end_of_if);
 
         // All abrupt completions branch here, past the normal-completion join.
-        for exit in abrupt_exits {
+        if let Some(exit) = exit {
             chunk.fixup(exit)?;
         }
 

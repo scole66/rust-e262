@@ -5285,17 +5285,15 @@ mod if_statement {
         "STRING 0 (a)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 19",
-        "JUMPPOP_FALSE 8",
+        "JUMP_IF_ABRUPT 15",
+        "JUMPPOP_FALSE 6",
         "STRING 1 (b)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 11",
-        "JUMP 6",
+        "JUMP 4",
         "STRING 2 (c)",
         "STRICT_RESOLVE",
         "GET_VALUE",
-        "JUMP_IF_ABRUPT 3",
         "UNDEFINED",
         "SWAP",
         "UPDATE_EMPTY"
@@ -5306,7 +5304,6 @@ mod if_statement {
     #[test_case("if (true) @@@; else false;", true, None => serr("out of range integral type conversion attempted"); "true path too large")]
     #[test_case("if (true) false; else @@@;", true, None => serr("out of range integral type conversion attempted"); "false path too large")]
     #[test_case("if (a) false; else @@3;", true, None => serr("out of range integral type conversion attempted"); "expr err exit jump too far")]
-    #[test_case("if (true) a; else @@3;", true, None => serr("out of range integral type conversion attempted"); "s1 err exit jump too far")]
     fn compile(src: &str, strict: bool, spots_avail: Option<usize>) -> Result<(Vec<String>, bool), String> {
         let (node, ast) = Maker::new(src).if_statement_ast();
         let ast = Rc::new(ast);
