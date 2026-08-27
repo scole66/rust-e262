@@ -212,8 +212,8 @@ mod do_while {
 
     #[test_case("do { 1; } while (false);" => vok(1); "runs once")]
     #[test_case("let idx=0, result=''; do { result = result + idx++; } while (idx < 10);" => vok("0123456789"); "proof of iteration")]
-    #[test_case("let idx=0, result=''; do { result = result + idx++; if (idx >= 5) break; } while (idx < 10);" => vok("01234"); "break works")]
-    #[test_case("let idx=0, result=''; do { result = result + idx++; if (idx % 2 == 0) continue; result = result + '-'; } while (idx < 10);" => vok("0-12-34-56-78-9"); "continue works")]
+    #[test_case("let idx=0, result=''; do { result = result + idx++; if (idx >= 5) break; } while (idx < 10); result;" => vok("01234"); "break works")]
+    #[test_case("let idx=0, result=''; do { result = result + idx++; if (idx % 2 == 0) continue; result = result + '-'; } while (idx < 10); result;" => vok("0-12-34-56-78-9"); "continue works")]
     #[test_case("do a; while (false);" => serr("Thrown: ReferenceError: Unresolvable Reference"); "err in stmt")]
     #[test_case("do null; while (a);" => serr("Thrown: ReferenceError: Unresolvable Reference"); "err in expr")]
     fn run(src: &str) -> Result<ECMAScriptValue, String> {
@@ -224,9 +224,9 @@ mod do_while {
 
 #[test_case("while(false); 1" => vok(1); "runs zero")]
 #[test_case("let i=0, result=[]; while(i<10){result[i]=i;i++;} result.toString()" => vok("0,1,2,3,4,5,6,7,8,9"); "proof of iteration")]
-#[test_case("let i=0, result=''; while(i<10){result=result+i++; if (i>=5) break;}" => vok("01234"); "break works")]
-#[test_case("let i=0, result=''; while(i<10){result=result+i++;if (i%2==0)continue; result = result+'-';}" => vok("0-12-34-56-78-9"); "continue works")]
-#[test_case("let i=0,result=''; outer: while(i<10){let j=0; i++; while(j<10) {result=result+j++; if (j>i-1) continue outer;}}" => vok("0010120123012340123450123456012345670123456780123456789"); "labelled continue works")]
+#[test_case("let i=0, result=''; while(i<10){result=result+i++; if (i>=5) break;}result;" => vok("01234"); "break works")]
+#[test_case("let i=0, result=''; while(i<10){result=result+i++;if (i%2==0)continue; result = result+'-';}result;" => vok("0-12-34-56-78-9"); "continue works")]
+#[test_case("let i=0,result=''; outer: while(i<10){let j=0; i++; while(j<10) {result=result+j++; if (j>i-1) continue outer;}}result;" => vok("0010120123012340123450123456012345670123456780123456789"); "labelled continue works")]
 fn while_statement(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
@@ -1649,6 +1649,7 @@ fn argument_list(src: &str) -> Result<ECMAScriptValue, String> {
     => vok(10);
     "asi: let-newline-anything"
 )]
+#[test_case("eval('do { 3; if (true) { break; } 4; } while (false);');" => vok(ECMAScriptValue::Undefined); "do-while with break")]
 pub(crate) fn code(src: &str) -> Result<ECMAScriptValue, String> {
     setup_test_agent();
     process_ecmascript(src).map_err(|e| e.to_string())
