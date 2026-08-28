@@ -2738,8 +2738,7 @@ pub(crate) fn define_field(obj: &Object, field: &ClassFieldDefinitionRecord) -> 
     match field_name {
         ClassName::String(string) => obj.create_data_property_or_throw(string, init_value)?,
         ClassName::Symbol(symbol) => obj.create_data_property_or_throw(symbol.clone(), init_value)?,
-        ClassName::Private(pn) => private_field_add(obj, pn.clone(), init_value)
-            .expect("Private field duplication is protected, and this should never error"),
+        ClassName::Private(pn) => private_field_add(obj, pn.clone(), init_value)?,
     }
     Ok(())
 }
