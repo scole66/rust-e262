@@ -7,9 +7,9 @@ use std::io::Write;
 //      async [no LineTerminator here] * ClassElementName[?Yield, ?Await] ( UniqueFormalParameters[+Yield, +Await] ) { AsyncGeneratorBody }
 #[derive(Debug)]
 pub(crate) struct AsyncGeneratorMethod {
-    name: Rc<ClassElementName>,
-    params: Rc<UniqueFormalParameters>,
-    body: Rc<AsyncGeneratorBody>,
+    pub(crate) name: Rc<ClassElementName>,
+    pub(crate) params: Rc<UniqueFormalParameters>,
+    pub(crate) body: Rc<AsyncGeneratorBody>,
     location: Location,
 }
 

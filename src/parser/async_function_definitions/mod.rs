@@ -463,9 +463,9 @@ impl AsyncFunctionExpression {
 //      async [no LineTerminator here] ClassElementName[?Yield, ?Await] ( UniqueFormalParameters[~Yield, +Await] ) { AsyncFunctionBody }
 #[derive(Debug)]
 pub(crate) struct AsyncMethod {
-    ident: Rc<ClassElementName>,
-    params: Rc<UniqueFormalParameters>,
-    body: Rc<AsyncFunctionBody>,
+    pub(crate) ident: Rc<ClassElementName>,
+    pub(crate) params: Rc<UniqueFormalParameters>,
+    pub(crate) body: Rc<AsyncFunctionBody>,
     location: Location,
 }
 

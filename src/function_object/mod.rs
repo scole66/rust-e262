@@ -503,10 +503,11 @@ pub(crate) enum FunctionSource {
     GeneratorExpression(Rc<GeneratorExpression>),
     AsyncGeneratorExpression(Rc<AsyncGeneratorExpression>),
     AsyncFunctionExpression(Rc<AsyncFunctionExpression>),
+    AsyncMethod(Rc<AsyncMethod>),
+    AsyncGeneratorMethod(Rc<AsyncGeneratorMethod>),
     ArrowFunction(Rc<ArrowFunction>),
     AsyncArrowFunction(Rc<AsyncArrowFunction>),
     MethodDefinition(Rc<MethodDefinition>),
-    //HoistableDeclaration(Rc<HoistableDeclaration>),
     FieldDefinition(Rc<FieldDefinition>),
     ClassStaticBlock(Rc<ClassStaticBlock>),
     FunctionDeclaration(Rc<FunctionDeclaration>),
@@ -519,21 +520,22 @@ pub(crate) enum FunctionSource {
 impl fmt::Display for FunctionSource {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FunctionSource::FunctionExpression(node) => node.fmt(f),
-            FunctionSource::GeneratorExpression(node) => node.fmt(f),
-            FunctionSource::AsyncGeneratorExpression(node) => node.fmt(f),
-            FunctionSource::AsyncFunctionExpression(node) => node.fmt(f),
             FunctionSource::ArrowFunction(node) => node.fmt(f),
             FunctionSource::AsyncArrowFunction(node) => node.fmt(f),
-            FunctionSource::MethodDefinition(node) => node.fmt(f),
-            //FunctionSource::HoistableDeclaration(node) => node.fmt(f),
-            FunctionSource::FieldDefinition(node) => node.fmt(f),
-            FunctionSource::ClassStaticBlock(node) => node.fmt(f),
-            FunctionSource::FunctionDeclaration(node) => node.fmt(f),
-            FunctionSource::GeneratorDeclaration(node) => node.fmt(f),
-            FunctionSource::GeneratorMethod(node) => node.fmt(f),
             FunctionSource::AsyncFunctionDeclaration(node) => node.fmt(f),
+            FunctionSource::AsyncFunctionExpression(node) => node.fmt(f),
             FunctionSource::AsyncGeneratorDeclaration(node) => node.fmt(f),
+            FunctionSource::AsyncGeneratorExpression(node) => node.fmt(f),
+            FunctionSource::AsyncGeneratorMethod(node) => node.fmt(f),
+            FunctionSource::AsyncMethod(node) => node.fmt(f),
+            FunctionSource::ClassStaticBlock(node) => node.fmt(f),
+            FunctionSource::FieldDefinition(node) => node.fmt(f),
+            FunctionSource::FunctionDeclaration(node) => node.fmt(f),
+            FunctionSource::FunctionExpression(node) => node.fmt(f),
+            FunctionSource::GeneratorDeclaration(node) => node.fmt(f),
+            FunctionSource::GeneratorExpression(node) => node.fmt(f),
+            FunctionSource::GeneratorMethod(node) => node.fmt(f),
+            FunctionSource::MethodDefinition(node) => node.fmt(f),
         }
     }
 }
@@ -556,6 +558,8 @@ impl PartialEq for FunctionSource {
             (Self::GeneratorMethod(l0), Self::GeneratorMethod(r0)) => Rc::ptr_eq(l0, r0),
             (Self::AsyncFunctionDeclaration(l0), Self::AsyncFunctionDeclaration(r0)) => Rc::ptr_eq(l0, r0),
             (Self::AsyncGeneratorDeclaration(l0), Self::AsyncGeneratorDeclaration(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncMethod(l0), Self::AsyncMethod(r0)) => Rc::ptr_eq(l0, r0),
+            (Self::AsyncGeneratorMethod(l0), Self::AsyncGeneratorMethod(r0)) => Rc::ptr_eq(l0, r0),
             (
                 Self::FunctionExpression(_)
                 | Self::GeneratorExpression(_)
@@ -571,7 +575,8 @@ impl PartialEq for FunctionSource {
                 | Self::AsyncFunctionExpression(_)
                 | Self::AsyncFunctionDeclaration(_)
                 | Self::AsyncGeneratorExpression(_)
-                | Self::AsyncGeneratorDeclaration(_),
+                | Self::AsyncGeneratorDeclaration(_)
+                | Self::AsyncMethod(_)|Self::AsyncGeneratorMethod(_),
                 _,
             ) => false,
         }
@@ -645,6 +650,16 @@ impl From<Rc<AsyncGeneratorExpression>> for FunctionSource {
 impl From<Rc<AsyncGeneratorDeclaration>> for FunctionSource {
     fn from(value: Rc<AsyncGeneratorDeclaration>) -> Self {
         Self::AsyncGeneratorDeclaration(value)
+    }
+}
+impl From<Rc<AsyncMethod>> for FunctionSource {
+    fn from(value: Rc<AsyncMethod>) -> Self {
+        Self::AsyncMethod(value)
+    }
+}
+impl From<Rc<AsyncGeneratorMethod>> for FunctionSource {
+    fn from(value: Rc<AsyncGeneratorMethod>) -> Self {
+        Self::AsyncGeneratorMethod(value)
     }
 }
 impl TryFrom<FunctionSource> for Rc<FunctionExpression> {
@@ -777,24 +792,46 @@ impl TryFrom<FunctionSource> for Rc<AsyncGeneratorDeclaration> {
         }
     }
 }
+impl TryFrom<FunctionSource> for Rc<AsyncMethod> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::AsyncMethod(node) => Ok(node),
+            _ => bail!("AsyncMethod expected"),
+        }
+    }
+}
+impl TryFrom<FunctionSource> for Rc<AsyncGeneratorMethod> {
+    type Error = anyhow::Error;
+
+    fn try_from(value: FunctionSource) -> Result<Self, Self::Error> {
+        match value {
+            FunctionSource::AsyncGeneratorMethod(node) => Ok(node),
+            _ => bail!("AsyncGeneratorMethod expected"),
+        }
+    }
+}
 
 impl FunctionSource {
     pub(crate) fn location(&self) -> Location {
         match self {
-            FunctionSource::FunctionExpression(node) => node.location(),
-            FunctionSource::GeneratorExpression(node) => node.location(),
-            FunctionSource::AsyncGeneratorExpression(node) => node.location(),
-            FunctionSource::AsyncFunctionExpression(node) => node.location(),
             FunctionSource::ArrowFunction(node) => node.location(),
-            FunctionSource::MethodDefinition(node) => node.location(),
-            FunctionSource::FieldDefinition(node) => node.location(),
-            FunctionSource::ClassStaticBlock(node) => node.location(),
-            FunctionSource::FunctionDeclaration(node) => node.location(),
-            FunctionSource::GeneratorDeclaration(node) => node.location(),
-            FunctionSource::GeneratorMethod(node) => node.location(),
-            FunctionSource::AsyncFunctionDeclaration(node) => node.location(),
             FunctionSource::AsyncArrowFunction(node) => node.location(),
+            FunctionSource::AsyncFunctionDeclaration(node) => node.location(),
+            FunctionSource::AsyncFunctionExpression(node) => node.location(),
             FunctionSource::AsyncGeneratorDeclaration(node) => node.location(),
+            FunctionSource::AsyncGeneratorExpression(node) => node.location(),
+            FunctionSource::AsyncGeneratorMethod(node) => node.location(),
+            FunctionSource::AsyncMethod(node) => node.location(),
+            FunctionSource::ClassStaticBlock(node) => node.location(),
+            FunctionSource::FieldDefinition(node) => node.location(),
+            FunctionSource::FunctionDeclaration(node) => node.location(),
+            FunctionSource::FunctionExpression(node) => node.location(),
+            FunctionSource::GeneratorDeclaration(node) => node.location(),
+            FunctionSource::GeneratorExpression(node) => node.location(),
+            FunctionSource::GeneratorMethod(node) => node.location(),
+            FunctionSource::MethodDefinition(node) => node.location(),
         }
     }
 }

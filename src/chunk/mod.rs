@@ -395,7 +395,11 @@ impl Chunk {
                 let flags_arg = self.opcodes[idx + 1] as usize;
                 (3, format!("    {insn:<24}/{}/{}", self.strings[pattern_arg], self.strings[flags_arg]))
             }
-            Insn::DefineGetter | Insn::DefineSetter | Insn::InstantiateGeneratorMethod => {
+            Insn::DefineGetter
+            | Insn::DefineSetter
+            | Insn::InstantiateGeneratorMethod
+            | Insn::DefineAsyncMethod
+            | Insn::DefineAsyncGenerator => {
                 let arg = self.opcodes[idx] as usize;
                 let flag = self.opcodes[idx + 1] != 0;
                 (3, format!("    {:<24}{} {}", insn, arg, if flag { "enumerable" } else { "hidden" }))
