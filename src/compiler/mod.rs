@@ -45,6 +45,8 @@ pub(crate) enum Insn {
     CreateUnmappedArguments,
     Debugger,
     Decrement,
+    DefineAsyncGenerator,
+    DefineAsyncMethod,
     DefineGetter,
     DefineMethod,
     DefineMethodProperty,
@@ -407,6 +409,8 @@ impl fmt::Display for Insn {
             Insn::EvaluateInitializedClassStaticFieldDefinition => "EVAL_CLS_STC_FLD_DEF",
             Insn::EvaluateClassStaticBlockDefinition => "EVAL_CLASS_SBLK_DEF",
             Insn::DefineMethod => "DEFINE_METHOD",
+            Insn::DefineAsyncMethod => "DEFINE_ASYNC_METH",
+            Insn::DefineAsyncGenerator => "DEFINE_ASYNC_GEN",
             Insn::SetFunctionName => "SET_FUNC_NAME",
             Insn::DefineMethodProperty => "DEF_METH_PROP",
             Insn::DefineGetter => "DEF_GETTER",
@@ -1243,6 +1247,28 @@ impl AsyncFunctionExpression {
                 Ok(AlwaysAbruptResult)
             }
         }
+    }
+}
+
+impl AsyncGeneratorBody {
+    pub(crate) fn compile_body(
+        &self,
+        chunk: &mut Chunk,
+        source: &Rc<SourceTree>,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<CompilerStatusFlags> {
+        self.compile_evaluate_async_generator_body(chunk, source, info)
+    }
+
+    #[expect(unused_variables, clippy::unnecessary_wraps)]
+    pub(crate) fn compile_evaluate_async_generator_body(
+        &self,
+        chunk: &mut Chunk,
+        source: &Rc<SourceTree>,
+        info: &StashedFunctionData,
+    ) -> anyhow::Result<CompilerStatusFlags> {
+        chunk.op(Insn::ToDo, self.location().starting_line);
+        Ok(CompilerStatusFlags::from(AlwaysAbruptResult))
     }
 }
 
@@ -12408,8 +12434,84 @@ impl MethodDefinition {
                 Ok(AlwaysAbruptResult)
             }
             MethodDefinition::Generator(r#gen) => r#gen.method_definition_evaluation(enumerable, chunk, strict, source),
-            MethodDefinition::Async(_) => todo!(),
-            MethodDefinition::AsyncGenerator(_) => todo!(),
+            MethodDefinition::Async(node) => {
+                // AsyncMethod : async ClassElementName ( UniqueFormalParameters ) { AsyncFunctionBody }
+                // 1. Let propertyKey be ? Evaluation of ClassElementName.
+                // 2. Let envRecord be the LexicalEnvironment of the running execution context.
+                // 3. Let privateEnv be the running execution context's PrivateEnvironment.
+                // 4. Let sourceText be the source text matched by AsyncMethod.
+                // 5. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, UniqueFormalParameters, AsyncFunctionBody, non-lexical-this, envRecord, privateEnv).
+                // 6. Perform MakeMethod(closure, obj).
+                // 7. Perform SetFunctionName(closure, propertyKey).
+                // 8. Return ? DefineMethodProperty(obj, propertyKey, closure, enumerable).
+
+                // start:                        object
+                //   <name.evaluate>             err/propKey object
+                //   JUMP_IF_ABRUPT unwind_1     propKey object
+                //   DEFINE_ASYNC_METH           err/empty/PrivateElement
+                //   JUMP exit
+                // unwind_1:                     err object
+                //   UNWIND 1                    err
+                // exit:                         err/empty/PrivateElement
+                let location = node.location();
+                let status = node.ident.compile(chunk, source)?;
+                let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+                let source_text = source.text
+                    [location.span.starting_index..location.span.starting_index + location.span.length]
+                    .to_string();
+                let info = StashedFunctionData {
+                    source_text,
+                    params: node.params.clone().into(),
+                    body: node.body.clone().into(),
+                    to_compile: node.clone().into(),
+                    strict,
+                    this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
+                };
+                let idx = chunk.add_to_func_stash(info)?;
+                chunk.op_plus_two_args(Insn::DefineAsyncMethod, idx, u16::from(enumerable), line);
+                if let Some(unwind) = unwind {
+                    let exit = chunk.op_jump(Insn::Jump, line);
+                    chunk.fixup(unwind).expect("jump too short to fail");
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
+                    chunk.fixup(exit).expect("jump too short to fail");
+                }
+                Ok(AlwaysAbruptResult)
+            }
+            MethodDefinition::AsyncGenerator(node) => {
+                // start:                        object
+                //   <name.evaluate>             err/propKey object
+                //   JUMP_IF_ABRUPT unwind_1     propKey object
+                //   DEFINE_ASYNC_GEN            err/empty/PrivateElement
+                //   JUMP exit
+                // unwind_1:                     err object
+                //   UNWIND 1                    err
+                // exit:                         err/empty/PrivateElement
+                let location = node.location();
+                let status = node.name.compile(chunk, source)?;
+                let unwind = if status.maybe_abrupt() { Some(chunk.op_jump(Insn::JumpIfAbrupt, line)) } else { None };
+                let source_text = source.text
+                    [location.span.starting_index..location.span.starting_index + location.span.length]
+                    .to_string();
+                let info = StashedFunctionData {
+                    source_text,
+                    params: node.params.clone().into(),
+                    body: node.body.clone().into(),
+                    to_compile: node.clone().into(),
+                    strict,
+                    this_mode: ThisLexicality::NonLexicalThis,
+                    parent_tree: source.clone(),
+                };
+                let idx = chunk.add_to_func_stash(info)?;
+                chunk.op_plus_two_args(Insn::DefineAsyncGenerator, idx, u16::from(enumerable), line);
+                if let Some(unwind) = unwind {
+                    let exit = chunk.op_jump(Insn::Jump, line);
+                    chunk.fixup(unwind).expect("jump too short to fail");
+                    chunk.op_plus_arg(Insn::Unwind, 1, line);
+                    chunk.fixup(exit).expect("jump too short to fail");
+                }
+                Ok(AlwaysAbruptResult)
+            }
             MethodDefinition::Getter(name, body, location) => {
                 // MethodDefinition : get ClassElementName ( ) { FunctionBody }
                 //  1. Let propKey be ? Evaluation of ClassElementName.

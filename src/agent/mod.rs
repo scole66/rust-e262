@@ -3793,6 +3793,127 @@ mod insn_impl {
         push_completion(result.map(NormalCompletion::from)).expect(PUSHABLE);
         Ok(())
     }
+
+    pub(crate) fn define_async_method(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Takes two args: idx into function stash and enumerable flag
+        // stack input: propkey object
+        // output: err/empty/PrivateElement
+        let info = sfd_operand(chunk)?;
+        let enumerable = usize_operand(chunk)? != 0;
+        let prop_key = pop_functionname()?;
+        let base_object = pop_obj()?;
+
+        // 2. Let envRecord be the LexicalEnvironment of the running execution context.
+        let env_record = current_lexical_environment().expect("environment should exist");
+        // 3. Let privateEnv be the running execution context's PrivateEnvironment.
+        let priv_env = current_private_environment();
+        // 4. Let sourceText be the source text matched by AsyncMethod.
+        // 5. Let closure be OrdinaryFunctionCreate(%AsyncFunction.prototype%, sourceText, UniqueFormalParameters, AsyncFunctionBody, non-lexical-this, envRecord, privateEnv).
+        let to_compile: Rc<AsyncMethod> = info.to_compile.clone().try_into()?;
+        let fb = &to_compile.body;
+        let prod_text_loc = to_compile.location().span;
+        let prod_text =
+            &info.parent_tree.text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+        let chunk_name = nameify(prod_text, 50);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
+        let compilation_status = fb.compile_body(&mut compiled, &info.parent_tree, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+
+        #[cfg(debug_assertions)]
+        for line in compiled.disassemble(&info.parent_tree.text) {
+            println!("{line}");
+        }
+
+        let prototype = intrinsic(IntrinsicId::AsyncFunctionPrototype);
+        let closure = ordinary_function_create(
+            prototype,
+            &info.source_text,
+            info.params.clone(),
+            info.body.clone(),
+            info.this_mode,
+            env_record,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        make_method(closure.o.to_function_obj().unwrap(), base_object.clone());
+        super::set_function_name(&closure, prop_key.clone(), Some("set".into()));
+
+        // 6. Perform MakeMethod(closure, obj).
+        // 7. Perform SetFunctionName(closure, propertyKey).
+        // 8. Return ? DefineMethodProperty(obj, propertyKey, closure, enumerable).
+        let rval =
+            super::define_method_property(&base_object, prop_key, closure, enumerable).map(NormalCompletion::from);
+        push_completion(rval).expect(PUSHABLE);
+        Ok(())
+    }
+    pub(crate) fn define_async_generator(chunk: &Rc<Chunk>) -> anyhow::Result<()> {
+        // Takes two args: idx into function stash and enumerable flag
+        // stack input: propkey object
+        // output: err/empty/PrivateElement
+        let info = sfd_operand(chunk)?;
+        let enumerable = usize_operand(chunk)? != 0;
+        let prop_key = pop_functionname()?;
+        let base_object = pop_obj()?;
+
+        // 2. Let envRecord be the LexicalEnvironment of the running execution context.
+        let env_record = current_lexical_environment().expect("environment should exist");
+        // 3. Let privateEnv be the running execution context's PrivateEnvironment.
+        let priv_env = current_private_environment();
+        // 4. Let sourceText be the source text matched by AsyncMethod.
+        // 5. Let closure be OrdinaryFunctionCreate(%AsyncGeneratorFunction.prototype%, sourceText, UniqueFormalParameters, AsyncFunctionBody, non-lexical-this, envRecord, privateEnv).
+        let to_compile: Rc<AsyncGeneratorMethod> = info.to_compile.clone().try_into()?;
+        let fb = &to_compile.body;
+        let prod_text_loc = to_compile.location().span;
+        let prod_text =
+            &info.parent_tree.text[prod_text_loc.starting_index..prod_text_loc.starting_index + prod_text_loc.length];
+        let chunk_name = nameify(prod_text, 50);
+        let mut compiled = Chunk::new(chunk_name, to_compile.location().starting_line);
+        let compilation_status = fb.compile_body(&mut compiled, &info.parent_tree, info);
+        if let Err(err) = compilation_status {
+            let typeerror = create_type_error(err.to_string());
+            push_completion(Err(typeerror)).expect(PUSHABLE);
+            return Ok(());
+        }
+
+        #[cfg(debug_assertions)]
+        for line in compiled.disassemble(&info.parent_tree.text) {
+            println!("{line}");
+        }
+
+        let prototype = intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototype);
+        let closure = ordinary_function_create(
+            prototype,
+            &info.source_text,
+            info.params.clone(),
+            info.body.clone(),
+            info.this_mode,
+            env_record,
+            priv_env,
+            info.strict,
+            Rc::new(compiled),
+        );
+        make_method(closure.o.to_function_obj().unwrap(), base_object.clone());
+        super::set_function_name(&closure, prop_key.clone(), Some("set".into()));
+
+        let protoproto = intrinsic(IntrinsicId::AsyncGeneratorFunctionPrototypePrototype);
+        define_property_or_throw(
+            &closure,
+            "prototype",
+            PotentialPropertyDescriptor::new().value(protoproto).writable(true),
+        )
+        .expect(GOODOBJ);
+
+        // 8. Return ? DefineMethodProperty(obj, propertyKey, closure, enumerable).
+        let rval =
+            super::define_method_property(&base_object, prop_key, closure, enumerable).map(NormalCompletion::from);
+        push_completion(rval).expect(PUSHABLE);
+        Ok(())
+    }
     pub(crate) fn generator_start_from_function(source: &Rc<SourceTree>) -> anyhow::Result<()> {
         //  2. Let G be ? OrdinaryCreateFromConstructor(functionObject,
         //     "%GeneratorFunction.prototype.prototype%", « [[GeneratorState]], [[GeneratorContext]],
@@ -4847,6 +4968,8 @@ pub(crate) async fn execute(
             Insn::DefineMethodProperty => insn_impl::define_method_property(&chunk).expect(GOODCODE),
             Insn::DefineGetter => insn_impl::define_getter(&chunk).expect(GOODCODE),
             Insn::DefineSetter => insn_impl::define_setter(&chunk).expect(GOODCODE),
+            Insn::DefineAsyncGenerator => insn_impl::define_async_generator(&chunk).expect(GOODCODE),
+            Insn::DefineAsyncMethod => insn_impl::define_async_method(&chunk).expect(GOODCODE),
             Insn::GetParentsFromSuperclass => insn_impl::get_parents_from_superclass().expect(GOODCODE),
             Insn::CreateDefaultConstructor => insn_impl::create_default_constructor().expect(GOODCODE),
             Insn::MakeClassConstructorAndSetName => insn_impl::make_class_constructor_and_set_name().expect(GOODCODE),

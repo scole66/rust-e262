@@ -13828,8 +13828,8 @@ mod method_definition {
     )]
     #[test_case("set a(b){}", true, &[], true => Ok(svec(&["00001: set a(b){}", "STRING 0 (a)", "DEF_SETTER 0 enumerable"])); "setter")]
     #[test_case("*a(){}", true, &[], true => Ok(svec(&["00001: *a(){}", "STRING 0 (a)", "GEN_METHOD 0 enumerable"])); "generator")]
-    #[test_case("async a(){}", true, &[], true => panics "not yet implemented"; "async function")]
-    #[test_case("async *a(){}", true, &[], true => panics "not yet implemented"; "async generator")]
+    #[test_case("async a(){}", true, &[], true => Ok(svec(&["00001: async a(){}", "STRING 0 (a)", "DEFINE_ASYNC_METH 0 enumerable"])); "async function")]
+    #[test_case("async *a(){}", true, &[], true => Ok(svec(&["00001: async *a(){}", "STRING 0 (a)", "DEFINE_ASYNC_GEN 0 enumerable"])); "async generator")]
     fn method_definition_evaluation(
         src: &str,
         strict: bool,
